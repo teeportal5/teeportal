@@ -1,8 +1,3 @@
-// ============================================
-// TEEPORTAL - Theological Education by Extension
-// Complete Administration System
-// ============================================
-
 // Check if supabase is already declared
 if (typeof window.supabaseClient === 'undefined') {
     const SUPABASE_URL = 'https://kmkjsessuzdfadlmndyr.supabase.co';
