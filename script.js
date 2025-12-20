@@ -1,4 +1,4 @@
-complete this // ============================================
+ // ============================================
 // TEEPORTAL - Theological Education by Extension
 // Complete Administration System
 // ============================================
