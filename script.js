@@ -1,10 +1,8 @@
-// Check if supabase is already declared
-if (typeof window.supabaseClient === 'undefined') {
-    const SUPABASE_URL = 'https://kmkjsessuzdfadlmndyr.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtta2pzZXNzdXpkZmFkbG1uZHlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYyNTA1MzUsImV4cCI6MjA4MTgyNjUzNX0.16m_thmf2Td8uB5lan8vZDLkGkWIlftaxSOroqvDkU4';
-    window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-}
-let supabase = window.supabaseClient;
+// ============================================
+// TEEPORTAL - Theological Education by Extension
+// Complete Administration System
+// ============================================
+
 // State Management
 let currentState = {
     students: [],
@@ -43,13 +41,41 @@ let currentState = {
 // DOM Elements Cache
 const elements = {};
 
+// Supabase client variable (will be initialized after DOM loads)
+let supabase;
+
 // ============================================
 // INITIALIZATION
 // ============================================
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('TEEPortal Initializing...');
-    initializeApp();
+    
+    // Initialize Supabase client
+    try {
+        if (typeof window.supabaseClient === 'undefined') {
+            const SUPABASE_URL = 'https://kmkjsessuzdfadlmndyr.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtta2pzZXNzdXpkZmFkbG1uZHlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYyNTA1MzUsImV4cCI6MjA4MTgyNjUzNX0.16m_thmf2Td8uB5lan8vZDLkGkWIlftaxSOroqvDkU4';
+            
+            if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+                window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                supabase = window.supabaseClient;
+                console.log('Supabase client initialized successfully');
+            } else {
+                console.error('Supabase library not loaded');
+                showToast('Error: Supabase library not loaded. Please refresh the page.', 'error');
+                return;
+            }
+        } else {
+            supabase = window.supabaseClient;
+            console.log('Using existing Supabase client');
+        }
+        
+        initializeApp();
+    } catch (error) {
+        console.error('Error initializing Supabase:', error);
+        showToast('Error initializing database: ' + error.message, 'error');
+    }
 });
 
 async function initializeApp() {
