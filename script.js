@@ -27,21 +27,33 @@ let currentState = {
         { grade: 'C', min: 60, max: 64, points: 2.0, description: 'Satisfactory' },
         { grade: 'D', min: 50, max: 59, points: 1.0, description: 'Pass' },
         { grade: 'F', min: 0, max: 49, points: 0.0, description: 'Fail' }
-    ]
+    ],
+    settings: {
+        instituteName: 'Theological Education by Extension College',
+        minPassingGrade: 'D',
+        maxCredits: 18,
+        attendanceThreshold: 75,
+        dateFormat: 'DD/MM/YYYY',
+        timezone: 'Africa/Nairobi',
+        language: 'en',
+        enableBasicTEE: true,
+        enableHNC: true,
+        enableAdvancedTEE: false,
+        enableTEENS: false
+    }
 };
 
 // DOM Elements Cache
 const elements = {};
 
-// Initialize the application
+// ============================================
+// INITIALIZATION
+// ============================================
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log('TEEPortal Initializing...');
     initializeApp();
 });
-
-// ============================================
-// INITIALIZATION FUNCTIONS
-// ============================================
 
 async function initializeApp() {
     try {
@@ -66,8 +78,11 @@ async function initializeApp() {
         // Update UI
         updateDashboard();
         
+        // Load settings
+        loadSettings();
+        
         console.log('TEEPortal initialized successfully');
-        showToast('System initialized successfully', 'success');
+        showToast('TEE Portal initialized successfully', 'success');
         
     } catch (error) {
         console.error('Initialization error:', error);
@@ -173,6 +188,22 @@ function setupEventListeners() {
             showSettingsTab(tabId);
         });
     });
+    
+    // Search inputs
+    const searchStudentsInput = document.getElementById('searchStudents');
+    if (searchStudentsInput) {
+        searchStudentsInput.addEventListener('input', searchStudents);
+    }
+    
+    const searchCoursesInput = document.getElementById('searchCourses');
+    if (searchCoursesInput) {
+        searchCoursesInput.addEventListener('input', searchCourses);
+    }
+}
+
+function initializeCharts() {
+    updateProgramChart();
+    updateGradesChart();
 }
 
 function startRealtimeSubscriptions() {
@@ -202,11 +233,47 @@ function startRealtimeSubscriptions() {
         )
         .subscribe();
     
+    // Subscribe to courses table changes
+    const coursesSubscription = supabase
+        .channel('courses-changes')
+        .on('postgres_changes', 
+            { event: '*', schema: 'public', table: 'courses' }, 
+            async (payload) => {
+                console.log('Courses changed:', payload);
+                await loadCourses();
+                updateDashboard();
+            }
+        )
+        .subscribe();
+    
     // Store subscriptions
     currentState.subscriptions = {
         students: studentsSubscription,
-        marks: marksSubscription
+        marks: marksSubscription,
+        courses: coursesSubscription
     };
+}
+
+function loadSettings() {
+    const settings = JSON.parse(localStorage.getItem('teeportalSettings') || '{}');
+    currentState.settings = { ...currentState.settings, ...settings };
+    applySettings();
+}
+
+function applySettings() {
+    // Apply settings to UI
+    const settings = currentState.settings;
+    
+    // Update institute name
+    const instituteElements = document.querySelectorAll('.institute-name');
+    instituteElements.forEach(el => {
+        el.textContent = settings.instituteName;
+    });
+    
+    // Apply dark mode if enabled
+    if (localStorage.getItem('darkMode') === 'true') {
+        document.body.classList.add('dark-mode');
+    }
 }
 
 // ============================================
@@ -244,6 +311,9 @@ function showSection(sectionId) {
                 break;
             case 'reports':
                 // Initialize reports
+                break;
+            case 'settings':
+                loadSettingsUI();
                 break;
         }
     }
@@ -363,7 +433,7 @@ async function saveStudent(event) {
             marital_status: document.getElementById('maritalStatus').value,
             home_church: document.getElementById('homeChurch').value,
             program: document.getElementById('program').value,
-            intake_year: document.getElementById('intakeYear').value,
+            intake_year: parseInt(document.getElementById('intakeYear').value),
             study_mode: document.getElementById('studyMode').value,
             enrollment_date: document.getElementById('enrollmentDate').value,
             email: document.getElementById('email').value,
@@ -520,7 +590,7 @@ function filterStudents() {
     }
     
     if (intakeYear) {
-        filtered = filtered.filter(s => s.intake_year === intakeYear);
+        filtered = filtered.filter(s => s.intake_year == intakeYear);
     }
     
     if (status) {
@@ -604,8 +674,8 @@ async function saveCourse(event) {
             course_code: document.getElementById('courseCode').value,
             course_name: document.getElementById('courseName').value,
             program: document.getElementById('courseProgram').value,
-            level: document.getElementById('courseLevel').value,
-            credits: document.getElementById('courseCredits').value,
+            level: parseInt(document.getElementById('courseLevel').value),
+            credits: parseInt(document.getElementById('courseCredits').value),
             semester: document.getElementById('courseSemester').value,
             description: document.getElementById('courseDescription').value,
             status: document.getElementById('courseStatus').value
@@ -1106,7 +1176,7 @@ async function saveIntake(event) {
         const programs = Array.from(programCheckboxes).map(cb => cb.value);
         
         const intakeData = {
-            year: document.getElementById('intakeYear').value,
+            year: parseInt(document.getElementById('intakeYear').value),
             semester: document.getElementById('intakeSemester').value,
             name: document.getElementById('intakeName').value,
             start_date: document.getElementById('intakeStartDate').value,
@@ -1524,6 +1594,98 @@ function showSettingsTab(tabId) {
     });
 }
 
+function loadSettingsUI() {
+    const settings = currentState.settings;
+    
+    // Populate settings form
+    document.getElementById('instituteName').value = settings.instituteName;
+    document.getElementById('minPassingGrade').value = settings.minPassingGrade;
+    document.getElementById('maxCredits').value = settings.maxCredits;
+    document.getElementById('attendanceThreshold').value = settings.attendanceThreshold;
+    document.getElementById('dateFormat').value = settings.dateFormat;
+    document.getElementById('timezone').value = settings.timezone;
+    document.getElementById('language').value = settings.language;
+    
+    // Program settings
+    document.getElementById('enableBasicTEE').checked = settings.enableBasicTEE;
+    document.getElementById('enableHNC').checked = settings.enableHNC;
+    document.getElementById('enableAdvancedTEE').checked = settings.enableAdvancedTEE;
+    document.getElementById('enableTEENS').checked = settings.enableTEENS;
+    
+    // Populate grading system
+    renderGradingSystem();
+}
+
+function saveSettings() {
+    const settings = {
+        instituteName: document.getElementById('instituteName').value,
+        minPassingGrade: document.getElementById('minPassingGrade').value,
+        maxCredits: parseInt(document.getElementById('maxCredits').value),
+        attendanceThreshold: parseInt(document.getElementById('attendanceThreshold').value),
+        dateFormat: document.getElementById('dateFormat').value,
+        timezone: document.getElementById('timezone').value,
+        language: document.getElementById('language').value,
+        enableBasicTEE: document.getElementById('enableBasicTEE').checked,
+        enableHNC: document.getElementById('enableHNC').checked,
+        enableAdvancedTEE: document.getElementById('enableAdvancedTEE').checked,
+        enableTEENS: document.getElementById('enableTEENS').checked
+    };
+    
+    currentState.settings = settings;
+    localStorage.setItem('teeportalSettings', JSON.stringify(settings));
+    applySettings();
+    showToast('Settings saved successfully', 'success');
+}
+
+function renderGradingSystem() {
+    const container = document.getElementById('gradingRows');
+    if (!container) return;
+    
+    let html = '';
+    currentState.gradingSystem.forEach((grade, index) => {
+        html += `
+            <div class="grading-row">
+                <input type="text" value="${grade.grade}" onchange="updateGrade(${index}, 'grade', this.value)">
+                <input type="number" value="${grade.min}" onchange="updateGrade(${index}, 'min', this.value)">
+                <input type="number" value="${grade.max}" onchange="updateGrade(${index}, 'max', this.value)">
+                <input type="number" value="${grade.points}" step="0.1" onchange="updateGrade(${index}, 'points', this.value)">
+                <input type="text" value="${grade.description}" onchange="updateGrade(${index}, 'description', this.value)">
+                <button class="btn-action btn-delete" onclick="removeGrade(${index})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function updateGrade(index, field, value) {
+    currentState.gradingSystem[index][field] = field === 'points' ? parseFloat(value) : 
+                                               (field === 'min' || field === 'max') ? parseInt(value) : value;
+    localStorage.setItem('gradingSystem', JSON.stringify(currentState.gradingSystem));
+}
+
+function addGradeRow() {
+    currentState.gradingSystem.push({
+        grade: 'New',
+        min: 0,
+        max: 100,
+        points: 0.0,
+        description: 'New Grade'
+    });
+    renderGradingSystem();
+}
+
+function removeGrade(index) {
+    if (currentState.gradingSystem.length > 1) {
+        currentState.gradingSystem.splice(index, 1);
+        renderGradingSystem();
+    } else {
+        showToast('Cannot remove the last grade', 'warning');
+    }
+}
+
 function getTimeAgo(date) {
     const seconds = Math.floor((new Date() - date) / 1000);
     
@@ -1619,6 +1781,125 @@ function showToast(message, type = 'info') {
 }
 
 // ============================================
+// ADDITIONAL FUNCTIONS
+// ============================================
+
+function editCourse(courseId) {
+    const course = currentState.courses.find(c => c.id === courseId);
+    if (course) {
+        showCourseForm(course);
+    }
+}
+
+async function deleteCourse(courseId) {
+    const confirmed = await showConfirmModal('Are you sure you want to delete this course? This will also delete all associated marks.');
+    if (!confirmed) return;
+    
+    try {
+        const { error } = await supabase
+            .from('courses')
+            .delete()
+            .eq('id', courseId);
+        
+        if (error) throw error;
+        
+        showToast('Course deleted successfully', 'success');
+        await loadCourses();
+    } catch (error) {
+        console.error('Error deleting course:', error);
+        showToast('Error deleting course: ' + error.message, 'error');
+    }
+}
+
+function editMarks(marksId) {
+    const marks = currentState.marks.find(m => m.id === marksId);
+    if (marks) {
+        // Populate marks form
+        document.getElementById('marksId').value = marks.id;
+        document.getElementById('marksStudent').value = marks.student_id;
+        document.getElementById('marksCourse').value = marks.course_id;
+        document.getElementById('marksAssessment').value = marks.assessment_type;
+        document.getElementById('marksDate').value = marks.assessment_date;
+        document.getElementById('marksObtained').value = marks.marks_obtained;
+        document.getElementById('marksTotal').value = marks.total_marks;
+        document.getElementById('marksRemarks').value = marks.remarks;
+        
+        // Calculate and display
+        calculateMarks();
+        
+        // Scroll to form
+        showMarksForm();
+    }
+}
+
+async function deleteMarks(marksId) {
+    const confirmed = await showConfirmModal('Are you sure you want to delete this marks record?');
+    if (!confirmed) return;
+    
+    try {
+        const { error } = await supabase
+            .from('marks')
+            .delete()
+            .eq('id', marksId);
+        
+        if (error) throw error;
+        
+        showToast('Marks record deleted successfully', 'success');
+        await loadMarks();
+    } catch (error) {
+        console.error('Error deleting marks:', error);
+        showToast('Error deleting marks: ' + error.message, 'error');
+    }
+}
+
+function editIntake(intakeId) {
+    const intake = currentState.intakes.find(i => i.id === intakeId);
+    if (intake) {
+        showIntakeForm(intake);
+    }
+}
+
+function viewIntakeYear(year) {
+    // Filter students by intake year
+    const filteredStudents = currentState.students.filter(s => s.intake_year == year);
+    showSection('students');
+    
+    // Set filter and render
+    document.getElementById('filterIntakeYear').value = year;
+    renderStudentsTable(filteredStudents);
+}
+
+function viewIntakeDetails(intakeId) {
+    const intake = currentState.intakes.find(i => i.id === intakeId);
+    if (intake) {
+        alert(`Intake Details:\n\nName: ${intake.name}\nYear: ${intake.year}\nSemester: ${intake.semester}\nStatus: ${intake.status}\nStart: ${intake.start_date}\nEnd: ${intake.end_date}\nPrograms: ${JSON.parse(intake.programs || '[]').join(', ')}`);
+    }
+}
+
+function viewStudent(studentId) {
+    const student = currentState.students.find(s => s.id === studentId);
+    if (student) {
+        // Create student details modal
+        const details = `
+            <div class="student-details">
+                <h3>${student.first_name} ${student.last_name}</h3>
+                <p><strong>Registration No:</strong> ${student.registration_number}</p>
+                <p><strong>Program:</strong> ${student.program}</p>
+                <p><strong>Intake Year:</strong> ${student.intake_year}</p>
+                <p><strong>Email:</strong> ${student.email}</p>
+                <p><strong>Phone:</strong> ${student.phone}</p>
+                <p><strong>Status:</strong> ${student.status}</p>
+                <p><strong>Enrollment Date:</strong> ${student.enrollment_date}</p>
+            </div>
+        `;
+        
+        showConfirmModal(details, null);
+        document.getElementById('confirmYes').style.display = 'none';
+        document.getElementById('confirmNo').textContent = 'Close';
+    }
+}
+
+// ============================================
 // EXPORT FUNCTIONS
 // ============================================
 
@@ -1681,6 +1962,305 @@ function refreshAll() {
 }
 
 // ============================================
+// REPORT FUNCTIONS
+// ============================================
+
+function generateReport() {
+    const reportType = document.getElementById('reportType').value;
+    const program = document.getElementById('reportProgram').value;
+    const intakeYear = document.getElementById('reportIntake').value;
+    const format = document.getElementById('reportFormat').value;
+    
+    if (!reportType) {
+        showToast('Please select a report type', 'warning');
+        return;
+    }
+    
+    showToast('Generating report...', 'info');
+    
+    // Filter data based on selections
+    let filteredStudents = [...currentState.students];
+    let filteredMarks = [...currentState.marks];
+    
+    if (program) {
+        filteredStudents = filteredStudents.filter(s => s.program === program);
+        filteredMarks = filteredMarks.filter(m => 
+            filteredStudents.some(s => s.id === m.student_id)
+        );
+    }
+    
+    if (intakeYear) {
+        filteredStudents = filteredStudents.filter(s => s.intake_year == intakeYear);
+        filteredMarks = filteredMarks.filter(m => 
+            filteredStudents.some(s => s.id === m.student_id)
+        );
+    }
+    
+    // Generate report based on type
+    let reportData;
+    switch(reportType) {
+        case 'studentList':
+            reportData = generateStudentListReport(filteredStudents);
+            break;
+        case 'academicPerformance':
+            reportData = generateAcademicReport(filteredStudents, filteredMarks);
+            break;
+        case 'enrollmentReport':
+            reportData = generateEnrollmentReport(filteredStudents);
+            break;
+        default:
+            reportData = { error: 'Report type not implemented' };
+    }
+    
+    // Display preview
+    displayReportPreview(reportData, format);
+}
+
+function generateStudentListReport(students) {
+    return {
+        title: 'Student List Report',
+        headers: ['Reg No', 'Name', 'Program', 'Intake', 'Email', 'Phone', 'Status'],
+        data: students.map(s => [
+            s.registration_number,
+            `${s.first_name} ${s.last_name}`,
+            s.program,
+            s.intake_year,
+            s.email,
+            s.phone,
+            s.status
+        ]),
+        summary: {
+            total: students.length,
+            byProgram: students.reduce((acc, s) => {
+                acc[s.program] = (acc[s.program] || 0) + 1;
+                return acc;
+            }, {}),
+            byStatus: students.reduce((acc, s) => {
+                acc[s.status] = (acc[s.status] || 0) + 1;
+                return acc;
+            }, {})
+        }
+    };
+}
+
+function generateAcademicReport(students, marks) {
+    const studentPerformance = students.map(student => {
+        const studentMarks = marks.filter(m => m.student_id === student.id);
+        const average = studentMarks.length > 0 ? 
+            studentMarks.reduce((sum, m) => sum + m.percentage, 0) / studentMarks.length : 0;
+        
+        return {
+            student: student,
+            totalCourses: studentMarks.length,
+            averageScore: average,
+            highestGrade: studentMarks.length > 0 ? 
+                studentMarks.reduce((max, m) => m.percentage > max.percentage ? m : max, studentMarks[0]) : null
+        };
+    });
+    
+    return {
+        title: 'Academic Performance Report',
+        headers: ['Reg No', 'Name', 'Program', 'Courses Taken', 'Average %', 'Highest Grade'],
+        data: studentPerformance.map(sp => [
+            sp.student.registration_number,
+            `${sp.student.first_name} ${sp.student.last_name}`,
+            sp.student.program,
+            sp.totalCourses,
+            sp.averageScore.toFixed(2) + '%',
+            sp.highestGrade ? sp.highestGrade.grade + ' (' + sp.highestGrade.percentage.toFixed(2) + '%)' : 'N/A'
+        ]),
+        summary: {
+            totalStudents: students.length,
+            averageOverall: studentPerformance.reduce((sum, sp) => sum + sp.averageScore, 0) / studentPerformance.length,
+            topPerformer: studentPerformance.reduce((top, sp) => 
+                sp.averageScore > top.averageScore ? sp : top, studentPerformance[0])
+        }
+    };
+}
+
+function generateEnrollmentReport(students) {
+    const byProgram = students.reduce((acc, s) => {
+        acc[s.program] = (acc[s.program] || 0) + 1;
+        return acc;
+    }, {});
+    
+    const byIntake = students.reduce((acc, s) => {
+        acc[s.intake_year] = (acc[s.intake_year] || 0) + 1;
+        return acc;
+    }, {});
+    
+    return {
+        title: 'Enrollment Report',
+        headers: ['Program', 'Number of Students', 'Percentage'],
+        data: Object.entries(byProgram).map(([program, count]) => [
+            program,
+            count,
+            ((count / students.length) * 100).toFixed(2) + '%'
+        ]),
+        summary: {
+            totalStudents: students.length,
+            byProgram: byProgram,
+            byIntake: byIntake,
+            averageIntake: Object.values(byIntake).reduce((sum, count) => sum + count, 0) / Object.keys(byIntake).length
+        }
+    };
+}
+
+function displayReportPreview(reportData, format) {
+    const preview = document.getElementById('reportPreview');
+    
+    if (format === 'html') {
+        let html = `
+            <div class="report-content">
+                <h3>${reportData.title}</h3>
+                <div class="report-summary">
+                    <p>Total Records: ${reportData.summary?.total || 0}</p>
+                </div>
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            ${reportData.headers.map(h => `<th>${h}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${reportData.data.map(row => `
+                            <tr>
+                                ${row.map(cell => `<td>${cell}</td>`).join('')}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        preview.innerHTML = html;
+    }
+    
+    showToast('Report generated successfully', 'success');
+}
+
+function exportReport() {
+    showToast('Export feature coming soon!', 'info');
+}
+
+function previewReport() {
+    generateReport();
+}
+
+function generateQuickReport(type) {
+    // Set report type and generate
+    document.getElementById('reportType').value = type;
+    generateReport();
+}
+
+function printReport() {
+    window.print();
+}
+
+function bulkUploadMarks() {
+    showToast('Bulk upload feature coming soon!', 'info');
+}
+
+// ============================================
+// CREATE DATABASE TABLES
+// ============================================
+
+async function createDatabaseTables() {
+    try {
+        // Check if tables exist by trying to query them
+        const { error: studentsError } = await supabase
+            .from('students')
+            .select('count', { count: 'exact', head: true });
+        
+        if (studentsError && studentsError.code === '42P01') {
+            // Table doesn't exist, show SQL to create it
+            const sql = `
+                -- Students table
+                CREATE TABLE IF NOT EXISTS students (
+                    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+                    registration_number VARCHAR(50) UNIQUE NOT NULL,
+                    first_name VARCHAR(100) NOT NULL,
+                    last_name VARCHAR(100) NOT NULL,
+                    other_names VARCHAR(200),
+                    gender VARCHAR(10),
+                    date_of_birth DATE,
+                    marital_status VARCHAR(20),
+                    home_church TEXT,
+                    program VARCHAR(50),
+                    intake_year INTEGER,
+                    study_mode VARCHAR(50),
+                    enrollment_date DATE DEFAULT CURRENT_DATE,
+                    email VARCHAR(255),
+                    phone VARCHAR(20),
+                    alternative_phone VARCHAR(20),
+                    address TEXT,
+                    kin_name VARCHAR(100),
+                    kin_relationship VARCHAR(50),
+                    kin_phone VARCHAR(20),
+                    status VARCHAR(20) DEFAULT 'Active',
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+
+                -- Courses table
+                CREATE TABLE IF NOT EXISTS courses (
+                    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+                    course_code VARCHAR(20) UNIQUE NOT NULL,
+                    course_name VARCHAR(200) NOT NULL,
+                    program VARCHAR(50),
+                    level INTEGER,
+                    credits INTEGER,
+                    semester VARCHAR(50),
+                    description TEXT,
+                    status VARCHAR(20) DEFAULT 'Active',
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+
+                -- Marks table
+                CREATE TABLE IF NOT EXISTS marks (
+                    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+                    student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+                    course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+                    assessment_type VARCHAR(50),
+                    assessment_date DATE DEFAULT CURRENT_DATE,
+                    marks_obtained DECIMAL(5,2),
+                    total_marks DECIMAL(5,2) DEFAULT 100,
+                    percentage DECIMAL(5,2),
+                    grade VARCHAR(10),
+                    grade_points DECIMAL(3,2),
+                    remarks TEXT,
+                    recorded_by VARCHAR(100),
+                    recorded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+
+                -- Intakes table
+                CREATE TABLE IF NOT EXISTS intakes (
+                    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+                    year INTEGER,
+                    semester VARCHAR(50),
+                    name VARCHAR(100),
+                    start_date DATE,
+                    end_date DATE,
+                    status VARCHAR(20),
+                    description TEXT,
+                    programs JSONB,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+            `;
+            
+            console.log('Copy this SQL to Supabase SQL Editor to create tables:');
+            console.log(sql);
+            showToast('Tables need to be created in Supabase. Check console for SQL.', 'warning');
+        } else {
+            showToast('Database tables already exist', 'success');
+        }
+        
+    } catch (error) {
+        console.error('Error checking database:', error);
+        showToast('Error checking database: ' + error.message, 'error');
+    }
+}
+
+// ============================================
 // WINDOW EXPORTS
 // ============================================
 
@@ -1706,14 +2286,25 @@ window.showMarksForm = showMarksForm;
 window.saveMarks = saveMarks;
 window.calculateMarks = calculateMarks;
 window.resetMarksForm = resetMarksForm;
+window.editMarks = editMarks;
+window.deleteMarks = deleteMarks;
 
 window.showIntakeForm = showIntakeForm;
 window.hideIntakeForm = hideIntakeForm;
 window.saveIntake = saveIntake;
+window.editIntake = editIntake;
+window.viewIntakeYear = viewIntakeYear;
+window.viewIntakeDetails = viewIntakeDetails;
 
 window.switchTab = switchTab;
 window.nextTab = nextTab;
 window.previousTab = previousTab;
+
+window.showSettingsTab = showSettingsTab;
+window.saveSettings = saveSettings;
+window.addGradeRow = addGradeRow;
+window.removeGrade = removeGrade;
+window.updateGrade = updateGrade;
 
 window.showConfirmModal = showConfirmModal;
 window.hideConfirmModal = hideConfirmModal;
@@ -1722,10 +2313,20 @@ window.showToast = showToast;
 window.logout = logout;
 window.toggleDarkMode = toggleDarkMode;
 window.refreshAll = refreshAll;
+window.refreshDashboard = updateDashboard;
 window.exportData = exportData;
 
-window.refreshDashboard = updateDashboard;
 window.loadProgramCourses = loadProgramCourses;
+window.viewStudent = viewStudent;
+
+window.generateReport = generateReport;
+window.previewReport = previewReport;
+window.exportReport = exportReport;
+window.generateQuickReport = generateQuickReport;
+window.printReport = printReport;
+window.bulkUploadMarks = bulkUploadMarks;
+
+window.createDatabaseTables = createDatabaseTables;
 
 // Initialize on load
 if (document.readyState === 'loading') {
