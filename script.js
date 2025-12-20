@@ -1,12 +1,15 @@
-// ============================================
+complete this // ============================================
 // TEEPORTAL - Theological Education by Extension
 // Complete Administration System
 // ============================================
 
-// Initialize Supabase
-const SUPABASE_URL = 'https://kmkjsessuzdfadlmndyr.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtta2pzZXNzdXpkZmFkbG1uZHlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYyNTA1MzUsImV4cCI6MjA4MTgyNjUzNX0.16m_thmf2Td8uB5lan8vZDLkGkWIlftaxSOroqvDkU4';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Check if supabase is already declared
+if (typeof window.supabaseClient === 'undefined') {
+    const SUPABASE_URL = 'https://kmkjsessuzdfadlmndyr.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtta2pzZXNzdXpkZmFkbG1uZHlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYyNTA1MzUsImV4cCI6MjA4MTgyNjUzNX0.16m_thmf2Td8uB5lan8vZDLkGkWIlftaxSOroqvDkU4';
+    window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+const supabase = window.supabaseClient;
 
 // State Management
 let currentState = {
@@ -1144,12 +1147,15 @@ function hideIntakeForm() {
 function populateIntakeForm(intake) {
     document.getElementById('intakeId').value = intake.id;
     document.getElementById('intakeYear').value = intake.year || '';
-    document.getElementById('intakeSemester').value = intake.semester || '';
-    document.getElementById('intakeName').value = intake.name || '';
-    document.getElementById('intakeStartDate').value = intake.start_date || '';
-    document.getElementById('intakeEndDate').value = intake.end_date || '';
-    document.getElementById('intakeStatus').value = intake.status || '';
-    document.getElementById('intakeDescription').value = intake.description || '';
+    document.getElementById('intakeSemester').value
+
+document.getElementById('intakeSemester').value = intake.semester || '';
+    document.getElementById('intakeStart').value = intake.start_date || '';
+    document.getElementById('intakeEnd').value = intake.end_date || '';
+    document.getElementById('intakeStatus').value = intake.status || 'Upcoming';
+    document.getElementById('intakePrograms').value = intake.programs || [];
+    document.getElementById('intakeCapacity').value = intake.capacity || 0;
+    document.getElementById('intakeNotes').value = intake.notes || '';
 }
 
 function resetIntakeForm() {
@@ -1157,13 +1163,17 @@ function resetIntakeForm() {
     if (form) {
         form.reset();
         document.getElementById('intakeId').value = '';
+        document.getElementById('intakeYear').value = currentState.currentYear;
+        document.getElementById('intakeSemester').value = 'Semester 1';
         document.getElementById('intakeStatus').value = 'Upcoming';
-        document.getElementById('intakeStartDate').value = new Date().toISOString().split('T')[0];
+        document.getElementById('intakeCapacity').value = 50;
         
-        // Set end date to 6 months from now
-        const endDate = new Date();
-        endDate.setMonth(endDate.getMonth() + 6);
-        document.getElementById('intakeEndDate').value = endDate.toISOString().split('T')[0];
+        // Set default dates
+        const today = new Date();
+        document.getElementById('intakeStart').value = today.toISOString().split('T')[0];
+        const endDate = new Date(today);
+        endDate.setMonth(today.getMonth() + 4); // 4 months later
+        document.getElementById('intakeEnd').value = endDate.toISOString().split('T')[0];
     }
 }
 
@@ -1171,19 +1181,15 @@ async function saveIntake(event) {
     event.preventDefault();
     
     try {
-        // Get selected programs
-        const programCheckboxes = document.querySelectorAll('input[name="intakePrograms"]:checked');
-        const programs = Array.from(programCheckboxes).map(cb => cb.value);
-        
         const intakeData = {
             year: parseInt(document.getElementById('intakeYear').value),
             semester: document.getElementById('intakeSemester').value,
-            name: document.getElementById('intakeName').value,
-            start_date: document.getElementById('intakeStartDate').value,
-            end_date: document.getElementById('intakeEndDate').value,
+            start_date: document.getElementById('intakeStart').value,
+            end_date: document.getElementById('intakeEnd').value,
             status: document.getElementById('intakeStatus').value,
-            description: document.getElementById('intakeDescription').value,
-            programs: programs,
+            programs: document.getElementById('intakePrograms').value.split(',').map(p => p.trim()),
+            capacity: parseInt(document.getElementById('intakeCapacity').value),
+            notes: document.getElementById('intakeNotes').value,
             created_at: new Date().toISOString()
         };
         
@@ -1224,24 +1230,60 @@ async function saveIntake(event) {
 }
 
 function renderIntakesTimeline() {
-    const timeline = document.querySelector('.timeline');
+    const timeline = document.getElementById('intakesTimeline');
     if (!timeline) return;
     
-    let html = '';
-    for (let year = 2013; year <= 2030; year++) {
-        const intake = currentState.intakes.find(i => i.year == year);
-        const studentCount = currentState.students.filter(s => s.intake_year == year).length;
-        
-        html += `
-            <div class="timeline-year ${intake ? 'active' : ''}" onclick="viewIntakeYear(${year})">
-                <div class="year-label">Intake</div>
-                <div class="year-value">${year}</div>
-                <div class="year-stats">
-                    ${studentCount} student${studentCount !== 1 ? 's' : ''}
+    if (!currentState.intakes || currentState.intakes.length === 0) {
+        timeline.innerHTML = `
+            <div class="timeline-item">
+                <div class="timeline-content">
+                    <h4>No intakes found</h4>
+                    <p>Create your first intake to get started</p>
                 </div>
             </div>
         `;
+        return;
     }
+    
+    let html = '';
+    currentState.intakes.forEach(intake => {
+        const enrolledCount = currentState.students.filter(s => 
+            s.intake_year === intake.year && s.semester === intake.semester
+        ).length;
+        
+        const capacityPercent = intake.capacity > 0 ? 
+            Math.round((enrolledCount / intake.capacity) * 100) : 0;
+        
+        html += `
+            <div class="timeline-item">
+                <div class="timeline-marker status-${intake.status.toLowerCase()}"></div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <h4>${intake.year} - ${intake.semester}</h4>
+                        <span class="status-badge status-${intake.status.toLowerCase()}">
+                            ${intake.status}
+                        </span>
+                    </div>
+                    <div class="timeline-details">
+                        <p><i class="fas fa-calendar"></i> ${new Date(intake.start_date).toLocaleDateString()} - ${new Date(intake.end_date).toLocaleDateString()}</p>
+                        <p><i class="fas fa-users"></i> ${enrolledCount} / ${intake.capacity} students (${capacityPercent}%)</p>
+                        <p><i class="fas fa-graduation-cap"></i> ${intake.programs?.join(', ') || 'All programs'}</p>
+                    </div>
+                    <div class="timeline-progress">
+                        <div class="progress-bar" style="width: ${capacityPercent}%"></div>
+                    </div>
+                    <div class="timeline-actions">
+                        <button class="btn-action btn-edit" onclick="editIntake('${intake.id}')">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn-action btn-view" onclick="viewIntakeDetails('${intake.id}')">
+                            <i class="fas fa-eye"></i> View Details
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
     
     timeline.innerHTML = html;
 }
@@ -1250,142 +1292,168 @@ function renderCurrentIntakes() {
     const container = document.getElementById('currentIntakes');
     if (!container) return;
     
-    const currentDate = new Date();
-    const currentIntakes = currentState.intakes.filter(intake => {
-        const endDate = new Date(intake.end_date);
-        return endDate >= currentDate;
-    }).sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+    const currentIntakes = currentState.intakes.filter(intake => 
+        intake.status === 'Active' || intake.status === 'Ongoing'
+    );
     
     if (currentIntakes.length === 0) {
         container.innerHTML = `
-            <div class="no-data">
+            <div class="no-intakes">
                 <i class="fas fa-calendar-times"></i>
-                <p>No current or upcoming intakes</p>
+                <p>No active intakes at the moment</p>
             </div>
         `;
         return;
     }
     
-    let html = '';
+    let html = '<div class="intakes-grid">';
     currentIntakes.forEach(intake => {
-        const studentCount = currentState.students.filter(s => s.intake_year == intake.year).length;
-        const programs = Array.isArray(intake.programs) ? intake.programs : JSON.parse(intake.programs || '[]');
+        const enrolledStudents = currentState.students.filter(s => 
+            s.intake_year === intake.year && s.semester === intake.semester
+        );
         
         html += `
             <div class="intake-card">
-                <div class="intake-header">
-                    <div class="intake-name">${intake.name}</div>
-                    <div class="intake-status status-${intake.status.toLowerCase()}">
+                <div class="intake-card-header">
+                    <h4>${intake.year} ${intake.semester}</h4>
+                    <span class="status-badge status-${intake.status.toLowerCase()}">
                         ${intake.status}
+                    </span>
+                </div>
+                <div class="intake-card-body">
+                    <div class="intake-stats">
+                        <div class="stat">
+                            <i class="fas fa-users"></i>
+                            <div>
+                                <h3>${enrolledStudents.length}</h3>
+                                <p>Enrolled</p>
+                            </div>
+                        </div>
+                        <div class="stat">
+                            <i class="fas fa-graduation-cap"></i>
+                            <div>
+                                <h3>${intake.programs?.length || 4}</h3>
+                                <p>Programs</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="intake-dates">
+                        <p><i class="fas fa-calendar"></i> ${new Date(intake.start_date).toLocaleDateString()} - ${new Date(intake.end_date).toLocaleDateString()}</p>
+                    </div>
+                    <div class="intake-progress">
+                        <div class="progress-info">
+                            <span>Capacity: ${enrolledStudents.length}/${intake.capacity}</span>
+                            <span>${Math.round((enrolledStudents.length / intake.capacity) * 100)}%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${(enrolledStudents.length / intake.capacity) * 100}%"></div>
+                        </div>
                     </div>
                 </div>
-                <div class="intake-dates">
-                    <span>${new Date(intake.start_date).toLocaleDateString()}</span>
-                    <span>to</span>
-                    <span>${new Date(intake.end_date).toLocaleDateString()}</span>
-                </div>
-                <div class="intake-programs">
-                    ${programs.map(program => `
-                        <span class="program-badge">${program}</span>
-                    `).join('')}
-                </div>
-                <div class="intake-stats">
-                    <span><i class="fas fa-users"></i> ${studentCount} Students</span>
-                    <span><i class="fas fa-book"></i> ${programs.length} Programs</span>
-                </div>
-                <div class="intake-actions">
-                    <button class="btn btn-sm btn-primary" onclick="editIntake('${intake.id}')">
-                        <i class="fas fa-edit"></i> Edit
+                <div class="intake-card-footer">
+                    <button class="btn-action" onclick="viewIntakeDetails('${intake.id}')">
+                        <i class="fas fa-eye"></i> View Details
                     </button>
-                    <button class="btn btn-sm btn-secondary" onclick="viewIntakeDetails('${intake.id}')">
-                        <i class="fas fa-eye"></i> View
+                    <button class="btn-action" onclick="viewIntakeStudents('${intake.id}')">
+                        <i class="fas fa-users"></i> View Students
                     </button>
                 </div>
             </div>
         `;
     });
+    html += '</div>';
     
     container.innerHTML = html;
 }
 
-function updateIntakeStats() {
-    const totalIntakes = currentState.intakes.length;
-    const activeIntakes = currentState.intakes.filter(i => i.status === 'Ongoing').length;
-    const totalEnrolled = currentState.students.length;
-    const avgIntakeSize = totalIntakes > 0 ? Math.round(totalEnrolled / totalIntakes) : 0;
+function viewIntakeDetails(intakeId) {
+    const intake = currentState.intakes.find(i => i.id === intakeId);
+    if (!intake) return;
     
+    showConfirmModal(
+        `<h4>${intake.year} - ${intake.semester} Intake</h4>
+        <div class="intake-details-modal">
+            <p><strong>Status:</strong> <span class="status-badge status-${intake.status.toLowerCase()}">${intake.status}</span></p>
+            <p><strong>Duration:</strong> ${new Date(intake.start_date).toLocaleDateString()} to ${new Date(intake.end_date).toLocaleDateString()}</p>
+            <p><strong>Programs:</strong> ${intake.programs?.join(', ') || 'All programs'}</p>
+            <p><strong>Capacity:</strong> ${intake.capacity} students</p>
+            <p><strong>Enrolled:</strong> ${currentState.students.filter(s => s.intake_year === intake.year && s.semester === intake.semester).length} students</p>
+            ${intake.notes ? `<p><strong>Notes:</strong> ${intake.notes}</p>` : ''}
+        </div>`,
+        'Close',
+        null
+    );
+}
+
+function updateIntakeStats() {
+    const currentYear = currentState.currentYear;
+    const yearIntakes = currentState.intakes.filter(i => i.year === currentYear);
+    const yearStudents = currentState.students.filter(s => s.intake_year === currentYear);
+    
+    const totalIntakes = yearIntakes.length;
+    const totalStudents = yearStudents.length;
+    const activeIntakes = yearIntakes.filter(i => i.status === 'Active').length;
+    
+    document.getElementById('currentYearIntakes').textContent = currentYear;
     document.getElementById('totalIntakes').textContent = totalIntakes;
+    document.getElementById('totalStudents').textContent = totalStudents;
     document.getElementById('activeIntakes').textContent = activeIntakes;
-    document.getElementById('totalEnrolled').textContent = totalEnrolled;
-    document.getElementById('avgIntakeSize').textContent = avgIntakeSize;
 }
 
 // ============================================
-// DASHBOARD FUNCTIONS
+// REPORTS & DASHBOARD
 // ============================================
 
 function updateDashboard() {
-    updateStudentCounts();
-    updateDashboardStats();
+    updateStatsCards();
     updateProgramChart();
     updateRecentActivity();
+    updatePerformanceSummary();
 }
 
-function updateStudentCounts() {
-    const totalStudents = currentState.students.length;
-    const activeStudents = currentState.students.filter(s => s.status === 'Active').length;
+function updateStatsCards() {
+    // Total Students
+    document.getElementById('totalStudentsCount').textContent = currentState.students.length;
     
-    document.getElementById('totalStudents').textContent = totalStudents;
-    document.getElementById('activeStudents').textContent = activeStudents;
-    document.getElementById('headerStudentCount').textContent = `${totalStudents} Students`;
-    document.getElementById('footerStudentCount').textContent = totalStudents;
-}
-
-function updateDashboardStats() {
-    // Calculate average grade
-    if (currentState.marks.length > 0) {
-        const totalMarks = currentState.marks.length;
-        const avgGrade = calculateAverageGrade();
-        
-        document.getElementById('totalMarks').textContent = totalMarks;
-        document.getElementById('avgGrade').textContent = avgGrade;
-    }
+    // Active Courses
+    const activeCourses = currentState.courses.filter(c => c.status === 'Active').length;
+    document.getElementById('activeCoursesCount').textContent = activeCourses;
     
-    // Update course count
-    document.getElementById('footerCourseCount').textContent = currentState.courses.length;
-    document.getElementById('footerIntakeCount').textContent = currentState.intakes.length;
-}
-
-function calculateAverageGrade() {
-    if (currentState.marks.length === 0) return 'N/A';
+    // Average Grade
+    const totalGradePoints = currentState.marks.reduce((sum, mark) => sum + (mark.grade_points || 0), 0);
+    const avgGrade = currentState.marks.length > 0 ? (totalGradePoints / currentState.marks.length).toFixed(2) : '0.00';
+    document.getElementById('averageGrade').textContent = avgGrade;
     
-    const gradePoints = currentState.marks
-        .map(m => currentState.gradingSystem.find(g => g.grade === m.grade)?.points || 0)
-        .filter(p => p > 0);
-    
-    if (gradePoints.length === 0) return 'N/A';
-    
-    const avgPoints = gradePoints.reduce((a, b) => a + b, 0) / gradePoints.length;
-    
-    // Convert points back to grade
-    const grade = currentState.gradingSystem.find(g => 
-        avgPoints >= g.points - 0.3 && avgPoints <= g.points + 0.3
-    )?.grade || 'N/A';
-    
-    return grade;
+    // Current Intakes
+    const currentIntakes = currentState.intakes.filter(i => 
+        i.status === 'Active' || i.status === 'Ongoing'
+    ).length;
+    document.getElementById('currentIntakesCount').textContent = currentIntakes;
 }
 
 function updateProgramChart() {
     const ctx = document.getElementById('programChart');
     if (!ctx) return;
     
+    // Count students by program
     const programCounts = {};
     currentState.programs.forEach(program => {
-        programCounts[program] = currentState.students.filter(s => s.program === program).length;
+        programCounts[program] = 0;
     });
     
-    const chart = new Chart(ctx, {
-        type: 'pie',
+    currentState.students.forEach(student => {
+        if (student.program && programCounts.hasOwnProperty(student.program)) {
+            programCounts[student.program]++;
+        }
+    });
+    
+    // Destroy existing chart if it exists
+    if (window.programChartInstance) {
+        window.programChartInstance.destroy();
+    }
+    
+    window.programChartInstance = new Chart(ctx, {
+        type: 'doughnut',
         data: {
             labels: Object.keys(programCounts),
             datasets: [{
@@ -1393,9 +1461,10 @@ function updateProgramChart() {
                 backgroundColor: [
                     '#3498db',
                     '#2ecc71',
-                    '#9b59b6',
-                    '#f1c40f'
-                ]
+                    '#e74c3c',
+                    '#f39c12'
+                ],
+                borderWidth: 1
             }]
         },
         options: {
@@ -1403,6 +1472,10 @@ function updateProgramChart() {
             plugins: {
                 legend: {
                     position: 'bottom'
+                },
+                title: {
+                    display: true,
+                    text: 'Students by Program'
                 }
             }
         }
@@ -1413,29 +1486,132 @@ function updateRecentActivity() {
     const container = document.getElementById('recentActivity');
     if (!container) return;
     
-    // Get recent marks (last 5)
-    const recentMarks = [...currentState.marks]
-        .sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at))
-        .slice(0, 5);
+    // Combine and sort recent activities from all tables
+    const activities = [];
     
+    // Recent students
+    currentState.students.slice(0, 5).forEach(student => {
+        activities.push({
+            type: 'student',
+            action: student.status === 'Active' ? 'enrolled' : 'registered',
+            name: `${student.first_name} ${student.last_name}`,
+            program: student.program,
+            date: student.enrollment_date || student.created_at,
+            icon: 'fas fa-user-plus'
+        });
+    });
+    
+    // Recent marks
+    currentState.marks.slice(0, 5).forEach(mark => {
+        const student = currentState.students.find(s => s.id === mark.student_id);
+        const course = currentState.courses.find(c => c.id === mark.course_id);
+        if (student && course) {
+            activities.push({
+                type: 'marks',
+                action: 'graded',
+                name: `${student.first_name} ${student.last_name}`,
+                details: `${course.course_code}: ${mark.grade}`,
+                date: mark.assessment_date || mark.created_at,
+                icon: 'fas fa-chart-line'
+            });
+        }
+    });
+    
+    // Sort by date
+    activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    // Render activities
     let html = '';
-    recentMarks.forEach(record => {
-        const student = record.students;
-        const course = record.courses;
-        const timeAgo = getTimeAgo(new Date(record.recorded_at));
-        
+    activities.slice(0, 10).forEach(activity => {
         html += `
             <div class="activity-item">
-                <div class="activity-icon activity-success">
-                    <i class="fas fa-chart-bar"></i>
+                <div class="activity-icon">
+                    <i class="${activity.icon}"></i>
                 </div>
                 <div class="activity-content">
-                    <p>${student?.first_name} ${student?.last_name} scored ${record.grade} in ${course?.course_name}</p>
-                    <span class="activity-time">${timeAgo}</span>
+                    <p>
+                        <strong>${activity.name}</strong> 
+                        ${activity.action} 
+                        ${activity.details ? `in ${activity.details}` : `in ${activity.program}`}
+                    </p>
+                    <small>${new Date(activity.date).toLocaleDateString()} at ${new Date(activity.date).toLocaleTimeString()}</small>
                 </div>
             </div>
         `;
     });
+    
+    container.innerHTML = html || '<p class="no-data">No recent activity</p>';
+}
+
+function updatePerformanceSummary() {
+    const container = document.getElementById('performanceSummary');
+    if (!container) return;
+    
+    if (currentState.marks.length === 0) {
+        container.innerHTML = '<p class="no-data">No performance data available</p>';
+        return;
+    }
+    
+    // Calculate statistics
+    const totalMarks = currentState.marks.length;
+    const passed = currentState.marks.filter(m => m.grade !== 'F').length;
+    const passRate = ((passed / totalMarks) * 100).toFixed(1);
+    
+    const topPerformers = currentState.marks
+        .sort((a, b) => b.percentage - a.percentage)
+        .slice(0, 5)
+        .map(mark => {
+            const student = currentState.students.find(s => s.id === mark.student_id);
+            const course = currentState.courses.find(c => c.id === mark.course_id);
+            return {
+                name: student ? `${student.first_name} ${student.last_name}` : 'Unknown',
+                course: course?.course_code || 'Unknown',
+                grade: mark.grade,
+                percentage: mark.percentage
+            };
+        });
+    
+    let html = `
+        <div class="performance-stats">
+            <div class="stat-card">
+                <h3>${passRate}%</h3>
+                <p>Pass Rate</p>
+            </div>
+            <div class="stat-card">
+                <h3>${currentState.gradingSystem[0].grade}</h3>
+                <p>Top Grade</p>
+            </div>
+            <div class="stat-card">
+                <h3>${totalMarks}</h3>
+                <p>Total Assessments</p>
+            </div>
+        </div>
+    `;
+    
+    if (topPerformers.length > 0) {
+        html += `
+            <div class="top-performers">
+                <h4>Top Performers</h4>
+                <ul>
+        `;
+        
+        topPerformers.forEach(performer => {
+            html += `
+                <li>
+                    <span class="performer-name">${performer.name}</span>
+                    <span class="performer-course">${performer.course}</span>
+                    <span class="performer-grade grade-badge grade-${performer.grade.charAt(0).toLowerCase()}">
+                        ${performer.grade} (${performer.percentage.toFixed(1)}%)
+                    </span>
+                </li>
+            `;
+        });
+        
+        html += `
+                </ul>
+            </div>
+        `;
+    }
     
     container.innerHTML = html;
 }
@@ -1444,160 +1620,132 @@ function updateRecentActivity() {
 // UTILITY FUNCTIONS
 // ============================================
 
-function populateIntakeYears() {
-    const selectElements = [
-        'intakeYear',
-        'filterIntakeYear',
-        'reportIntake',
-        'dashboardYear'
-    ];
+function switchTab(tabId) {
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
     
-    selectElements.forEach(selectId => {
-        const select = document.getElementById(selectId);
-        if (select) {
-            select.innerHTML = '<option value="">Select Year</option>';
-            for (let year = 2013; year <= 2030; year++) {
-                const option = document.createElement('option');
-                option.value = year;
-                option.textContent = year;
-                if (year === currentState.currentYear) {
-                    option.selected = true;
-                }
-                select.appendChild(option);
+    // Deactivate all tabs
+    document.querySelectorAll('.form-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Show selected tab content
+    const targetContent = document.getElementById(`${tabId}Tab`);
+    if (targetContent) {
+        targetContent.classList.add('active');
+    }
+    
+    // Activate selected tab
+    const targetTab = document.querySelector(`.form-tab[data-tab="${tabId}"]`);
+    if (targetTab) {
+        targetTab.classList.add('active');
+    }
+}
+
+function populateIntakeYears() {
+    const currentYear = currentState.currentYear;
+    const yearSelects = document.querySelectorAll('select[id*="intakeYear"]');
+    
+    yearSelects.forEach(select => {
+        if (select.id !== 'filterIntakeYear') {
+            let html = '';
+            for (let year = currentYear - 5; year <= currentYear + 2; year++) {
+                html += `<option value="${year}">${year}</option>`;
             }
+            select.innerHTML = html;
+            select.value = currentYear;
         }
     });
 }
 
 function populateStudentDropdowns() {
-    const selectElements = [
-        'marksStudent',
-        'filterMarksStudent',
-        'reportStudent'
-    ];
+    const studentSelects = document.querySelectorAll('select[id*="marksStudent"], select[id*="student"]');
     
-    selectElements.forEach(selectId => {
-        const select = document.getElementById(selectId);
-        if (select) {
-            select.innerHTML = '<option value="">Select Student</option>';
-            currentState.students.forEach(student => {
-                const option = document.createElement('option');
-                option.value = student.id;
-                option.textContent = `${student.registration_number} - ${student.first_name} ${student.last_name}`;
-                select.appendChild(option);
-            });
-        }
+    studentSelects.forEach(select => {
+        let html = '<option value="">Select Student</option>';
+        currentState.students.forEach(student => {
+            html += `<option value="${student.id}">${student.registration_number} - ${student.first_name} ${student.last_name}</option>`;
+        });
+        select.innerHTML = html;
     });
 }
 
 function populateCourseDropdowns() {
-    const selectElements = [
-        'marksCourse',
-        'filterMarksCourse',
-        'coursePrerequisites'
-    ];
+    const courseSelects = document.querySelectorAll('select[id*="marksCourse"], select[id*="course"]');
     
-    selectElements.forEach(selectId => {
-        const select = document.getElementById(selectId);
-        if (select) {
-            select.innerHTML = '<option value="">Select Course</option>';
-            currentState.courses.forEach(course => {
-                const option = document.createElement('option');
-                option.value = course.id;
-                option.textContent = `${course.course_code} - ${course.course_name}`;
-                select.appendChild(option);
-            });
-        }
+    courseSelects.forEach(select => {
+        let html = '<option value="">Select Course</option>';
+        currentState.courses.forEach(course => {
+            if (course.status === 'Active') {
+                html += `<option value="${course.id}">${course.course_code} - ${course.course_name}</option>`;
+            }
+        });
+        select.innerHTML = html;
     });
 }
 
-async function loadProgramCourses() {
+function loadProgramCourses() {
     const program = document.getElementById('program').value;
-    const container = document.getElementById('courseSelection');
+    const courseSelection = document.getElementById('courseSelection');
     
-    if (!program || !container) return;
+    if (!program || !courseSelection) return;
     
     const programCourses = currentState.courses.filter(c => 
-        c.program === program || c.program === 'All'
+        c.program === program && c.status === 'Active'
     );
     
     if (programCourses.length === 0) {
-        container.innerHTML = '<p class="select-program-prompt">No courses available for this program</p>';
+        courseSelection.innerHTML = '<p class="no-courses">No courses available for this program</p>';
         return;
     }
     
-    let html = '';
+    let html = '<div class="course-checkboxes">';
     programCourses.forEach(course => {
         html += `
             <label class="course-checkbox">
-                <input type="checkbox" name="selectedCourses" value="${course.id}">
-                <span>${course.course_code}: ${course.course_name}</span>
-                <small>(${course.credits} credits)</small>
+                <input type="checkbox" name="enrolled_courses" value="${course.id}">
+                <span class="course-checkbox-info">
+                    <strong>${course.course_code}</strong> - ${course.course_name}
+                    <small>${course.credits} credits • Level ${course.level}</small>
+                </span>
             </label>
         `;
     });
+    html += '</div>';
     
-    container.innerHTML = html;
-}
-
-function switchTab(tabId) {
-    // Update tab buttons
-    document.querySelectorAll('.form-tab').forEach(tab => {
-        tab.classList.remove('active');
-        if (tab.getAttribute('data-tab') === tabId) {
-            tab.classList.add('active');
-        }
-    });
-    
-    // Update tab content
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.remove('active');
-        if (content.id === tabId + 'Tab') {
-            content.classList.add('active');
-        }
-    });
-    
-    currentState.activeTab = tabId;
-}
-
-function nextTab() {
-    const tabs = ['personal', 'academic', 'contact'];
-    const currentIndex = tabs.indexOf(currentState.activeTab);
-    if (currentIndex < tabs.length - 1) {
-        switchTab(tabs[currentIndex + 1]);
-    }
-}
-
-function previousTab() {
-    const tabs = ['personal', 'academic', 'contact'];
-    const currentIndex = tabs.indexOf(currentState.activeTab);
-    if (currentIndex > 0) {
-        switchTab(tabs[currentIndex - 1]);
-    }
+    courseSelection.innerHTML = html;
 }
 
 function showSettingsTab(tabId) {
-    // Update tab buttons
-    document.querySelectorAll('.settings-tab').forEach(tab => {
-        tab.classList.remove('active');
-        if (tab.getAttribute('data-tab') === tabId) {
-            tab.classList.add('active');
-        }
+    // Hide all settings tab contents
+    document.querySelectorAll('.settings-content').forEach(content => {
+        content.classList.remove('active');
     });
     
-    // Update tab content
-    document.querySelectorAll('.settings-panel').forEach(panel => {
-        panel.classList.remove('active');
-        if (panel.id === tabId + 'Panel') {
-            panel.classList.add('active');
-        }
+    // Deactivate all settings tabs
+    document.querySelectorAll('.settings-tab').forEach(tab => {
+        tab.classList.remove('active');
     });
+    
+    // Show selected tab content
+    const targetContent = document.getElementById(`${tabId}Settings`);
+    if (targetContent) {
+        targetContent.classList.add('active');
+    }
+    
+    // Activate selected tab
+    const targetTab = document.querySelector(`.settings-tab[data-tab="${tabId}"]`);
+    if (targetTab) {
+        targetTab.classList.add('active');
+    }
 }
 
 function loadSettingsUI() {
     const settings = currentState.settings;
     
-    // Populate settings form
+    // General Settings
     document.getElementById('instituteName').value = settings.instituteName;
     document.getElementById('minPassingGrade').value = settings.minPassingGrade;
     document.getElementById('maxCredits').value = settings.maxCredits;
@@ -1606,165 +1754,138 @@ function loadSettingsUI() {
     document.getElementById('timezone').value = settings.timezone;
     document.getElementById('language').value = settings.language;
     
-    // Program settings
+    // Program Settings
     document.getElementById('enableBasicTEE').checked = settings.enableBasicTEE;
     document.getElementById('enableHNC').checked = settings.enableHNC;
     document.getElementById('enableAdvancedTEE').checked = settings.enableAdvancedTEE;
     document.getElementById('enableTEENS').checked = settings.enableTEENS;
     
-    // Populate grading system
-    renderGradingSystem();
+    // User Preferences
+    const darkMode = localStorage.getItem('darkMode') === 'true';
+    document.getElementById('enableDarkMode').checked = darkMode;
 }
 
 function saveSettings() {
-    const settings = {
-        instituteName: document.getElementById('instituteName').value,
-        minPassingGrade: document.getElementById('minPassingGrade').value,
-        maxCredits: parseInt(document.getElementById('maxCredits').value),
-        attendanceThreshold: parseInt(document.getElementById('attendanceThreshold').value),
-        dateFormat: document.getElementById('dateFormat').value,
-        timezone: document.getElementById('timezone').value,
-        language: document.getElementById('language').value,
-        enableBasicTEE: document.getElementById('enableBasicTEE').checked,
-        enableHNC: document.getElementById('enableHNC').checked,
-        enableAdvancedTEE: document.getElementById('enableAdvancedTEE').checked,
-        enableTEENS: document.getElementById('enableTEENS').checked
-    };
-    
-    currentState.settings = settings;
-    localStorage.setItem('teeportalSettings', JSON.stringify(settings));
-    applySettings();
-    showToast('Settings saved successfully', 'success');
-}
-
-function renderGradingSystem() {
-    const container = document.getElementById('gradingRows');
-    if (!container) return;
-    
-    let html = '';
-    currentState.gradingSystem.forEach((grade, index) => {
-        html += `
-            <div class="grading-row">
-                <input type="text" value="${grade.grade}" onchange="updateGrade(${index}, 'grade', this.value)">
-                <input type="number" value="${grade.min}" onchange="updateGrade(${index}, 'min', this.value)">
-                <input type="number" value="${grade.max}" onchange="updateGrade(${index}, 'max', this.value)">
-                <input type="number" value="${grade.points}" step="0.1" onchange="updateGrade(${index}, 'points', this.value)">
-                <input type="text" value="${grade.description}" onchange="updateGrade(${index}, 'description', this.value)">
-                <button class="btn-action btn-delete" onclick="removeGrade(${index})">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        `;
-    });
-    
-    container.innerHTML = html;
-}
-
-function updateGrade(index, field, value) {
-    currentState.gradingSystem[index][field] = field === 'points' ? parseFloat(value) : 
-                                               (field === 'min' || field === 'max') ? parseInt(value) : value;
-    localStorage.setItem('gradingSystem', JSON.stringify(currentState.gradingSystem));
-}
-
-function addGradeRow() {
-    currentState.gradingSystem.push({
-        grade: 'New',
-        min: 0,
-        max: 100,
-        points: 0.0,
-        description: 'New Grade'
-    });
-    renderGradingSystem();
-}
-
-function removeGrade(index) {
-    if (currentState.gradingSystem.length > 1) {
-        currentState.gradingSystem.splice(index, 1);
-        renderGradingSystem();
-    } else {
-        showToast('Cannot remove the last grade', 'warning');
+    try {
+        // General Settings
+        currentState.settings.instituteName = document.getElementById('instituteName').value;
+        currentState.settings.minPassingGrade = document.getElementById('minPassingGrade').value;
+        currentState.settings.maxCredits = parseInt(document.getElementById('maxCredits').value);
+        currentState.settings.attendanceThreshold = parseInt(document.getElementById('attendanceThreshold').value);
+        currentState.settings.dateFormat = document.getElementById('dateFormat').value;
+        currentState.settings.timezone = document.getElementById('timezone').value;
+        currentState.settings.language = document.getElementById('language').value;
+        
+        // Program Settings
+        currentState.settings.enableBasicTEE = document.getElementById('enableBasicTEE').checked;
+        currentState.settings.enableHNC = document.getElementById('enableHNC').checked;
+        currentState.settings.enableAdvancedTEE = document.getElementById('enableAdvancedTEE').checked;
+        currentState.settings.enableTEENS = document.getElementById('enableTEENS').checked;
+        
+        // User Preferences
+        const darkMode = document.getElementById('enableDarkMode').checked;
+        localStorage.setItem('darkMode', darkMode);
+        if (darkMode) {
+            document.body.classList.add('dark-mode');
+        } else {
+            document.body.classList.remove('dark-mode');
+        }
+        
+        // Save to localStorage
+        localStorage.setItem('teeportalSettings', JSON.stringify(currentState.settings));
+        
+        // Apply settings
+        applySettings();
+        
+        showToast('Settings saved successfully', 'success');
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        showToast('Error saving settings: ' + error.message, 'error');
     }
 }
 
-function getTimeAgo(date) {
-    const seconds = Math.floor((new Date() - date) / 1000);
-    
-    let interval = Math.floor(seconds / 31536000);
-    if (interval >= 1) return interval + ' year' + (interval === 1 ? '' : 's') + ' ago';
-    
-    interval = Math.floor(seconds / 2592000);
-    if (interval >= 1) return interval + ' month' + (interval === 1 ? '' : 's') + ' ago';
-    
-    interval = Math.floor(seconds / 86400);
-    if (interval >= 1) return interval + ' day' + (interval === 1 ? '' : 's') + ' ago';
-    
-    interval = Math.floor(seconds / 3600);
-    if (interval >= 1) return interval + ' hour' + (interval === 1 ? '' : 's') + ' ago';
-    
-    interval = Math.floor(seconds / 60);
-    if (interval >= 1) return interval + ' minute' + (interval === 1 ? '' : 's') + ' ago';
-    
-    return Math.floor(seconds) + ' second' + (seconds === 1 ? '' : 's') + ' ago';
+function exportData(dataType) {
+    try {
+        let data, filename;
+        
+        switch(dataType) {
+            case 'students':
+                data = currentState.students;
+                filename = `students_${new Date().toISOString().split('T')[0]}.json`;
+                break;
+            case 'courses':
+                data = currentState.courses;
+                filename = `courses_${new Date().toISOString().split('T')[0]}.json`;
+                break;
+            case 'marks':
+                data = currentState.marks;
+                filename = `marks_${new Date().toISOString().split('T')[0]}.json`;
+                break;
+            case 'intakes':
+                data = currentState.intakes;
+                filename = `intakes_${new Date().toISOString().split('T')[0]}.json`;
+                break;
+            default:
+                throw new Error('Invalid data type');
+        }
+        
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showToast(`${dataType} exported successfully`, 'success');
+    } catch (error) {
+        console.error('Error exporting data:', error);
+        showToast('Error exporting data: ' + error.message, 'error');
+    }
 }
 
-// ============================================
-// MODAL & TOAST FUNCTIONS
-// ============================================
-
-let confirmCallback = null;
-
-function showConfirmModal(message, callback) {
-    elements.confirmMessage.textContent = message;
-    elements.confirmModal.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-    confirmCallback = callback;
-    
+function showConfirmModal(message, confirmText = 'Yes', cancelText = 'No') {
     return new Promise((resolve) => {
-        elements.confirmYes.onclick = () => {
-            hideConfirmModal();
-            if (confirmCallback) confirmCallback();
-            resolve(true);
-        };
+        elements.confirmMessage.innerHTML = message;
+        elements.confirmYes.textContent = confirmText;
+        elements.confirmNo.textContent = cancelText;
         
-        elements.confirmNo.onclick = () => {
-            hideConfirmModal();
-            resolve(false);
-        };
+        elements.confirmModal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        
+        // Store resolve function
+        currentState.confirmResolve = resolve;
     });
 }
 
 function hideConfirmModal() {
     elements.confirmModal.style.display = 'none';
     document.body.style.overflow = 'auto';
-    confirmCallback = null;
+    
+    if (currentState.confirmResolve) {
+        currentState.confirmResolve(false);
+        currentState.confirmResolve = null;
+    }
 }
 
 function handleConfirmYes() {
     hideConfirmModal();
-    if (confirmCallback) {
-        confirmCallback();
+    if (currentState.confirmResolve) {
+        currentState.confirmResolve(true);
+        currentState.confirmResolve = null;
     }
 }
 
 function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-    
-    const icons = {
-        success: 'fa-check-circle',
-        error: 'fa-exclamation-circle',
-        warning: 'fa-exclamation-triangle',
-        info: 'fa-info-circle'
-    };
-    
     toast.innerHTML = `
         <div class="toast-icon">
-            <i class="fas ${icons[type] || 'fa-info-circle'}"></i>
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
         </div>
-        <div class="toast-content">
-            <div class="toast-title">${type.charAt(0).toUpperCase() + type.slice(1)}</div>
-            <div class="toast-message">${message}</div>
-        </div>
+        <div class="toast-message">${message}</div>
         <button class="toast-close" onclick="this.parentElement.remove()">
             <i class="fas fa-times"></i>
         </button>
@@ -1772,7 +1893,7 @@ function showToast(message, type = 'info') {
     
     elements.toastContainer.appendChild(toast);
     
-    // Auto-remove after 5 seconds
+    // Auto remove after 5 seconds
     setTimeout(() => {
         if (toast.parentElement) {
             toast.remove();
@@ -1780,8 +1901,134 @@ function showToast(message, type = 'info') {
     }, 5000);
 }
 
+function viewStudent(studentId) {
+    const student = currentState.students.find(s => s.id === studentId);
+    if (!student) return;
+    
+    // Calculate student statistics
+    const studentMarks = currentState.marks.filter(m => m.student_id === studentId);
+    const completedCourses = studentMarks.length;
+    const avgGrade = studentMarks.length > 0 ? 
+        (studentMarks.reduce((sum, m) => sum + (m.grade_points || 0), 0) / studentMarks.length).toFixed(2) : 
+        0;
+    
+    const modalContent = `
+        <div class="student-profile-modal">
+            <div class="profile-header">
+                <div class="profile-avatar">
+                    <i class="fas fa-user-graduate"></i>
+                </div>
+                <div class="profile-info">
+                    <h3>${student.first_name} ${student.last_name}</h3>
+                    <p>${student.registration_number} • ${student.program}</p>
+                    <span class="status-badge status-${student.status?.toLowerCase() || 'active'}">
+                        ${student.status || 'Active'}
+                    </span>
+                </div>
+            </div>
+            
+            <div class="profile-stats">
+                <div class="stat">
+                    <h4>${completedCourses}</h4>
+                    <p>Courses Completed</p>
+                </div>
+                <div class="stat">
+                    <h4>${avgGrade}</h4>
+                    <p>Average Grade</p>
+                </div>
+                <div class="stat">
+                    <h4>${student.intake_year}</h4>
+                    <p>Intake Year</p>
+                </div>
+            </div>
+            
+            <div class="profile-details">
+                <h4>Personal Information</h4>
+                <p><strong>Email:</strong> ${student.email}</p>
+                <p><strong>Phone:</strong> ${student.phone}</p>
+                <p><strong>Home Church:</strong> ${student.home_church || 'Not specified'}</p>
+                <p><strong>Enrollment Date:</strong> ${new Date(student.enrollment_date).toLocaleDateString()}</p>
+            </div>
+            
+            ${studentMarks.length > 0 ? `
+                <div class="profile-performance">
+                    <h4>Academic Performance</h4>
+                    <table class="marks-table">
+                        <thead>
+                            <tr>
+                                <th>Course</th>
+                                <th>Grade</th>
+                                <th>Percentage</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${studentMarks.map(mark => {
+                                const course = currentState.courses.find(c => c.id === mark.course_id);
+                                return `
+                                    <tr>
+                                        <td>${course?.course_code || 'Unknown'}</td>
+                                        <td><span class="grade-badge grade-${mark.grade?.charAt(0).toLowerCase()}">${mark.grade}</span></td>
+                                        <td>${mark.percentage?.toFixed(1)}%</td>
+                                        <td>${new Date(mark.assessment_date).toLocaleDateString()}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            ` : ''}
+        </div>
+    `;
+    
+    showConfirmModal(modalContent, 'Close', null);
+}
+
 // ============================================
-// ADDITIONAL FUNCTIONS
+// EVENT HANDLERS FOR BUTTONS
+// ============================================
+
+// Make functions available globally
+window.showStudentForm = () => showStudentForm();
+window.hideStudentForm = hideStudentForm;
+window.saveStudent = saveStudent;
+window.editStudent = editStudent;
+window.deleteStudent = deleteStudent;
+window.viewStudent = viewStudent;
+window.searchStudents = searchStudents;
+window.filterStudents = filterStudents;
+
+window.showCourseForm = () => showCourseForm();
+window.hideCourseForm = hideCourseForm;
+window.saveCourse = saveCourse;
+window.editCourse = editCourse;
+window.deleteCourse = deleteCourse;
+window.searchCourses = searchCourses;
+window.filterCourses = filterCourses;
+
+window.showMarksForm = showMarksForm;
+window.saveMarks = saveMarks;
+window.calculateMarks = calculateMarks;
+window.editMarks = editMarks;
+window.deleteMarks = deleteMarks;
+
+window.showIntakeForm = () => showIntakeForm();
+window.hideIntakeForm = hideIntakeForm;
+window.saveIntake = saveIntake;
+window.editIntake = editIntake;
+window.viewIntakeDetails = viewIntakeDetails;
+
+window.switchTab = switchTab;
+window.showSettingsTab = showSettingsTab;
+window.saveSettings = saveSettings;
+window.exportData = exportData;
+
+window.showConfirmModal = showConfirmModal;
+window.hideConfirmModal = hideConfirmModal;
+window.showToast = showToast;
+
+// ============================================
+// HELPER FUNCTIONS FOR MISSING IMPLEMENTATIONS
 // ============================================
 
 function editCourse(courseId) {
@@ -1812,28 +2059,26 @@ async function deleteCourse(courseId) {
 }
 
 function editMarks(marksId) {
-    const marks = currentState.marks.find(m => m.id === marksId);
-    if (marks) {
-        // Populate marks form
-        document.getElementById('marksId').value = marks.id;
-        document.getElementById('marksStudent').value = marks.student_id;
-        document.getElementById('marksCourse').value = marks.course_id;
-        document.getElementById('marksAssessment').value = marks.assessment_type;
-        document.getElementById('marksDate').value = marks.assessment_date;
-        document.getElementById('marksObtained').value = marks.marks_obtained;
-        document.getElementById('marksTotal').value = marks.total_marks;
-        document.getElementById('marksRemarks').value = marks.remarks;
-        
-        // Calculate and display
-        calculateMarks();
-        
-        // Scroll to form
+    const mark = currentState.marks.find(m => m.id === marksId);
+    if (mark) {
         showMarksForm();
+        // Populate marks form
+        document.getElementById('marksId').value = mark.id;
+        document.getElementById('marksStudent').value = mark.student_id;
+        document.getElementById('marksCourse').value = mark.course_id;
+        document.getElementById('marksAssessment').value = mark.assessment_type;
+        document.getElementById('marksDate').value = mark.assessment_date;
+        document.getElementById('marksObtained').value = mark.marks_obtained;
+        document.getElementById('marksTotal').value = mark.total_marks;
+        document.getElementById('marksRemarks').value = mark.remarks || '';
+        
+        // Trigger calculation
+        calculateMarks();
     }
 }
 
 async function deleteMarks(marksId) {
-    const confirmed = await showConfirmModal('Are you sure you want to delete this marks record?');
+    const confirmed = await showConfirmModal('Are you sure you want to delete these marks?');
     if (!confirmed) return;
     
     try {
@@ -1844,7 +2089,7 @@ async function deleteMarks(marksId) {
         
         if (error) throw error;
         
-        showToast('Marks record deleted successfully', 'success');
+        showToast('Marks deleted successfully', 'success');
         await loadMarks();
     } catch (error) {
         console.error('Error deleting marks:', error);
@@ -1859,478 +2104,14 @@ function editIntake(intakeId) {
     }
 }
 
-function viewIntakeYear(year) {
-    // Filter students by intake year
-    const filteredStudents = currentState.students.filter(s => s.intake_year == year);
-    showSection('students');
-    
-    // Set filter and render
-    document.getElementById('filterIntakeYear').value = year;
-    renderStudentsTable(filteredStudents);
-}
-
-function viewIntakeDetails(intakeId) {
-    const intake = currentState.intakes.find(i => i.id === intakeId);
-    if (intake) {
-        alert(`Intake Details:\n\nName: ${intake.name}\nYear: ${intake.year}\nSemester: ${intake.semester}\nStatus: ${intake.status}\nStart: ${intake.start_date}\nEnd: ${intake.end_date}\nPrograms: ${JSON.parse(intake.programs || '[]').join(', ')}`);
-    }
-}
-
-function viewStudent(studentId) {
-    const student = currentState.students.find(s => s.id === studentId);
-    if (student) {
-        // Create student details modal
-        const details = `
-            <div class="student-details">
-                <h3>${student.first_name} ${student.last_name}</h3>
-                <p><strong>Registration No:</strong> ${student.registration_number}</p>
-                <p><strong>Program:</strong> ${student.program}</p>
-                <p><strong>Intake Year:</strong> ${student.intake_year}</p>
-                <p><strong>Email:</strong> ${student.email}</p>
-                <p><strong>Phone:</strong> ${student.phone}</p>
-                <p><strong>Status:</strong> ${student.status}</p>
-                <p><strong>Enrollment Date:</strong> ${student.enrollment_date}</p>
-            </div>
-        `;
-        
-        showConfirmModal(details, null);
-        document.getElementById('confirmYes').style.display = 'none';
-        document.getElementById('confirmNo').textContent = 'Close';
-    }
+function updateStudentCounts() {
+    document.getElementById('totalStudentsCount').textContent = currentState.students.length;
+    const activeStudents = currentState.students.filter(s => s.status === 'Active').length;
+    document.getElementById('activeStudentsCount').textContent = activeStudents;
 }
 
 // ============================================
-// EXPORT FUNCTIONS
+// INITIALIZATION COMPLETE
 // ============================================
 
-async function exportData() {
-    try {
-        const data = {
-            students: currentState.students,
-            courses: currentState.courses,
-            marks: currentState.marks,
-            intakes: currentState.intakes,
-            exportedAt: new Date().toISOString()
-        };
-        
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `teeportal-backup-${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        showToast('Data exported successfully', 'success');
-    } catch (error) {
-        console.error('Error exporting data:', error);
-        showToast('Error exporting data: ' + error.message, 'error');
-    }
-}
-
-// ============================================
-// SYSTEM FUNCTIONS
-// ============================================
-
-function logout() {
-    showConfirmModal('Are you sure you want to logout?', () => {
-        // Clear any stored data
-        localStorage.clear();
-        sessionStorage.clear();
-        
-        // Redirect to login or reload
-        window.location.reload();
-    });
-}
-
-function toggleDarkMode() {
-    document.body.classList.toggle('dark-mode');
-    const isDark = document.body.classList.contains('dark-mode');
-    localStorage.setItem('darkMode', isDark);
-    showToast(`Dark mode ${isDark ? 'enabled' : 'disabled'}`, 'info');
-}
-
-function refreshAll() {
-    showToast('Refreshing data...', 'info');
-    loadInitialData().then(() => {
-        showToast('Data refreshed successfully', 'success');
-    }).catch(error => {
-        showToast('Error refreshing data: ' + error.message, 'error');
-    });
-}
-
-// ============================================
-// REPORT FUNCTIONS
-// ============================================
-
-function generateReport() {
-    const reportType = document.getElementById('reportType').value;
-    const program = document.getElementById('reportProgram').value;
-    const intakeYear = document.getElementById('reportIntake').value;
-    const format = document.getElementById('reportFormat').value;
-    
-    if (!reportType) {
-        showToast('Please select a report type', 'warning');
-        return;
-    }
-    
-    showToast('Generating report...', 'info');
-    
-    // Filter data based on selections
-    let filteredStudents = [...currentState.students];
-    let filteredMarks = [...currentState.marks];
-    
-    if (program) {
-        filteredStudents = filteredStudents.filter(s => s.program === program);
-        filteredMarks = filteredMarks.filter(m => 
-            filteredStudents.some(s => s.id === m.student_id)
-        );
-    }
-    
-    if (intakeYear) {
-        filteredStudents = filteredStudents.filter(s => s.intake_year == intakeYear);
-        filteredMarks = filteredMarks.filter(m => 
-            filteredStudents.some(s => s.id === m.student_id)
-        );
-    }
-    
-    // Generate report based on type
-    let reportData;
-    switch(reportType) {
-        case 'studentList':
-            reportData = generateStudentListReport(filteredStudents);
-            break;
-        case 'academicPerformance':
-            reportData = generateAcademicReport(filteredStudents, filteredMarks);
-            break;
-        case 'enrollmentReport':
-            reportData = generateEnrollmentReport(filteredStudents);
-            break;
-        default:
-            reportData = { error: 'Report type not implemented' };
-    }
-    
-    // Display preview
-    displayReportPreview(reportData, format);
-}
-
-function generateStudentListReport(students) {
-    return {
-        title: 'Student List Report',
-        headers: ['Reg No', 'Name', 'Program', 'Intake', 'Email', 'Phone', 'Status'],
-        data: students.map(s => [
-            s.registration_number,
-            `${s.first_name} ${s.last_name}`,
-            s.program,
-            s.intake_year,
-            s.email,
-            s.phone,
-            s.status
-        ]),
-        summary: {
-            total: students.length,
-            byProgram: students.reduce((acc, s) => {
-                acc[s.program] = (acc[s.program] || 0) + 1;
-                return acc;
-            }, {}),
-            byStatus: students.reduce((acc, s) => {
-                acc[s.status] = (acc[s.status] || 0) + 1;
-                return acc;
-            }, {})
-        }
-    };
-}
-
-function generateAcademicReport(students, marks) {
-    const studentPerformance = students.map(student => {
-        const studentMarks = marks.filter(m => m.student_id === student.id);
-        const average = studentMarks.length > 0 ? 
-            studentMarks.reduce((sum, m) => sum + m.percentage, 0) / studentMarks.length : 0;
-        
-        return {
-            student: student,
-            totalCourses: studentMarks.length,
-            averageScore: average,
-            highestGrade: studentMarks.length > 0 ? 
-                studentMarks.reduce((max, m) => m.percentage > max.percentage ? m : max, studentMarks[0]) : null
-        };
-    });
-    
-    return {
-        title: 'Academic Performance Report',
-        headers: ['Reg No', 'Name', 'Program', 'Courses Taken', 'Average %', 'Highest Grade'],
-        data: studentPerformance.map(sp => [
-            sp.student.registration_number,
-            `${sp.student.first_name} ${sp.student.last_name}`,
-            sp.student.program,
-            sp.totalCourses,
-            sp.averageScore.toFixed(2) + '%',
-            sp.highestGrade ? sp.highestGrade.grade + ' (' + sp.highestGrade.percentage.toFixed(2) + '%)' : 'N/A'
-        ]),
-        summary: {
-            totalStudents: students.length,
-            averageOverall: studentPerformance.reduce((sum, sp) => sum + sp.averageScore, 0) / studentPerformance.length,
-            topPerformer: studentPerformance.reduce((top, sp) => 
-                sp.averageScore > top.averageScore ? sp : top, studentPerformance[0])
-        }
-    };
-}
-
-function generateEnrollmentReport(students) {
-    const byProgram = students.reduce((acc, s) => {
-        acc[s.program] = (acc[s.program] || 0) + 1;
-        return acc;
-    }, {});
-    
-    const byIntake = students.reduce((acc, s) => {
-        acc[s.intake_year] = (acc[s.intake_year] || 0) + 1;
-        return acc;
-    }, {});
-    
-    return {
-        title: 'Enrollment Report',
-        headers: ['Program', 'Number of Students', 'Percentage'],
-        data: Object.entries(byProgram).map(([program, count]) => [
-            program,
-            count,
-            ((count / students.length) * 100).toFixed(2) + '%'
-        ]),
-        summary: {
-            totalStudents: students.length,
-            byProgram: byProgram,
-            byIntake: byIntake,
-            averageIntake: Object.values(byIntake).reduce((sum, count) => sum + count, 0) / Object.keys(byIntake).length
-        }
-    };
-}
-
-function displayReportPreview(reportData, format) {
-    const preview = document.getElementById('reportPreview');
-    
-    if (format === 'html') {
-        let html = `
-            <div class="report-content">
-                <h3>${reportData.title}</h3>
-                <div class="report-summary">
-                    <p>Total Records: ${reportData.summary?.total || 0}</p>
-                </div>
-                <table class="report-table">
-                    <thead>
-                        <tr>
-                            ${reportData.headers.map(h => `<th>${h}</th>`).join('')}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${reportData.data.map(row => `
-                            <tr>
-                                ${row.map(cell => `<td>${cell}</td>`).join('')}
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-        preview.innerHTML = html;
-    }
-    
-    showToast('Report generated successfully', 'success');
-}
-
-function exportReport() {
-    showToast('Export feature coming soon!', 'info');
-}
-
-function previewReport() {
-    generateReport();
-}
-
-function generateQuickReport(type) {
-    // Set report type and generate
-    document.getElementById('reportType').value = type;
-    generateReport();
-}
-
-function printReport() {
-    window.print();
-}
-
-function bulkUploadMarks() {
-    showToast('Bulk upload feature coming soon!', 'info');
-}
-
-// ============================================
-// CREATE DATABASE TABLES
-// ============================================
-
-async function createDatabaseTables() {
-    try {
-        // Check if tables exist by trying to query them
-        const { error: studentsError } = await supabase
-            .from('students')
-            .select('count', { count: 'exact', head: true });
-        
-        if (studentsError && studentsError.code === '42P01') {
-            // Table doesn't exist, show SQL to create it
-            const sql = `
-                -- Students table
-                CREATE TABLE IF NOT EXISTS students (
-                    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-                    registration_number VARCHAR(50) UNIQUE NOT NULL,
-                    first_name VARCHAR(100) NOT NULL,
-                    last_name VARCHAR(100) NOT NULL,
-                    other_names VARCHAR(200),
-                    gender VARCHAR(10),
-                    date_of_birth DATE,
-                    marital_status VARCHAR(20),
-                    home_church TEXT,
-                    program VARCHAR(50),
-                    intake_year INTEGER,
-                    study_mode VARCHAR(50),
-                    enrollment_date DATE DEFAULT CURRENT_DATE,
-                    email VARCHAR(255),
-                    phone VARCHAR(20),
-                    alternative_phone VARCHAR(20),
-                    address TEXT,
-                    kin_name VARCHAR(100),
-                    kin_relationship VARCHAR(50),
-                    kin_phone VARCHAR(20),
-                    status VARCHAR(20) DEFAULT 'Active',
-                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-                );
-
-                -- Courses table
-                CREATE TABLE IF NOT EXISTS courses (
-                    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-                    course_code VARCHAR(20) UNIQUE NOT NULL,
-                    course_name VARCHAR(200) NOT NULL,
-                    program VARCHAR(50),
-                    level INTEGER,
-                    credits INTEGER,
-                    semester VARCHAR(50),
-                    description TEXT,
-                    status VARCHAR(20) DEFAULT 'Active',
-                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-                );
-
-                -- Marks table
-                CREATE TABLE IF NOT EXISTS marks (
-                    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-                    student_id UUID REFERENCES students(id) ON DELETE CASCADE,
-                    course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
-                    assessment_type VARCHAR(50),
-                    assessment_date DATE DEFAULT CURRENT_DATE,
-                    marks_obtained DECIMAL(5,2),
-                    total_marks DECIMAL(5,2) DEFAULT 100,
-                    percentage DECIMAL(5,2),
-                    grade VARCHAR(10),
-                    grade_points DECIMAL(3,2),
-                    remarks TEXT,
-                    recorded_by VARCHAR(100),
-                    recorded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-                );
-
-                -- Intakes table
-                CREATE TABLE IF NOT EXISTS intakes (
-                    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-                    year INTEGER,
-                    semester VARCHAR(50),
-                    name VARCHAR(100),
-                    start_date DATE,
-                    end_date DATE,
-                    status VARCHAR(20),
-                    description TEXT,
-                    programs JSONB,
-                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-                );
-            `;
-            
-            console.log('Copy this SQL to Supabase SQL Editor to create tables:');
-            console.log(sql);
-            showToast('Tables need to be created in Supabase. Check console for SQL.', 'warning');
-        } else {
-            showToast('Database tables already exist', 'success');
-        }
-        
-    } catch (error) {
-        console.error('Error checking database:', error);
-        showToast('Error checking database: ' + error.message, 'error');
-    }
-}
-
-// ============================================
-// WINDOW EXPORTS
-// ============================================
-
-// Export functions to global scope
-window.showSection = showSection;
-window.showStudentForm = showStudentForm;
-window.hideStudentForm = hideStudentForm;
-window.saveStudent = saveStudent;
-window.editStudent = editStudent;
-window.deleteStudent = deleteStudent;
-window.searchStudents = searchStudents;
-window.filterStudents = filterStudents;
-
-window.showCourseForm = showCourseForm;
-window.hideCourseForm = hideCourseForm;
-window.saveCourse = saveCourse;
-window.editCourse = editCourse;
-window.deleteCourse = deleteCourse;
-window.searchCourses = searchCourses;
-window.filterCourses = filterCourses;
-
-window.showMarksForm = showMarksForm;
-window.saveMarks = saveMarks;
-window.calculateMarks = calculateMarks;
-window.resetMarksForm = resetMarksForm;
-window.editMarks = editMarks;
-window.deleteMarks = deleteMarks;
-
-window.showIntakeForm = showIntakeForm;
-window.hideIntakeForm = hideIntakeForm;
-window.saveIntake = saveIntake;
-window.editIntake = editIntake;
-window.viewIntakeYear = viewIntakeYear;
-window.viewIntakeDetails = viewIntakeDetails;
-
-window.switchTab = switchTab;
-window.nextTab = nextTab;
-window.previousTab = previousTab;
-
-window.showSettingsTab = showSettingsTab;
-window.saveSettings = saveSettings;
-window.addGradeRow = addGradeRow;
-window.removeGrade = removeGrade;
-window.updateGrade = updateGrade;
-
-window.showConfirmModal = showConfirmModal;
-window.hideConfirmModal = hideConfirmModal;
-window.showToast = showToast;
-
-window.logout = logout;
-window.toggleDarkMode = toggleDarkMode;
-window.refreshAll = refreshAll;
-window.refreshDashboard = updateDashboard;
-window.exportData = exportData;
-
-window.loadProgramCourses = loadProgramCourses;
-window.viewStudent = viewStudent;
-
-window.generateReport = generateReport;
-window.previewReport = previewReport;
-window.exportReport = exportReport;
-window.generateQuickReport = generateQuickReport;
-window.printReport = printReport;
-window.bulkUploadMarks = bulkUploadMarks;
-
-window.createDatabaseTables = createDatabaseTables;
-
-// Initialize on load
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeApp);
-} else {
-    initializeApp();
-}
+console.log('TEEPortal Admin System loaded successfully');
