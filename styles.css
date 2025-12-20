@@ -1912,3 +1912,28 @@ body.dark-mode th {
 body.dark-mode td {
     border-color: #4a5154;
 }
+/* Fix for blocking modals/overlays */
+.modal-overlay {
+    z-index: 9999 !important;
+}
+
+/* Fix for dropdown menus */
+.dropdown-content {
+    z-index: 1000 !important;
+}
+
+/* Ensure content is not hidden behind fixed elements */
+main {
+    position: relative;
+    z-index: 1;
+}
+
+/* Fix for sticky headers */
+header {
+    z-index: 100;
+}
+
+/* Fix for tooltips/popups */
+.tooltip, .popup {
+    z-index: 1001 !important;
+}
