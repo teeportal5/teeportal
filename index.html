@@ -611,79 +611,194 @@
     </div>
 </section>
 
-                <!-- ========== SETTINGS SECTION ========== -->
-                <section id="settings" class="content-section">
-                    <div class="section-header">
-                        <h2><i class="fas fa-cogs"></i> System Settings</h2>
-                        <button class="btn-primary" onclick="saveSettings()">
-                            <i class="fas fa-save"></i> Save Settings
-                        </button>
-                    </div>
-
-                    <!-- SETTINGS TABS -->
-                    <div class="settings-tabs">
-                        <div class="tab-buttons">
-                            <button class="tab-btn active" onclick="openSettingsTab('general')">General</button>
-                            <button class="tab-btn" onclick="openSettingsTab('academic')">Academic</button>
-                            <button class="tab-btn" onclick="openSettingsTab('grading')">Grading</button>
-                            <button class="tab-btn" onclick="openSettingsTab('users')">Users</button>
-                        </div>
-
-                        <!-- GENERAL SETTINGS -->
-                        <div id="generalTab" class="tab-content active">
-                            <h3>General Settings</h3>
-                            <div class="settings-form">
-                                <div class="form-group">
-                                    <label>Institute Name</label>
-                                    <input type="text" value="Theological Education by Extension College">
-                                </div>
-                                <div class="form-group">
-                                    <label>Academic Year</label>
-                                    <select>
-                                        <option>2024-2025</option>
-                                        <option>2023-2024</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label>Timezone</label>
-                                    <select>
-                                        <option>Africa/Nairobi</option>
-                                        <option>UTC</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- ACADEMIC SETTINGS -->
-                        <div id="academicTab" class="tab-content">
-                            <h3>Academic Settings</h3>
-                            <div class="settings-form">
-                                <div class="form-group">
-                                    <label>Minimum Passing Grade</label>
-                                    <select>
-                                        <option>C (50%)</option>
-                                        <option>D (40%)</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label>Maximum Credits per Semester</label>
-                                    <input type="number" value="18">
-                                </div>
-                                <div class="form-group">
-                                    <label>Programs</label>
-                                    <div class="checkbox-group">
-                                        <label><input type="checkbox" checked> Basic TEE</label>
-                                        <label><input type="checkbox" checked> HNC</label>
-                                        <label><input type="checkbox"> Advanced TEE</label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            </div>
-        </main>
+              <!-- ========== SETTINGS SECTION ========== -->
+<section id="settings" class="content-section">
+    <div class="section-header">
+        <h2><i class="fas fa-cogs"></i> System Settings</h2>
+        <button class="btn-primary" onclick="app.saveSettings(event)">
+            <i class="fas fa-save"></i> Save Settings
+        </button>
     </div>
+
+    <!-- SETTINGS TABS -->
+    <div class="settings-tabs">
+        <div class="tab-buttons">
+            <button class="tab-btn active" data-tab="general">General</button>
+            <button class="tab-btn" data-tab="academic">Academic</button>
+            <button class="tab-btn" data-tab="grading">Grading Scale</button>
+            <button class="tab-btn" data-tab="programs">Programs</button>
+            <button class="tab-btn" data-tab="system">System</button>
+        </div>
+
+        <!-- SETTINGS FORM -->
+        <form id="settingsForm" class="settings-form">
+            
+            <!-- GENERAL SETTINGS TAB -->
+            <div id="general-tab" class="tab-content active">
+                <h3>General Settings</h3>
+                
+                <div class="form-group">
+                    <label for="instituteName">Institute Name</label>
+                    <input type="text" id="instituteName" class="form-control" 
+                           placeholder="Enter institute name">
+                </div>
+                
+                <div class="form-group">
+                    <label for="instituteAbbreviation">Institute Abbreviation</label>
+                    <input type="text" id="instituteAbbreviation" class="form-control" 
+                           placeholder="e.g., TEE College">
+                </div>
+                
+                <div class="form-group">
+                    <label for="academicYear">Academic Year</label>
+                    <input type="number" id="academicYear" class="form-control" 
+                           min="2000" max="2030" step="1">
+                </div>
+                
+                <div class="form-group">
+                    <label for="semester">Semester</label>
+                    <select id="semester" class="form-control">
+                        <option value="spring">Spring</option>
+                        <option value="summer">Summer</option>
+                        <option value="fall">Fall</option>
+                        <option value="winter">Winter</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="timezone">Timezone</label>
+                    <select id="timezone" class="form-control">
+                        <option value="Africa/Nairobi">Africa/Nairobi (EAT)</option>
+                        <option value="UTC">UTC</option>
+                        <option value="Europe/London">Europe/London (GMT)</option>
+                        <option value="America/New_York">America/New_York (EST)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="currency">Currency</label>
+                    <select id="currency" class="form-control">
+                        <option value="KES">Kenyan Shilling (KES)</option>
+                        <option value="USD">US Dollar (USD)</option>
+                        <option value="EUR">Euro (EUR)</option>
+                        <option value="GBP">British Pound (GBP)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="language">Language</label>
+                    <select id="language" class="form-control">
+                        <option value="en">English</option>
+                        <option value="sw">Swahili</option>
+                        <option value="fr">French</option>
+                        <option value="es">Spanish</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- GRADING SCALE TAB -->
+            <div id="grading-tab" class="tab-content">
+                <div class="section-header">
+                    <h3>Grading Scale Configuration</h3>
+                    <button type="button" class="btn-secondary" onclick="app.addGradingScaleRow()">
+                        <i class="fas fa-plus"></i> Add Grade
+                    </button>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table grading-scale-table">
+                        <thead>
+                            <tr>
+                                <th>Grade</th>
+                                <th>Min %</th>
+                                <th>Max %</th>
+                                <th>Points</th>
+                                <th>Description</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="grading-scale-body">
+                            <!-- Dynamic rows will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- PROGRAMS TAB -->
+            <div id="programs-tab" class="tab-content">
+                <div class="section-header">
+                    <h3>Programs Configuration</h3>
+                    <button type="button" class="btn-secondary" onclick="app.addProgramSetting()">
+                        <i class="fas fa-plus"></i> Add Program
+                    </button>
+                </div>
+                
+                <div id="programs-settings" class="programs-container">
+                    <!-- Program cards will be inserted here -->
+                </div>
+            </div>
+
+            <!-- SYSTEM SETTINGS TAB -->
+            <div id="system-tab" class="tab-content">
+                <h3>System Settings</h3>
+                
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="autoGenerateRegNumbers" checked>
+                        Auto-generate Registration Numbers
+                    </label>
+                </div>
+                
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="allowMarkOverwrite">
+                        Allow Mark Overwrite (Admins only)
+                    </label>
+                </div>
+                
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="showGPA" checked>
+                        Show GPA on Reports
+                    </label>
+                </div>
+                
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="enableEmailNotifications">
+                        Enable Email Notifications
+                    </label>
+                </div>
+                
+                <div class="form-group">
+                    <label for="defaultPassword">Default Password for New Users</label>
+                    <input type="text" id="defaultPassword" class="form-control" 
+                           value="Welcome123">
+                </div>
+                
+                <div class="form-group">
+                    <label for="sessionTimeout">Session Timeout (minutes)</label>
+                    <input type="number" id="sessionTimeout" class="form-control" 
+                           min="5" max="120" value="30">
+                </div>
+                
+                <div class="form-group">
+                    <label for="maxLoginAttempts">Max Login Attempts</label>
+                    <input type="number" id="maxLoginAttempts" class="form-control" 
+                           min="1" max="10" value="5">
+                </div>
+                
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="enableTwoFactor">
+                        Enable Two-Factor Authentication
+                    </label>
+                </div>
+            </div>
+            
+        </form>
+    </div>
+</section>
 
     <!-- ========== MODALS ========== -->
     
