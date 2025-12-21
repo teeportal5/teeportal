@@ -457,29 +457,6 @@ class TEEPortalSupabaseDB {
         // Return empty array for now
         return [];
     }
-}
- 
-    // ========== GRADING SYSTEM ==========
-    calculateGrade(percentage) {
-        const settings = this.getSettings();
-        const scale = settings.gradingScale;
-        
-        for (const [grade, range] of Object.entries(scale)) {
-            if (percentage >= range.min && percentage <= range.max) {
-                return {
-                    grade: grade,
-                    points: range.points,
-                    description: range.description
-                };
-            }
-        }
-        
-        return {
-            grade: 'F',
-            points: 0.0,
-            description: 'Fail'
-        };
-    }
     
     calculateStudentGPA(studentId) {
         const marks = this.getStudentMarks(studentId);
@@ -576,7 +553,7 @@ class TEEPortalSupabaseDB {
 
 class TEEPortalApp {
     constructor() {
-        this.db = new TEEPortalDB();
+        this.db = new TEEPortalSupabaseDB();
         this.currentStudentId = null;
         this.currentView = 'dashboard';
         this.charts = {};
