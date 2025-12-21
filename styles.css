@@ -1,156 +1,167 @@
-/* Global Reset */
+/* 1. RESET & BASE STYLES */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+:root {
+    --sidebar-width: 260px;
+    --primary-blue: #2563eb;
+    --dark-bg: #1e293b;
+    --light-bg: #f8fafc;
+    --border-color: #e2e8f0;
+    --text-main: #334155;
+    --white: #ffffff;
 }
 
 body {
-    background-color: #f0f2f5;
-    color: #333;
+    background-color: var(--light-bg);
+    color: var(--text-main);
+    height: 100vh;
+    overflow: hidden; /* Prevents double scrollbars */
 }
 
-/* Main Layout Container */
-.container {
+/* 2. LAYOUT WRAPPER */
+.app-wrapper {
     display: flex;
-    min-height: 100vh;
+    height: 100vh;
+    width: 100vw;
 }
 
-/* Sidebar Styling (Your <header> tag) */
-header {
-    width: 280px;
-    background-color: #2c3e50;
-    color: #ecf0f1;
+/* 3. SIDEBAR (The Fix) */
+.sidebar {
+    width: var(--sidebar-width);
+    background-color: var(--dark-bg);
+    color: var(--white);
     display: flex;
     flex-direction: column;
-    position: fixed;
-    height: 100vh;
-    z-index: 100;
+    flex-shrink: 0; /* Prevents sidebar from squishing */
+    transition: all 0.3s ease;
 }
 
-.header-content {
-    padding: 20px;
-    border-bottom: 1px solid #34495e;
-}
-
-.logo {
+.sidebar-logo {
+    padding: 25px;
     display: flex;
     align-items: center;
     gap: 15px;
-    margin-bottom: 25px;
-}
-
-.logo i {
-    font-size: 2rem;
-    color: #3498db;
-}
-
-.logo-text h1 {
-    font-size: 1.2rem;
-    letter-spacing: 1px;
-}
-
-.subtitle, .institute {
-    display: block;
-    font-size: 0.7rem;
-    opacity: 0.7;
-}
-
-/* User Profile Section */
-.user-info {
-    display: flex;
-    align-items: center;
     background: rgba(0,0,0,0.2);
-    padding: 10px;
-    border-radius: 8px;
-    margin-top: 10px;
 }
 
-.user-avatar {
-    font-size: 1.5rem;
-    margin-right: 10px;
-}
+.sidebar-logo i { font-size: 1.8rem; color: #60a5fa; }
+.logo-text h1 { font-size: 1.2rem; margin: 0; }
+.logo-text span { font-size: 0.8rem; opacity: 0.7; }
 
-.user-details {
+.sidebar-nav {
     flex: 1;
+    padding: 20px 0;
 }
 
-.username {
-    display: block;
-    font-weight: bold;
-    font-size: 0.9rem;
-}
-
-.user-role {
-    font-size: 0.75rem;
-    opacity: 0.8;
-}
-
-.btn-logout {
-    background: none;
-    border: none;
-    color: #e74c3c;
-    cursor: pointer;
-    font-size: 1.1rem;
-}
-
-/* Navigation Menu */
-nav {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    padding-top: 20px;
-}
-
-.nav-menu {
-    list-style: none;
-}
+.nav-menu { list-style: none; }
 
 .nav-link {
     display: flex;
     align-items: center;
-    padding: 15px 25px;
-    color: #bdc3c7;
+    padding: 12px 25px;
+    color: #cbd5e1;
     text-decoration: none;
-    transition: all 0.3s;
-    white-space: nowrap; /* Prevents the jumbled text in your screenshot */
-}
-
-.nav-link i {
-    width: 30px;
-    font-size: 1.1rem;
+    gap: 12px;
+    transition: 0.2s;
 }
 
 .nav-link:hover, .nav-link.active {
-    background-color: #34495e;
-    color: #fff;
-    border-left: 4px solid #3498db;
+    background: #334155;
+    color: var(--white);
+    border-left: 4px solid var(--primary-blue);
 }
 
-.nav-footer {
+/* SIDEBAR FOOTER (Locked at bottom left) */
+.sidebar-footer {
     padding: 20px;
-    background: rgba(0,0,0,0.1);
-    font-size: 0.8rem;
+    background: #0f172a;
+    border-top: 1px solid #334155;
 }
 
-/* Main Content Area */
-main {
+.footer-stat {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+    color: #94a3b8;
+}
+
+/* 4. MAIN CONTENT AREA */
+.main-content {
     flex: 1;
-    margin-left: 280px; /* Important: Pushes content away from sidebar */
-    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* Fixes flexbox text overflow issues */
 }
 
-/* Section Controls */
-.section-header {
+.top-header {
+    height: 70px;
+    background: var(--white);
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 30px;
+    padding: 0 30px;
 }
 
-/* Stats Grid (The Cards) */
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.user-info { text-align: right; }
+.username { display: block; font-weight: 600; font-size: 0.9rem; }
+.role { font-size: 0.75rem; color: #64748b; }
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    background: #e2e8f0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+}
+
+.logout-btn {
+    border: none;
+    background: none;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 1.2rem;
+    margin-left: 10px;
+}
+
+/* 5. CONTENT SECTIONS */
+.scroll-container {
+    flex: 1;
+    padding: 30px;
+    overflow-y: auto;
+}
+
+.content-section {
+    display: none; /* Hidden by default */
+}
+
+.content-section.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 6. COMPONENTS (Cards & Tables) */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -159,66 +170,62 @@ main {
 }
 
 .stat-card {
-    background: white;
+    background: var(--white);
     padding: 20px;
     border-radius: 12px;
     display: flex;
     align-items: center;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    gap: 20px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-.stat-icon {
-    width: 60px;
-    height: 60px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    margin-right: 15px;
-}
+.stat-card i { font-size: 2.5rem; opacity: 0.8; }
+.blue { color: #3b82f6; }
+.green { color: #22c55e; }
+.gold { color: #eab308; }
 
-.stat-primary .stat-icon { background: #e3f2fd; color: #2196f3; }
-.stat-success .stat-icon { background: #e8f5e9; color: #4caf50; }
-.stat-warning .stat-icon { background: #fff3e0; color: #ff9800; }
-.stat-danger .stat-icon { background: #ffebee; color: #f44336; }
+.stat-data h3 { font-size: 0.9rem; color: #64748b; margin-bottom: 5px; }
+.stat-data p { font-size: 1.8rem; font-weight: 700; }
 
-.stat-number {
-    font-size: 1.8rem;
-    font-weight: bold;
-}
-
-/* Card Styling */
-.card {
-    background: white;
+.table-wrapper {
+    background: var(--white);
     border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    margin-bottom: 20px;
     overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-.card-header {
-    padding: 15px 20px;
-    border-bottom: 1px solid #eee;
-    background: #fafafa;
+table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
 }
 
-.card-body {
-    padding: 20px;
+th {
+    background: #f8fafc;
+    padding: 15px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #475569;
+    border-bottom: 2px solid var(--border-color);
 }
 
-/* Content Sections Toggling */
-.content-section {
-    display: none;
+td {
+    padding: 15px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
 }
 
-.content-section.active {
-    display: block;
+tr:hover { background: #f1f5f9; }
+
+/* 7. BUTTONS */
+.btn-primary {
+    background: var(--primary-blue);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
 }
 
-/* Responsive */
-@media (max-width: 1024px) {
-    header { width: 80px; }
-    header .logo-text, header .user-details, header span { display: none; }
-    main { margin-left: 80px; }
-}
+.btn-primary:hover { background: #1d4ed8; }
