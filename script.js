@@ -7,8 +7,8 @@ class TEEPortalSupabaseDB {
         this.supabase = null;
         this.initialized = false;
         // ⚠️ REPLACE THESE WITH YOUR ACTUAL SUPABASE CREDENTIALS
-        this.supabaseUrl = 'https://your-project-id.supabase.co';
-        this.supabaseKey = 'your-anon-key-here';
+        this.supabaseUrl = 'https://kmkjsessuzdfadlmndyr.supabase.co';
+        this.supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtta2pzZXNzdXpkZmFkbG1uZHlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYyNTA1MzUsImV4cCI6MjA4MTgyNjUzNX0.16m_thmf2Td8uB5lan8vZDLkGkWIlftaxSOroqvDkU4';
         this.init();
     }
     
