@@ -315,121 +315,122 @@ class TEEPortalSupabaseDB {
     const percentage = (markData.score / markData.maxScore) * 100;
     const grade = this.calculateGrade(percentage);
     
-    // Generate a unique assessment name with timestamp
-    const timestamp = Date.now();
-    const uniqueAssessmentName = markData.assessmentName.includes('-') 
-        ? markData.assessmentName 
-        : `${markData.assessmentName} - ${timestamp}`;
-    
     const mark = {
-        id: Date.now().toString(),
         student_id: markData.studentId,
         course_id: markData.courseId,
         assessment_type: markData.assessmentType,
-        assessment_name: uniqueAssessmentName, // Use unique name
+        assessment_name: markData.assessmentName,
         score: markData.score,
         max_score: markData.maxScore,
         percentage: parseFloat(percentage.toFixed(2)),
         grade: grade.grade,
         grade_points: grade.points,
-        remarks: markData.remarks,
+        remarks: markData.remarks || '',
         visible_to_student: markData.visibleToStudent,
-        entered_by: 'admin',
-        created_at: new Date().toISOString(),
-        // For compatibility
-        studentId: markData.studentId,
-        courseId: markData.courseId,
-        assessmentName: uniqueAssessmentName,
-        maxScore: markData.maxScore,
-        gradePoints: grade.points
+        entered_by: 'admin'
     };
     
-    console.log('📝 Attempting to save mark to Supabase:', mark);
+    console.log('📊 Processing marks for:', {
+        student: markData.studentId,
+        course: markData.courseId,
+        assessment: markData.assessmentName
+    });
     
-    // FIRST try Supabase
-    try {
-        const { data, error } = await this.supabase
-            .from('marks')
-            .insert([{
-                student_id: mark.student_id,
-                course_id: mark.course_id,
-                assessment_type: mark.assessment_type,
-                assessment_name: mark.assessment_name,
-                score: mark.score,
-                max_score: mark.max_score,
-                percentage: mark.percentage,
-                grade: mark.grade,
-                grade_points: mark.grade_points,
-                remarks: mark.remarks,
-                visible_to_student: mark.visible_to_student,
-                entered_by: mark.entered_by
-            }])
-            .select()
-            .single();
-            
-        if (error) {
-            console.error('❌ Supabase insert error:', error);
-            
-            // Handle duplicate key error specifically
-            if (error.code === '23505') {
-                console.log('🔄 Duplicate detected, trying with different assessment name...');
-                
-                // Try again with a completely unique name
-                const retryAssessmentName = `${markData.assessmentName} - ${timestamp} - ${Math.floor(Math.random() * 1000)}`;
-                
-                const { data: retryData, error: retryError } = await this.supabase
-                    .from('marks')
-                    .insert([{
-                        student_id: mark.student_id,
-                        course_id: mark.course_id,
-                        assessment_type: mark.assessment_type,
-                        assessment_name: retryAssessmentName,
-                        score: mark.score,
-                        max_score: mark.max_score,
-                        percentage: mark.percentage,
-                        grade: mark.grade,
-                        grade_points: mark.grade_points,
-                        remarks: mark.remarks,
-                        visible_to_student: mark.visible_to_student,
-                        entered_by: mark.entered_by
-                    }])
-                    .select()
-                    .single();
-                    
-                if (retryError) {
-                    console.error('❌ Retry also failed:', retryError);
-                    throw new Error(`Failed to save marks even with unique name: ${retryError.message}`);
-                }
-                
-                console.log('✅ Saved with unique assessment name:', retryData);
-                return { ...retryData, ...mark, assessment_name: retryAssessmentName };
-            }
-            
-            // For other errors, throw them
-            throw error;
+    if (this.localStorageFallback) {
+        // LocalStorage logic remains the same
+        const marks = this.getLocalStorageData('marks');
+        const existingIndex = marks.findIndex(m => 
+            m.student_id === markData.studentId && 
+            m.course_id === markData.courseId && 
+            m.assessment_name === markData.assessmentName
+        );
+        
+        if (existingIndex > -1) {
+            // Update existing
+            marks[existingIndex] = {
+                ...marks[existingIndex],
+                ...mark,
+                updated_at: new Date().toISOString()
+            };
+            this.showToast('📝 Updated existing marks', 'info');
+        } else {
+            // Add new
+            mark.id = Date.now().toString();
+            mark.created_at = new Date().toISOString();
+            marks.push(mark);
         }
         
-        console.log('✅ Mark saved to Supabase successfully:', data);
-        this.logActivity('marks_entered', `Entered marks for student: ${markData.studentId}`);
-        return { ...data, ...mark };
+        this.saveLocalStorageData('marks', marks);
+        this.logActivity('marks_entered', `Saved marks for student`);
+        return mark;
+    }
+    
+    try {
+        // FIRST: Check if marks already exist for this student/course/assessment
+        console.log('🔍 Checking for existing marks...');
+        
+        const { data: existingMarks, error: checkError } = await this.supabase
+            .from('marks')
+            .select('*')
+            .eq('student_id', markData.studentId)
+            .eq('course_id', markData.courseId)
+            .eq('assessment_name', markData.assessmentName)
+            .maybeSingle();
+            
+        if (checkError && checkError.code !== 'PGRST116') {
+            console.error('Error checking existing marks:', checkError);
+        }
+        
+        if (existingMarks) {
+            console.log('📝 Existing marks found, updating...');
+            
+            // UPDATE EXISTING MARKS
+            const { data: updatedData, error: updateError } = await this.supabase
+                .from('marks')
+                .update({
+                    score: mark.score,
+                    max_score: mark.max_score,
+                    percentage: mark.percentage,
+                    grade: mark.grade,
+                    grade_points: mark.grade_points,
+                    remarks: mark.remarks,
+                    visible_to_student: mark.visible_to_student,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', existingMarks.id)
+                .select()
+                .single();
+                
+            if (updateError) throw updateError;
+            
+            console.log('✅ Marks updated successfully:', updatedData);
+            this.logActivity('marks_updated', `Updated marks for student`);
+            return updatedData;
+            
+        } else {
+            console.log('🆕 No existing marks found, inserting new...');
+            
+            // INSERT NEW MARKS
+            const { data: newData, error: insertError } = await this.supabase
+                .from('marks')
+                .insert([mark])
+                .select()
+                .single();
+                
+            if (insertError) throw insertError;
+            
+            console.log('✅ New marks inserted successfully:', newData);
+            this.logActivity('marks_entered', `Entered new marks for student`);
+            return newData;
+        }
         
     } catch (error) {
-        console.error('💥 Supabase completely failed:', error);
+        console.error('💥 Error in addMark:', error);
         
-        // ONLY fallback to localStorage for network/database errors, NOT for duplicate errors
-        if (error.code === '23505') {
-            // Re-throw duplicate errors so the UI can handle them
-            throw new Error(`Cannot save marks: ${error.message}. Please use a different assessment name.`);
-        }
-        
-        // For other errors, fallback to localStorage
-        console.warn('⚠️ Falling back to localStorage for mark:', mark);
+        // Fallback to localStorage
+        console.warn('⚠️ Falling back to localStorage');
         this.localStorageFallback = true;
-        const marks = this.getLocalStorageData('marks');
-        marks.push(mark);
-        this.saveLocalStorageData('marks', marks);
-        this.logActivity('marks_entered', `Entered marks (localStorage fallback) for student: ${markData.studentId}`);
-        return mark;
+        return this.addMark(markData); // Recursive call with fallback flag
     }
 }
     
@@ -1471,87 +1472,184 @@ class TEEPortalApp {
     // GRADING SYSTEM
     // ==============================
     
-  async saveMarks(event) {
-    event.preventDefault();
+ async saveMarks(event) {
+    if (event) event.preventDefault();
     
     try {
+        // Get form values
         const studentId = document.getElementById('marksStudent').value;
         const courseId = document.getElementById('marksCourse').value;
         const score = parseFloat(document.getElementById('marksScore').value);
         const maxScore = parseFloat(document.getElementById('maxScore').value) || 100;
-        const assessmentNameInput = document.getElementById('assessmentName');
+        const assessmentType = document.getElementById('assessmentType').value;
+        const assessmentName = document.getElementById('assessmentName').value || 'Assessment';
         
-        // Get assessment name and add timestamp if not already there
-        let assessmentName = assessmentNameInput.value || 'Assessment';
-        if (!assessmentName.includes('-')) {
-            const timestamp = new Date().toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-            assessmentName = `${assessmentName} - ${timestamp}`;
-            assessmentNameInput.value = assessmentName; // Update the input
-        }
-        
+        // Validation
         if (!studentId || !courseId || isNaN(score)) {
             this.showToast('Please fill in all required fields', 'error');
             return;
         }
         
-        if (score > maxScore) {
-            this.showToast(`Score cannot exceed maximum score (${maxScore})`, 'error');
+        if (score < 0 || score > maxScore) {
+            this.showToast(`Score must be between 0 and ${maxScore}`, 'error');
             return;
         }
         
+        // Check if marks already exist for this combination
+        console.log('🔍 Checking for existing marks...');
+        
+        try {
+            const existingMarks = await this.checkExistingMarks(studentId, courseId, assessmentName);
+            
+            if (existingMarks) {
+                // Show existing marks to user
+                const shouldUpdate = confirm(
+                    `📝 Marks already exist for this assessment!\n\n` +
+                    `Student: ${existingMarks.student_id}\n` +
+                    `Course: ${existingMarks.course_id}\n` +
+                    `Assessment: ${existingMarks.assessment_name}\n` +
+                    `Current Score: ${existingMarks.score}/${existingMarks.max_score} (${existingMarks.percentage}%)\n` +
+                    `Current Grade: ${existingMarks.grade}\n\n` +
+                    `New Score: ${score}/${maxScore} (${((score/maxScore)*100).toFixed(2)}%)\n\n` +
+                    `Do you want to UPDATE the existing marks?\n` +
+                    `Click OK to update, Cancel to use a different assessment name.`
+                );
+                
+                if (!shouldUpdate) {
+                    this.showToast('Please use a different assessment name', 'info');
+                    return;
+                }
+            }
+            
+        } catch (checkError) {
+            console.log('No existing marks found or error checking:', checkError);
+            // Continue with insertion
+        }
+        
+        // Prepare mark data
         const markData = {
             studentId: studentId,
             courseId: courseId,
-            assessmentType: document.getElementById('assessmentType').value,
-            assessmentName: assessmentName, // Use the potentially updated name
+            assessmentType: assessmentType,
+            assessmentName: assessmentName,
             score: score,
             maxScore: maxScore,
-            remarks: document.getElementById('marksRemarks').value,
-            visibleToStudent: document.getElementById('visibleToStudent').checked
+            remarks: document.getElementById('marksRemarks').value || '',
+            visibleToStudent: document.getElementById('visibleToStudent')?.checked || true
         };
         
-        console.log('💾 Saving marks data:', markData);
+        console.log('💾 Saving/Updating marks:', markData);
         
+        // Save/Update marks
         const mark = await this.db.addMark(markData);
         
-        this.showToast('Marks saved successfully!', 'success');
+        this.showToast(existingMarks ? '✅ Marks updated successfully!' : '✅ New marks saved successfully!', 'success');
         
         // Close modal and reset form
         this.closeModal('marksModal');
         document.getElementById('marksForm').reset();
-        document.getElementById('gradeDisplay').textContent = '-';
-        document.getElementById('percentage').value = '';
+        
+        // Reset display
+        this.updateGradeDisplay();
         
         // Update UI
         await this.updateDashboard();
         
     } catch (error) {
-        console.error('❌ Error in saveMarks:', error);
-        
-        // Show specific error messages
-        if (error.message.includes('duplicate') || error.message.includes('23505')) {
-            this.showToast('Duplicate assessment detected. Please use a more specific assessment name.', 'error');
-            
-            // Suggest a new name
-            const assessmentNameInput = document.getElementById('assessmentName');
-            if (assessmentNameInput) {
-                const newName = `${assessmentNameInput.value} - ${new Date().getTime()}`;
-                assessmentNameInput.value = newName;
-                this.showToast(`Try using: "${newName}"`, 'info');
-            }
-        } else if (error.message.includes('Failed to fetch')) {
-            this.showToast('Network error. Please check your internet connection.', 'error');
-        } else {
-            this.showToast(`Error saving marks: ${error.message}`, 'error');
-        }
+        console.error('❌ Error saving marks:', error);
+        this.showToast(`Error: ${error.message}`, 'error');
     }
 }
-    
+
+// Helper method to check existing marks
+async checkExistingMarks(studentId, courseId, assessmentName) {
+    try {
+        if (this.db.localStorageFallback) {
+            const marks = this.db.getLocalStorageData('marks');
+            return marks.find(m => 
+                m.student_id === studentId && 
+                m.course_id === courseId && 
+                m.assessment_name === assessmentName
+            );
+        }
+        
+        const { data, error } = await this.db.supabase
+            .from('marks')
+            .select('*')
+            .eq('student_id', studentId)
+            .eq('course_id', courseId)
+            .eq('assessment_name', assessmentName)
+            .maybeSingle();
+            
+        if (error && error.code !== 'PGRST116') {
+            console.error('Error checking marks:', error);
+            return null;
+        }
+        
+        return data;
+        
+    } catch (error) {
+        console.error('Error in checkExistingMarks:', error);
+        return null;
+    }
+}
+    updateStudentInfo() {
+    try {
+        const studentId = document.getElementById('marksStudent').value;
+        const infoDiv = document.getElementById('studentInfo');
+        
+        if (!studentId || !infoDiv) {
+            if (infoDiv) infoDiv.style.display = 'none';
+            return;
+        }
+        
+        // Get student info
+        this.db.getStudent(studentId).then(student => {
+            if (student) {
+                const regNoElem = document.getElementById('infoRegNo');
+                const programElem = document.getElementById('infoProgram');
+                const intakeElem = document.getElementById('infoIntake');
+                
+                if (regNoElem) regNoElem.textContent = student.reg_number || student.regNumber || 'N/A';
+                if (programElem) programElem.textContent = student.program || 'N/A';
+                if (intakeElem) intakeElem.textContent = student.intake_year || student.intake || 'N/A';
+                
+                infoDiv.style.display = 'block';
+                
+                // Also load student's existing marks for this course
+                this.loadStudentCourseMarks(studentId);
+            } else {
+                infoDiv.style.display = 'none';
+            }
+        }).catch(() => {
+            infoDiv.style.display = 'none';
+        });
+        
+    } catch (error) {
+        console.error('Error updating student info:', error);
+    }
+}
+
+// Load existing marks for student in selected course
+async loadStudentCourseMarks(studentId) {
+    try {
+        const courseId = document.getElementById('marksCourse').value;
+        if (!courseId) return;
+        
+        const marks = await this.db.getStudentMarks(studentId);
+        const courseMarks = marks.filter(m => m.course_id === courseId);
+        
+        if (courseMarks.length > 0) {
+            console.log('📋 Existing marks for this course:', courseMarks);
+            
+            // You could display these in the modal
+            this.displayExistingMarks(courseMarks);
+        }
+        
+    } catch (error) {
+        console.error('Error loading student course marks:', error);
+    }
+}
     // ==============================
     // DASHBOARD FUNCTIONS
     // ==============================
