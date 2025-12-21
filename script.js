@@ -776,132 +776,248 @@ class TEEPortalApp {
             }
         }
     }
-    
     // ==============================
-    // MARKS MANAGEMENT
-    // ==============================
-    
-    async loadMarksTable() {
-        try {
-            const marks = await this.db.getMarksTableData();
-            const tbody = document.querySelector('#marksTableBody');
-            
-            if (!tbody) {
-                console.error('Marks table body not found');
-                return;
-            }
-            
-            if (marks.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="10" class="empty-state">
-                            <i class="fas fa-chart-bar fa-2x"></i>
-                            <p>No marks recorded yet</p>
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-            
-            let html = '';
-            
-            marks.forEach(mark => {
-                const student = mark.students;
-                const course = mark.courses;
-                const percentage = mark.percentage || ((mark.score / mark.max_score) * 100).toFixed(2);
-                
-                html += `
-                    <tr>
-                        <td>
-                            <strong>${student.reg_number}</strong><br>
-                            <small>${student.full_name}</small>
-                        </td>
-                        <td>
-                            <strong>${course.course_code}</strong><br>
-                            <small>${course.course_name}</small>
-                        </td>
-                        <td>${mark.assessment_name || 'Assessment'}</td>
-                        <td>${mark.assessment_type || 'Final'}</td>
-                        <td>${mark.score}/${mark.max_score}</td>
-                        <td>${percentage}%</td>
-                        <td>
-                            <span class="grade-badge grade-${mark.grade?.charAt(0) || 'F'}">
-                                ${mark.grade || 'F'}
-                            </span>
-                        </td>
-                        <td>${mark.grade_points || 0}</td>
-                        <td>${mark.remarks || '-'}</td>
-                        <td>
-                            ${mark.created_at ? new Date(mark.created_at).toLocaleDateString() : '-'}
-                        </td>
-                    </tr>
-                `;
-            });
-            
-            tbody.innerHTML = html;
-            
-        } catch (error) {
-            console.error('Error loading marks table:', error);
-            const tbody = document.querySelector('#marksTableBody');
-            if (tbody) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="10" class="error-state">
-                            <i class="fas fa-exclamation-triangle fa-2x"></i>
-                            <p>Error loading marks</p>
-                        </td>
-                    </tr>
-                `;
-            }
-        }
-    }
-    
-    async saveMarks(event) {
-        event.preventDefault();
+// MARKS MANAGEMENT
+// ==============================
+
+async loadMarksTable() {
+    try {
+        const marks = await this.db.getMarksTableData();
+        const tbody = document.querySelector('#marksTableBody');
         
-        try {
-            const studentId = document.getElementById('marksStudent').value;
-            const courseId = document.getElementById('marksCourse').value;
-            const score = parseFloat(document.getElementById('marksScore').value);
-            const maxScore = parseFloat(document.getElementById('maxScore').value) || 100;
-            const assessmentType = document.getElementById('assessmentType').value;
-            const assessmentName = document.getElementById('assessmentName').value || 'Assessment';
+        if (!tbody) {
+            console.error('Marks table body not found');
+            return;
+        }
+        
+        if (marks.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="11" class="empty-state">
+                        <i class="fas fa-chart-bar fa-2x"></i>
+                        <p>No marks recorded yet</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        let html = '';
+        
+        marks.forEach(mark => {
+            const student = mark.students;
+            const course = mark.courses;
+            const percentage = mark.percentage || ((mark.score / mark.max_score) * 100).toFixed(2);
+            const markId = mark.id || mark._id; // Assuming your mark has an ID
             
-            // Validation
-            if (!studentId || !courseId || isNaN(score)) {
-                this.showToast('Please fill in all required fields', 'error');
-                return;
-            }
-            
-            const markData = {
-                studentId: studentId,
-                courseId: courseId,
-                assessmentType: assessmentType,
-                assessmentName: assessmentName,
-                score: score,
-                maxScore: maxScore,
-                remarks: document.getElementById('marksRemarks').value || '',
-                visibleToStudent: document.getElementById('visibleToStudent')?.checked || true
-            };
-            
-            const mark = await this.db.addMark(markData);
-            
-            this.showToast('✅ Marks saved successfully!', 'success');
-            
-            // Close modal and reset form
-            closeModal('marksModal');
-            document.getElementById('marksForm').reset();
-            updateGradeDisplay();
-            
-            // Update UI
-            await this.loadMarksTable();
-            await this.updateDashboard();
-            
-        } catch (error) {
-            console.error('Error saving marks:', error);
-            this.showToast('Error saving marks', 'error');
+            html += `
+                <tr data-mark-id="${markId}">
+                    <td>
+                        <strong>${student.reg_number}</strong><br>
+                        <small>${student.full_name}</small>
+                    </td>
+                    <td>
+                        <strong>${course.course_code}</strong><br>
+                        <small>${course.course_name}</small>
+                        <br><small class="text-muted">${course.credits || 3} credits</small>
+                    </td>
+                    <td>${mark.assessment_name || 'Assessment'}</td>
+                    <td><span class="badge badge-assessment">${mark.assessment_type || 'Final'}</span></td>
+                    <td><strong>${mark.score}/${mark.max_score}</strong></td>
+                    <td>${percentage}%</td>
+                    <td>
+                        <span class="grade-badge grade-${mark.grade?.charAt(0) || 'F'}">
+                            ${mark.grade || 'F'}
+                        </span>
+                    </td>
+                    <td>${mark.grade_points || 0}</td>
+                    <td>${mark.remarks || '-'}</td>
+                    <td>
+                        ${mark.created_at ? new Date(mark.created_at).toLocaleDateString() : '-'}
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-action btn-edit" onclick="app.editMark('${markId}')" 
+                                    title="Edit Marks">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-action btn-delete" onclick="app.deleteMark('${markId}')" 
+                                    title="Delete Marks">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error loading marks table:', error);
+        const tbody = document.querySelector('#marksTableBody');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="11" class="error-state">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                        <p>Error loading marks</p>
+                    </td>
+                </tr>
+            `;
         }
     }
+}
+
+// Edit mark function
+async editMark(markId) {
+    try {
+        // Fetch mark data
+        const mark = await this.db.getMarkById(markId);
+        
+        if (!mark) {
+            this.showToast('Mark not found', 'error');
+            return;
+        }
+        
+        // Populate edit modal form
+        document.getElementById('editMarkId').value = markId;
+        document.getElementById('editStudent').value = mark.studentId || '';
+        document.getElementById('editCourse').value = mark.courseId || '';
+        document.getElementById('editAssessmentType').value = mark.assessment_type || '';
+        document.getElementById('editAssessmentName').value = mark.assessment_name || '';
+        document.getElementById('editScore').value = mark.score || '';
+        document.getElementById('editMaxScore').value = mark.max_score || 100;
+        document.getElementById('editRemarks').value = mark.remarks || '';
+        
+        // Show edit modal
+        this.openModal('editMarksModal');
+        
+    } catch (error) {
+        console.error('Error loading mark for edit:', error);
+        this.showToast('Error loading mark details', 'error');
+    }
+}
+
+// Update mark function
+async updateMark(event) {
+    event.preventDefault();
+    
+    try {
+        const markId = document.getElementById('editMarkId').value;
+        const score = parseFloat(document.getElementById('editScore').value);
+        const maxScore = parseFloat(document.getElementById('editMaxScore').value) || 100;
+        
+        if (!markId || isNaN(score)) {
+            this.showToast('Invalid data', 'error');
+            return;
+        }
+        
+        const updateData = {
+            assessmentType: document.getElementById('editAssessmentType').value,
+            assessmentName: document.getElementById('editAssessmentName').value,
+            score: score,
+            maxScore: maxScore,
+            remarks: document.getElementById('editRemarks').value || ''
+        };
+        
+        await this.db.updateMark(markId, updateData);
+        
+        this.showToast('✅ Marks updated successfully!', 'success');
+        closeModal('editMarksModal');
+        
+        // Refresh UI
+        await this.loadMarksTable();
+        await this.updateDashboard();
+        
+    } catch (error) {
+        console.error('Error updating mark:', error);
+        this.showToast('Error updating marks', 'error');
+    }
+}
+
+// Delete mark function
+async deleteMark(markId) {
+    try {
+        if (!confirm('Are you sure you want to delete this mark record? This action cannot be undone.')) {
+            return;
+        }
+        
+        await this.db.deleteMark(markId);
+        
+        this.showToast('✅ Mark deleted successfully!', 'success');
+        
+        // Remove row from table
+        const row = document.querySelector(`tr[data-mark-id="${markId}"]`);
+        if (row) {
+            row.remove();
+        }
+        
+        // Update dashboard
+        await this.updateDashboard();
+        
+    } catch (error) {
+        console.error('Error deleting mark:', error);
+        this.showToast('Error deleting mark', 'error');
+    }
+}
+
+// Save marks (original function enhanced)
+async saveMarks(event) {
+    event.preventDefault();
+    
+    try {
+        const studentId = document.getElementById('marksStudent').value;
+        const courseId = document.getElementById('marksCourse').value;
+        const score = parseFloat(document.getElementById('marksScore').value);
+        const maxScore = parseFloat(document.getElementById('maxScore').value) || 100;
+        const assessmentType = document.getElementById('assessmentType').value;
+        const assessmentName = document.getElementById('assessmentName').value || 'Assessment';
+        
+        // Validation
+        if (!studentId || !courseId || isNaN(score)) {
+            this.showToast('Please fill in all required fields', 'error');
+            return;
+        }
+        
+        const markData = {
+            studentId: studentId,
+            courseId: courseId,
+            assessmentType: assessmentType,
+            assessmentName: assessmentName,
+            score: score,
+            maxScore: maxScore,
+            remarks: document.getElementById('marksRemarks').value || '',
+            visibleToStudent: document.getElementById('visibleToStudent')?.checked || true
+        };
+        
+        await this.db.addMark(markData);
+        
+        this.showToast('✅ Marks saved successfully!', 'success');
+        
+        // Close modal and reset form
+        closeModal('marksModal');
+        document.getElementById('marksForm').reset();
+        updateGradeDisplay();
+        
+        // Update UI
+        await this.loadMarksTable();
+        await this.updateDashboard();
+        
+    } catch (error) {
+        console.error('Error saving marks:', error);
+        this.showToast('Error saving marks', 'error');
+    }
+}
+
+// Open modal function
+openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'block';
+        modal.classList.add('show');
+    }
+}
     
     // ==============================
     // COURSE MANAGEMENT
