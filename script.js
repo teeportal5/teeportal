@@ -311,76 +311,127 @@ class TEEPortalSupabaseDB {
         }
     }
     
-    async addMark(markData) {
-        const percentage = (markData.score / markData.maxScore) * 100;
-        const grade = this.calculateGrade(percentage);
-        
-        const mark = {
-            id: Date.now().toString(),
-            student_id: markData.studentId,
-            course_id: markData.courseId,
-            assessment_type: markData.assessmentType,
-            assessment_name: markData.assessmentName,
-            score: markData.score,
-            max_score: markData.maxScore,
-            percentage: parseFloat(percentage.toFixed(2)),
-            grade: grade.grade,
-            grade_points: grade.points,
-            remarks: markData.remarks,
-            visible_to_student: markData.visibleToStudent,
-            entered_by: 'admin',
-            created_at: new Date().toISOString(),
-            // For compatibility
-            studentId: markData.studentId,
-            courseId: markData.courseId,
-            assessmentName: markData.assessmentName,
-            maxScore: markData.maxScore,
-            gradePoints: grade.points
-        };
-        
-        if (this.localStorageFallback) {
-            const marks = this.getLocalStorageData('marks');
-            marks.push(mark);
-            this.saveLocalStorageData('marks', marks);
-            this.logActivity('marks_entered', `Entered marks for student: ${markData.studentId}`);
-            return mark;
-        }
-        
-        try {
-            const { data, error } = await this.supabase
-                .from('marks')
-                .insert([{
-                    student_id: mark.student_id,
-                    course_id: mark.course_id,
-                    assessment_type: mark.assessment_type,
-                    assessment_name: mark.assessment_name,
-                    score: mark.score,
-                    max_score: mark.max_score,
-                    percentage: mark.percentage,
-                    grade: mark.grade,
-                    grade_points: mark.grade_points,
-                    remarks: mark.remarks,
-                    visible_to_student: mark.visible_to_student,
-                    entered_by: mark.entered_by
-                }])
-                .select()
-                .single();
+  async addMark(markData) {
+    const percentage = (markData.score / markData.maxScore) * 100;
+    const grade = this.calculateGrade(percentage);
+    
+    // Generate a unique assessment name with timestamp
+    const timestamp = Date.now();
+    const uniqueAssessmentName = markData.assessmentName.includes('-') 
+        ? markData.assessmentName 
+        : `${markData.assessmentName} - ${timestamp}`;
+    
+    const mark = {
+        id: Date.now().toString(),
+        student_id: markData.studentId,
+        course_id: markData.courseId,
+        assessment_type: markData.assessmentType,
+        assessment_name: uniqueAssessmentName, // Use unique name
+        score: markData.score,
+        max_score: markData.maxScore,
+        percentage: parseFloat(percentage.toFixed(2)),
+        grade: grade.grade,
+        grade_points: grade.points,
+        remarks: markData.remarks,
+        visible_to_student: markData.visibleToStudent,
+        entered_by: 'admin',
+        created_at: new Date().toISOString(),
+        // For compatibility
+        studentId: markData.studentId,
+        courseId: markData.courseId,
+        assessmentName: uniqueAssessmentName,
+        maxScore: markData.maxScore,
+        gradePoints: grade.points
+    };
+    
+    console.log('📝 Attempting to save mark to Supabase:', mark);
+    
+    // FIRST try Supabase
+    try {
+        const { data, error } = await this.supabase
+            .from('marks')
+            .insert([{
+                student_id: mark.student_id,
+                course_id: mark.course_id,
+                assessment_type: mark.assessment_type,
+                assessment_name: mark.assessment_name,
+                score: mark.score,
+                max_score: mark.max_score,
+                percentage: mark.percentage,
+                grade: mark.grade,
+                grade_points: mark.grade_points,
+                remarks: mark.remarks,
+                visible_to_student: mark.visible_to_student,
+                entered_by: mark.entered_by
+            }])
+            .select()
+            .single();
+            
+        if (error) {
+            console.error('❌ Supabase insert error:', error);
+            
+            // Handle duplicate key error specifically
+            if (error.code === '23505') {
+                console.log('🔄 Duplicate detected, trying with different assessment name...');
                 
-            if (error) throw error;
+                // Try again with a completely unique name
+                const retryAssessmentName = `${markData.assessmentName} - ${timestamp} - ${Math.floor(Math.random() * 1000)}`;
+                
+                const { data: retryData, error: retryError } = await this.supabase
+                    .from('marks')
+                    .insert([{
+                        student_id: mark.student_id,
+                        course_id: mark.course_id,
+                        assessment_type: mark.assessment_type,
+                        assessment_name: retryAssessmentName,
+                        score: mark.score,
+                        max_score: mark.max_score,
+                        percentage: mark.percentage,
+                        grade: mark.grade,
+                        grade_points: mark.grade_points,
+                        remarks: mark.remarks,
+                        visible_to_student: mark.visible_to_student,
+                        entered_by: mark.entered_by
+                    }])
+                    .select()
+                    .single();
+                    
+                if (retryError) {
+                    console.error('❌ Retry also failed:', retryError);
+                    throw new Error(`Failed to save marks even with unique name: ${retryError.message}`);
+                }
+                
+                console.log('✅ Saved with unique assessment name:', retryData);
+                return { ...retryData, ...mark, assessment_name: retryAssessmentName };
+            }
             
-            this.logActivity('marks_entered', `Entered marks for student: ${markData.studentId}`);
-            return { ...data, ...mark }; // Combine for compatibility
-            
-        } catch (error) {
-            console.error('Error adding mark:', error);
-            this.localStorageFallback = true;
-            const marks = this.getLocalStorageData('marks');
-            marks.push(mark);
-            this.saveLocalStorageData('marks', marks);
-            this.logActivity('marks_entered', `Entered marks (fallback) for student: ${markData.studentId}`);
-            return mark;
+            // For other errors, throw them
+            throw error;
         }
+        
+        console.log('✅ Mark saved to Supabase successfully:', data);
+        this.logActivity('marks_entered', `Entered marks for student: ${markData.studentId}`);
+        return { ...data, ...mark };
+        
+    } catch (error) {
+        console.error('💥 Supabase completely failed:', error);
+        
+        // ONLY fallback to localStorage for network/database errors, NOT for duplicate errors
+        if (error.code === '23505') {
+            // Re-throw duplicate errors so the UI can handle them
+            throw new Error(`Cannot save marks: ${error.message}. Please use a different assessment name.`);
+        }
+        
+        // For other errors, fallback to localStorage
+        console.warn('⚠️ Falling back to localStorage for mark:', mark);
+        this.localStorageFallback = true;
+        const marks = this.getLocalStorageData('marks');
+        marks.push(mark);
+        this.saveLocalStorageData('marks', marks);
+        this.logActivity('marks_entered', `Entered marks (localStorage fallback) for student: ${markData.studentId}`);
+        return mark;
     }
+}
     
     async getStudentMarks(studentId) {
         if (this.localStorageFallback) {
@@ -1420,89 +1471,86 @@ class TEEPortalApp {
     // GRADING SYSTEM
     // ==============================
     
-    async saveMarks(event) {
-        event.preventDefault();
-        
-        try {
-            const studentId = document.getElementById('marksStudent').value;
-            const courseId = document.getElementById('marksCourse').value;
-            const score = parseFloat(document.getElementById('marksScore').value);
-            const maxScore = parseFloat(document.getElementById('maxScore').value) || 100;
-            
-            if (!studentId || !courseId || isNaN(score)) {
-                this.showToast('Please fill in all required fields', 'error');
-                return;
-            }
-            
-            if (score > maxScore) {
-                this.showToast(`Score cannot exceed maximum score (${maxScore})`, 'error');
-                return;
-            }
-            
-            const markData = {
-                studentId: studentId,
-                courseId: courseId,
-                assessmentType: document.getElementById('assessmentType').value,
-                assessmentName: document.getElementById('assessmentName').value || 'Assessment',
-                score: score,
-                maxScore: maxScore,
-                remarks: document.getElementById('marksRemarks').value,
-                visibleToStudent: document.getElementById('visibleToStudent').checked
-            };
-            
-            const mark = await this.db.addMark(markData);
-            
-            this.showToast('Marks saved successfully', 'success');
-            
-            // Close modal and reset form
-            this.closeModal('marksModal');
-            document.getElementById('marksForm').reset();
-            document.getElementById('gradeDisplay').textContent = '-';
-            document.getElementById('percentage').value = '';
-            
-            // Update UI
-            await this.updateDashboard();
-            
-        } catch (error) {
-            console.error('Error saving marks:', error);
-            this.showToast('Error saving marks', 'error');
-        }
-    }
+  async saveMarks(event) {
+    event.preventDefault();
     
-    updateGradeDisplay() {
+    try {
+        const studentId = document.getElementById('marksStudent').value;
+        const courseId = document.getElementById('marksCourse').value;
         const score = parseFloat(document.getElementById('marksScore').value);
         const maxScore = parseFloat(document.getElementById('maxScore').value) || 100;
+        const assessmentNameInput = document.getElementById('assessmentName');
         
-        if (isNaN(score)) {
-            document.getElementById('gradeDisplay').textContent = '-';
-            document.getElementById('percentage').value = '';
+        // Get assessment name and add timestamp if not already there
+        let assessmentName = assessmentNameInput.value || 'Assessment';
+        if (!assessmentName.includes('-')) {
+            const timestamp = new Date().toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            assessmentName = `${assessmentName} - ${timestamp}`;
+            assessmentNameInput.value = assessmentName; // Update the input
+        }
+        
+        if (!studentId || !courseId || isNaN(score)) {
+            this.showToast('Please fill in all required fields', 'error');
             return;
         }
         
-        const percentage = (score / maxScore) * 100;
-        const grade = this.db.calculateGrade(percentage);
+        if (score > maxScore) {
+            this.showToast(`Score cannot exceed maximum score (${maxScore})`, 'error');
+            return;
+        }
         
-        const percentageField = document.getElementById('percentage');
-        const gradeDisplay = document.getElementById('gradeDisplay');
+        const markData = {
+            studentId: studentId,
+            courseId: courseId,
+            assessmentType: document.getElementById('assessmentType').value,
+            assessmentName: assessmentName, // Use the potentially updated name
+            score: score,
+            maxScore: maxScore,
+            remarks: document.getElementById('marksRemarks').value,
+            visibleToStudent: document.getElementById('visibleToStudent').checked
+        };
         
-        if (percentageField) percentageField.value = `${percentage.toFixed(2)}%`;
-        if (gradeDisplay) {
-            gradeDisplay.textContent = grade.grade;
-            gradeDisplay.className = 'percentage-badge';
-            gradeDisplay.classList.add(`grade-${grade.grade.charAt(0)}`);
+        console.log('💾 Saving marks data:', markData);
+        
+        const mark = await this.db.addMark(markData);
+        
+        this.showToast('Marks saved successfully!', 'success');
+        
+        // Close modal and reset form
+        this.closeModal('marksModal');
+        document.getElementById('marksForm').reset();
+        document.getElementById('gradeDisplay').textContent = '-';
+        document.getElementById('percentage').value = '';
+        
+        // Update UI
+        await this.updateDashboard();
+        
+    } catch (error) {
+        console.error('❌ Error in saveMarks:', error);
+        
+        // Show specific error messages
+        if (error.message.includes('duplicate') || error.message.includes('23505')) {
+            this.showToast('Duplicate assessment detected. Please use a more specific assessment name.', 'error');
+            
+            // Suggest a new name
+            const assessmentNameInput = document.getElementById('assessmentName');
+            if (assessmentNameInput) {
+                const newName = `${assessmentNameInput.value} - ${new Date().getTime()}`;
+                assessmentNameInput.value = newName;
+                this.showToast(`Try using: "${newName}"`, 'info');
+            }
+        } else if (error.message.includes('Failed to fetch')) {
+            this.showToast('Network error. Please check your internet connection.', 'error');
+        } else {
+            this.showToast(`Error saving marks: ${error.message}`, 'error');
         }
     }
-    
-    getGradeColor(grade) {
-        const colors = {
-            'A': '#27ae60',
-            'B': '#2ecc71',
-            'C': '#f1c40f',
-            'D': '#e67e22',
-            'F': '#e74c3c'
-        };
-        return colors[grade.charAt(0)] || '#95a5a6';
-    }
+}
     
     // ==============================
     // DASHBOARD FUNCTIONS
