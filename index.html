@@ -930,10 +930,58 @@
         }
 
         function updateGradeDisplay() {
-            if (app && app.updateGradeDisplay) {
-                app.updateGradeDisplay();
+    try {
+        const scoreInput = document.getElementById('marksScore');
+        const maxScoreInput = document.getElementById('maxScore');
+        const gradeDisplay = document.getElementById('gradeDisplay');
+        const percentageField = document.getElementById('percentage');
+        
+        if (!scoreInput || !gradeDisplay) return;
+        
+        const score = parseFloat(scoreInput.value);
+        const maxScore = parseFloat(maxScoreInput?.value) || 100;
+        
+        if (isNaN(score)) {
+            gradeDisplay.textContent = '--';
+            gradeDisplay.className = 'percentage-badge';
+            if (percentageField) percentageField.value = '';
+            return;
+        }
+        
+        const percentage = (score / maxScore) * 100;
+        
+        // Grading scale
+        const gradingScale = {
+            'A': { min: 80, max: 100, color: '#27ae60' },
+            'B+': { min: 75, max: 79, color: '#2ecc71' },
+            'B': { min: 70, max: 74, color: '#2ecc71' },
+            'C+': { min: 65, max: 69, color: '#f1c40f' },
+            'C': { min: 60, max: 64, color: '#f1c40f' },
+            'D+': { min: 55, max: 59, color: '#e67e22' },
+            'D': { min: 50, max: 54, color: '#e67e22' },
+            'F': { min: 0, max: 49, color: '#e74c3c' }
+        };
+        
+        let grade = '--';
+        for (const [gradeName, range] of Object.entries(gradingScale)) {
+            if (percentage >= range.min && percentage <= range.max) {
+                grade = gradeName;
+                gradeDisplay.style.backgroundColor = range.color;
+                break;
             }
         }
+        
+        gradeDisplay.textContent = grade;
+        gradeDisplay.className = 'percentage-badge';
+        
+        if (percentageField) {
+            percentageField.value = `${percentage.toFixed(2)}%`;
+        }
+        
+    } catch (error) {
+        console.error('Error updating grade display:', error);
+    }
+}
 
         function showSection(sectionId) {
             // Hide all sections
