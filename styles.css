@@ -2209,3 +2209,44 @@ td, th {
 .debug * {
     outline: 1px solid red !important;
 }
+/* FORCE CONTENT VISIBLE ON DESKTOP */
+@media (min-width: 768px) {
+    .content-section,
+    .dashboard-row,
+    .card,
+    .card-body,
+    .table-responsive,
+    table,
+    tbody,
+    tr,
+    td {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        height: auto !important;
+        max-height: none !important;
+    }
+    
+    /* Specific table fixes */
+    table {
+        display: table !important;
+        width: 100% !important;
+    }
+    
+    tbody {
+        display: table-row-group !important;
+    }
+    
+    tr {
+        display: table-row !important;
+    }
+    
+    td, th {
+        display: table-cell !important;
+    }
+    
+    /* Ensure main area is visible */
+    main {
+        overflow: visible !important;
+    }
+}
