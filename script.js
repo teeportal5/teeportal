@@ -2653,32 +2653,41 @@ async generateBulkTranscripts(studentIds, format, options) {
 // GLOBAL INITIALIZATION
 // ==============================
 
-// Make sure classes are globally available
+// Check if class is defined (for debugging)
 if (typeof TEEPortalApp === 'undefined') {
-    console.error('⚠️ TEEPortalApp class not defined. Check for syntax errors above.');
+    console.error('⚠️ TEEPortalApp class not defined');
+} else {
+    console.log('✅ TEEPortalApp class is defined');
 }
 
+// Global app instance
 let app = null;
 
+// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('📄 DOM Content Loaded');
     
     try {
-        // Check if class exists
+        // Check if TEEPortalApp class exists
         if (typeof TEEPortalApp === 'undefined') {
-            throw new Error('TEEPortalApp class not found. Make sure the class definition is loaded without errors.');
+            throw new Error('TEEPortalApp class not found. Check for syntax errors in the class definition.');
         }
         
-        // Initialize app
+        // Create app instance
         app = new TEEPortalApp();
-        window.app = app;
         
-        // Initialize app asynchronously
+        // Make available globally for debugging
+        window.app = app;
+        window.TEEPortalApp = TEEPortalApp;
+        
+        console.log('🚀 TEEPortalApp instance created');
+        
+        // Initialize the app
         await app.initialize();
         
         console.log('🎉 TEEPortal System Ready');
         
-        // Set initial section
+        // Set default view
         setTimeout(() => {
             if (typeof showSection === 'function') {
                 showSection('dashboard');
@@ -2687,89 +2696,114 @@ document.addEventListener('DOMContentLoaded', async function() {
         
     } catch (error) {
         console.error('❌ Failed to initialize application:', error);
-        
-        // Show user-friendly error
-        const errorDiv = document.createElement('div');
-        errorDiv.style.cssText = `
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #e74c3c;
-            color: white;
-            padding: 15px 25px;
-            border-radius: 8px;
-            z-index: 99999;
-            max-width: 500px;
-            text-align: center;
-        `;
-        errorDiv.innerHTML = `
-            <strong>Initialization Error</strong>
-            <p>${error.message || 'Failed to initialize application'}</p>
-            <p style="font-size: 12px; margin: 10px 0;">Check browser console for details</p>
-            <button onclick="location.reload()" style="background: white; color: #e74c3c; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin: 5px;">
-                <i class="fas fa-redo"></i> Retry
-            </button>
-            <button onclick="console.clear(); console.error('Error details:', ${JSON.stringify(error.message)});" style="background: #34495e; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin: 5px;">
-                <i class="fas fa-bug"></i> Debug
-            </button>
-        `;
-        document.body.appendChild(errorDiv);
+        showInitializationError(error);
     }
 });
 
-// Fallback app object for debugging
+// Show error to user
+function showInitializationError(error) {
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #e74c3c;
+        color: white;
+        padding: 15px 25px;
+        border-radius: 8px;
+        z-index: 99999;
+        max-width: 500px;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    `;
+    errorDiv.innerHTML = `
+        <strong><i class="fas fa-exclamation-triangle"></i> Initialization Error</strong>
+        <p style="margin: 10px 0;">${error.message || 'Failed to initialize application'}</p>
+        <div style="margin-top: 15px;">
+            <button onclick="location.reload()" style="
+                background: white; 
+                color: #e74c3c; 
+                border: none; 
+                padding: 8px 16px; 
+                border-radius: 4px; 
+                cursor: pointer;
+                margin: 5px;
+                font-weight: bold;
+            ">
+                <i class="fas fa-redo"></i> Reload
+            </button>
+            <button onclick="console.error('Error details:', ${JSON.stringify(error.message)})" style="
+                background: #34495e; 
+                color: white; 
+                border: none; 
+                padding: 8px 16px; 
+                border-radius: 4px; 
+                cursor: pointer;
+                margin: 5px;
+            ">
+                <i class="fas fa-bug"></i> Debug
+            </button>
+        </div>
+    `;
+    document.body.appendChild(errorDiv);
+}
+
+// Fallback if app fails to initialize
 if (typeof app === 'undefined') {
     window.app = {
         showToast: function(msg, type) {
             console.log(`[${type}] ${msg}`);
-            alert(`${type.toUpperCase()}: ${msg}`);
-        },
-        initialize: async function() {
-            console.log('Fallback app initialized');
-            return true;
+            // Simple toast implementation
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'error' ? '#e74c3c' : type === 'success' ? '#27ae60' : '#3498db'};
+                color: white;
+                padding: 12px 20px;
+                border-radius: 6px;
+                z-index: 9999;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            `;
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
         },
         initialized: false,
-        db: {
-            getStudents: async function() { 
-                console.log('Fallback: getStudents');
-                return []; 
-            },
-            getCourses: async function() { 
-                console.log('Fallback: getCourses');
-                return []; 
-            },
-            getMarks: async function() { 
-                console.log('Fallback: getMarks');
-                return []; 
-            }
-        }
+        db: null
     };
 }
 
 // ==============================
-// GLOBAL HELPER FUNCTIONS
+// SIMPLIFIED GLOBAL FUNCTIONS
 // ==============================
 
 function showSection(sectionId) {
     try {
+        // Hide all sections
         document.querySelectorAll('.content-section').forEach(section => {
             section.classList.remove('active');
         });
         
+        // Remove active class from nav links
         document.querySelectorAll('.nav-link').forEach(link => {
             link.classList.remove('active');
         });
         
+        // Show selected section
         const targetSection = document.getElementById(sectionId);
         if (targetSection) {
             targetSection.classList.add('active');
             
+            // Activate nav link
             const activeLink = document.querySelector(`a[href="#${sectionId}"]`);
             if (activeLink) {
                 activeLink.classList.add('active');
             }
             
+            // Update title
             const titleMap = {
                 'dashboard': 'Dashboard Overview',
                 'students': 'Student Management',
@@ -2779,36 +2813,38 @@ function showSection(sectionId) {
                 'reports': 'Reports & Analytics',
                 'settings': 'System Settings'
             };
+            
             const sectionTitle = document.getElementById('section-title');
             if (sectionTitle) {
                 sectionTitle.textContent = titleMap[sectionId] || 'TeePortal';
             }
             
-            // Use window.app instead of just app for safety
+            // Load section data if app is ready
             if (window.app && window.app.initialized) {
-                if (sectionId === 'dashboard') {
-                    setTimeout(() => {
-                        if (window.chartInstances) {
-                            Object.values(window.chartInstances).forEach(chart => {
-                                if (chart && typeof chart.destroy === 'function') {
-                                    chart.destroy();
-                                }
-                            });
-                        }
-                        if (window.app.updateDashboard) {
-                            window.app.updateDashboard();
-                        }
-                    }, 50);
-                }
-                if (sectionId === 'marks' && window.app.loadMarksTable) {
-                    window.app.loadMarksTable();
-                }
-                if (sectionId === 'students' && window.app.loadStudentsTable) {
-                    window.app.loadStudentsTable();
-                }
-                if (sectionId === 'courses' && window.app.loadCourses) {
-                    window.app.loadCourses();
-                }
+                setTimeout(() => {
+                    switch(sectionId) {
+                        case 'dashboard':
+                            if (window.app.updateDashboard) {
+                                window.app.updateDashboard();
+                            }
+                            break;
+                        case 'marks':
+                            if (window.app.loadMarksTable) {
+                                window.app.loadMarksTable();
+                            }
+                            break;
+                        case 'students':
+                            if (window.app.loadStudentsTable) {
+                                window.app.loadStudentsTable();
+                            }
+                            break;
+                        case 'courses':
+                            if (window.app.loadCourses) {
+                                window.app.loadCourses();
+                            }
+                            break;
+                    }
+                }, 50);
             }
         }
     } catch (error) {
@@ -2921,7 +2957,7 @@ window.openCourseModal = openCourseModal;
 window.openMarksModal = openMarksModal;
 window.updateGradeDisplay = updateGradeDisplay;
 
-// Add CSS styles
+// Add basic CSS styles
 const style = document.createElement('style');
 style.textContent = `
     .status-badge {
@@ -3021,9 +3057,9 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Diagnostic check
-console.log('✅ Script loaded successfully');
-console.log('📊 Global objects:', {
+// Debug info
+console.log('✅ Global initialization script loaded');
+console.log('📊 Global objects status:', {
     'TEEPortalApp defined': typeof TEEPortalApp !== 'undefined',
     'TEEPortalSupabaseDB defined': typeof TEEPortalSupabaseDB !== 'undefined',
     'app defined': typeof app !== 'undefined',
