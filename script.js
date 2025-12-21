@@ -2590,8 +2590,10 @@ async generateBulkTranscripts(studentIds, format, options) {
             const gpa = await this.db.calculateStudentGPA(student.id);
             
             const courses = {};
-            marks.forEach(mark => {
-                if (!mark.courses || !mark.courses.course_code) continue;
+            
+            // FIXED: Changed forEach to for...of loop or use return instead of continue
+            for (const mark of marks) {
+                if (!mark.courses || !mark.courses.course_code) continue;  // Now valid in a for...of loop
                 
                 const courseCode = mark.courses.course_code;
                 if (!courses[courseCode]) {
@@ -2618,7 +2620,7 @@ async generateBulkTranscripts(studentIds, format, options) {
                     .reduce((sum, a) => sum + a.percentage, 0);
                 const avgPercentage = totalPercentage / courses[courseCode].assessments.length;
                 courses[courseCode].finalGrade = this.db.calculateGrade(avgPercentage).grade;
-            });
+            }
             
             const transcript = {
                 'Reg Number': student.reg_number,
@@ -2647,7 +2649,6 @@ async generateBulkTranscripts(studentIds, format, options) {
         this.showToast('Error generating bulk transcripts', 'error');
     }
 }
-
 // ==============================
 // GLOBAL INITIALIZATION
 // ==============================
