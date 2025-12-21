@@ -691,13 +691,146 @@ async deleteMark(markId) {
         }
     }
     
-    async getSettings() {
-        try {
-            return this.getDefaultSettings();
-        } catch (error) {
-            return this.getDefaultSettings();
+   // ========== SETTINGS MANAGEMENT ==========
+async getSettings() {
+    try {
+        const supabase = await this.ensureConnected();
+        const { data, error } = await supabase
+            .from('settings')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+            
+        if (error) {
+            // If no settings exist, return default settings
+            if (error.code === 'PGRST116') {
+                return this.getDefaultSettings();
+            }
+            throw error;
         }
+        
+        // Merge with default settings to ensure all fields exist
+        const defaultSettings = this.getDefaultSettings();
+        return { ...defaultSettings, ...(data.settings_data || {}) };
+        
+    } catch (error) {
+        console.error('Error fetching settings:', error);
+        return this.getDefaultSettings();
     }
+}
+
+async saveSettings(settingsData) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        // Get existing settings to update or create new
+        const { data: existingSettings, error: fetchError } = await supabase
+            .from('settings')
+            .select('*')
+            .limit(1)
+            .maybeSingle();
+            
+        let result;
+        
+        if (existingSettings) {
+            // Update existing settings
+            const { data, error } = await supabase
+                .from('settings')
+                .update({
+                    settings_data: settingsData,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', existingSettings.id)
+                .select()
+                .single();
+                
+            if (error) throw error;
+            result = data;
+        } else {
+            // Create new settings
+            const { data, error } = await supabase
+                .from('settings')
+                .insert([{
+                    settings_data: settingsData,
+                    setting_type: 'system',
+                    created_at: new Date().toISOString()
+                }])
+                .select()
+                .single();
+                
+            if (error) throw error;
+            result = data;
+        }
+        
+        // Log the activity
+        await this.logActivity('settings_updated', 'System settings updated');
+        return result;
+        
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        throw error;
+    }
+}
+
+// Update your existing getDefaultSettings() to be more comprehensive
+getDefaultSettings() {
+    return {
+        instituteName: 'Theological Education by Extension College',
+        instituteAbbreviation: 'TEE College',
+        academicYear: new Date().getFullYear(),
+        semester: 'Spring',
+        timezone: 'Africa/Nairobi',
+        currency: 'KES',
+        language: 'en',
+        
+        // Grading Scale
+        gradingScale: {
+            'A': { min: 80, max: 100, points: 4.0, description: 'Excellent' },
+            'B+': { min: 75, max: 79, points: 3.5, description: 'Very Good' },
+            'B': { min: 70, max: 74, points: 3.0, description: 'Good' },
+            'C+': { min: 65, max: 69, points: 2.5, description: 'Above Average' },
+            'C': { min: 60, max: 64, points: 2.0, description: 'Average' },
+            'D+': { min: 55, max: 59, points: 1.5, description: 'Below Average' },
+            'D': { min: 50, max: 54, points: 1.0, description: 'Pass' },
+            'F': { min: 0, max: 49, points: 0.0, description: 'Fail' }
+        },
+        
+        // Programs Configuration
+        programs: {
+            'basic': { 
+                name: 'Basic TEE', 
+                duration: '2 years',
+                maxCredits: 60,
+                description: 'Basic theological education program'
+            },
+            'hnc': { 
+                name: 'Higher National Certificate', 
+                duration: '3 years',
+                maxCredits: 90,
+                description: 'Advanced certificate program'
+            },
+            'advanced': { 
+                name: 'Advanced TEE', 
+                duration: '4 years',
+                maxCredits: 120,
+                description: 'Advanced theological education program'
+            }
+        },
+        
+        // System Settings
+        system: {
+            autoGenerateRegNumbers: true,
+            allowMarkOverwrite: false,
+            showGPA: true,
+            enableEmailNotifications: false,
+            defaultPassword: 'Welcome123',
+            sessionTimeout: 30, // minutes
+            maxLoginAttempts: 5,
+            enableTwoFactor: false
+        }
+    };
+}
     
     async logActivity(type, description) {
         try {
@@ -779,35 +912,62 @@ class TEEPortalApp {
         }
     }
     
-    setupEventListeners() {
-        // Setup form submissions
-        const studentForm = document.getElementById('studentForm');
-        if (studentForm) {
-            studentForm.addEventListener('submit', (e) => this.saveStudent(e));
-        }
-        
-        const marksForm = document.getElementById('marksForm');
-        if (marksForm) {
-            marksForm.addEventListener('submit', (e) => this.saveMarks(e));
-        }
-        
-        const courseForm = document.getElementById('courseForm');
-        if (courseForm) {
-            courseForm.addEventListener('submit', (e) => this.saveCourse(e));
-        }
-        
-        // Setup real-time grade calculation
-        const marksScoreInput = document.getElementById('marksScore');
-        if (marksScoreInput) {
-            marksScoreInput.addEventListener('input', () => updateGradeDisplay());
-        }
-        
-        const maxScoreInput = document.getElementById('maxScore');
-        if (maxScoreInput) {
-            maxScoreInput.addEventListener('input', () => updateGradeDisplay());
-        }
+   setupEventListeners() {
+    // Setup form submissions
+    const studentForm = document.getElementById('studentForm');
+    if (studentForm) {
+        studentForm.addEventListener('submit', (e) => this.saveStudent(e));
     }
     
+    const marksForm = document.getElementById('marksForm');
+    if (marksForm) {
+        marksForm.addEventListener('submit', (e) => this.saveMarks(e));
+    }
+    
+    const courseForm = document.getElementById('courseForm');
+    if (courseForm) {
+        courseForm.addEventListener('submit', (e) => this.saveCourse(e));
+    }
+    
+    // ADD THIS - Settings form submission
+    const settingsForm = document.getElementById('settingsForm');
+    if (settingsForm) {
+        settingsForm.addEventListener('submit', (e) => this.saveSettings(e));
+    }
+    
+    // Setup real-time grade calculation
+    const marksScoreInput = document.getElementById('marksScore');
+    if (marksScoreInput) {
+        marksScoreInput.addEventListener('input', () => updateGradeDisplay());
+    }
+    
+    const maxScoreInput = document.getElementById('maxScore');
+    if (maxScoreInput) {
+        maxScoreInput.addEventListener('input', () => updateGradeDisplay());
+    }
+    
+    // ADD THESE - Settings page buttons if they exist
+    const addGradeRowBtn = document.getElementById('addGradeRowBtn');
+    if (addGradeRowBtn) {
+        addGradeRowBtn.addEventListener('click', () => this.addGradingScaleRow());
+    }
+    
+    const addProgramBtn = document.getElementById('addProgramBtn');
+    if (addProgramBtn) {
+        addProgramBtn.addEventListener('click', () => this.addProgramSetting());
+    }
+    
+    // ADD THIS - Settings tab navigation
+    const settingsTabBtns = document.querySelectorAll('.settings-tab-btn');
+    settingsTabBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const tabName = e.target.dataset.tab;
+            if (tabName) {
+                this.openSettingsTab(tabName);
+            }
+        });
+    });
+}
     async loadInitialData() {
         try {
             console.log('📊 Loading initial data...');
@@ -1352,7 +1512,328 @@ updateSelectedCounts() {
         countElement.textContent = `Total: ${rowCount} marks`;
     }
 }
-   
+ // ==============================
+// SETTINGS MANAGEMENT
+// ==============================
+
+async loadSettings() {
+    try {
+        const settings = await this.db.getSettings();
+        
+        // Populate settings form if it exists
+        this.populateSettingsForm(settings);
+        
+        // Apply settings to UI
+        this.applySettings(settings);
+        
+        return settings;
+        
+    } catch (error) {
+        console.error('Error loading settings:', error);
+        return this.db.getDefaultSettings();
+    }
+}
+
+populateSettingsForm(settings) {
+    try {
+        // Institute Settings
+        if (document.getElementById('instituteName')) {
+            document.getElementById('instituteName').value = settings.instituteName || '';
+        }
+        
+        if (document.getElementById('instituteAbbreviation')) {
+            document.getElementById('instituteAbbreviation').value = settings.instituteAbbreviation || '';
+        }
+        
+        if (document.getElementById('academicYear')) {
+            document.getElementById('academicYear').value = settings.academicYear || new Date().getFullYear();
+        }
+        
+        if (document.getElementById('timezone')) {
+            document.getElementById('timezone').value = settings.timezone || 'Africa/Nairobi';
+        }
+        
+        // System Settings
+        if (document.getElementById('autoGenerateRegNumbers')) {
+            document.getElementById('autoGenerateRegNumbers').checked = settings.system?.autoGenerateRegNumbers !== false;
+        }
+        
+        if (document.getElementById('allowMarkOverwrite')) {
+            document.getElementById('allowMarkOverwrite').checked = settings.system?.allowMarkOverwrite || false;
+        }
+        
+        if (document.getElementById('showGPA')) {
+            document.getElementById('showGPA').checked = settings.system?.showGPA !== false;
+        }
+        
+        // Populate grading scale table if it exists
+        this.populateGradingScaleTable(settings.gradingScale);
+        
+        // Populate programs settings
+        this.populateProgramsSettings(settings.programs);
+        
+    } catch (error) {
+        console.error('Error populating settings form:', error);
+    }
+}
+
+populateGradingScaleTable(gradingScale) {
+    const tbody = document.getElementById('grading-scale-body');
+    if (!tbody) return;
+    
+    let html = '';
+    Object.entries(gradingScale).forEach(([grade, data]) => {
+        html += `
+            <tr>
+                <td><strong>${grade}</strong></td>
+                <td><input type="number" class="form-control-sm" value="${data.min}" min="0" max="100"></td>
+                <td><input type="number" class="form-control-sm" value="${data.max}" min="0" max="100"></td>
+                <td><input type="number" class="form-control-sm" value="${data.points}" step="0.1" min="0" max="4"></td>
+                <td><input type="text" class="form-control" value="${data.description || ''}"></td>
+                <td>
+                    <button class="btn-action btn-delete" onclick="app.removeGradingScaleRow(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+populateProgramsSettings(programs) {
+    const container = document.getElementById('programs-settings');
+    if (!container) return;
+    
+    let html = '';
+    Object.entries(programs).forEach(([code, data]) => {
+        html += `
+            <div class="program-setting-card">
+                <div class="program-setting-header">
+                    <h5>${data.name}</h5>
+                    <span class="program-code">${code}</span>
+                </div>
+                <div class="program-setting-body">
+                    <div class="form-group">
+                        <label>Program Name</label>
+                        <input type="text" class="form-control" value="${data.name}" data-field="name">
+                    </div>
+                    <div class="form-group">
+                        <label>Duration</label>
+                        <input type="text" class="form-control" value="${data.duration}" data-field="duration">
+                    </div>
+                    <div class="form-group">
+                        <label>Max Credits</label>
+                        <input type="number" class="form-control" value="${data.maxCredits || 0}" data-field="maxCredits">
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea class="form-control" rows="2" data-field="description">${data.description || ''}</textarea>
+                    </div>
+                </div>
+                <input type="hidden" class="program-code" value="${code}">
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+async saveSettings(event) {
+    if (event) event.preventDefault();
+    
+    try {
+        // Collect settings from form
+        const settingsData = {
+            instituteName: document.getElementById('instituteName')?.value || '',
+            instituteAbbreviation: document.getElementById('instituteAbbreviation')?.value || '',
+            academicYear: parseInt(document.getElementById('academicYear')?.value) || new Date().getFullYear(),
+            timezone: document.getElementById('timezone')?.value || 'Africa/Nairobi',
+            currency: document.getElementById('currency')?.value || 'KES',
+            language: document.getElementById('language')?.value || 'en',
+            
+            // Grading Scale
+            gradingScale: this.collectGradingScaleData(),
+            
+            // Programs
+            programs: this.collectProgramsData(),
+            
+            // System Settings
+            system: {
+                autoGenerateRegNumbers: document.getElementById('autoGenerateRegNumbers')?.checked || true,
+                allowMarkOverwrite: document.getElementById('allowMarkOverwrite')?.checked || false,
+                showGPA: document.getElementById('showGPA')?.checked || true,
+                enableEmailNotifications: document.getElementById('enableEmailNotifications')?.checked || false,
+                defaultPassword: document.getElementById('defaultPassword')?.value || 'Welcome123',
+                sessionTimeout: parseInt(document.getElementById('sessionTimeout')?.value) || 30,
+                maxLoginAttempts: parseInt(document.getElementById('maxLoginAttempts')?.value) || 5,
+                enableTwoFactor: document.getElementById('enableTwoFactor')?.checked || false
+            }
+        };
+        
+        console.log('💾 Saving settings:', settingsData);
+        
+        await this.db.saveSettings(settingsData);
+        
+        this.showToast('✅ Settings saved successfully!', 'success');
+        
+        // Apply settings to UI
+        this.applySettings(settingsData);
+        
+        // Refresh dashboard to reflect new settings
+        await this.updateDashboard();
+        
+    } catch (error) {
+        console.error('❌ Error saving settings:', error);
+        this.showToast(`Error saving settings: ${error.message}`, 'error');
+    }
+}
+
+collectGradingScaleData() {
+    const gradingScale = {};
+    const rows = document.querySelectorAll('#grading-scale-body tr');
+    
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 5) {
+            const grade = cells[0].querySelector('strong')?.textContent || '';
+            const min = parseFloat(cells[1].querySelector('input')?.value) || 0;
+            const max = parseFloat(cells[2].querySelector('input')?.value) || 0;
+            const points = parseFloat(cells[3].querySelector('input')?.value) || 0;
+            const description = cells[4].querySelector('input')?.value || '';
+            
+            if (grade) {
+                gradingScale[grade] = { min, max, points, description };
+            }
+        }
+    });
+    
+    return gradingScale;
+}
+
+collectProgramsData() {
+    const programs = {};
+    const cards = document.querySelectorAll('.program-setting-card');
+    
+    cards.forEach(card => {
+        const code = card.querySelector('.program-code').value;
+        const name = card.querySelector('[data-field="name"]')?.value || '';
+        const duration = card.querySelector('[data-field="duration"]')?.value || '';
+        const maxCredits = parseInt(card.querySelector('[data-field="maxCredits"]')?.value) || 0;
+        const description = card.querySelector('[data-field="description"]')?.value || '';
+        
+        if (code && name) {
+            programs[code] = {
+                name,
+                duration,
+                maxCredits,
+                description
+            };
+        }
+    });
+    
+    return programs;
+}
+
+applySettings(settings) {
+    // Update page title and headers
+    document.title = `${settings.instituteName} - TEE Portal`;
+    
+    const instituteNameElements = document.querySelectorAll('.institute-name');
+    instituteNameElements.forEach(el => {
+        el.textContent = settings.instituteName;
+    });
+    
+    const instituteAbbrElements = document.querySelectorAll('.institute-abbr');
+    instituteAbbrElements.forEach(el => {
+        el.textContent = settings.instituteAbbreviation;
+    });
+    
+    // Update academic year display
+    const academicYearElements = document.querySelectorAll('.academic-year');
+    academicYearElements.forEach(el => {
+        el.textContent = settings.academicYear;
+    });
+}
+
+// Helper methods for grading scale
+removeGradingScaleRow(button) {
+    const row = button.closest('tr');
+    if (row) {
+        row.remove();
+    }
+}
+
+addGradingScaleRow() {
+    const tbody = document.getElementById('grading-scale-body');
+    if (!tbody) return;
+    
+    const newRow = document.createElement('tr');
+    newRow.innerHTML = `
+        <td><input type="text" class="form-control-sm" placeholder="A, B+, etc"></td>
+        <td><input type="number" class="form-control-sm" placeholder="Min %" min="0" max="100"></td>
+        <td><input type="number" class="form-control-sm" placeholder="Max %" min="0" max="100"></td>
+        <td><input type="number" class="form-control-sm" placeholder="Points" step="0.1" min="0" max="4"></td>
+        <td><input type="text" class="form-control" placeholder="Description"></td>
+        <td>
+            <button class="btn-action btn-delete" onclick="app.removeGradingScaleRow(this)">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    `;
+    
+    tbody.appendChild(newRow);
+}
+
+addProgramSetting() {
+    const container = document.getElementById('programs-settings');
+    if (!container) return;
+    
+    const newCard = document.createElement('div');
+    newCard.className = 'program-setting-card';
+    newCard.innerHTML = `
+        <div class="program-setting-header">
+            <h5>New Program</h5>
+            <span class="program-code">NEW</span>
+        </div>
+        <div class="program-setting-body">
+            <div class="form-group">
+                <label>Program Code</label>
+                <input type="text" class="form-control program-code-input" placeholder="e.g., basic, hnc">
+            </div>
+            <div class="form-group">
+                <label>Program Name</label>
+                <input type="text" class="form-control" data-field="name" placeholder="Program Name">
+            </div>
+            <div class="form-group">
+                <label>Duration</label>
+                <input type="text" class="form-control" data-field="duration" placeholder="e.g., 2 years">
+            </div>
+            <div class="form-group">
+                <label>Max Credits</label>
+                <input type="number" class="form-control" data-field="maxCredits" value="0">
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea class="form-control" rows="2" data-field="description"></textarea>
+            </div>
+        </div>
+        <input type="hidden" class="program-code" value="">
+    `;
+    
+    container.appendChild(newCard);
+    
+    // Add event listener for program code input
+    const codeInput = newCard.querySelector('.program-code-input');
+    const hiddenCode = newCard.querySelector('.program-code');
+    const codeSpan = newCard.querySelector('.program-code');
+    
+    codeInput.addEventListener('input', function() {
+        hiddenCode.value = this.value.toLowerCase();
+        codeSpan.textContent = this.value.toUpperCase();
+    });
+}  
 // ==============================
 // COURSE MANAGEMENT - UPDATED
 // ==============================
