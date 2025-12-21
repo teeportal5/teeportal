@@ -122,95 +122,27 @@ class TEEPortalSupabaseDB {
         }
     }
     
-        async addStudent(studentData) {
-        // Generate registration number
-        const regNumber = this.generateRegNumber(studentData.program, studentData.intake);
-        
-        // Prepare student object for BOTH Supabase and localStorage
-        const studentForSupabase = {
-            reg_number: regNumber,
-            full_name: studentData.name,
-            email: studentData.email,
-            phone: studentData.phone,
-            dob: studentData.dob,
-            gender: studentData.gender,
-            program: studentData.program,
-            intake_year: studentData.intake,
-            status: 'active'
-        };
-        
-        const studentForLocalStorage = {
-            id: Date.now().toString(),
-            reg_number: regNumber,
-            full_name: studentData.name,
-            email: studentData.email,
-            phone: studentData.phone,
-            dob: studentData.dob,
-            gender: studentData.gender,
-            program: studentData.program,
-            intake_year: studentData.intake,
-            status: 'active',
-            created_at: new Date().toISOString(),
-            // For compatibility
-            name: studentData.name,
-            regNumber: regNumber,
-            intake: studentData.intake
-        };
-        
-        // FIRST: Always try to save to Supabase
-        console.log('🔄 Attempting to save student to Supabase...', studentForSupabase);
+           async testSupabaseConnection() {
+        console.log('🔍 Testing Supabase connection...');
         
         try {
-            // Check if Supabase is initialized
-            if (!this.supabase) {
-                throw new Error('Supabase client not initialized');
-            }
-            
+            // Test 1: Can we connect?
             const { data, error } = await this.supabase
                 .from('students')
-                .insert([studentForSupabase])
-                .select()
-                .single();
-                
+                .select('count')
+                .limit(1);
+            
             if (error) {
-                console.error('❌ Supabase insert error:', error);
-                throw error;
+                console.error('❌ Connection test failed:', error);
+                return false;
             }
             
-            console.log('✅ Student saved to Supabase:', data);
+            console.log('✅ Supabase connection successful');
+            return true;
             
-            // ALSO save to localStorage for backup
-            const students = this.getLocalStorageData('students');
-            students.push({
-                ...studentForLocalStorage,
-                id: data.id // Use Supabase's ID
-            });
-            this.saveLocalStorageData('students', students);
-            
-            this.logActivity('student_registered', `Registered student in Supabase: ${data.full_name}`);
-            
-            // Return combined data for compatibility
-            return {
-                ...data,
-                ...studentForLocalStorage,
-                id: data.id,
-                regNumber: data.reg_number
-            };
-            
-        } catch (supabaseError) {
-            console.error('⚠️ Supabase failed, saving to localStorage:', supabaseError);
-            
-            // Fallback to localStorage
-            const students = this.getLocalStorageData('students');
-            students.push(studentForLocalStorage);
-            this.saveLocalStorageData('students', students);
-            
-            this.logActivity('student_registered', `Registered student (localStorage fallback): ${studentForLocalStorage.full_name}`);
-            
-            // Set fallback flag so future operations use localStorage
-            this.localStorageFallback = true;
-            
-            return studentForLocalStorage;
+        } catch (error) {
+            console.error('💥 Connection test exception:', error);
+            return false;
         }
     }
     
