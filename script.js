@@ -2653,133 +2653,214 @@ async generateBulkTranscripts(studentIds, format, options) {
 // GLOBAL INITIALIZATION
 // ==============================
 
+// Declare global variables
 let app = null;
 
+// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('📄 DOM Content Loaded');
     
     try {
-        // Initialize app
+        // Create app instance
         app = new TEEPortalApp();
-        window.app = app;
         
-        // Initialize app asynchronously
+        // Make app available globally
+        window.app = app;
+        window.TEEPortalApp = TEEPortalApp;
+        window.TEEPortalSupabaseDB = TEEPortalSupabaseDB;
+        
+        console.log('🚀 TEEPortalApp instance created');
+        
+        // Initialize the app
         await app.initialize();
         
         console.log('🎉 TEEPortal System Ready');
         
+        // Initialize UI
+        initializeUI();
+        
     } catch (error) {
         console.error('❌ Failed to initialize application:', error);
-        
-        // Show user-friendly error
-        const errorDiv = document.createElement('div');
-        errorDiv.style.cssText = `
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #e74c3c;
-            color: white;
-            padding: 15px 25px;
-            border-radius: 8px;
-            z-index: 99999;
-            max-width: 500px;
-            text-align: center;
-        `;
-        errorDiv.innerHTML = `
-            <strong>Connection Error</strong>
-            <p>Failed to connect to database. Please check:</p>
-            <ul style="text-align: left; margin: 10px 0;">
-                <li>Internet connection</li>
-                <li>Browser console for details</li>
-            </ul>
-            <button onclick="location.reload()" style="background: white; color: #e74c3c; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-                Retry
-            </button>
-        `;
-        document.body.appendChild(errorDiv);
+        showInitializationError(error);
     }
 });
+
+// Initialize UI elements
+function initializeUI() {
+    // Set default section
+    setTimeout(() => {
+        if (typeof showSection === 'function') {
+            showSection('dashboard');
+        }
+    }, 100);
+    
+    // Initialize date pickers
+    const dateInputs = document.querySelectorAll('input[type="date"]');
+    const today = new Date().toISOString().split('T')[0];
+    dateInputs.forEach(input => {
+        if (input) input.max = today;
+    });
+}
+
+// Show initialization error to user
+function showInitializationError(error) {
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #e74c3c;
+        color: white;
+        padding: 15px 25px;
+        border-radius: 8px;
+        z-index: 99999;
+        max-width: 500px;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    `;
+    errorDiv.innerHTML = `
+        <strong><i class="fas fa-exclamation-triangle"></i> Connection Error</strong>
+        <p style="margin: 10px 0;">Failed to connect to database. Please check:</p>
+        <ul style="text-align: left; margin: 10px 0; padding-left: 20px;">
+            <li>Internet connection</li>
+            <li>Browser console for details</li>
+            <li>Supabase client is loaded</li>
+        </ul>
+        <p style="font-size: 12px; opacity: 0.8;">${error.message || 'Unknown error'}</p>
+        <button onclick="location.reload()" style="
+            background: white; 
+            color: #e74c3c; 
+            border: none; 
+            padding: 8px 16px; 
+            border-radius: 4px; 
+            cursor: pointer;
+            margin-top: 10px;
+            font-weight: bold;
+        ">
+            <i class="fas fa-redo"></i> Retry Connection
+        </button>
+    `;
+    document.body.appendChild(errorDiv);
+}
+
+// Fallback in case initialization fails
+if (typeof app === 'undefined') {
+    window.app = {
+        showToast: function(msg, type) {
+            console.log(`${type}: ${msg}`);
+            alert(`${type.toUpperCase()}: ${msg}`);
+        },
+        initialize: async function() {
+            console.log('Fallback app initialized');
+            return true;
+        },
+        db: {
+            getStudents: async function() { return []; },
+            getCourses: async function() { return []; },
+            getMarks: async function() { return []; }
+        }
+    };
+}
 
 // ==============================
 // GLOBAL HELPER FUNCTIONS
 // ==============================
 
 function showSection(sectionId) {
-    document.querySelectorAll('.content-section').forEach(section => {
-        section.classList.remove('active');
-    });
-    
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.classList.remove('active');
-    });
-    
-    const targetSection = document.getElementById(sectionId);
-    if (targetSection) {
-        targetSection.classList.add('active');
+    try {
+        // Hide all sections
+        document.querySelectorAll('.content-section').forEach(section => {
+            section.classList.remove('active');
+        });
         
-        const activeLink = document.querySelector(`a[href="#${sectionId}"]`);
-        if (activeLink) {
-            activeLink.classList.add('active');
-        }
+        // Remove active class from all nav links
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('active');
+        });
         
-        const titleMap = {
-            'dashboard': 'Dashboard Overview',
-            'students': 'Student Management',
-            'courses': 'Course Management',
-            'marks': 'Academic Records',
-            'intake': 'Intake Management',
-            'reports': 'Reports & Analytics',
-            'settings': 'System Settings'
-        };
-        const sectionTitle = document.getElementById('section-title');
-        if (sectionTitle) {
-            sectionTitle.textContent = titleMap[sectionId] || 'TeePortal';
-        }
-        
-        // Load section-specific data
-        if (app && app.initialized) {
-            if (sectionId === 'dashboard') {
-                // Re-render charts for dashboard
+        // Show selected section
+        const targetSection = document.getElementById(sectionId);
+        if (targetSection) {
+            targetSection.classList.add('active');
+            
+            // Activate corresponding nav link
+            const activeLink = document.querySelector(`a[href="#${sectionId}"]`);
+            if (activeLink) {
+                activeLink.classList.add('active');
+            }
+            
+            // Update section title
+            const titleMap = {
+                'dashboard': 'Dashboard Overview',
+                'students': 'Student Management',
+                'courses': 'Course Management',
+                'marks': 'Academic Records',
+                'intake': 'Intake Management',
+                'reports': 'Reports & Analytics',
+                'settings': 'System Settings'
+            };
+            
+            const sectionTitle = document.getElementById('section-title');
+            if (sectionTitle) {
+                sectionTitle.textContent = titleMap[sectionId] || 'TeePortal';
+            }
+            
+            // Load section-specific data if app is initialized
+            if (window.app && window.app.initialized) {
                 setTimeout(() => {
-                    if (window.chartInstances) {
-                        Object.values(window.chartInstances).forEach(chart => {
-                            if (chart && typeof chart.destroy === 'function') {
-                                chart.destroy();
+                    switch(sectionId) {
+                        case 'dashboard':
+                            if (window.chartInstances) {
+                                Object.values(window.chartInstances).forEach(chart => {
+                                    if (chart && typeof chart.destroy === 'function') {
+                                        chart.destroy();
+                                    }
+                                });
                             }
-                        });
+                            window.app.updateDashboard();
+                            break;
+                        case 'marks':
+                            window.app.loadMarksTable();
+                            break;
+                        case 'students':
+                            window.app.loadStudentsTable();
+                            break;
+                        case 'courses':
+                            window.app.loadCourses();
+                            break;
                     }
-                    app.updateDashboard();
                 }, 50);
             }
-            if (sectionId === 'marks') {
-                app.loadMarksTable();
-            }
-            if (sectionId === 'students') {
-                app.loadStudentsTable();
-            }
-            if (sectionId === 'courses') {
-                app.loadCourses();
-            }
         }
+    } catch (error) {
+        console.error('Error showing section:', error);
     }
 }
 
 function openModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.style.display = 'flex';
-        setTimeout(() => modal.classList.add('active'), 10);
+    try {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'flex';
+            setTimeout(() => modal.classList.add('active'), 10);
+        }
+    } catch (error) {
+        console.error('Error opening modal:', error);
     }
 }
 
 function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.classList.remove('active');
-        setTimeout(() => {
-            modal.style.display = 'none';
-        }, 300);
+    try {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('active');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        }
+    } catch (error) {
+        console.error('Error closing modal:', error);
     }
 }
 
@@ -2792,8 +2873,8 @@ function openCourseModal() {
 }
 
 function openMarksModal() {
-    if (app && app.openMarksModal) {
-        app.openMarksModal();
+    if (window.app && window.app.openMarksModal) {
+        window.app.openMarksModal();
     } else {
         openModal('marksModal');
     }
@@ -2861,6 +2942,7 @@ window.openStudentModal = openStudentModal;
 window.openCourseModal = openCourseModal;
 window.openMarksModal = openMarksModal;
 window.updateGradeDisplay = updateGradeDisplay;
+window.initializeUI = initializeUI;
 
 // Add CSS styles
 const style = document.createElement('style');
