@@ -2490,209 +2490,164 @@ class TEEPortalApp {
         }
     }
     
-// Updated generateStudentTranscript with options
-async generateStudentTranscript(studentRegNumber, format = 'pdf', options = {}) {
-    try {
-        console.log(`📚 Generating transcript for student: ${studentRegNumber}`);
-        
-        // Get student by registration number
-        const student = await this.db.getStudent(studentRegNumber);
-        if (!student) {
-            this.showToast('Student not found', 'error');
-            return;
-        }
-        
-        // Now get marks using the student's UUID (not registration number)
-        const marks = await this.db.getStudentMarks(student.id);
-        const gpa = await this.db.calculateStudentGPA(student.id);
-        
-        const courses = {};
-        marks.forEach(mark => {
-            if (!mark.courses || !mark.courses.course_code) {
-                console.warn('Mark missing course info:', mark);
+    // Updated generateStudentTranscript with options
+    async generateStudentTranscript(studentId, format = 'pdf', options = {}) {
+        try {
+            console.log(`📚 Generating transcript for student: ${studentId}`);
+            
+            const student = await this.db.getStudent(studentId);
+            if (!student) {
+                this.showToast('Student not found', 'error');
                 return;
             }
-            
-            const courseCode = mark.courses.course_code;
-            if (!courses[courseCode]) {
-                courses[courseCode] = {
-                    courseCode: courseCode,
-                    courseName: mark.courses.course_name || 'Unknown Course',
-                    assessments: [],
-                    finalGrade: '',
-                    credits: 3
-                };
-            }
-            
-            if (options.includeAllAssessments !== false) {
-                courses[courseCode].assessments.push({
-                    name: mark.assessment_name || 'Assessment',
-                    type: mark.assessment_type || 'Unknown',
-                    score: mark.score || 0,
-                    maxScore: mark.max_score || 100,
-                    percentage: mark.percentage || 0,
-                    grade: mark.grade || 'F',
-                    remarks: options.includeRemarks !== false ? mark.remarks : ''
-                });
-            }
-            
-            // Calculate final grade
-            if (courses[courseCode].assessments.length > 0) {
-                const totalPercentage = courses[courseCode].assessments
-                    .reduce((sum, a) => sum + (a.percentage || 0), 0);
-                const avgPercentage = totalPercentage / courses[courseCode].assessments.length;
-                courses[courseCode].finalGrade = this.db.calculateGrade(avgPercentage).grade;
-            }
-        });
-        
-        const courseList = Object.values(courses);
-        const transcriptData = {
-            student: student,
-            courses: courseList,
-            gpa: options.includeGPA !== false ? gpa : null,
-            totalCredits: courseList.length * 3,
-            generatedDate: new Date().toLocaleDateString(),
-            options: options
-        };
-        
-        // For now, show transcript in alert since PDF functions might not exist
-        await this.showTranscriptAlert(transcriptData);
-        
-        if (!options.batchMode) {
-            this.showToast(`Transcript generated for ${student.full_name}`, 'success');
-            await this.db.logActivity('transcript_generated', 
-                `Generated transcript for ${student.full_name} (${student.reg_number})`);
-        }
-        
-    } catch (error) {
-        console.error('Error generating transcript:', error);
-        if (!options.batchMode) {
-            this.showToast(`Error generating transcript: ${error.message}`, 'error');
-        }
-    }
-}
-
-// Helper function to display transcript in alert
-async showTranscriptAlert(transcriptData) {
-    const { student, courses, gpa, totalCredits, generatedDate } = transcriptData;
-    
-    let transcriptText = `
-        STUDENT TRANSCRIPT
-        ===================
-        
-        Student: ${student.full_name}
-        Registration: ${student.reg_number}
-        Program: ${student.program}
-        Intake Year: ${student.intake_year}
-        GPA: ${gpa ? gpa.toFixed(2) : 'N/A'}
-        
-        COURSES:
-        ========
-    `;
-    
-    Object.values(courses).forEach((course, index) => {
-        transcriptText += `
-        ${index + 1}. ${course.courseCode} - ${course.courseName}
-           Final Grade: ${course.finalGrade || 'N/A'}
-           Credits: ${course.credits}
-        `;
-        
-        if (course.assessments && course.assessments.length > 0) {
-            transcriptText += `   Assessments:\n`;
-            course.assessments.forEach(assessment => {
-                transcriptText += `     - ${assessment.name}: ${assessment.score}/${assessment.maxScore} (${assessment.percentage}%) - Grade: ${assessment.grade}\n`;
-            });
-        }
-    });
-    
-    transcriptText += `
-        ===================
-        Total Courses: ${Object.keys(courses).length}
-        Total Credits: ${totalCredits}
-        Generated: ${generatedDate}
-    `;
-    
-    // Show in alert for now
-    alert(transcriptText);
-}
-
-// Also update the generateBulkTranscripts method:
-async generateBulkTranscripts(studentRegNumbers, format, options) {
-    try {
-        console.log(`📚 Generating bulk transcripts for ${studentRegNumbers.length} students`);
-        
-        const allTranscripts = [];
-        
-        for (const regNumber of studentRegNumbers) {
-            const student = await this.db.getStudent(regNumber);
-            if (!student) continue;
             
             const marks = await this.db.getStudentMarks(student.id);
             const gpa = await this.db.calculateStudentGPA(student.id);
             
             const courses = {};
-            
-            for (const mark of marks) {
-                if (!mark.courses || !mark.courses.course_code) continue;
+            marks.forEach(mark => {
+                if (!mark.courses || !mark.courses.course_code) {
+                    console.warn('Mark missing course info:', mark);
+                    return;
+                }
                 
                 const courseCode = mark.courses.course_code;
                 if (!courses[courseCode]) {
                     courses[courseCode] = {
                         courseCode: courseCode,
                         courseName: mark.courses.course_name || 'Unknown Course',
+                        assessments: [],
                         finalGrade: '',
                         credits: 3
                     };
                 }
                 
-                // For bulk export, just calculate final grade
-                if (courses[courseCode].assessments) {
+                if (options.includeAllAssessments !== false) {
                     courses[courseCode].assessments.push({
-                        percentage: mark.percentage || 0
+                        name: mark.assessment_name || 'Assessment',
+                        type: mark.assessment_type || 'Unknown',
+                        score: mark.score || 0,
+                        maxScore: mark.max_score || 100,
+                        percentage: mark.percentage || 0,
+                        grade: mark.grade || 'F',
+                        remarks: options.includeRemarks !== false ? mark.remarks : ''
                     });
-                } else {
-                    courses[courseCode].assessments = [{
-                        percentage: mark.percentage || 0
-                    }];
                 }
                 
-                const totalPercentage = courses[courseCode].assessments
-                    .reduce((sum, a) => sum + a.percentage, 0);
-                const avgPercentage = totalPercentage / courses[courseCode].assessments.length;
-                courses[courseCode].finalGrade = this.db.calculateGrade(avgPercentage).grade;
-            }
+                // Calculate final grade
+                if (courses[courseCode].assessments.length > 0) {
+                    const totalPercentage = courses[courseCode].assessments
+                        .reduce((sum, a) => sum + (a.percentage || 0), 0);
+                    const avgPercentage = totalPercentage / courses[courseCode].assessments.length;
+                    courses[courseCode].finalGrade = this.db.calculateGrade(avgPercentage).grade;
+                }
+            });
             
-            const transcript = {
-                'Reg Number': student.reg_number,
-                'Full Name': student.full_name,
-                'Program': student.program,
-                'Intake Year': student.intake_year,
-                'GPA': options.includeGPA !== false ? gpa.toFixed(2) : 'N/A',
-                'Total Courses': Object.keys(courses).length,
-                'Total Credits': Object.keys(courses).length * 3,
-                'Courses': Object.values(courses).map(c => c.courseCode).join(', ')
+            const courseList = Object.values(courses);
+            const transcriptData = {
+                student: student,
+                courses: courseList,
+                gpa: options.includeGPA !== false ? gpa : null,
+                totalCredits: courseList.length * 3,
+                generatedDate: new Date().toLocaleDateString(),
+                options: options
             };
             
-            allTranscripts.push(transcript);
-        }
-        
-        if (format === 'excel') {
-            await this.exportToExcel(allTranscripts, `bulk-transcripts-${new Date().toISOString().split('T')[0]}`);
-        } else if (format === 'csv') {
-            await this.exportToCSV(allTranscripts, `bulk-transcripts-${new Date().toISOString().split('T')[0]}`);
-        } else {
-            // For PDF/ZIP, show alerts for each student
-            for (const transcript of allTranscripts) {
-                alert(`Transcript for ${transcript['Full Name']} (${transcript['Reg Number']}):
-GPA: ${transcript['GPA']}
-Courses: ${transcript['Courses']}`);
+            if (format === 'pdf') {
+                await this.generateTranscriptPDF(transcriptData);
+            } else if (format === 'excel') {
+                await this.generateTranscriptExcel(transcriptData);
+            } else if (format === 'csv') {
+                await this.generateTranscriptCSV(transcriptData);
             }
-            this.showToast(`Generated ${allTranscripts.length} transcripts`, 'success');
+            
+            if (!options.batchMode) {
+                this.showToast(`Transcript generated for ${student.full_name}`, 'success');
+                await this.db.logActivity('transcript_generated', 
+                    `Generated transcript for ${student.full_name} (${student.reg_number})`);
+            }
+            
+        } catch (error) {
+            console.error('Error generating transcript:', error);
+            if (!options.batchMode) {
+                this.showToast(`Error generating transcript: ${error.message}`, 'error');
+            }
         }
-        
-    } catch (error) {
-        console.error('Error generating bulk transcripts:', error);
-        this.showToast('Error generating bulk transcripts', 'error');
+    }
+    
+    // Bulk transcripts method
+    async generateBulkTranscripts(studentIds, format, options) {
+        try {
+            console.log(`📚 Generating bulk transcripts for ${studentIds.length} students`);
+            
+            const allTranscripts = [];
+            
+            for (const studentId of studentIds) {
+                const student = await this.db.getStudent(studentId);
+                if (!student) continue;
+                
+                const marks = await this.db.getStudentMarks(student.id);
+                const gpa = await this.db.calculateStudentGPA(student.id);
+                
+                const courses = {};
+                
+                // FIXED: Changed forEach to for...of loop or use return instead of continue
+                for (const mark of marks) {
+                    if (!mark.courses || !mark.courses.course_code) continue;  // Now valid in a for...of loop
+                    
+                    const courseCode = mark.courses.course_code;
+                    if (!courses[courseCode]) {
+                        courses[courseCode] = {
+                            courseCode: courseCode,
+                            courseName: mark.courses.course_name || 'Unknown Course',
+                            finalGrade: '',
+                            credits: 3
+                        };
+                    }
+                    
+                    // For bulk export, just calculate final grade
+                    if (courses[courseCode].assessments) {
+                        courses[courseCode].assessments.push({
+                            percentage: mark.percentage || 0
+                        });
+                    } else {
+                        courses[courseCode].assessments = [{
+                            percentage: mark.percentage || 0
+                        }];
+                    }
+                    
+                    const totalPercentage = courses[courseCode].assessments
+                        .reduce((sum, a) => sum + a.percentage, 0);
+                    const avgPercentage = totalPercentage / courses[courseCode].assessments.length;
+                    courses[courseCode].finalGrade = this.db.calculateGrade(avgPercentage).grade;
+                }
+                
+                const transcript = {
+                    'Reg Number': student.reg_number,
+                    'Full Name': student.full_name,
+                    'Program': student.program,
+                    'Intake Year': student.intake_year,
+                    'GPA': options.includeGPA !== false ? gpa.toFixed(2) : 'N/A',
+                    'Total Courses': Object.keys(courses).length,
+                    'Total Credits': Object.keys(courses).length * 3,
+                    'Courses': Object.values(courses).map(c => c.courseCode).join(', ')
+                };
+                
+                allTranscripts.push(transcript);
+            }
+            
+            if (format === 'excel') {
+                await this.exportToExcel(allTranscripts, `bulk-transcripts-${new Date().toISOString().split('T')[0]}`);
+            } else if (format === 'csv') {
+                await this.exportToCSV(allTranscripts, `bulk-transcripts-${new Date().toISOString().split('T')[0]}`);
+            }
+            
+            this.showToast(`Generated ${allTranscripts.length} transcripts in ${format.toUpperCase()} format`, 'success');
+            
+        } catch (error) {
+            console.error('Error generating bulk transcripts:', error);
+            this.showToast('Error generating bulk transcripts', 'error');
+        }
     }
 }
 
