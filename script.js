@@ -6,34 +6,38 @@ class TEEPortalSupabaseDB {
     constructor() {
         this.supabase = null;
         this.initialized = false;
+        this.initPromise = null;
     }
     
     async init() {
+        // If already initialized, return
+        if (this.initialized) return true;
+        
+        // If initialization is in progress, wait for it
+        if (this.initPromise) return await this.initPromise;
+        
+        // Start initialization
+        this.initPromise = this._init();
+        return await this.initPromise;
+    }
+    
+    async _init() {
         try {
-            console.log('🔄 Initializing Supabase connection...');
-            
-            // Load Supabase if not already loaded
+            // Check if supabase is available
             if (typeof supabase === 'undefined') {
-                console.log('📦 Loading Supabase from CDN...');
-                await this.loadSupabase();
+                throw new Error('Supabase client not loaded');
             }
             
-            this.supabaseUrl = window.SUPABASE_URL || 'https://kmkjsessuzdfadlmndyr.supabase.co';
-            this.supabaseKey = window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtta2pzZXNzdXpkZmFkbG1uZHlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYyNTA1MzUsImV4cCI6MjA4MTgyNjUzNX0.16m_thmf2Td8uB5lan8vZDLkGkWIlftaxSOroqvDkU4';
+            this.supabaseUrl = 'https://kmkjsessuzdfadlmndyr.supabase.co';
+            this.supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtta2pzZXNzdXpkZmFkbG1uZHlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYyNTA1MzUsImV4cCI6MjA4MTgyNjUzNX0.16m_thmf2Td8uB5lan8vZDLkGkWIlftaxSOroqvDkU4';
             
-            // IMPORTANT: For security, move the key to environment variables
-            if (!this.supabaseKey || this.supabaseKey.includes('eyJhbGci')) {
-                console.warn('⚠️ Using default Supabase key - For production, use environment variables');
-            }
-            
-            console.log('🔗 Creating Supabase client...');
+            // Initialize Supabase client
             this.supabase = supabase.createClient(this.supabaseUrl, this.supabaseKey);
             
             // Test connection
             await this.testConnection();
             this.initialized = true;
             console.log('✅ Supabase connected successfully');
-            
             return true;
             
         } catch (error) {
@@ -43,49 +47,40 @@ class TEEPortalSupabaseDB {
         }
     }
     
-    async loadSupabase() {
-        return new Promise((resolve, reject) => {
-            if (typeof supabase !== 'undefined') {
-                resolve();
-                return;
-            }
-            
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-            script.onload = () => {
-                console.log('✅ Supabase client loaded');
-                resolve();
-            };
-            script.onerror = () => {
-                reject(new Error('Failed to load Supabase client'));
-            };
-            document.head.appendChild(script);
-        });
-    }
-    
     async testConnection() {
         try {
-            console.log('🔍 Testing database connection...');
             const { data, error } = await this.supabase
                 .from('students')
                 .select('count')
                 .limit(1);
                 
             if (error) {
-                // Check if table doesn't exist (PGRST116)
                 if (error.code === 'PGRST116' || error.code === '42P01') {
-                    console.warn('⚠️ Table might not exist yet, but connection is successful');
+                    console.warn('⚠️ Table might not exist yet');
                     return true;
                 }
                 throw error;
             }
             
-            console.log('✅ Database connection test passed');
             return true;
         } catch (error) {
-            console.error('❌ Database connection test failed:', error);
+            console.error('Connection test error:', error);
             throw error;
         }
+    }
+    
+    // ========== SAFE DATABASE METHODS ==========
+    
+    async ensureConnected() {
+        if (!this.initialized) {
+            await this.init();
+        }
+        
+        if (!this.supabase) {
+            throw new Error('Database connection not established');
+        }
+        
+        return this.supabase;
     }
     
     getDefaultSettings() {
@@ -114,15 +109,13 @@ class TEEPortalSupabaseDB {
     // ========== STUDENTS ==========
     async getStudents() {
         try {
-            if (!this.initialized) await this.init();
-            
-            const { data, error } = await this.supabase
+            const supabase = await this.ensureConnected();
+            const { data, error } = await supabase
                 .from('students')
                 .select('*')
                 .order('created_at', { ascending: false });
                 
             if (error) throw error;
-            
             return data || [];
             
         } catch (error) {
@@ -133,16 +126,14 @@ class TEEPortalSupabaseDB {
     
     async getStudent(id) {
         try {
-            if (!this.initialized) await this.init();
-            
-            const { data, error } = await this.supabase
+            const supabase = await this.ensureConnected();
+            const { data, error } = await supabase
                 .from('students')
                 .select('*')
                 .or(`id.eq.${id},reg_number.eq.${id}`)
                 .single();
                 
             if (error) throw error;
-            
             return data;
             
         } catch (error) {
@@ -153,9 +144,7 @@ class TEEPortalSupabaseDB {
     
     async addStudent(studentData) {
         try {
-            if (!this.initialized) await this.init();
-            
-            // Generate registration number
+            const supabase = await this.ensureConnected();
             const regNumber = await this.generateRegNumber(studentData.program, studentData.intake);
             
             const student = {
@@ -167,11 +156,10 @@ class TEEPortalSupabaseDB {
                 gender: studentData.gender || null,
                 program: studentData.program,
                 intake_year: studentData.intake,
-                status: 'active',
-                created_at: new Date().toISOString()
+                status: 'active'
             };
             
-            const { data, error } = await this.supabase
+            const { data, error } = await supabase
                 .from('students')
                 .insert([student])
                 .select()
@@ -180,7 +168,6 @@ class TEEPortalSupabaseDB {
             if (error) throw error;
             
             await this.logActivity('student_registered', `Registered student: ${data.full_name} (${data.reg_number})`);
-            
             return data;
             
         } catch (error) {
@@ -191,10 +178,8 @@ class TEEPortalSupabaseDB {
     
     async generateRegNumber(program, intakeYear) {
         try {
-            if (!this.initialized) await this.init();
-            
-            // Get count of students in same program and intake
-            const { count, error } = await this.supabase
+            const supabase = await this.ensureConnected();
+            const { count, error } = await supabase
                 .from('students')
                 .select('*', { count: 'exact', head: true })
                 .eq('program', program)
@@ -216,7 +201,6 @@ class TEEPortalSupabaseDB {
             
         } catch (error) {
             console.error('Error generating reg number:', error);
-            // Fallback to timestamp-based number
             const timestamp = Date.now().toString().slice(-6);
             return `TEMP${timestamp}`;
         }
@@ -225,15 +209,13 @@ class TEEPortalSupabaseDB {
     // ========== COURSES ==========
     async getCourses() {
         try {
-            if (!this.initialized) await this.init();
-            
-            const { data, error } = await this.supabase
+            const supabase = await this.ensureConnected();
+            const { data, error } = await supabase
                 .from('courses')
                 .select('*')
                 .order('created_at', { ascending: false });
                 
             if (error) throw error;
-            
             return data || [];
             
         } catch (error) {
@@ -244,19 +226,17 @@ class TEEPortalSupabaseDB {
     
     async addCourse(courseData) {
         try {
-            if (!this.initialized) await this.init();
-            
+            const supabase = await this.ensureConnected();
             const course = {
                 course_code: courseData.code.toUpperCase(),
                 course_name: courseData.name,
                 program: courseData.program,
                 credits: courseData.credits,
                 description: courseData.description,
-                status: 'active',
-                created_at: new Date().toISOString()
+                status: 'active'
             };
             
-            const { data, error } = await this.supabase
+            const { data, error } = await supabase
                 .from('courses')
                 .insert([course])
                 .select()
@@ -265,7 +245,6 @@ class TEEPortalSupabaseDB {
             if (error) throw error;
             
             await this.logActivity('course_added', `Added course: ${data.course_code}`);
-            
             return data;
             
         } catch (error) {
@@ -276,16 +255,14 @@ class TEEPortalSupabaseDB {
     
     async getCourse(id) {
         try {
-            if (!this.initialized) await this.init();
-            
-            const { data, error } = await this.supabase
+            const supabase = await this.ensureConnected();
+            const { data, error } = await supabase
                 .from('courses')
                 .select('*')
                 .or(`id.eq.${id},course_code.eq.${id}`)
                 .single();
                 
             if (error) throw error;
-            
             return data;
             
         } catch (error) {
@@ -297,9 +274,8 @@ class TEEPortalSupabaseDB {
     // ========== MARKS ==========
     async getMarks() {
         try {
-            if (!this.initialized) await this.init();
-            
-            const { data, error } = await this.supabase
+            const supabase = await this.ensureConnected();
+            const { data, error } = await supabase
                 .from('marks')
                 .select(`
                     *,
@@ -309,7 +285,6 @@ class TEEPortalSupabaseDB {
                 .order('created_at', { ascending: false });
                 
             if (error) throw error;
-            
             return data || [];
             
         } catch (error) {
@@ -320,8 +295,7 @@ class TEEPortalSupabaseDB {
     
     async addMark(markData) {
         try {
-            if (!this.initialized) await this.init();
-            
+            const supabase = await this.ensureConnected();
             const percentage = (markData.score / markData.maxScore) * 100;
             const grade = this.calculateGrade(percentage);
             
@@ -337,18 +311,11 @@ class TEEPortalSupabaseDB {
                 grade_points: grade.points,
                 remarks: markData.remarks || '',
                 visible_to_student: markData.visibleToStudent,
-                entered_by: 'admin',
-                created_at: new Date().toISOString()
+                entered_by: 'admin'
             };
             
-            console.log('📊 Processing marks:', {
-                student: markData.studentId,
-                course: markData.courseId,
-                assessment: markData.assessmentName
-            });
-            
             // Check if marks already exist
-            const { data: existingMarks, error: checkError } = await this.supabase
+            const { data: existingMarks, error: checkError } = await supabase
                 .from('marks')
                 .select('*')
                 .eq('student_id', markData.studentId)
@@ -359,10 +326,8 @@ class TEEPortalSupabaseDB {
             let result;
             
             if (existingMarks) {
-                console.log('📝 Existing marks found, updating...');
-                
                 // UPDATE EXISTING MARKS
-                const { data: updatedData, error: updateError } = await this.supabase
+                const { data: updatedData, error: updateError } = await supabase
                     .from('marks')
                     .update({
                         score: mark.score,
@@ -381,14 +346,11 @@ class TEEPortalSupabaseDB {
                 if (updateError) throw updateError;
                 
                 result = updatedData;
-                console.log('✅ Marks updated successfully');
                 await this.logActivity('marks_updated', `Updated marks for student`);
                 
             } else {
-                console.log('🆕 No existing marks found, inserting new...');
-                
                 // INSERT NEW MARKS
-                const { data: newData, error: insertError } = await this.supabase
+                const { data: newData, error: insertError } = await supabase
                     .from('marks')
                     .insert([mark])
                     .select()
@@ -397,23 +359,21 @@ class TEEPortalSupabaseDB {
                 if (insertError) throw insertError;
                 
                 result = newData;
-                console.log('✅ New marks inserted successfully');
                 await this.logActivity('marks_entered', `Entered new marks for student`);
             }
             
             return result;
             
         } catch (error) {
-            console.error('💥 Error in addMark:', error);
+            console.error('Error in addMark:', error);
             throw error;
         }
     }
     
     async getStudentMarks(studentId) {
         try {
-            if (!this.initialized) await this.init();
-            
-            const { data, error } = await this.supabase
+            const supabase = await this.ensureConnected();
+            const { data, error } = await supabase
                 .from('marks')
                 .select(`
                     *,
@@ -423,7 +383,6 @@ class TEEPortalSupabaseDB {
                 .order('created_at', { ascending: false });
                 
             if (error) throw error;
-            
             return data || [];
             
         } catch (error) {
@@ -434,9 +393,8 @@ class TEEPortalSupabaseDB {
     
     async getMarksTableData() {
         try {
-            if (!this.initialized) await this.init();
-            
-            const { data, error } = await this.supabase
+            const supabase = await this.ensureConnected();
+            const { data, error } = await supabase
                 .from('marks')
                 .select(`
                     id,
@@ -467,7 +425,6 @@ class TEEPortalSupabaseDB {
                 .limit(100);
                 
             if (error) throw error;
-            
             return data || [];
             
         } catch (error) {
@@ -520,15 +477,13 @@ class TEEPortalSupabaseDB {
     
     async logActivity(type, description) {
         try {
-            if (!this.initialized) await this.init();
-            
-            const { error } = await this.supabase
+            const supabase = await this.ensureConnected();
+            const { error } = await supabase
                 .from('activities')
                 .insert([{
                     type: type,
                     description: description,
-                    user_name: 'Administrator',
-                    created_at: new Date().toISOString()
+                   user_name: 'Administrator'
                 }]);
                 
             if (error) {
@@ -541,9 +496,8 @@ class TEEPortalSupabaseDB {
     
     async getRecentActivities(limit = 10) {
         try {
-            if (!this.initialized) await this.init();
-            
-            const { data, error } = await this.supabase
+            const supabase = await this.ensureConnected();
+            const { data, error } = await supabase
                 .from('activities')
                 .select('*')
                 .order('created_at', { ascending: false })
@@ -563,7 +517,7 @@ class TEEPortalSupabaseDB {
 }
 
 // ==============================
-// APPLICATION CORE - SUPABASE ONLY
+// APPLICATION CORE
 // ==============================
 
 class TEEPortalApp {
@@ -572,6 +526,9 @@ class TEEPortalApp {
         this.currentStudentId = null;
         this.currentView = 'dashboard';
         this.initialized = false;
+        
+        // Initialize event listeners
+        this.setupEventListeners();
     }
     
     async initialize() {
@@ -580,9 +537,6 @@ class TEEPortalApp {
         try {
             // Initialize database first
             await this.db.init();
-            
-            // Setup event listeners
-            this.setupEventListeners();
             
             // Load initial data
             await this.loadInitialData();
@@ -594,124 +548,38 @@ class TEEPortalApp {
             console.log('✅ TEEPortal Ready');
             this.showToast('System initialized successfully', 'success');
             
-            // Make app globally accessible
-            window.app = this;
-            
         } catch (error) {
             console.error('❌ Initialization failed:', error);
             this.showToast('Failed to connect to database', 'error');
-            throw error;
         }
     }
     
     setupEventListeners() {
-        console.log('🔗 Setting up event listeners...');
-        
-        // Student form submission - FIXED: added async
+        // Setup form submissions
         const studentForm = document.getElementById('studentForm');
         if (studentForm) {
-            studentForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await this.saveStudent(e);
-            });
+            studentForm.addEventListener('submit', (e) => this.saveStudent(e));
         }
         
-        // Marks form submission - FIXED: added async
         const marksForm = document.getElementById('marksForm');
         if (marksForm) {
-            marksForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await this.saveMarks(e);
-            });
+            marksForm.addEventListener('submit', (e) => this.saveMarks(e));
         }
         
-        // Course form submission - FIXED: added async
         const courseForm = document.getElementById('courseForm');
         if (courseForm) {
-            courseForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await this.saveCourse(e);
-            });
+            courseForm.addEventListener('submit', (e) => this.saveCourse(e));
         }
         
-        // Real-time grade calculation (synchronous)
+        // Setup real-time grade calculation
         const marksScoreInput = document.getElementById('marksScore');
         if (marksScoreInput) {
-            marksScoreInput.addEventListener('input', () => {
-                this.updateGradeDisplay();
-            });
+            marksScoreInput.addEventListener('input', () => updateGradeDisplay());
         }
         
         const maxScoreInput = document.getElementById('maxScore');
         if (maxScoreInput) {
-            maxScoreInput.addEventListener('input', () => {
-                this.updateGradeDisplay();
-            });
-        }
-        
-        // Report generation
-        const generateReportBtn = document.getElementById('generateReportBtn');
-        if (generateReportBtn) {
-            generateReportBtn.addEventListener('click', async () => {
-                await this.generateReport();
-            });
-        }
-        
-        const previewReportBtn = document.getElementById('previewReportBtn');
-        if (previewReportBtn) {
-            previewReportBtn.addEventListener('click', async () => {
-                await this.previewReport();
-            });
-        }
-        
-        // Export buttons
-        const exportMarksBtn = document.getElementById('exportMarksBtn');
-        if (exportMarksBtn) {
-            exportMarksBtn.addEventListener('click', async () => {
-                await this.exportMarks();
-            });
-        }
-        
-        const generateTranscriptBtn = document.getElementById('generateTranscriptBtn');
-        if (generateTranscriptBtn) {
-            generateTranscriptBtn.addEventListener('click', async () => {
-                await this.generateStudentTranscriptPrompt();
-            });
-        }
-    }
-    
-    updateGradeDisplay() {
-        try {
-            const scoreInput = document.getElementById('marksScore');
-            const maxScoreInput = document.getElementById('maxScore');
-            const gradeDisplay = document.getElementById('gradeDisplay');
-            const percentageField = document.getElementById('percentage');
-            
-            if (!scoreInput || !gradeDisplay) return;
-            
-            const score = parseFloat(scoreInput.value);
-            const maxScore = parseFloat(maxScoreInput?.value) || 100;
-            
-            if (isNaN(score)) {
-                gradeDisplay.textContent = '--';
-                gradeDisplay.className = 'percentage-badge';
-                if (percentageField) percentageField.value = '';
-                return;
-            }
-            
-            const percentage = (score / maxScore) * 100;
-            const grade = this.db.calculateGrade(percentage);
-            
-            gradeDisplay.textContent = grade.grade;
-            gradeDisplay.className = 'percentage-badge';
-            gradeDisplay.classList.add(`grade-${grade.grade.charAt(0)}`);
-            
-            if (percentageField) {
-                percentageField.value = `${percentage.toFixed(2)}%`;
-            }
-            
-        } catch (error) {
-            console.error('Error updating grade display:', error);
+            maxScoreInput.addEventListener('input', () => updateGradeDisplay());
         }
     }
     
@@ -719,32 +587,20 @@ class TEEPortalApp {
         try {
             console.log('📊 Loading initial data...');
             
-            // Load students table
             await this.loadStudentsTable();
-            
-            // Load courses
             await this.loadCourses();
-            
-            // Load marks table
             await this.loadMarksTable();
-            
-            // Update dashboard
             await this.updateDashboard();
-            
-            // Load recent activities
             await this.loadRecentActivities();
             
             console.log('✅ Initial data loaded');
             
         } catch (error) {
             console.error('Error loading initial data:', error);
-            throw error;
         }
     }
     
     initializeUI() {
-        console.log('🎨 Initializing UI...');
-        
         // Initialize date pickers
         const dateInputs = document.querySelectorAll('input[type="date"]');
         const today = new Date().toISOString().split('T')[0];
@@ -752,10 +608,7 @@ class TEEPortalApp {
             if (input) input.max = today;
         });
         
-        // Populate dropdowns
         this.populateDropdowns();
-        
-        console.log('✅ UI initialized');
     }
     
     async populateDropdowns() {
@@ -808,7 +661,7 @@ class TEEPortalApp {
     // ==============================
     
     async saveStudent(event) {
-        console.log('💾 Saving student...');
+        event.preventDefault();
         
         try {
             const studentData = {
@@ -832,14 +685,12 @@ class TEEPortalApp {
             this.showToast(`Student registered successfully! Registration Number: ${student.reg_number}`, 'success');
             
             // Close modal and reset form
-            this.closeModal('studentModal');
+            closeModal('studentModal');
             document.getElementById('studentForm').reset();
             
             // Update UI
             await this.loadStudentsTable();
             await this.updateDashboard();
-            
-            console.log('✅ Student saved successfully');
             
         } catch (error) {
             console.error('Error saving student:', error);
@@ -896,10 +747,10 @@ class TEEPortalApp {
                             </span>
                         </td>
                         <td>
-                            <button class="btn-action" onclick="window.app.viewStudent('${student.id}')" title="View Details">
+                            <button class="btn-action" onclick="app.viewStudent('${student.id}')" title="View Details">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <button class="btn-action" onclick="window.app.enterMarksForStudent('${student.id}')" title="Enter Marks">
+                            <button class="btn-action" onclick="app.enterMarksForStudent('${student.id}')" title="Enter Marks">
                                 <i class="fas fa-chart-bar"></i>
                             </button>
                         </td>
@@ -1005,7 +856,7 @@ class TEEPortalApp {
     }
     
     async saveMarks(event) {
-        console.log('💾 Saving marks...');
+        event.preventDefault();
         
         try {
             const studentId = document.getElementById('marksStudent').value;
@@ -1037,15 +888,13 @@ class TEEPortalApp {
             this.showToast('✅ Marks saved successfully!', 'success');
             
             // Close modal and reset form
-            this.closeModal('marksModal');
+            closeModal('marksModal');
             document.getElementById('marksForm').reset();
-            this.updateGradeDisplay();
+            updateGradeDisplay();
             
             // Update UI
             await this.loadMarksTable();
             await this.updateDashboard();
-            
-            console.log('✅ Marks saved successfully');
             
         } catch (error) {
             console.error('Error saving marks:', error);
@@ -1058,7 +907,7 @@ class TEEPortalApp {
     // ==============================
     
     async saveCourse(event) {
-        console.log('💾 Saving course...');
+        event.preventDefault();
         
         try {
             const courseData = {
@@ -1080,14 +929,12 @@ class TEEPortalApp {
             this.showToast(`Course "${course.course_code} - ${course.course_name}" added successfully`, 'success');
             
             // Close modal and reset form
-            this.closeModal('courseModal');
+            closeModal('courseModal');
             document.getElementById('courseForm').reset();
             
             // Update UI
             await this.loadCourses();
             await this.populateCourseDropdown();
-            
-            console.log('✅ Course saved successfully');
             
         } catch (error) {
             console.error('Error saving course:', error);
@@ -1108,7 +955,7 @@ class TEEPortalApp {
                         <i class="fas fa-book-open fa-3x"></i>
                         <h3>No Courses Found</h3>
                         <p>Add your first course to get started</p>
-                        <button class="btn-primary" onclick="window.app.openCourseModal()">
+                        <button class="btn-primary" onclick="openCourseModal()">
                             <i class="fas fa-plus"></i> Add Course
                         </button>
                     </div>
@@ -1152,10 +999,10 @@ class TEEPortalApp {
                             </div>
                         </div>
                         <div class="course-actions">
-                            <button class="btn-edit" onclick="window.app.editCourse('${course.id}')">
+                            <button class="btn-edit" onclick="app.editCourse('${course.id}')">
                                 <i class="fas fa-edit"></i> Edit
                             </button>
-                            <button class="btn-delete" onclick="window.app.deleteCourse('${course.id}')">
+                            <button class="btn-delete" onclick="app.deleteCourse('${course.id}')">
                                 <i class="fas fa-trash"></i> Delete
                             </button>
                         </div>
@@ -1168,775 +1015,6 @@ class TEEPortalApp {
         } catch (error) {
             console.error('Error loading courses:', error);
         }
-    }
-    
-    // ==============================
-    // REPORT GENERATION
-    // ==============================
-    
-    async generateReport() {
-        try {
-            const reportType = document.getElementById('reportType').value;
-            const program = document.getElementById('reportProgram').value;
-            const intakeYear = document.getElementById('reportIntake').value;
-            const format = document.getElementById('reportFormat').value;
-            
-            if (!reportType) {
-                this.showToast('Please select a report type', 'warning');
-                return;
-            }
-            
-            console.log(`📊 Generating ${reportType} report...`);
-            
-            let data;
-            let fileName;
-            
-            switch(reportType) {
-                case 'student':
-                    data = await this.generateStudentListReport(program, intakeYear);
-                    fileName = `student-list-${new Date().toISOString().split('T')[0]}`;
-                    break;
-                    
-                case 'marks':
-                    data = await this.generateMarksReport(program, intakeYear);
-                    fileName = `academic-marks-${new Date().toISOString().split('T')[0]}`;
-                    break;
-                    
-                case 'enrollment':
-                    data = await this.generateEnrollmentReport();
-                    fileName = `enrollment-report-${new Date().toISOString().split('T')[0]}`;
-                    break;
-                    
-                case 'graduation':
-                    data = await this.generateGraduationReport();
-                    fileName = `graduation-report-${new Date().toISOString().split('T')[0]}`;
-                    break;
-                    
-                case 'transcript':
-                    const studentId = prompt('Enter Student ID or Registration Number:');
-                    if (studentId) {
-                        await this.generateStudentTranscript(studentId, format);
-                    }
-                    return;
-                    
-                default:
-                    this.showToast('Invalid report type selected', 'error');
-                    return;
-            }
-            
-            if (format === 'excel') {
-                await this.exportToExcel(data, fileName);
-            } else if (format === 'pdf') {
-                await this.exportToPDF(data, fileName, reportType);
-            } else {
-                await this.exportToCSV(data, fileName);
-            }
-            
-            this.showToast(`${reportType} report generated successfully`, 'success');
-            await this.db.logActivity('report_generated', `Generated ${reportType} report`);
-            
-        } catch (error) {
-            console.error('Error generating report:', error);
-            this.showToast('Error generating report', 'error');
-        }
-    }
-    
-    async generateStudentListReport(program = 'all', intakeYear = 'all') {
-        try {
-            let query = this.db.supabase
-                .from('students')
-                .select('*')
-                .order('reg_number', { ascending: true });
-            
-            if (program !== 'all') {
-                query = query.eq('program', program);
-            }
-            
-            if (intakeYear !== 'all') {
-                query = query.eq('intake_year', parseInt(intakeYear));
-            }
-            
-            const { data, error } = await query;
-            
-            if (error) throw error;
-            
-            return data.map(student => ({
-                'Reg Number': student.reg_number,
-                'Full Name': student.full_name,
-                'Email': student.email,
-                'Phone': student.phone,
-                'Program': student.program,
-                'Intake Year': student.intake_year,
-                'Status': student.status,
-                'Date of Birth': student.dob,
-                'Gender': student.gender
-            }));
-            
-        } catch (error) {
-            console.error('Error generating student list:', error);
-            throw error;
-        }
-    }
-    
-    async generateMarksReport(program = 'all', intakeYear = 'all') {
-        try {
-            const marks = await this.db.getMarksTableData();
-            
-            // Filter by program and intake if needed
-            let filteredMarks = marks;
-            
-            if (program !== 'all') {
-                filteredMarks = filteredMarks.filter(mark => 
-                    mark.students?.program === program
-                );
-            }
-            
-            if (intakeYear !== 'all') {
-                filteredMarks = filteredMarks.filter(mark => 
-                    mark.students?.intake_year === parseInt(intakeYear)
-                );
-            }
-            
-            return filteredMarks.map(mark => {
-                const student = mark.students || {};
-                const course = mark.courses || {};
-                
-                return {
-                    'Reg Number': student.reg_number,
-                    'Student Name': student.full_name,
-                    'Course Code': course.course_code,
-                    'Course Name': course.course_name,
-                    'Assessment Type': mark.assessment_type,
-                    'Assessment Name': mark.assessment_name,
-                    'Score': mark.score,
-                    'Max Score': mark.max_score,
-                    'Percentage': mark.percentage,
-                    'Grade': mark.grade,
-                    'Grade Points': mark.grade_points,
-                    'Remarks': mark.remarks,
-                    'Date Entered': mark.created_at ? new Date(mark.created_at).toLocaleDateString() : ''
-                };
-            });
-            
-        } catch (error) {
-            console.error('Error generating marks report:', error);
-            throw error;
-        }
-    }
-    
-    async generateEnrollmentReport() {
-        try {
-            const students = await this.db.getStudents();
-            
-            // Group by program and intake year
-            const enrollmentStats = {};
-            
-            students.forEach(student => {
-                const key = `${student.program}-${student.intake_year}`;
-                if (!enrollmentStats[key]) {
-                    enrollmentStats[key] = {
-                        program: student.program,
-                        intakeYear: student.intake_year,
-                        totalStudents: 0,
-                        active: 0,
-                        graduated: 0,
-                        withdrawn: 0
-                    };
-                }
-                
-                enrollmentStats[key].totalStudents++;
-                
-                if (student.status === 'active') enrollmentStats[key].active++;
-                if (student.status === 'graduated') enrollmentStats[key].graduated++;
-                if (student.status === 'withdrawn') enrollmentStats[key].withdrawn++;
-            });
-            
-            return Object.values(enrollmentStats).map(stat => ({
-                'Program': stat.program,
-                'Intake Year': stat.intakeYear,
-                'Total Students': stat.totalStudents,
-                'Active': stat.active,
-                'Graduated': stat.graduated,
-                'Withdrawn': stat.withdrawn,
-                'Completion Rate': stat.totalStudents > 0 ? 
-                    Math.round((stat.graduated / stat.totalStudents) * 100) + '%' : '0%'
-            }));
-            
-        } catch (error) {
-            console.error('Error generating enrollment report:', error);
-            throw error;
-        }
-    }
-    
-    async generateGraduationReport() {
-        try {
-            const students = await this.db.getStudents();
-            const graduatedStudents = students.filter(s => s.status === 'graduated');
-            
-            // Calculate graduation statistics
-            const graduationByProgram = {};
-            const graduationByYear = {};
-            
-            graduatedStudents.forEach(student => {
-                // By program
-                if (!graduationByProgram[student.program]) {
-                    graduationByProgram[student.program] = 0;
-                }
-                graduationByProgram[student.program]++;
-                
-                // By year (assuming graduation year is intake + program duration)
-                const settings = await this.db.getSettings();
-                const programDuration = settings.programs[student.program]?.duration || '2 years';
-                const durationYears = parseInt(programDuration);
-                const graduationYear = student.intake_year + durationYears;
-                
-                if (!graduationByYear[graduationYear]) {
-                    graduationByYear[graduationYear] = 0;
-                }
-                graduationByYear[graduationYear]++;
-            });
-            
-            // Convert to array for reporting
-            const programReport = Object.entries(graduationByProgram).map(([program, count]) => ({
-                'Program': program,
-                'Graduates': count
-            }));
-            
-            const yearReport = Object.entries(graduationByYear).map(([year, count]) => ({
-                'Year': year,
-                'Graduates': count
-            }));
-            
-            return {
-                programReport,
-                yearReport,
-                totalGraduates: graduatedStudents.length,
-                graduationRate: students.length > 0 ? 
-                    Math.round((graduatedStudents.length / students.length) * 100) + '%' : '0%'
-            };
-            
-        } catch (error) {
-            console.error('Error generating graduation report:', error);
-            throw error;
-        }
-    }
-    
-    // ==============================
-    // STUDENT TRANSCRIPT GENERATION
-    // ==============================
-    
-    async generateStudentTranscript(studentId, format = 'pdf') {
-        try {
-            console.log(`📚 Generating transcript for student: ${studentId}`);
-            
-            // Get student details
-            const student = await this.db.getStudent(studentId);
-            if (!student) {
-                this.showToast('Student not found', 'error');
-                return;
-            }
-            
-            // Get student marks
-            const marks = await this.db.getStudentMarks(student.id);
-            
-            // Calculate GPA
-            const gpa = await this.db.calculateStudentGPA(student.id);
-            
-            // Group marks by course
-            const courses = {};
-            marks.forEach(mark => {
-                if (!courses[mark.courses.course_code]) {
-                    courses[mark.courses.course_code] = {
-                        courseCode: mark.courses.course_code,
-                        courseName: mark.courses.course_name,
-                        assessments: [],
-                        finalGrade: '',
-                        credits: 3
-                    };
-                }
-                
-                courses[mark.courses.course_code].assessments.push({
-                    name: mark.assessment_name,
-                    type: mark.assessment_type,
-                    score: mark.score,
-                    maxScore: mark.max_score,
-                    percentage: mark.percentage,
-                    grade: mark.grade
-                });
-                
-                // Determine final grade
-                const totalPercentage = courses[mark.courses.course_code].assessments
-                    .reduce((sum, a) => sum + a.percentage, 0);
-                const avgPercentage = totalPercentage / courses[mark.courses.course_code].assessments.length;
-                courses[mark.courses.course_code].finalGrade = this.db.calculateGrade(avgPercentage).grade;
-            });
-            
-            const transcriptData = {
-                student: student,
-                courses: Object.values(courses),
-                gpa: gpa,
-                totalCredits: Object.values(courses).length * 3,
-                generatedDate: new Date().toLocaleDateString()
-            };
-            
-            if (format === 'pdf') {
-                await this.generateTranscriptPDF(transcriptData);
-            } else if (format === 'excel') {
-                await this.generateTranscriptExcel(transcriptData);
-            } else {
-                await this.generateTranscriptCSV(transcriptData);
-            }
-            
-            this.showToast(`Transcript generated for ${student.full_name}`, 'success');
-            await this.db.logActivity('transcript_generated', 
-                `Generated transcript for ${student.full_name} (${student.reg_number})`);
-                
-        } catch (error) {
-            console.error('Error generating transcript:', error);
-            this.showToast('Error generating transcript', 'error');
-        }
-    }
-    
-    async generateTranscriptPDF(transcriptData) {
-        if (typeof jspdf === 'undefined') {
-            this.showToast('PDF export requires jsPDF library', 'warning');
-            return;
-        }
-        
-        const { jsPDF } = window.jspdf || {};
-        if (!jsPDF) {
-            this.showToast('jsPDF not loaded', 'error');
-            return;
-        }
-        
-        const doc = new jsPDF();
-        
-        const { student, courses, gpa, totalCredits, generatedDate } = transcriptData;
-        
-        // Add header with institution info
-        doc.setFontSize(16);
-        doc.text('THEOLOGICAL EDUCATION BY EXTENSION COLLEGE', 105, 20, { align: 'center' });
-        doc.setFontSize(14);
-        doc.text('OFFICIAL ACADEMIC TRANSCRIPT', 105, 30, { align: 'center' });
-        
-        // Student information
-        doc.setFontSize(11);
-        doc.text(`Student Name: ${student.full_name}`, 20, 50);
-        doc.text(`Registration Number: ${student.reg_number}`, 20, 58);
-        doc.text(`Program: ${student.program.toUpperCase()}`, 20, 66);
-        doc.text(`Intake Year: ${student.intake_year}`, 20, 74);
-        doc.text(`Date Generated: ${generatedDate}`, 140, 50);
-        
-        // Academic summary
-        doc.text(`Cumulative GPA: ${gpa.toFixed(2)}`, 140, 58);
-        doc.text(`Total Credits: ${totalCredits}`, 140, 66);
-        
-        // Course table
-        let startY = 90;
-        doc.setFontSize(12);
-        doc.text('ACADEMIC RECORD', 20, startY - 5);
-        
-        const tableHeaders = [['Course Code', 'Course Name', 'Credits', 'Final Grade']];
-        const tableData = courses.map(course => [
-            course.courseCode,
-            course.courseName,
-            '3',
-            course.finalGrade
-        ]);
-        
-        if (typeof doc.autoTable !== 'undefined') {
-            doc.autoTable({
-                startY: startY,
-                head: tableHeaders,
-                body: tableData,
-                theme: 'grid',
-                headStyles: { fillColor: [41, 128, 185] },
-                margin: { left: 20 }
-            });
-            
-            // Assessment details (second page)
-            if (courses.length > 0) {
-                doc.addPage();
-                doc.setFontSize(12);
-                doc.text('DETAILED ASSESSMENT RECORDS', 20, 20);
-                
-                let yPos = 30;
-                courses.forEach((course, index) => {
-                    if (yPos > 250) {
-                        doc.addPage();
-                        yPos = 20;
-                    }
-                    
-                    doc.setFontSize(11);
-                    doc.setFont(undefined, 'bold');
-                    doc.text(`${course.courseCode} - ${course.courseName}`, 20, yPos);
-                    doc.setFont(undefined, 'normal');
-                    
-                    yPos += 8;
-                    
-                    // Assessment table for this course
-                    const assessmentHeaders = [['Assessment', 'Type', 'Score', 'Percentage', 'Grade']];
-                    const assessmentData = course.assessments.map(assessment => [
-                        assessment.name,
-                        assessment.type,
-                        `${assessment.score}/${assessment.maxScore}`,
-                        `${assessment.percentage.toFixed(2)}%`,
-                        assessment.grade
-                    ]);
-                    
-                    doc.autoTable({
-                        startY: yPos,
-                        head: assessmentHeaders,
-                        body: assessmentData,
-                        theme: 'grid',
-                        margin: { left: 20 },
-                        styles: { fontSize: 9 }
-                    });
-                    
-                    yPos = doc.lastAutoTable.finalY + 15;
-                });
-            }
-        } else {
-            // Simple table without autoTable
-            doc.setFontSize(10);
-            let y = startY;
-            courses.forEach(course => {
-                doc.text(`${course.courseCode} - ${course.courseName} - Credits: 3 - Grade: ${course.finalGrade}`, 20, y);
-                y += 7;
-                if (y > 280) {
-                    doc.addPage();
-                    y = 20;
-                }
-            });
-        }
-        
-        // Footer with official seal
-        doc.setFontSize(10);
-        doc.text('Registrar\'s Signature: ________________________', 20, 280);
-        doc.text('College Seal', 180, 280, { align: 'right' });
-        
-        // Save PDF
-        doc.save(`${student.reg_number}-transcript-${generatedDate.replace(/\//g, '-')}.pdf`);
-    }
-    
-    async generateTranscriptCSV(transcriptData) {
-        const { student, courses } = transcriptData;
-        
-        let csvContent = `Student Transcript\n`;
-        csvContent += `Student Name: ${student.full_name}\n`;
-        csvContent += `Registration Number: ${student.reg_number}\n`;
-        csvContent += `Program: ${student.program}\n`;
-        csvContent += `Intake Year: ${student.intake_year}\n\n`;
-        
-        csvContent += `Course Code,Course Name,Credits,Final Grade\n`;
-        courses.forEach(course => {
-            csvContent += `${course.courseCode},"${course.courseName}",3,${course.finalGrade}\n`;
-        });
-        
-        csvContent += `\nDetailed Assessments\n`;
-        csvContent += `Course Code,Assessment,Type,Score,Percentage,Grade\n`;
-        
-        courses.forEach(course => {
-            course.assessments.forEach(assessment => {
-                csvContent += `${course.courseCode},"${assessment.name}",${assessment.type},`;
-                csvContent += `${assessment.score}/${assessment.maxScore},`;
-                csvContent += `${assessment.percentage}%,${assessment.grade}\n`;
-            });
-        });
-        
-        this.downloadCSV(csvContent, `${student.reg_number}-transcript.csv`);
-    }
-    
-    async generateTranscriptExcel(transcriptData) {
-        if (typeof XLSX === 'undefined') {
-            this.showToast('Excel export requires SheetJS library', 'warning');
-            await this.generateTranscriptCSV(transcriptData);
-            return;
-        }
-        
-        const { student, courses } = transcriptData;
-        
-        // Create workbook with multiple sheets
-        const workbook = XLSX.utils.book_new();
-        
-        // Summary sheet
-        const summaryData = [
-            ['Student Transcript', '', '', ''],
-            ['Student Name:', student.full_name, '', ''],
-            ['Registration Number:', student.reg_number, '', ''],
-            ['Program:', student.program, '', ''],
-            ['Intake Year:', student.intake_year, '', ''],
-            ['Date Generated:', new Date().toLocaleDateString(), '', ''],
-            ['', '', '', ''],
-            ['Course Code', 'Course Name', 'Credits', 'Final Grade']
-        ];
-        
-        courses.forEach(course => {
-            summaryData.push([course.courseCode, course.courseName, '3', course.finalGrade]);
-        });
-        
-        const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-        XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
-        
-        // Detailed assessments sheet
-        const detailedData = [
-            ['Course Code', 'Assessment', 'Type', 'Score', 'Percentage', 'Grade']
-        ];
-        
-        courses.forEach(course => {
-            course.assessments.forEach(assessment => {
-                detailedData.push([
-                    course.courseCode,
-                    assessment.name,
-                    assessment.type,
-                    `${assessment.score}/${assessment.maxScore}`,
-                    `${assessment.percentage}%`,
-                    assessment.grade
-                ]);
-            });
-        });
-        
-        const detailedSheet = XLSX.utils.aoa_to_sheet(detailedData);
-        XLSX.utils.book_append_sheet(workbook, detailedSheet, 'Assessments');
-        
-        // Save Excel file
-        XLSX.writeFile(workbook, `${student.reg_number}-transcript.xlsx`);
-    }
-    
-    // ==============================
-    // EXPORT UTILITIES
-    // ==============================
-    
-    async exportToCSV(data, fileName) {
-        if (!data || data.length === 0) {
-            this.showToast('No data to export', 'warning');
-            return;
-        }
-        
-        // Convert array of objects to CSV
-        const headers = Object.keys(data[0]);
-        const csvRows = [headers.join(',')];
-        
-        data.forEach(row => {
-            const values = headers.map(header => {
-                const value = row[header];
-                // Escape quotes and wrap in quotes if contains comma
-                const escaped = String(value).replace(/"/g, '""');
-                return escaped.includes(',') ? `"${escaped}"` : escaped;
-            });
-            csvRows.push(values.join(','));
-        });
-        
-        this.downloadCSV(csvRows.join('\n'), `${fileName}.csv`);
-    }
-    
-    downloadCSV(csvContent, fileName) {
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        
-        link.setAttribute('href', url);
-        link.setAttribute('download', fileName);
-        link.style.visibility = 'hidden';
-        
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-    }
-    
-    async exportToExcel(data, fileName) {
-        if (typeof XLSX === 'undefined') {
-            this.showToast('Excel export requires SheetJS library', 'warning');
-            await this.exportToCSV(data, fileName);
-            return;
-        }
-        
-        const worksheet = XLSX.utils.json_to_sheet(data);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
-        XLSX.writeFile(workbook, `${fileName}.xlsx`);
-    }
-    
-    async exportToPDF(data, fileName, reportType) {
-        if (typeof jspdf === 'undefined') {
-            this.showToast('PDF export requires jsPDF library', 'warning');
-            await this.exportToCSV(data, fileName);
-            return;
-        }
-        
-        const { jsPDF } = window.jspdf || {};
-        if (!jsPDF) {
-            this.showToast('jsPDF not loaded', 'error');
-            return;
-        }
-        
-        const doc = new jsPDF();
-        
-        // Add title
-        doc.setFontSize(16);
-        doc.text(`${reportType.toUpperCase()} REPORT`, 105, 20, { align: 'center' });
-        doc.setFontSize(12);
-        doc.text(`Generated: ${new Date().toLocaleDateString()}`, 105, 30, { align: 'center' });
-        
-        if (data.length === 0) {
-            doc.text('No data available', 105, 50, { align: 'center' });
-        } else {
-            const headers = Object.keys(data[0]);
-            const tableData = data.map(row => headers.map(header => row[header] || ''));
-            
-            if (typeof doc.autoTable !== 'undefined') {
-                doc.autoTable({
-                    startY: 40,
-                    head: [headers],
-                    body: tableData,
-                    theme: 'grid',
-                    headStyles: { fillColor: [41, 128, 185] }
-                });
-            } else {
-                // Simple table without autoTable
-                doc.setFontSize(10);
-                let y = 40;
-                data.forEach((row, index) => {
-                    if (index < 20) { // Limit to 20 rows
-                        const rowText = headers.map(h => `${h}: ${row[h]}`).join(', ');
-                        doc.text(rowText, 10, y);
-                        y += 7;
-                    }
-                });
-                if (data.length > 20) {
-                    doc.text(`... and ${data.length - 20} more records`, 10, y);
-                }
-            }
-        }
-        
-        doc.save(`${fileName}.pdf`);
-    }
-    
-    async previewReport() {
-        try {
-            const reportType = document.getElementById('reportType').value;
-            const program = document.getElementById('reportProgram').value;
-            const intakeYear = document.getElementById('reportIntake').value;
-            
-            if (!reportType) {
-                this.showToast('Please select a report type', 'warning');
-                return;
-            }
-            
-            let data;
-            let title;
-            
-            switch(reportType) {
-                case 'student':
-                    data = await this.generateStudentListReport(program, intakeYear);
-                    title = 'Student List Preview';
-                    break;
-                    
-                case 'marks':
-                    data = await this.generateMarksReport(program, intakeYear);
-                    title = 'Academic Marks Preview';
-                    break;
-                    
-                case 'enrollment':
-                    data = await this.generateEnrollmentReport();
-                    title = 'Enrollment Statistics Preview';
-                    break;
-                    
-                case 'graduation':
-                    const graduationData = await this.generateGraduationReport();
-                    this.previewGraduationReport(graduationData);
-                    return;
-                    
-                default:
-                    this.showToast('Invalid report type', 'error');
-                    return;
-            }
-            
-            this.previewReportData(data, title);
-            
-        } catch (error) {
-            console.error('Error previewing report:', error);
-            this.showToast('Error previewing report', 'error');
-        }
-    }
-    
-    previewReportData(data, title) {
-        const previewDiv = document.getElementById('reportPreview');
-        if (!previewDiv) return;
-        
-        if (!data || data.length === 0) {
-            previewDiv.innerHTML = `<p class="no-data">No data available for preview</p>`;
-            return;
-        }
-        
-        const headers = Object.keys(data[0]);
-        
-        let html = `
-            <h4>${title} (${data.length} records)</h4>
-            <div class="table-responsive">
-                <table class="preview-table">
-                    <thead>
-                        <tr>
-                            ${headers.map(header => `<th>${header}</th>`).join('')}
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-        
-        // Show first 10 rows for preview
-        data.slice(0, 10).forEach(row => {
-            html += `<tr>${headers.map(header => `<td>${row[header] || ''}</td>`).join('')}</tr>`;
-        });
-        
-        html += `
-                    </tbody>
-                </table>
-            </div>
-            <p class="preview-info">Showing first 10 of ${data.length} records</p>
-        `;
-        
-        previewDiv.innerHTML = html;
-    }
-    
-    previewGraduationReport(data) {
-        const previewDiv = document.getElementById('reportPreview');
-        if (!previewDiv) return;
-        
-        let html = `
-            <h4>Graduation Report Preview</h4>
-            <div class="report-summary">
-                <p><strong>Total Graduates:</strong> ${data.totalGraduates}</p>
-                <p><strong>Graduation Rate:</strong> ${data.graduationRate}</p>
-            </div>
-        `;
-        
-        if (data.programReport.length > 0) {
-            html += `
-                <h5>Graduates by Program</h5>
-                <div class="table-responsive">
-                    <table class="preview-table">
-                        <thead>
-                            <tr>
-                                <th>Program</th>
-                                <th>Graduates</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${data.programReport.map(row => `
-                                <tr>
-                                    <td>${row.Program}</td>
-                                    <td>${row.Graduates}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-        }
-        
-        previewDiv.innerHTML = html;
     }
     
     // ==============================
@@ -1969,6 +1047,8 @@ class TEEPortalApp {
                 this.updateStat('avgGrade', 'N/A');
             }
             
+            this.updateCharts(students, marks);
+            
         } catch (error) {
             console.error('Error updating dashboard:', error);
         }
@@ -1984,6 +1064,108 @@ class TEEPortalApp {
     countActivePrograms(students) {
         const programs = new Set(students.map(s => s.program).filter(Boolean));
         return programs.size;
+    }
+    
+    updateCharts(students, marks) {
+        try {
+            // Destroy existing charts if they exist
+            if (window.chartInstances) {
+                Object.values(window.chartInstances).forEach(chart => {
+                    if (chart && typeof chart.destroy === 'function') {
+                        chart.destroy();
+                    }
+                });
+            }
+            
+            // Initialize chart instances object
+            if (!window.chartInstances) {
+                window.chartInstances = {};
+            }
+            
+            // Program Distribution Chart
+            const programCtx = document.getElementById('programChart');
+            if (programCtx) {
+                const programCounts = {};
+                students.forEach(student => {
+                    programCounts[student.program] = (programCounts[student.program] || 0) + 1;
+                });
+                
+                window.chartInstances.programChart = new Chart(programCtx.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(programCounts).map(p => p.toUpperCase()),
+                        datasets: [{
+                            data: Object.values(programCounts),
+                            backgroundColor: ['#3498db', '#2ecc71', '#9b59b6', '#f39c12']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+            }
+            
+            // Enrollment Chart
+            const enrollmentCtx = document.getElementById('enrollmentChart');
+            if (enrollmentCtx) {
+                const intakeCounts = {};
+                students.forEach(student => {
+                    intakeCounts[student.intake_year] = (intakeCounts[student.intake_year] || 0) + 1;
+                });
+                
+                const years = Object.keys(intakeCounts).sort();
+                const counts = years.map(year => intakeCounts[year]);
+                
+                window.chartInstances.enrollmentChart = new Chart(enrollmentCtx.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: years,
+                        datasets: [{
+                            label: 'Student Enrollment',
+                            data: counts,
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+            
+            // Grade Distribution Chart
+            const gradeCtx = document.getElementById('gradeChart');
+            if (gradeCtx && marks.length > 0) {
+                const gradeCounts = {};
+                marks.forEach(mark => {
+                    gradeCounts[mark.grade] = (gradeCounts[mark.grade] || 0) + 1;
+                });
+                
+                window.chartInstances.gradeChart = new Chart(gradeCtx.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(gradeCounts),
+                        datasets: [{
+                            label: 'Number of Grades',
+                            data: Object.values(gradeCounts),
+                            backgroundColor: '#2ecc71'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+            
+        } catch (error) {
+            console.error('Error updating charts:', error);
+        }
     }
     
     async loadRecentActivities() {
@@ -2073,7 +1255,6 @@ class TEEPortalApp {
             
             container.appendChild(toast);
             
-            // Auto remove after 5 seconds
             setTimeout(() => {
                 if (toast.parentElement) {
                     toast.remove();
@@ -2084,44 +1265,18 @@ class TEEPortalApp {
         }
     }
     
-    openModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.style.display = 'flex';
-            setTimeout(() => modal.classList.add('active'), 10);
-        }
-    }
-    
-    closeModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.classList.remove('active');
-            setTimeout(() => {
-                modal.style.display = 'none';
-            }, 300);
-        }
-    }
-    
-    openStudentModal() {
-        this.openModal('studentModal');
-    }
-    
     async openMarksModal() {
         await this.populateStudentDropdown();
         await this.populateCourseDropdown();
-        this.openModal('marksModal');
+        openModal('marksModal');
     }
     
-    async enterMarksForStudent(studentId) {
-        await this.openMarksModal();
+    enterMarksForStudent(studentId) {
+        this.openMarksModal();
         if (studentId) {
             const marksStudent = document.getElementById('marksStudent');
             if (marksStudent) marksStudent.value = studentId;
         }
-    }
-    
-    openCourseModal() {
-        this.openModal('courseModal');
     }
     
     async viewStudent(studentId) {
@@ -2157,12 +1312,83 @@ class TEEPortalApp {
     }
     
     // ==============================
-    // EXPORT METHODS
+    // ADDITIONAL METHODS
     // ==============================
+    
+    async refreshDashboard() {
+        try {
+            this.showToast('Refreshing dashboard...', 'info');
+            await this.updateDashboard();
+            this.showToast('Dashboard refreshed', 'success');
+        } catch (error) {
+            console.error('Error refreshing dashboard:', error);
+            this.showToast('Refresh failed', 'error');
+        }
+    }
+    
+    async editCourse(courseId) {
+        try {
+            const course = await this.db.getCourse(courseId);
+            if (!course) {
+                this.showToast('Course not found', 'error');
+                return;
+            }
+            
+            document.getElementById('courseCode').value = course.course_code;
+            document.getElementById('courseName').value = course.course_name;
+            document.getElementById('courseProgram').value = course.program;
+            document.getElementById('courseCredits').value = course.credits;
+            document.getElementById('courseDescription').value = course.description || '';
+            
+            const form = document.getElementById('courseForm');
+            form.dataset.editId = courseId;
+            
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Course';
+            }
+            
+            openCourseModal();
+            
+        } catch (error) {
+            console.error('Error editing course:', error);
+            this.showToast('Error loading course', 'error');
+        }
+    }
+    
+    async deleteCourse(courseId) {
+        if (!confirm('Are you sure you want to delete this course?')) {
+            return;
+        }
+        
+        try {
+            const supabase = await this.db.ensureConnected();
+            const { error } = await supabase
+                .from('courses')
+                .delete()
+                .eq('id', courseId);
+                
+            if (error) throw error;
+            
+            this.showToast('Course deleted successfully', 'success');
+            await this.loadCourses();
+            await this.populateCourseDropdown();
+            
+        } catch (error) {
+            console.error('Error deleting course:', error);
+            this.showToast('Error deleting course', 'error');
+        }
+    }
     
     async exportMarks() {
         try {
             console.log('📊 Exporting marks...');
+            
+            // Check if app is initialized
+            if (!this.initialized) {
+                this.showToast('Please wait for system to initialize', 'warning');
+                return;
+            }
             
             // Get all marks data with student and course info
             const marks = await this.db.getMarksTableData();
@@ -2182,66 +1408,11 @@ class TEEPortalApp {
             
         } catch (error) {
             console.error('Error exporting marks:', error);
-            this.showToast('Error exporting marks', 'error');
+            this.showToast('Error exporting marks. Database may not be connected.', 'error');
         }
-    }
-    
-    async exportMarksToExcel() {
-        try {
-            const marks = await this.db.getMarksTableData();
-            
-            if (!marks || marks.length === 0) {
-                this.showToast('No marks data to export', 'warning');
-                return;
-            }
-            
-            // Create Excel workbook using SheetJS (if included)
-            if (typeof XLSX !== 'undefined') {
-                await this.exportToExcelXLSX(marks);
-            } else {
-                // Fallback to CSV
-                await this.exportMarks();
-            }
-            
-        } catch (error) {
-            console.error('Error exporting to Excel:', error);
-            this.showToast('Error exporting to Excel', 'error');
-        }
-    }
-    
-    async exportToExcelXLSX(marks) {
-        // Convert marks to worksheet data
-        const worksheetData = marks.map(mark => {
-            const student = mark.students || {};
-            const course = mark.courses || {};
-            
-            return {
-                'Reg No': student.reg_number || '',
-                'Student Name': student.full_name || '',
-                'Course Code': course.course_code || '',
-                'Course Name': course.course_name || '',
-                'Assessment Type': mark.assessment_type || '',
-                'Assessment Name': mark.assessment_name || '',
-                'Score': mark.score || 0,
-                'Max Score': mark.max_score || 100,
-                'Percentage': mark.percentage || 0,
-                'Grade': mark.grade || '',
-                'Grade Points': mark.grade_points || 0,
-                'Remarks': mark.remarks || '',
-                'Date': mark.created_at ? new Date(mark.created_at).toLocaleDateString() : ''
-            };
-        });
-        
-        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Marks');
-        
-        // Export to Excel
-        XLSX.writeFile(workbook, `teeportal-marks-${new Date().toISOString().split('T')[0]}.xlsx`);
     }
     
     convertMarksToCSV(marks) {
-        // CSV headers
         const headers = [
             'Student Reg No',
             'Student Name', 
@@ -2258,7 +1429,6 @@ class TEEPortalApp {
             'Date Entered'
         ];
         
-        // Convert data to CSV rows
         const rows = marks.map(mark => {
             const student = mark.students || {};
             const course = mark.courses || {};
@@ -2280,8 +1450,480 @@ class TEEPortalApp {
             ].join(',');
         });
         
-        // Combine headers and rows
         return [headers.join(','), ...rows].join('\n');
+    }
+    
+    downloadCSV(csvContent, fileName) {
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', fileName);
+        link.style.visibility = 'hidden';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    
+    // ==============================
+    // REPORT METHODS
+    // ==============================
+    
+    async generateReport() {
+        try {
+            const reportType = document.getElementById('reportType').value;
+            const program = document.getElementById('reportProgram').value;
+            const intakeYear = document.getElementById('reportIntake').value;
+            const format = document.getElementById('reportFormat').value;
+            
+            if (!reportType) {
+                this.showToast('Please select a report type', 'warning');
+                return;
+            }
+            
+            console.log(`📊 Generating ${reportType} report...`);
+            
+            let data;
+            let fileName;
+            
+            switch(reportType) {
+                case 'student':
+                    data = await this.generateStudentListReport(program, intakeYear);
+                    fileName = `student-list-${new Date().toISOString().split('T')[0]}`;
+                    break;
+                    
+                case 'marks':
+                    data = await this.generateMarksReport(program, intakeYear);
+                    fileName = `academic-marks-${new Date().toISOString().split('T')[0]}`;
+                    break;
+                    
+                case 'enrollment':
+                    data = await this.generateEnrollmentReport();
+                    fileName = `enrollment-report-${new Date().toISOString().split('T')[0]}`;
+                    break;
+                    
+                case 'graduation':
+                    data = await this.generateGraduationReport();
+                    fileName = `graduation-report-${new Date().toISOString().split('T')[0]}`;
+                    break;
+                    
+                case 'transcript':
+                    const studentId = prompt('Enter Student ID or Registration Number:');
+                    if (studentId) {
+                        await this.generateStudentTranscript(studentId, format);
+                    }
+                    return;
+                    
+                default:
+                    this.showToast('Invalid report type selected', 'error');
+                    return;
+            }
+            
+            if (format === 'excel') {
+                await this.exportToExcel(data, fileName);
+            } else if (format === 'pdf') {
+                await this.exportToPDF(data, fileName, reportType);
+            } else {
+                await this.exportToCSV(data, fileName);
+            }
+            
+            this.showToast(`${reportType} report generated successfully`, 'success');
+            await this.db.logActivity('report_generated', `Generated ${reportType} report`);
+            
+        } catch (error) {
+            console.error('Error generating report:', error);
+            this.showToast('Error generating report', 'error');
+        }
+    }
+    
+    async generateStudentListReport(program = 'all', intakeYear = 'all') {
+        try {
+            const supabase = await this.db.ensureConnected();
+            let query = supabase
+                .from('students')
+                .select('*')
+                .order('reg_number', { ascending: true });
+            
+            if (program !== 'all') {
+                query = query.eq('program', program);
+            }
+            
+            if (intakeYear !== 'all') {
+                query = query.eq('intake_year', parseInt(intakeYear));
+            }
+            
+            const { data, error } = await query;
+            
+            if (error) throw error;
+            
+            return data.map(student => ({
+                'Reg Number': student.reg_number,
+                'Full Name': student.full_name,
+                'Email': student.email,
+                'Phone': student.phone,
+                'Program': student.program,
+                'Intake Year': student.intake_year,
+                'Status': student.status,
+                'Date of Birth': student.dob,
+                'Gender': student.gender
+            }));
+            
+        } catch (error) {
+            console.error('Error generating student list:', error);
+            throw error;
+        }
+    }
+    
+    async generateMarksReport(program = 'all', intakeYear = 'all') {
+        try {
+            const marks = await this.db.getMarksTableData();
+            
+            let filteredMarks = marks;
+            
+            if (program !== 'all') {
+                filteredMarks = filteredMarks.filter(mark => 
+                    mark.students?.program === program
+                );
+            }
+            
+            if (intakeYear !== 'all') {
+                filteredMarks = filteredMarks.filter(mark => 
+                    mark.students?.intake_year === parseInt(intakeYear)
+                );
+            }
+            
+            return filteredMarks.map(mark => {
+                const student = mark.students || {};
+                const course = mark.courses || {};
+                
+                return {
+                    'Reg Number': student.reg_number,
+                    'Student Name': student.full_name,
+                    'Course Code': course.course_code,
+                    'Course Name': course.course_name,
+                    'Assessment Type': mark.assessment_type,
+                    'Assessment Name': mark.assessment_name,
+                    'Score': mark.score,
+                    'Max Score': mark.max_score,
+                    'Percentage': mark.percentage,
+                    'Grade': mark.grade,
+                    'Grade Points': mark.grade_points,
+                    'Remarks': mark.remarks,
+                    'Date Entered': mark.created_at ? new Date(mark.created_at).toLocaleDateString() : ''
+                };
+            });
+            
+        } catch (error) {
+            console.error('Error generating marks report:', error);
+            throw error;
+        }
+    }
+    
+    async generateEnrollmentReport() {
+        try {
+            const students = await this.db.getStudents();
+            
+            const enrollmentStats = {};
+            
+            students.forEach(student => {
+                const key = `${student.program}-${student.intake_year}`;
+                if (!enrollmentStats[key]) {
+                    enrollmentStats[key] = {
+                        program: student.program,
+                        intakeYear: student.intake_year,
+                        totalStudents: 0,
+                        active: 0,
+                        graduated: 0,
+                        withdrawn: 0
+                    };
+                }
+                
+                enrollmentStats[key].totalStudents++;
+                
+                if (student.status === 'active') enrollmentStats[key].active++;
+                if (student.status === 'graduated') enrollmentStats[key].graduated++;
+                if (student.status === 'withdrawn') enrollmentStats[key].withdrawn++;
+            });
+            
+            return Object.values(enrollmentStats).map(stat => ({
+                'Program': stat.program,
+                'Intake Year': stat.intakeYear,
+                'Total Students': stat.totalStudents,
+                'Active': stat.active,
+                'Graduated': stat.graduated,
+                'Withdrawn': stat.withdrawn,
+                'Completion Rate': stat.totalStudents > 0 ? 
+                    Math.round((stat.graduated / stat.totalStudents) * 100) + '%' : '0%'
+            }));
+            
+        } catch (error) {
+            console.error('Error generating enrollment report:', error);
+            throw error;
+        }
+    }
+    
+    async generateGraduationReport() {
+        try {
+            const students = await this.db.getStudents();
+            const graduatedStudents = students.filter(s => s.status === 'graduated');
+            
+            const graduationByProgram = {};
+            const graduationByYear = {};
+            
+            graduatedStudents.forEach(student => {
+                if (!graduationByProgram[student.program]) {
+                    graduationByProgram[student.program] = 0;
+                }
+                graduationByProgram[student.program]++;
+                
+                const settings = this.db.getDefaultSettings();
+                const programDuration = settings.programs[student.program]?.duration || '2 years';
+                const durationYears = parseInt(programDuration);
+                const graduationYear = student.intake_year + durationYears;
+                
+                if (!graduationByYear[graduationYear]) {
+                    graduationByYear[graduationYear] = 0;
+                }
+                graduationByYear[graduationYear]++;
+            });
+            
+            const programReport = Object.entries(graduationByProgram).map(([program, count]) => ({
+                'Program': program,
+                'Graduates': count
+            }));
+            
+            const yearReport = Object.entries(graduationByYear).map(([year, count]) => ({
+                'Year': year,
+                'Graduates': count
+            }));
+            
+            return {
+                programReport,
+                yearReport,
+                totalGraduates: graduatedStudents.length,
+                graduationRate: students.length > 0 ? 
+                    Math.round((graduatedStudents.length / students.length) * 100) + '%' : '0%'
+            };
+            
+        } catch (error) {
+            console.error('Error generating graduation report:', error);
+            throw error;
+        }
+    }
+    
+    async exportToCSV(data, fileName) {
+        if (!data || data.length === 0) {
+            this.showToast('No data to export', 'warning');
+            return;
+        }
+        
+        const headers = Object.keys(data[0]);
+        const csvRows = [headers.join(',')];
+        
+        data.forEach(row => {
+            const values = headers.map(header => {
+                const value = row[header];
+                const escaped = String(value).replace(/"/g, '""');
+                return escaped.includes(',') ? `"${escaped}"` : escaped;
+            });
+            csvRows.push(values.join(','));
+        });
+        
+        this.downloadCSV(csvRows.join('\n'), `${fileName}.csv`);
+    }
+    
+    async exportToExcel(data, fileName) {
+        if (typeof XLSX === 'undefined') {
+            this.showToast('Excel export requires SheetJS library', 'warning');
+            await this.exportToCSV(data, fileName);
+            return;
+        }
+        
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
+        XLSX.writeFile(workbook, `${fileName}.xlsx`);
+    }
+    
+    async exportToPDF(data, fileName, reportType) {
+        if (typeof jspdf === 'undefined') {
+            this.showToast('PDF export requires jsPDF library', 'warning');
+            await this.exportToCSV(data, fileName);
+            return;
+        }
+        
+        const { jsPDF } = window.jspdf || {};
+        if (!jsPDF) {
+            this.showToast('jsPDF not loaded', 'error');
+            return;
+        }
+        
+        const doc = new jsPDF();
+        
+        doc.setFontSize(16);
+        doc.text(`${reportType.toUpperCase()} REPORT`, 105, 20, { align: 'center' });
+        doc.setFontSize(12);
+        doc.text(`Generated: ${new Date().toLocaleDateString()}`, 105, 30, { align: 'center' });
+        
+        if (data.length === 0) {
+            doc.text('No data available', 105, 50, { align: 'center' });
+        } else {
+            const headers = Object.keys(data[0]);
+            const tableData = data.map(row => headers.map(header => row[header] || ''));
+            
+            if (typeof doc.autoTable !== 'undefined') {
+                doc.autoTable({
+                    startY: 40,
+                    head: [headers],
+                    body: tableData,
+                    theme: 'grid',
+                    headStyles: { fillColor: [41, 128, 185] }
+                });
+            } else {
+                doc.setFontSize(10);
+                let y = 40;
+                data.forEach((row, index) => {
+                    if (index < 20) {
+                        const rowText = headers.map(h => `${h}: ${row[h]}`).join(', ');
+                        doc.text(rowText, 10, y);
+                        y += 7;
+                    }
+                });
+                if (data.length > 20) {
+                    doc.text(`... and ${data.length - 20} more records`, 10, y);
+                }
+            }
+        }
+        
+        doc.save(`${fileName}.pdf`);
+    }
+    
+    async previewReport() {
+        try {
+            const reportType = document.getElementById('reportType').value;
+            const program = document.getElementById('reportProgram').value;
+            const intakeYear = document.getElementById('reportIntake').value;
+            
+            if (!reportType) {
+                this.showToast('Please select a report type', 'warning');
+                return;
+            }
+            
+            let data;
+            let title;
+            
+            switch(reportType) {
+                case 'student':
+                    data = await this.generateStudentListReport(program, intakeYear);
+                    title = 'Student List Preview';
+                    break;
+                    
+                case 'marks':
+                    data = await this.generateMarksReport(program, intakeYear);
+                    title = 'Academic Marks Preview';
+                    break;
+                    
+                case 'enrollment':
+                    data = await this.generateEnrollmentReport();
+                    title = 'Enrollment Statistics Preview';
+                    break;
+                    
+                case 'graduation':
+                    const graduationData = await this.generateGraduationReport();
+                    this.previewGraduationReport(graduationData);
+                    return;
+                    
+                default:
+                    this.showToast('Invalid report type', 'error');
+                    return;
+            }
+            
+            this.previewReportData(data, title);
+            
+        } catch (error) {
+            console.error('Error previewing report:', error);
+            this.showToast('Error previewing report', 'error');
+        }
+    }
+    
+    previewReportData(data, title) {
+        const previewDiv = document.getElementById('reportPreview');
+        if (!previewDiv) return;
+        
+        if (!data || data.length === 0) {
+            previewDiv.innerHTML = `<p class="no-data">No data available for preview</p>`;
+            return;
+        }
+        
+        const headers = Object.keys(data[0]);
+        
+        let html = `
+            <h4>${title} (${data.length} records)</h4>
+            <div class="table-responsive">
+                <table class="preview-table">
+                    <thead>
+                        <tr>
+                            ${headers.map(header => `<th>${header}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        data.slice(0, 10).forEach(row => {
+            html += `<tr>${headers.map(header => `<td>${row[header] || ''}</td>`).join('')}</tr>`;
+        });
+        
+        html += `
+                    </tbody>
+                </table>
+            </div>
+            <p class="preview-info">Showing first 10 of ${data.length} records</p>
+        `;
+        
+        previewDiv.innerHTML = html;
+    }
+    
+    previewGraduationReport(data) {
+        const previewDiv = document.getElementById('reportPreview');
+        if (!previewDiv) return;
+        
+        let html = `
+            <h4>Graduation Report Preview</h4>
+            <div class="report-summary">
+                <p><strong>Total Graduates:</strong> ${data.totalGraduates}</p>
+                <p><strong>Graduation Rate:</strong> ${data.graduationRate}</p>
+            </div>
+        `;
+        
+        if (data.programReport.length > 0) {
+            html += `
+                <h5>Graduates by Program</h5>
+                <div class="table-responsive">
+                    <table class="preview-table">
+                        <thead>
+                            <tr>
+                                <th>Program</th>
+                                <th>Graduates</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.programReport.map(row => `
+                                <tr>
+                                    <td>${row.Program}</td>
+                                    <td>${row.Graduates}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+        
+        previewDiv.innerHTML = html;
     }
     
     async generateStudentTranscriptPrompt() {
@@ -2300,74 +1942,69 @@ class TEEPortalApp {
         }
     }
     
-    // ==============================
-    // ADDITIONAL UTILITY METHODS
-    // ==============================
-    
-    async refreshData() {
+    async generateStudentTranscript(studentId, format = 'pdf') {
         try {
-            this.showToast('Refreshing data...', 'info');
-            await this.loadInitialData();
-            this.showToast('Data refreshed', 'success');
-        } catch (error) {
-            console.error('Refresh error:', error);
-            this.showToast('Refresh failed', 'error');
-        }
-    }
-    
-    async editCourse(courseId) {
-        try {
-            const course = await this.db.getCourse(courseId);
-            if (!course) {
-                this.showToast('Course not found', 'error');
+            console.log(`📚 Generating transcript for student: ${studentId}`);
+            
+            const student = await this.db.getStudent(studentId);
+            if (!student) {
+                this.showToast('Student not found', 'error');
                 return;
             }
             
-            // Populate form
-            document.getElementById('courseCode').value = course.course_code;
-            document.getElementById('courseName').value = course.course_name;
-            document.getElementById('courseProgram').value = course.program;
-            document.getElementById('courseCredits').value = course.credits;
-            document.getElementById('courseDescription').value = course.description || '';
+            const marks = await this.db.getStudentMarks(student.id);
+            const gpa = await this.db.calculateStudentGPA(student.id);
             
-            // Change form to update mode
-            const form = document.getElementById('courseForm');
-            form.dataset.editId = courseId;
+            const courses = {};
+            marks.forEach(mark => {
+                if (!courses[mark.courses.course_code]) {
+                    courses[mark.courses.course_code] = {
+                        courseCode: mark.courses.course_code,
+                        courseName: mark.courses.course_name,
+                        assessments: [],
+                        finalGrade: '',
+                        credits: 3
+                    };
+                }
+                
+                courses[mark.courses.course_code].assessments.push({
+                    name: mark.assessment_name,
+                    type: mark.assessment_type,
+                    score: mark.score,
+                    maxScore: mark.max_score,
+                    percentage: mark.percentage,
+                    grade: mark.grade
+                });
+                
+                const totalPercentage = courses[mark.courses.course_code].assessments
+                    .reduce((sum, a) => sum + a.percentage, 0);
+                const avgPercentage = totalPercentage / courses[mark.courses.course_code].assessments.length;
+                courses[mark.courses.course_code].finalGrade = this.db.calculateGrade(avgPercentage).grade;
+            });
             
-            // Change button text
-            const submitBtn = form.querySelector('button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Course';
+            const transcriptData = {
+                student: student,
+                courses: Object.values(courses),
+                gpa: gpa,
+                totalCredits: Object.values(courses).length * 3,
+                generatedDate: new Date().toLocaleDateString()
+            };
+            
+            if (format === 'pdf') {
+                await this.generateTranscriptPDF(transcriptData);
+            } else if (format === 'excel') {
+                await this.generateTranscriptExcel(transcriptData);
+            } else {
+                await this.generateTranscriptCSV(transcriptData);
             }
             
-            this.openCourseModal();
-            
-        } catch (error) {
-            console.error('Error editing course:', error);
-            this.showToast('Error loading course', 'error');
-        }
-    }
-    
-    async deleteCourse(courseId) {
-        if (!confirm('Are you sure you want to delete this course?')) {
-            return;
-        }
-        
-        try {
-            const { error } = await this.db.supabase
-                .from('courses')
-                .delete()
-                .eq('id', courseId);
+            this.showToast(`Transcript generated for ${student.full_name}`, 'success');
+            await this.db.logActivity('transcript_generated', 
+                `Generated transcript for ${student.full_name} (${student.reg_number})`);
                 
-            if (error) throw error;
-            
-            this.showToast('Course deleted successfully', 'success');
-            await this.loadCourses();
-            await this.populateCourseDropdown();
-            
         } catch (error) {
-            console.error('Error deleting course:', error);
-            this.showToast('Error deleting course', 'error');
+            console.error('Error generating transcript:', error);
+            this.showToast('Error generating transcript', 'error');
         }
     }
 }
@@ -2378,148 +2015,267 @@ class TEEPortalApp {
 
 let app = null;
 
-async function initializeApp() {
-    console.log('📄 TEEPortal Application Initialization Starting...');
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('📄 DOM Content Loaded');
     
     try {
         // Initialize app
         app = new TEEPortalApp();
-        window.app = app; // Make globally accessible
+        window.app = app;
         
         // Initialize app asynchronously
         await app.initialize();
         
-        // Setup navigation
-        setupNavigation();
-        
-        console.log('🎉 TEEPortal System Ready - All functions loaded');
-        app.showToast('TEEPortal System Ready', 'success');
+        console.log('🎉 TEEPortal System Ready');
         
     } catch (error) {
         console.error('❌ Failed to initialize application:', error);
-        showCriticalError(error);
+        
+        // Show user-friendly error
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #e74c3c;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            z-index: 99999;
+            max-width: 500px;
+            text-align: center;
+        `;
+        errorDiv.innerHTML = `
+            <strong>Connection Error</strong>
+            <p>Failed to connect to database. Please check:</p>
+            <ul style="text-align: left; margin: 10px 0;">
+                <li>Internet connection</li>
+                <li>Browser console for details</li>
+            </ul>
+            <button onclick="location.reload()" style="background: white; color: #e74c3c; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                Retry
+            </button>
+        `;
+        document.body.appendChild(errorDiv);
     }
-}
+});
 
-function setupNavigation() {
-    window.showSection = function(sectionId) {
-        console.log(`🔍 Showing section: ${sectionId}`);
+// ==============================
+// GLOBAL HELPER FUNCTIONS
+// ==============================
+
+function showSection(sectionId) {
+    document.querySelectorAll('.content-section').forEach(section => {
+        section.classList.remove('active');
+    });
+    
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+    });
+    
+    const targetSection = document.getElementById(sectionId);
+    if (targetSection) {
+        targetSection.classList.add('active');
         
-        // Hide all sections
-        document.querySelectorAll('.content-section').forEach(section => {
-            section.classList.remove('active');
-        });
+        const activeLink = document.querySelector(`a[href="#${sectionId}"]`);
+        if (activeLink) {
+            activeLink.classList.add('active');
+        }
         
-        // Remove active class from all nav links
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.classList.remove('active');
-        });
+        const titleMap = {
+            'dashboard': 'Dashboard Overview',
+            'students': 'Student Management',
+            'courses': 'Course Management',
+            'marks': 'Academic Records',
+            'intake': 'Intake Management',
+            'reports': 'Reports & Analytics',
+            'settings': 'System Settings'
+        };
+        const sectionTitle = document.getElementById('section-title');
+        if (sectionTitle) {
+            sectionTitle.textContent = titleMap[sectionId] || 'TeePortal';
+        }
         
-        // Show selected section
-        const targetSection = document.getElementById(sectionId);
-        if (targetSection) {
-            targetSection.classList.add('active');
-            
-            // Activate corresponding nav link
-            const activeLink = document.querySelector(`a[href="#${sectionId}"]`);
-            if (activeLink) {
-                activeLink.classList.add('active');
+        // Load section-specific data
+        if (app && app.initialized) {
+            if (sectionId === 'dashboard') {
+                // Re-render charts for dashboard
+                setTimeout(() => {
+                    if (window.chartInstances) {
+                        Object.values(window.chartInstances).forEach(chart => {
+                            if (chart && typeof chart.destroy === 'function') {
+                                chart.destroy();
+                            }
+                        });
+                    }
+                    app.updateDashboard();
+                }, 50);
             }
-            
-            // Update section title
-            const titles = {
-                'dashboard': 'Dashboard Overview',
-                'students': 'Student Management',
-                'courses': 'Course Management',
-                'marks': 'Academic Records',
-                'reports': 'Reports & Analytics',
-                'settings': 'System Settings'
-            };
-            
-            const sectionTitle = document.getElementById('section-title');
-            if (sectionTitle) {
-                sectionTitle.textContent = titles[sectionId] || 'TEE Portal';
-            }
-            
-            // Load section-specific data
-            if (sectionId === 'marks' && app) {
+            if (sectionId === 'marks') {
                 app.loadMarksTable();
             }
-            if (sectionId === 'students' && app) {
+            if (sectionId === 'students') {
                 app.loadStudentsTable();
             }
-            if (sectionId === 'courses' && app) {
+            if (sectionId === 'courses') {
                 app.loadCourses();
             }
         }
-    };
-    
-    // Set default view to dashboard
-    setTimeout(() => {
-        if (document.getElementById('dashboard')) {
-            showSection('dashboard');
-        }
-    }, 100);
+    }
 }
 
-function showCriticalError(error) {
-    const errorDiv = document.createElement('div');
-    errorDiv.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: #f8d7da;
-        color: #721c24;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        z-index: 99999;
-        padding: 20px;
-        text-align: center;
-        font-family: Arial, sans-serif;
-    `;
-    
-    errorDiv.innerHTML = `
-        <i class="fas fa-exclamation-triangle fa-3x" style="margin-bottom: 20px; color: #721c24;"></i>
-        <h2 style="margin-bottom: 10px; color: #721c24;">Database Connection Error</h2>
-        <p style="margin-bottom: 20px; max-width: 600px; line-height: 1.6;">
-            Unable to connect to Supabase database. Please check:
-        </p>
-        <ul style="text-align: left; margin-bottom: 20px; max-width: 600px; line-height: 1.6;">
-            <li>Internet connection is working</li>
-            <li>Supabase project is active and running</li>
-            <li>Required database tables exist</li>
-            <li>Check browser console for detailed error messages</li>
-        </ul>
-        <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Error: ${error.message || 'Unknown error'}</p>
-        <div style="display: flex; gap: 10px;">
-            <button onclick="location.reload()" style="padding: 10px 20px; background: #721c24; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                <i class="fas fa-redo"></i> Retry Connection
-            </button>
-            <button onclick="initializeApp()" style="padding: 10px 20px; background: #004085; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                <i class="fas fa-play"></i> Reinitialize App
-            </button>
-        </div>
-    `;
-    
-    // Add Font Awesome if not present
-    if (!document.querySelector('link[href*="font-awesome"]')) {
-        const faLink = document.createElement('link');
-        faLink.rel = 'stylesheet';
-        faLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css';
-        document.head.appendChild(faLink);
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('active'), 10);
     }
-    
-    document.body.appendChild(errorDiv);
 }
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('active');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+}
+
+function openStudentModal() {
+    openModal('studentModal');
+}
+
+function openCourseModal() {
+    openModal('courseModal');
+}
+
+function openMarksModal() {
+    if (app && app.openMarksModal) {
+        app.openMarksModal();
+    } else {
+        openModal('marksModal');
+    }
+}
+
+function updateGradeDisplay() {
+    try {
+        const scoreInput = document.getElementById('marksScore');
+        const maxScoreInput = document.getElementById('maxScore');
+        const gradeDisplay = document.getElementById('gradeDisplay');
+        const percentageField = document.getElementById('percentage');
+        
+        if (!scoreInput || !gradeDisplay) return;
+        
+        const score = parseFloat(scoreInput.value);
+        const maxScore = parseFloat(maxScoreInput?.value) || 100;
+        
+        if (isNaN(score)) {
+            gradeDisplay.textContent = '--';
+            gradeDisplay.className = 'percentage-badge';
+            if (percentageField) percentageField.value = '';
+            return;
+        }
+        
+        const percentage = (score / maxScore) * 100;
+        
+        // Grading scale
+        const gradingScale = {
+            'A': { min: 80, max: 100, color: '#27ae60' },
+            'B+': { min: 75, max: 79, color: '#2ecc71' },
+            'B': { min: 70, max: 74, color: '#2ecc71' },
+            'C+': { min: 65, max: 69, color: '#f1c40f' },
+            'C': { min: 60, max: 64, color: '#f1c40f' },
+            'D+': { min: 55, max: 59, color: '#e67e22' },
+            'D': { min: 50, max: 54, color: '#e67e22' },
+            'F': { min: 0, max: 49, color: '#e74c3c' }
+        };
+        
+        let grade = '--';
+        for (const [gradeName, range] of Object.entries(gradingScale)) {
+            if (percentage >= range.min && percentage <= range.max) {
+                grade = gradeName;
+                gradeDisplay.style.backgroundColor = range.color;
+                break;
+            }
+        }
+        
+        gradeDisplay.textContent = grade;
+        gradeDisplay.className = 'percentage-badge';
+        
+        if (percentageField) {
+            percentageField.value = `${percentage.toFixed(2)}%`;
+        }
+        
+    } catch (error) {
+        console.error('Error updating grade display:', error);
+    }
+}
+
+// Make functions globally available
+window.showSection = showSection;
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.openStudentModal = openStudentModal;
+window.openCourseModal = openCourseModal;
+window.openMarksModal = openMarksModal;
+window.updateGradeDisplay = updateGradeDisplay;
 
 // Add CSS styles
-const styles = document.createElement('style');
-styles.textContent = `
-    /* Toast styles */
+const style = document.createElement('style');
+style.textContent = `
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .status-badge.active {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .status-badge.graduated {
+        background: #cce5ff;
+        color: #004085;
+    }
+    
+    .status-badge.withdrawn {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .grade-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        color: white;
+        font-weight: bold;
+        text-align: center;
+        min-width: 30px;
+    }
+    
+    .grade-A { background: #27ae60; }
+    .grade-B { background: #2ecc71; }
+    .grade-C { background: #f1c40f; }
+    .grade-D { background: #e67e22; }
+    .grade-F { background: #e74c3c; }
+    
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+    
+    .empty-state i {
+        font-size: 48px;
+        margin-bottom: 15px;
+        opacity: 0.5;
+    }
+    
     .toast {
         position: fixed;
         top: 20px;
@@ -2553,14 +2309,6 @@ styles.textContent = `
         border-left: 4px solid #f39c12;
     }
     
-    .toast button {
-        background: none;
-        border: none;
-        color: #666;
-        cursor: pointer;
-        margin-left: auto;
-    }
-    
     @keyframes slideIn {
         from {
             transform: translateX(100%);
@@ -2571,256 +2319,5 @@ styles.textContent = `
             opacity: 1;
         }
     }
-    
-    /* Status badges */
-    .status-badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-    
-    .status-badge.active {
-        background: #d4edda;
-        color: #155724;
-    }
-    
-    .status-badge.graduated {
-        background: #cce5ff;
-        color: #004085;
-    }
-    
-    .status-badge.withdrawn {
-        background: #f8d7da;
-        color: #721c24;
-    }
-    
-    /* Grade badges */
-    .grade-badge {
-        display: inline-block;
-        padding: 4px 8px;
-        border-radius: 4px;
-        color: white;
-        font-weight: bold;
-        text-align: center;
-        min-width: 30px;
-    }
-    
-    .grade-A { background: #27ae60; }
-    .grade-B { background: #2ecc71; }
-    .grade-C { background: #f1c40f; }
-    .grade-D { background: #e67e22; }
-    .grade-F { background: #e74c3c; }
-    
-    /* Action buttons */
-    .btn-action {
-        background: none;
-        border: 1px solid #ddd;
-        padding: 5px 10px;
-        border-radius: 4px;
-        cursor: pointer;
-        margin: 0 2px;
-        transition: all 0.2s;
-    }
-    
-    .btn-action:hover {
-        background: #f5f5f5;
-        transform: translateY(-1px);
-    }
-    
-    /* Course cards */
-    .course-card {
-        background: white;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        transition: transform 0.2s;
-    }
-    
-    .course-card:hover {
-        transform: translateY(-2px);
-    }
-    
-    .course-header {
-        padding: 15px;
-        color: white;
-    }
-    
-    .course-header-content {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    .course-body {
-        padding: 15px;
-    }
-    
-    .course-description {
-        color: #666;
-        font-size: 14px;
-        margin: 10px 0;
-        line-height: 1.4;
-    }
-    
-    .course-meta {
-        display: flex;
-        gap: 15px;
-        font-size: 12px;
-        color: #888;
-        margin-top: 10px;
-    }
-    
-    .course-actions {
-        padding: 15px;
-        border-top: 1px solid #eee;
-        display: flex;
-        gap: 10px;
-    }
-    
-    /* Empty states */
-    .empty-state {
-        text-align: center;
-        padding: 40px 20px;
-        color: #6c757d;
-    }
-    
-    .empty-state i {
-        font-size: 48px;
-        margin-bottom: 15px;
-        opacity: 0.5;
-    }
-    
-    .error-state {
-        text-align: center;
-        padding: 40px 20px;
-        color: #dc3545;
-    }
-    
-    .error-state i {
-        font-size: 48px;
-        margin-bottom: 15px;
-    }
-    
-    /* Activity items */
-    .activity-item {
-        display: flex;
-        align-items: center;
-        padding: 10px;
-        border-bottom: 1px solid #eee;
-        transition: background 0.2s;
-    }
-    
-    .activity-item:hover {
-        background: #f8f9fa;
-    }
-    
-    .activity-item:last-child {
-        border-bottom: none;
-    }
-    
-    .activity-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: #e3f2fd;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #3498db;
-        margin-right: 15px;
-    }
-    
-    .activity-details {
-        flex: 1;
-    }
-    
-    .activity-details p {
-        margin: 0 0 5px 0;
-        font-size: 14px;
-    }
-    
-    .activity-time {
-        font-size: 12px;
-        color: #95a5a6;
-    }
-    
-    /* Table styles */
-    table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-    
-    th {
-        background: #f8f9fa;
-        padding: 12px;
-        text-align: left;
-        border-bottom: 2px solid #dee2e6;
-        font-weight: 600;
-        color: #495057;
-    }
-    
-    td {
-        padding: 12px;
-        border-bottom: 1px solid #dee2e6;
-    }
-    
-    tr:hover {
-        background: #f8f9fa;
-    }
-    
-    /* Preview table */
-    .preview-table {
-        font-size: 12px;
-    }
-    
-    .preview-table th {
-        font-size: 11px;
-        padding: 8px;
-    }
-    
-    .preview-table td {
-        padding: 8px;
-    }
-    
-    .preview-info {
-        font-size: 12px;
-        color: #666;
-        text-align: center;
-        margin-top: 10px;
-    }
-    
-    /* Report summary */
-    .report-summary {
-        background: #f8f9fa;
-        padding: 15px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-    }
-    
-    .no-data {
-        text-align: center;
-        color: #6c757d;
-        font-style: italic;
-        padding: 40px;
-    }
-    
-    /* Percentage badge */
-    .percentage-badge {
-        display: inline-block;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-weight: bold;
-        min-width: 30px;
-        text-align: center;
-    }
 `;
-document.head.appendChild(styles);
-
-// Wait for DOM to be fully loaded
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeApp);
-} else {
-    initializeApp();
-}
+document.head.appendChild(style);
