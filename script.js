@@ -2000,6 +2000,9 @@ previewGraduationReport(data) {
         }
     }
 }
+   // ==============================
+    // EXPORT METHODS
+    // ==============================
 async exportMarksToExcel() {
     try {
         const marks = await this.db.getMarksTableData();
