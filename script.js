@@ -2264,8 +2264,8 @@ class TEEPortalApp {
         if (count !== undefined) {
             element.textContent = `${count} visible`;
         } else {
-            const visibleRows = document.querySelectorAll('.student-row[style*="display: ''"], .student-row:not([style*="display: none"])');
-            element.textContent = `${visibleRows.length} visible`;
+            const visibleRows = document.querySelectorAll('.student-row[style*="display: "], .student-row:not([style*="display: none"])');
+        element.textContent = `${visibleRows.length} visible`; 
         }
     }
     
