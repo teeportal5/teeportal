@@ -1586,3 +1586,103 @@ select:focus {
         break-inside: avoid;
     }
 }
+/* Grade display styles */
+.percentage-display {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+#percentage {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #f8f9fa;
+    font-family: monospace;
+}
+
+.percentage-badge {
+    padding: 8px 16px;
+    border-radius: 4px;
+    color: white;
+    font-weight: bold;
+    min-width: 50px;
+    text-align: center;
+    background: #95a5a6;
+}
+
+.student-info-card {
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 6px;
+    margin-top: 8px;
+    border-left: 3px solid #3498db;
+}
+
+.student-info-card p {
+    margin: 5px 0;
+    font-size: 13px;
+}
+
+/* Score table improvements */
+#marksTable td {
+    vertical-align: top;
+    padding: 12px 8px;
+}
+
+.student-info-cell,
+.course-info-cell {
+    line-height: 1.4;
+}
+
+.student-info-cell strong,
+.course-info-cell strong {
+    display: block;
+    margin-bottom: 2px;
+}
+
+.assessment-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    background: #e3f2fd;
+    color: #1565c0;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.score-display {
+    font-family: monospace;
+    font-weight: bold;
+}
+
+/* Table responsive fixes */
+.table-responsive {
+    overflow-x: auto;
+    margin: 20px 0;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.table-responsive table {
+    min-width: 1000px;
+}
+
+/* Empty state for marks table */
+#marksTableBody .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+}
+
+#marksTableBody .empty-state i {
+    font-size: 48px;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+#marksTableBody .empty-state p {
+    font-size: 16px;
+    margin: 10px 0 0 0;
+}
