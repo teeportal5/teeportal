@@ -605,31 +605,90 @@ class TEEPortalApp {
         this.showToast('System initialized successfully', 'success');
     }
     
-    setupEventListeners() {
-        // Student form submission
-        const studentForm = document.getElementById('studentForm');
-        if (studentForm) {
-            studentForm.addEventListener('submit', (e) => this.saveStudent(e));
-        }
-        
-        // Marks form submission
-        const marksForm = document.getElementById('marksForm');
-        if (marksForm) {
-            marksForm.addEventListener('submit', (e) => this.saveMarks(e));
-        }
-        
-        // Course form submission
-        const courseForm = document.getElementById('courseForm');
-        if (courseForm) {
-            courseForm.addEventListener('submit', (e) => this.saveCourse(e));
-        }
-        
-        // Real-time grade calculation
-        const marksScoreInput = document.getElementById('marksScore');
-        if (marksScoreInput) {
-            marksScoreInput.addEventListener('input', () => this.updateGradeDisplay());
-        }
+   setupEventListeners() {
+    // Student form submission
+    const studentForm = document.getElementById('studentForm');
+    if (studentForm) {
+        studentForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (this.saveStudent && typeof this.saveStudent === 'function') {
+                this.saveStudent(e);
+            } else {
+                console.error('saveStudent not available');
+            }
+        });
     }
+    
+    // Marks form submission
+    const marksForm = document.getElementById('marksForm');
+    if (marksForm) {
+        marksForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (this.saveMarks && typeof this.saveMarks === 'function') {
+                this.saveMarks(e);
+            } else {
+                console.error('saveMarks not available');
+            }
+        });
+    }
+    
+    // Course form submission
+    const courseForm = document.getElementById('courseForm');
+    if (courseForm) {
+        courseForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (this.saveCourse && typeof this.saveCourse === 'function') {
+                this.saveCourse(e);
+            } else {
+                console.error('saveCourse not available');
+            }
+        });
+    }
+    
+    // Real-time grade calculation - FIXED with proper binding
+    const marksScoreInput = document.getElementById('marksScore');
+    if (marksScoreInput) {
+        marksScoreInput.addEventListener('input', () => {
+            // Use a safer approach
+            if (this && typeof this.updateGradeDisplay === 'function') {
+                this.updateGradeDisplay();
+            } else if (window.app && typeof window.app.updateGradeDisplay === 'function') {
+                window.app.updateGradeDisplay();
+            } else {
+                console.warn('updateGradeDisplay not available yet');
+                // Fallback: calculate manually
+                this.fallbackGradeDisplay();
+            }
+        });
+    }
+}
+
+// Add this fallback method to your TEEPortalApp class
+fallbackGradeDisplay() {
+    try {
+        const scoreInput = document.getElementById('marksScore');
+        const score = parseFloat(scoreInput?.value);
+        
+        if (!isNaN(score)) {
+            const percentage = (score / 100) * 100;
+            const grade = this.db.calculateGrade(percentage);
+            
+            const gradeDisplay = document.getElementById('gradeDisplay');
+            const percentageField = document.getElementById('percentage');
+            
+            if (gradeDisplay) {
+                gradeDisplay.textContent = grade.grade;
+                gradeDisplay.className = 'percentage-badge';
+                gradeDisplay.classList.add(`grade-${grade.grade.charAt(0)}`);
+            }
+            if (percentageField) {
+                percentageField.value = `${percentage.toFixed(2)}%`;
+            }
+        }
+    } catch (error) {
+        console.error('Fallback grade display error:', error);
+    }
+}
     
     async loadInitialData() {
         try {
