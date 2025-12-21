@@ -2650,44 +2650,25 @@ async generateBulkTranscripts(studentIds, format, options) {
     }
 }
 // ==============================
-// GLOBAL INITIALIZATION
+// GLOBAL INITIALIZATION - SIMPLIFIED
 // ==============================
 
-// Check if class is defined (for debugging)
-if (typeof TEEPortalApp === 'undefined') {
-    console.error('⚠️ TEEPortalApp class not defined');
-} else {
-    console.log('✅ TEEPortalApp class is defined');
-}
-
-// Global app instance
 let app = null;
 
-// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('📄 DOM Content Loaded');
     
     try {
-        // Check if TEEPortalApp class exists
-        if (typeof TEEPortalApp === 'undefined') {
-            throw new Error('TEEPortalApp class not found. Check for syntax errors in the class definition.');
-        }
-        
         // Create app instance
         app = new TEEPortalApp();
-        
-        // Make available globally for debugging
         window.app = app;
-        window.TEEPortalApp = TEEPortalApp;
         
-        console.log('🚀 TEEPortalApp instance created');
-        
-        // Initialize the app
+        // Initialize
         await app.initialize();
         
         console.log('🎉 TEEPortal System Ready');
         
-        // Set default view
+        // Show dashboard by default
         setTimeout(() => {
             if (typeof showSection === 'function') {
                 showSection('dashboard');
@@ -2695,373 +2676,66 @@ document.addEventListener('DOMContentLoaded', async function() {
         }, 100);
         
     } catch (error) {
-        console.error('❌ Failed to initialize application:', error);
-        showInitializationError(error);
+        console.error('❌ Initialization failed:', error);
+        alert('Failed to initialize: ' + error.message);
     }
 });
 
-// Show error to user
-function showInitializationError(error) {
-    const errorDiv = document.createElement('div');
-    errorDiv.style.cssText = `
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #e74c3c;
-        color: white;
-        padding: 15px 25px;
-        border-radius: 8px;
-        z-index: 99999;
-        max-width: 500px;
-        text-align: center;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    `;
-    errorDiv.innerHTML = `
-        <strong><i class="fas fa-exclamation-triangle"></i> Initialization Error</strong>
-        <p style="margin: 10px 0;">${error.message || 'Failed to initialize application'}</p>
-        <div style="margin-top: 15px;">
-            <button onclick="location.reload()" style="
-                background: white; 
-                color: #e74c3c; 
-                border: none; 
-                padding: 8px 16px; 
-                border-radius: 4px; 
-                cursor: pointer;
-                margin: 5px;
-                font-weight: bold;
-            ">
-                <i class="fas fa-redo"></i> Reload
-            </button>
-            <button onclick="console.error('Error details:', ${JSON.stringify(error.message)})" style="
-                background: #34495e; 
-                color: white; 
-                border: none; 
-                padding: 8px 16px; 
-                border-radius: 4px; 
-                cursor: pointer;
-                margin: 5px;
-            ">
-                <i class="fas fa-bug"></i> Debug
-            </button>
-        </div>
-    `;
-    document.body.appendChild(errorDiv);
-}
-
-// Fallback if app fails to initialize
-if (typeof app === 'undefined') {
-    window.app = {
-        showToast: function(msg, type) {
-            console.log(`[${type}] ${msg}`);
-            // Simple toast implementation
-            const toast = document.createElement('div');
-            toast.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: ${type === 'error' ? '#e74c3c' : type === 'success' ? '#27ae60' : '#3498db'};
-                color: white;
-                padding: 12px 20px;
-                border-radius: 6px;
-                z-index: 9999;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            `;
-            toast.textContent = msg;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-        },
-        initialized: false,
-        db: null
-    };
-}
-
-// ==============================
-// SIMPLIFIED GLOBAL FUNCTIONS
-// ==============================
-
+// Global helper functions
 function showSection(sectionId) {
-    try {
-        // Hide all sections
-        document.querySelectorAll('.content-section').forEach(section => {
-            section.classList.remove('active');
-        });
+    document.querySelectorAll('.content-section').forEach(section => {
+        section.classList.remove('active');
+    });
+    
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+    });
+    
+    const targetSection = document.getElementById(sectionId);
+    if (targetSection) {
+        targetSection.classList.add('active');
         
-        // Remove active class from nav links
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.classList.remove('active');
-        });
-        
-        // Show selected section
-        const targetSection = document.getElementById(sectionId);
-        if (targetSection) {
-            targetSection.classList.add('active');
-            
-            // Activate nav link
-            const activeLink = document.querySelector(`a[href="#${sectionId}"]`);
-            if (activeLink) {
-                activeLink.classList.add('active');
-            }
-            
-            // Update title
-            const titleMap = {
-                'dashboard': 'Dashboard Overview',
-                'students': 'Student Management',
-                'courses': 'Course Management',
-                'marks': 'Academic Records',
-                'intake': 'Intake Management',
-                'reports': 'Reports & Analytics',
-                'settings': 'System Settings'
-            };
-            
-            const sectionTitle = document.getElementById('section-title');
-            if (sectionTitle) {
-                sectionTitle.textContent = titleMap[sectionId] || 'TeePortal';
-            }
-            
-            // Load section data if app is ready
-            if (window.app && window.app.initialized) {
-                setTimeout(() => {
-                    switch(sectionId) {
-                        case 'dashboard':
-                            if (window.app.updateDashboard) {
-                                window.app.updateDashboard();
-                            }
-                            break;
-                        case 'marks':
-                            if (window.app.loadMarksTable) {
-                                window.app.loadMarksTable();
-                            }
-                            break;
-                        case 'students':
-                            if (window.app.loadStudentsTable) {
-                                window.app.loadStudentsTable();
-                            }
-                            break;
-                        case 'courses':
-                            if (window.app.loadCourses) {
-                                window.app.loadCourses();
-                            }
-                            break;
-                    }
-                }, 50);
-            }
+        const activeLink = document.querySelector(`a[href="#${sectionId}"]`);
+        if (activeLink) {
+            activeLink.classList.add('active');
         }
-    } catch (error) {
-        console.error('Error in showSection:', error);
+        
+        const titleMap = {
+            'dashboard': 'Dashboard Overview',
+            'students': 'Student Management',
+            'courses': 'Course Management',
+            'marks': 'Academic Records',
+            'intake': 'Intake Management',
+            'reports': 'Reports & Analytics',
+            'settings': 'System Settings'
+        };
+        
+        const sectionTitle = document.getElementById('section-title');
+        if (sectionTitle) {
+            sectionTitle.textContent = titleMap[sectionId] || 'TeePortal';
+        }
     }
 }
 
 function openModal(modalId) {
-    try {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.style.display = 'flex';
-            setTimeout(() => modal.classList.add('active'), 10);
-        }
-    } catch (error) {
-        console.error('Error opening modal:', error);
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('active'), 10);
     }
 }
 
 function closeModal(modalId) {
-    try {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.classList.remove('active');
-            setTimeout(() => {
-                modal.style.display = 'none';
-            }, 300);
-        }
-    } catch (error) {
-        console.error('Error closing modal:', error);
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('active');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
     }
 }
 
-function openStudentModal() {
-    openModal('studentModal');
-}
-
-function openCourseModal() {
-    openModal('courseModal');
-}
-
-function openMarksModal() {
-    if (window.app && window.app.openMarksModal) {
-        window.app.openMarksModal();
-    } else {
-        openModal('marksModal');
-    }
-}
-
-function updateGradeDisplay() {
-    try {
-        const scoreInput = document.getElementById('marksScore');
-        const maxScoreInput = document.getElementById('maxScore');
-        const gradeDisplay = document.getElementById('gradeDisplay');
-        const percentageField = document.getElementById('percentage');
-        
-        if (!scoreInput || !gradeDisplay) return;
-        
-        const score = parseFloat(scoreInput.value);
-        const maxScore = parseFloat(maxScoreInput?.value) || 100;
-        
-        if (isNaN(score)) {
-            gradeDisplay.textContent = '--';
-            gradeDisplay.className = 'percentage-badge';
-            if (percentageField) percentageField.value = '';
-            return;
-        }
-        
-        const percentage = (score / maxScore) * 100;
-        
-        // Grading scale
-        const gradingScale = {
-            'A': { min: 80, max: 100, color: '#27ae60' },
-            'B+': { min: 75, max: 79, color: '#2ecc71' },
-            'B': { min: 70, max: 74, color: '#2ecc71' },
-            'C+': { min: 65, max: 69, color: '#f1c40f' },
-            'C': { min: 60, max: 64, color: '#f1c40f' },
-            'D+': { min: 55, max: 59, color: '#e67e22' },
-            'D': { min: 50, max: 54, color: '#e67e22' },
-            'F': { min: 0, max: 49, color: '#e74c3c' }
-        };
-        
-        let grade = '--';
-        for (const [gradeName, range] of Object.entries(gradingScale)) {
-            if (percentage >= range.min && percentage <= range.max) {
-                grade = gradeName;
-                gradeDisplay.style.backgroundColor = range.color;
-                break;
-            }
-        }
-        
-        gradeDisplay.textContent = grade;
-        gradeDisplay.className = 'percentage-badge';
-        
-        if (percentageField) {
-            percentageField.value = `${percentage.toFixed(2)}%`;
-        }
-        
-    } catch (error) {
-        console.error('Error updating grade display:', error);
-    }
-}
-
-// Make functions globally available
+// Expose to window
 window.showSection = showSection;
 window.openModal = openModal;
 window.closeModal = closeModal;
-window.openStudentModal = openStudentModal;
-window.openCourseModal = openCourseModal;
-window.openMarksModal = openMarksModal;
-window.updateGradeDisplay = updateGradeDisplay;
-
-// Add basic CSS styles
-const style = document.createElement('style');
-style.textContent = `
-    .status-badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-    
-    .status-badge.active {
-        background: #d4edda;
-        color: #155724;
-    }
-    
-    .status-badge.graduated {
-        background: #cce5ff;
-        color: #004085;
-    }
-    
-    .status-badge.withdrawn {
-        background: #f8d7da;
-        color: #721c24;
-    }
-    
-    .grade-badge {
-        display: inline-block;
-        padding: 4px 8px;
-        border-radius: 4px;
-        color: white;
-        font-weight: bold;
-        text-align: center;
-        min-width: 30px;
-    }
-    
-    .grade-A { background: #27ae60; }
-    .grade-B { background: #2ecc71; }
-    .grade-C { background: #f1c40f; }
-    .grade-D { background: #e67e22; }
-    .grade-F { background: #e74c3c; }
-    
-    .empty-state {
-        text-align: center;
-        padding: 40px 20px;
-        color: #6c757d;
-    }
-    
-    .empty-state i {
-        font-size: 48px;
-        margin-bottom: 15px;
-        opacity: 0.5;
-    }
-    
-    .toast {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 15px 20px;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        z-index: 10000;
-        animation: slideIn 0.3s ease;
-        min-width: 300px;
-        max-width: 400px;
-    }
-    
-    .toast.success {
-        border-left: 4px solid #27ae60;
-    }
-    
-    .toast.error {
-        border-left: 4px solid #e74c3c;
-    }
-    
-    .toast.info {
-        border-left: 4px solid #3498db;
-    }
-    
-    .toast.warning {
-        border-left: 4px solid #f39c12;
-    }
-    
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-`;
-document.head.appendChild(style);
-
-// Debug info
-console.log('✅ Global initialization script loaded');
-console.log('📊 Global objects status:', {
-    'TEEPortalApp defined': typeof TEEPortalApp !== 'undefined',
-    'TEEPortalSupabaseDB defined': typeof TEEPortalSupabaseDB !== 'undefined',
-    'app defined': typeof app !== 'undefined',
-    'window.app': typeof window.app !== 'undefined'
-});
