@@ -2653,112 +2653,96 @@ async generateBulkTranscripts(studentIds, format, options) {
 // GLOBAL INITIALIZATION
 // ==============================
 
-// Declare global variables
+// Make sure classes are globally available
+if (typeof TEEPortalApp === 'undefined') {
+    console.error('⚠️ TEEPortalApp class not defined. Check for syntax errors above.');
+}
+
 let app = null;
 
-// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('📄 DOM Content Loaded');
     
     try {
-        // Create app instance
+        // Check if class exists
+        if (typeof TEEPortalApp === 'undefined') {
+            throw new Error('TEEPortalApp class not found. Make sure the class definition is loaded without errors.');
+        }
+        
+        // Initialize app
         app = new TEEPortalApp();
-        
-        // Make app available globally
         window.app = app;
-        window.TEEPortalApp = TEEPortalApp;
-        window.TEEPortalSupabaseDB = TEEPortalSupabaseDB;
         
-        console.log('🚀 TEEPortalApp instance created');
-        
-        // Initialize the app
+        // Initialize app asynchronously
         await app.initialize();
         
         console.log('🎉 TEEPortal System Ready');
         
-        // Initialize UI
-        initializeUI();
+        // Set initial section
+        setTimeout(() => {
+            if (typeof showSection === 'function') {
+                showSection('dashboard');
+            }
+        }, 100);
         
     } catch (error) {
         console.error('❌ Failed to initialize application:', error);
-        showInitializationError(error);
+        
+        // Show user-friendly error
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #e74c3c;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            z-index: 99999;
+            max-width: 500px;
+            text-align: center;
+        `;
+        errorDiv.innerHTML = `
+            <strong>Initialization Error</strong>
+            <p>${error.message || 'Failed to initialize application'}</p>
+            <p style="font-size: 12px; margin: 10px 0;">Check browser console for details</p>
+            <button onclick="location.reload()" style="background: white; color: #e74c3c; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin: 5px;">
+                <i class="fas fa-redo"></i> Retry
+            </button>
+            <button onclick="console.clear(); console.error('Error details:', ${JSON.stringify(error.message)});" style="background: #34495e; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin: 5px;">
+                <i class="fas fa-bug"></i> Debug
+            </button>
+        `;
+        document.body.appendChild(errorDiv);
     }
 });
 
-// Initialize UI elements
-function initializeUI() {
-    // Set default section
-    setTimeout(() => {
-        if (typeof showSection === 'function') {
-            showSection('dashboard');
-        }
-    }, 100);
-    
-    // Initialize date pickers
-    const dateInputs = document.querySelectorAll('input[type="date"]');
-    const today = new Date().toISOString().split('T')[0];
-    dateInputs.forEach(input => {
-        if (input) input.max = today;
-    });
-}
-
-// Show initialization error to user
-function showInitializationError(error) {
-    const errorDiv = document.createElement('div');
-    errorDiv.style.cssText = `
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #e74c3c;
-        color: white;
-        padding: 15px 25px;
-        border-radius: 8px;
-        z-index: 99999;
-        max-width: 500px;
-        text-align: center;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    `;
-    errorDiv.innerHTML = `
-        <strong><i class="fas fa-exclamation-triangle"></i> Connection Error</strong>
-        <p style="margin: 10px 0;">Failed to connect to database. Please check:</p>
-        <ul style="text-align: left; margin: 10px 0; padding-left: 20px;">
-            <li>Internet connection</li>
-            <li>Browser console for details</li>
-            <li>Supabase client is loaded</li>
-        </ul>
-        <p style="font-size: 12px; opacity: 0.8;">${error.message || 'Unknown error'}</p>
-        <button onclick="location.reload()" style="
-            background: white; 
-            color: #e74c3c; 
-            border: none; 
-            padding: 8px 16px; 
-            border-radius: 4px; 
-            cursor: pointer;
-            margin-top: 10px;
-            font-weight: bold;
-        ">
-            <i class="fas fa-redo"></i> Retry Connection
-        </button>
-    `;
-    document.body.appendChild(errorDiv);
-}
-
-// Fallback in case initialization fails
+// Fallback app object for debugging
 if (typeof app === 'undefined') {
     window.app = {
         showToast: function(msg, type) {
-            console.log(`${type}: ${msg}`);
+            console.log(`[${type}] ${msg}`);
             alert(`${type.toUpperCase()}: ${msg}`);
         },
         initialize: async function() {
             console.log('Fallback app initialized');
             return true;
         },
+        initialized: false,
         db: {
-            getStudents: async function() { return []; },
-            getCourses: async function() { return []; },
-            getMarks: async function() { return []; }
+            getStudents: async function() { 
+                console.log('Fallback: getStudents');
+                return []; 
+            },
+            getCourses: async function() { 
+                console.log('Fallback: getCourses');
+                return []; 
+            },
+            getMarks: async function() { 
+                console.log('Fallback: getMarks');
+                return []; 
+            }
         }
     };
 }
@@ -2769,28 +2753,23 @@ if (typeof app === 'undefined') {
 
 function showSection(sectionId) {
     try {
-        // Hide all sections
         document.querySelectorAll('.content-section').forEach(section => {
             section.classList.remove('active');
         });
         
-        // Remove active class from all nav links
         document.querySelectorAll('.nav-link').forEach(link => {
             link.classList.remove('active');
         });
         
-        // Show selected section
         const targetSection = document.getElementById(sectionId);
         if (targetSection) {
             targetSection.classList.add('active');
             
-            // Activate corresponding nav link
             const activeLink = document.querySelector(`a[href="#${sectionId}"]`);
             if (activeLink) {
                 activeLink.classList.add('active');
             }
             
-            // Update section title
             const titleMap = {
                 'dashboard': 'Dashboard Overview',
                 'students': 'Student Management',
@@ -2800,41 +2779,40 @@ function showSection(sectionId) {
                 'reports': 'Reports & Analytics',
                 'settings': 'System Settings'
             };
-            
             const sectionTitle = document.getElementById('section-title');
             if (sectionTitle) {
                 sectionTitle.textContent = titleMap[sectionId] || 'TeePortal';
             }
             
-            // Load section-specific data if app is initialized
+            // Use window.app instead of just app for safety
             if (window.app && window.app.initialized) {
-                setTimeout(() => {
-                    switch(sectionId) {
-                        case 'dashboard':
-                            if (window.chartInstances) {
-                                Object.values(window.chartInstances).forEach(chart => {
-                                    if (chart && typeof chart.destroy === 'function') {
-                                        chart.destroy();
-                                    }
-                                });
-                            }
+                if (sectionId === 'dashboard') {
+                    setTimeout(() => {
+                        if (window.chartInstances) {
+                            Object.values(window.chartInstances).forEach(chart => {
+                                if (chart && typeof chart.destroy === 'function') {
+                                    chart.destroy();
+                                }
+                            });
+                        }
+                        if (window.app.updateDashboard) {
                             window.app.updateDashboard();
-                            break;
-                        case 'marks':
-                            window.app.loadMarksTable();
-                            break;
-                        case 'students':
-                            window.app.loadStudentsTable();
-                            break;
-                        case 'courses':
-                            window.app.loadCourses();
-                            break;
-                    }
-                }, 50);
+                        }
+                    }, 50);
+                }
+                if (sectionId === 'marks' && window.app.loadMarksTable) {
+                    window.app.loadMarksTable();
+                }
+                if (sectionId === 'students' && window.app.loadStudentsTable) {
+                    window.app.loadStudentsTable();
+                }
+                if (sectionId === 'courses' && window.app.loadCourses) {
+                    window.app.loadCourses();
+                }
             }
         }
     } catch (error) {
-        console.error('Error showing section:', error);
+        console.error('Error in showSection:', error);
     }
 }
 
@@ -2942,7 +2920,6 @@ window.openStudentModal = openStudentModal;
 window.openCourseModal = openCourseModal;
 window.openMarksModal = openMarksModal;
 window.updateGradeDisplay = updateGradeDisplay;
-window.initializeUI = initializeUI;
 
 // Add CSS styles
 const style = document.createElement('style');
@@ -3043,3 +3020,12 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// Diagnostic check
+console.log('✅ Script loaded successfully');
+console.log('📊 Global objects:', {
+    'TEEPortalApp defined': typeof TEEPortalApp !== 'undefined',
+    'TEEPortalSupabaseDB defined': typeof TEEPortalSupabaseDB !== 'undefined',
+    'app defined': typeof app !== 'undefined',
+    'window.app': typeof window.app !== 'undefined'
+});
