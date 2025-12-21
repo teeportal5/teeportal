@@ -779,7 +779,6 @@ class TEEPortalApp {
     // ==============================
 // MARKS MANAGEMENT
 // ==============================
-
 async loadMarksTable() {
     try {
         const marks = await this.db.getMarksTableData();
@@ -805,43 +804,66 @@ async loadMarksTable() {
         let html = '';
         
         marks.forEach(mark => {
-            const student = mark.students;
-            const course = mark.courses;
+            const student = mark.students || {};
+            const course = mark.courses || {};
             const percentage = mark.percentage || ((mark.score / mark.max_score) * 100).toFixed(2);
-            const markId = mark.id || mark._id; // Assuming your mark has an ID
+            const markId = mark.id || mark._id || '';
+            
+            // Get student name and remove any "test" suffix
+            let studentName = student.full_name || 'N/A';
+            studentName = studentName.replace(/\s+test\s+\d*$/i, '');
+            
+            // Format date
+            const dateObj = mark.created_at ? new Date(mark.created_at) : 
+                          mark.date ? new Date(mark.date) : new Date();
+            const formattedDate = dateObj.toLocaleDateString('en-GB'); // DD/MM/YYYY format
             
             html += `
                 <tr data-mark-id="${markId}">
-                    <td>
-                        <strong>${student.reg_number}</strong><br>
-                        <small>${student.full_name}</small>
-                    </td>
-                    <td>
-                        <strong>${course.course_code}</strong><br>
-                        <small>${course.course_name}</small>
-                        <br><small class="text-muted">${course.credits || 3} credits</small>
-                    </td>
+                    <!-- Student ID -->
+                    <td>${student.reg_number || 'N/A'}</td>
+                    
+                    <!-- Student Name -->
+                    <td>${studentName}</td>
+                    
+                    <!-- Course Code -->
+                    <td>${course.course_code || 'N/A'}</td>
+                    
+                    <!-- Course Name -->
+                    <td>${course.course_name || 'N/A'}</td>
+                    
+                    <!-- Assessment -->
                     <td>${mark.assessment_name || 'Assessment'}</td>
-                    <td><span class="badge badge-assessment">${mark.assessment_type || 'Final'}</span></td>
-                    <td><strong>${mark.score}/${mark.max_score}</strong></td>
+                    
+                    <!-- Score -->
+                    <td><strong>${mark.score || 0}/${mark.max_score || 100}</strong></td>
+                    
+                    <!-- Percentage -->
                     <td>${percentage}%</td>
+                    
+                    <!-- Grade -->
                     <td>
                         <span class="grade-badge grade-${mark.grade?.charAt(0) || 'F'}">
                             ${mark.grade || 'F'}
                         </span>
                     </td>
-                    <td>${mark.grade_points || 0}</td>
-                    <td>${mark.remarks || '-'}</td>
-                    <td>
-                        ${mark.created_at ? new Date(mark.created_at).toLocaleDateString() : '-'}
-                    </td>
+                    
+                    <!-- Credits -->
+                    <td>${course.credits || mark.credits || 3}</td>
+                    
+                    <!-- Date -->
+                    <td>${formattedDate}</td>
+                    
+                    <!-- Actions -->
                     <td>
                         <div class="action-buttons">
-                            <button class="btn-action btn-edit" onclick="app.editMark('${markId}')" 
+                            <button type="button" class="btn-action btn-edit" 
+                                    onclick="app.editMark('${markId}')" 
                                     title="Edit Marks">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn-action btn-delete" onclick="app.deleteMark('${markId}')" 
+                            <button type="button" class="btn-action btn-delete" 
+                                    onclick="app.deleteMark('${markId}')" 
                                     title="Delete Marks">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -862,6 +884,7 @@ async loadMarksTable() {
                     <td colspan="11" class="error-state">
                         <i class="fas fa-exclamation-triangle fa-2x"></i>
                         <p>Error loading marks</p>
+                        <small class="d-block mt-1">${error.message}</small>
                     </td>
                 </tr>
             `;
