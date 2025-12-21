@@ -1,6 +1,6 @@
 /* ============================================
    TEEPORTAL - THEOLOGICAL EDUCATION BY EXTENSION
-   Complete CSS with Layout Fixes
+   Complete CSS with Layout Fixes - TAB FIX VERSION
    ============================================ */
 
 /* RESET AND BASE STYLES */
@@ -24,7 +24,7 @@ html, body {
     min-height: 100vh;
     width: 100vw;
     max-width: 100vw;
-    overflow: hidden;
+    overflow: visible;
     position: relative;
 }
 
@@ -195,26 +195,31 @@ nav {
     color: #3498db;
 }
 
-/* MAIN CONTENT AREA - FLEXIBLE WIDTH */
+/* MAIN CONTENT AREA - FIXED: overflow changed to visible */
 main {
     flex: 1;
     width: calc(100vw - 280px);
     min-width: 0;
-    overflow-y: auto;
+    overflow: visible !important;
     background: #f8f9fa;
     height: 100vh;
+    position: relative;
 }
 
-/* CONTENT SECTIONS */
+/* CONTENT SECTIONS - FIXED: display issues */
 .content-section {
     display: none;
     width: 100%;
     min-height: calc(100vh - 80px);
     padding: 30px;
+    position: relative;
+    overflow: visible !important;
 }
 
 .content-section.active {
-    display: block;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
     animation: fadeIn 0.3s ease;
 }
 
@@ -466,9 +471,10 @@ main {
     border-radius: 15px;
     box-shadow: 0 5px 15px rgba(0,0,0,0.08);
     margin-bottom: 30px;
-    overflow: hidden;
+    overflow: visible !important;
     border: 1px solid #e9ecef;
     width: 100%;
+    position: relative;
 }
 
 .card-header {
@@ -493,6 +499,7 @@ main {
 .card-body {
     padding: 25px;
     width: 100%;
+    overflow: visible !important;
 }
 
 /* DASHBOARD ROW */
@@ -686,17 +693,18 @@ main {
     margin-top: 5px;
 }
 
-/* TABLES */
+/* TABLES - FIXED: Removed min-width restriction */
 .table-responsive {
     overflow-x: auto;
     width: 100%;
+    display: block;
 }
 
 table {
     width: 100%;
     border-collapse: collapse;
     background: white;
-    min-width: 800px;
+    min-width: 100% !important;
 }
 
 thead {
@@ -887,6 +895,7 @@ tbody tr:hover {
 .modal-body {
     padding: 30px;
     width: 100%;
+    overflow: visible !important;
 }
 
 .modal-actions {
@@ -936,10 +945,11 @@ tbody tr:hover {
 .tab-content {
     display: none;
     width: 100%;
+    overflow: visible !important;
 }
 
 .tab-content.active {
-    display: block;
+    display: block !important;
 }
 
 /* COURSE SELECTION */
@@ -1454,10 +1464,11 @@ tbody tr:hover {
 .settings-panel {
     display: none;
     width: 100%;
+    overflow: visible !important;
 }
 
 .settings-panel.active {
-    display: block;
+    display: block !important;
     animation: fadeIn 0.3s ease;
 }
 
@@ -2097,6 +2108,44 @@ body.dark-mode td {
 
 .visible {
     display: block !important;
+}
+
+/* CRITICAL TAB FIXES - ADDED */
+.content-section.active {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    height: auto !important;
+    min-height: calc(100vh - 80px) !important;
+    position: relative !important;
+    z-index: 10 !important;
+}
+
+.tab-content.active {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Ensure all tab content containers show their children */
+.content-section *,
+.tab-content * {
+    visibility: inherit !important;
+    opacity: inherit !important;
+}
+
+/* Force display of table cells */
+td, th {
+    display: table-cell !important;
+    visibility: visible !important;
+}
+
+/* Remove any max-height restrictions on content */
+.card-body,
+.modal-body,
+.tab-content,
+.content-section {
+    max-height: none !important;
 }
 
 /* PRINT STYLES */
