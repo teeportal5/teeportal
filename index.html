@@ -655,53 +655,82 @@
 
     <!-- ========== MODALS ========== -->
     
-    <!-- STUDENT MODAL -->
-    <div id="studentModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fas fa-user-graduate"></i> Register Student</h3>
-                <button class="close-btn" onclick="closeModal('studentModal')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="studentForm">
+  <!-- Updated STUDENT MODAL with registration number generation -->
+<div id="studentModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-user-graduate"></i> Register Student</h3>
+            <button class="close-btn" onclick="closeModal('studentModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="studentForm" onsubmit="saveStudent(event)">
+                <div class="form-group">
+                    <label>Registration Number</label>
+                    <input type="text" id="regNumber" placeholder="Auto-generated" readonly>
+                    <small class="form-text">Will be generated after registration</small>
+                </div>
+                <div class="form-group">
+                    <label>Full Name *</label>
+                    <input type="text" id="studentName" required placeholder="John Doe">
+                </div>
+                <div class="form-row">
                     <div class="form-group">
-                        <label>Full Name *</label>
-                        <input type="text" required placeholder="John Doe">
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Email *</label>
-                            <input type="email" required placeholder="student@example.com">
-                        </div>
-                        <div class="form-group">
-                            <label>Phone *</label>
-                            <input type="tel" required placeholder="+254700000000">
-                        </div>
+                        <label>Email *</label>
+                        <input type="email" id="studentEmail" required placeholder="student@example.com">
                     </div>
                     <div class="form-group">
-                        <label>Program *</label>
-                        <select required>
-                            <option value="">Select Program</option>
-                            <option value="basic">Basic TEE</option>
-                            <option value="hnc">HNC</option>
-                            <option value="advanced">Advanced TEE</option>
+                        <label>Phone *</label>
+                        <input type="tel" id="studentPhone" required placeholder="+254700000000">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Date of Birth</label>
+                        <input type="date" id="studentDOB">
+                    </div>
+                    <div class="form-group">
+                        <label>Gender</label>
+                        <select id="studentGender">
+                            <option value="">Select</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>Intake Year *</label>
-                        <select required>
-                            <option value="2024">2024</option>
-                            <option value="2023">2023</option>
-                        </select>
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" class="btn-secondary" onclick="closeModal('studentModal')">Cancel</button>
-                        <button type="submit" class="btn-primary">Save Student</button>
-                    </div>
-                </form>
-            </div>
+                </div>
+                <div class="form-group">
+                    <label>Program *</label>
+                    <select id="studentProgram" required>
+                        <option value="">Select Program</option>
+                        <option value="basic">Basic TEE</option>
+                        <option value="hnc">HNC (Higher National Certificate)</option>
+                        <option value="advanced">Advanced TEE</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Intake Year *</label>
+                    <select id="studentIntake" required>
+                        <option value="">Select Intake</option>
+                        <option value="2027">2024</option>
+                        <option value="2026">2023</option>
+                        <option value="2025">2022</option>
+                        <option value="2024">2022</option>
+                        <option value="2023">2022</option>
+                        <option value="2022">2022</option>
+                        <option value="2021">2022</option>
+                        <option value="2020">2022</option>
+                        <option value="2019">2022</option>
+                        <option value="2018">2022</option>
+                        
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('studentModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Register Student</button>
+                </div>
+            </form>
         </div>
     </div>
+</div>
 
     <!-- COURSE MODAL -->
     <div id="courseModal" class="modal">
@@ -744,7 +773,90 @@
             </div>
         </div>
     </div>
-
+<!-- Updated MARKS MODAL with proper grading system -->
+<div id="marksModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-chart-bar"></i> Enter Marks</h3>
+            <button class="close-btn" onclick="closeModal('marksModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="marksForm" onsubmit="saveMarks(event)">
+                <div class="form-group">
+                    <label>Student *</label>
+                    <select id="marksStudent" required onchange="updateStudentInfo()">
+                        <option value="">Select Student</option>
+                    </select>
+                    <div id="studentInfo" class="student-info-card" style="display: none;">
+                        <p><strong>Reg No:</strong> <span id="infoRegNo"></span></p>
+                        <p><strong>Program:</strong> <span id="infoProgram"></span></p>
+                        <p><strong>Intake:</strong> <span id="infoIntake"></span></p>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Course *</label>
+                    <select id="marksCourse" required>
+                        <option value="">Select Course</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Assessment Type *</label>
+                        <select id="assessmentType" required>
+                            <option value="">Select Type</option>
+                            <option value="assignment">Assignment (30%)</option>
+                            <option value="midterm">Midterm Exam (30%)</option>
+                            <option value="final">Final Exam (40%)</option>
+                            <option value="practical">Practical</option>
+                            <option value="project">Project</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Assessment Name</label>
+                        <input type="text" id="assessmentName" placeholder="e.g., Assignment 1, Final Exam">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Score Obtained *</label>
+                        <input type="number" id="marksScore" step="0.01" min="0" max="100" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Maximum Score</label>
+                        <input type="number" id="maxScore" value="100" readonly>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Percentage</label>
+                    <div class="percentage-display">
+                        <input type="text" id="percentage" readonly>
+                        <span class="percentage-badge" id="gradeDisplay">-</span>
+                    </div>
+                    <div class="marks-preview">
+                        <small><strong>Grading Scale:</strong> A(80-100), B(70-79), C(60-69), D(50-59), F(0-49)</small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Remarks</label>
+                    <textarea id="marksRemarks" rows="2" placeholder="Additional comments..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Visible to Student</label>
+                    <div class="checkbox-group">
+                        <label>
+                            <input type="checkbox" id="visibleToStudent" checked>
+                            Allow student to view this result in portal
+                        </label>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('marksModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Marks</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
     <!-- CONFIRMATION MODAL -->
     <div id="confirmModal" class="modal">
         <div class="modal-content modal-sm">
