@@ -471,7 +471,7 @@ class TEEPortalSupabaseDB {
                 .insert([{
                     type: type,
                     description: description,
-                    user: 'Administrator'
+                   user_name: 'Administrator'
                 }]);
                 
             if (error) {
