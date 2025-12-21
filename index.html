@@ -732,47 +732,52 @@
     </div>
 </div>
 
-    <!-- COURSE MODAL -->
-    <div id="courseModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fas fa-book-medical"></i> Add Course</h3>
-                <button class="close-btn" onclick="closeModal('courseModal')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="courseForm">
-                    <div class="form-group">
-                        <label>Course Code *</label>
-                        <input type="text" required placeholder="TEE101">
-                    </div>
-                    <div class="form-group">
-                        <label>Course Name *</label>
-                        <input type="text" required placeholder="Introduction to Theology">
-                    </div>
-                    <div class="form-group">
-                        <label>Program *</label>
-                        <select required>
-                            <option value="">Select Program</option>
-                            <option value="basic">Basic TEE</option>
-                            <option value="hnc">HNC</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Credit Hours *</label>
-                        <select required>
-                            <option value="2">2 Credits</option>
-                            <option value="3">3 Credits</option>
-                            <option value="4">4 Credits</option>
-                        </select>
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" class="btn-secondary" onclick="closeModal('courseModal')">Cancel</button>
-                        <button type="submit" class="btn-primary">Save Course</button>
-                    </div>
-                </form>
-            </div>
+   <!-- Update your course modal to have proper IDs -->
+<div id="courseModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-book-medical"></i> Add Course</h3>
+            <button class="close-btn" onclick="closeModal('courseModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="courseForm">
+                <div class="form-group">
+                    <label>Course Code *</label>
+                    <input type="text" id="courseCode" required placeholder="TEE101">
+                </div>
+                <div class="form-group">
+                    <label>Course Name *</label>
+                    <input type="text" id="courseName" required placeholder="Introduction to Theology">
+                </div>
+                <div class="form-group">
+                    <label>Program *</label>
+                    <select id="courseProgram" required>
+                        <option value="">Select Program</option>
+                        <option value="basic">Basic TEE</option>
+                        <option value="hnc">HNC</option>
+                        <option value="advanced">Advanced TEE</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Credit Hours *</label>
+                    <select id="courseCredits" required>
+                        <option value="2">2 Credits</option>
+                        <option value="3">3 Credits</option>
+                        <option value="4">4 Credits</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="courseDescription" rows="3" placeholder="Course description..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('courseModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Course</button>
+                </div>
+            </form>
         </div>
     </div>
+</div>
 <!-- Updated MARKS MODAL with proper grading system -->
 <div id="marksModal" class="modal">
     <div class="modal-content">
