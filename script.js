@@ -1,4 +1,22 @@
 // ============================================
+// PREVENT DUPLICATE LOADING
+// ============================================
+
+// Check if this script has already been loaded
+if (typeof window.__teePortalLoaded !== 'undefined') {
+    // Script already loaded, exit immediately without throwing errors
+    console.warn('TeePortal already loaded, skipping duplicate load');
+    // Use return to stop execution if we're in a module
+    // For regular scripts, we'll just exit
+    if (typeof module !== 'undefined' && module.exports) {
+        return;
+    }
+} else {
+    // Mark as loaded
+    window.__teePortalLoaded = true;
+}
+
+// ============================================
 // TEEPORTAL - Theological Education by Extension
 // Complete Administration System
 // ============================================
