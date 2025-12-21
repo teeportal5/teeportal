@@ -122,11 +122,26 @@ class TEEPortalSupabaseDB {
         }
     }
     
-    async addStudent(studentData) {
-        // Prepare student object with consistent property names
-        const student = {
+        async addStudent(studentData) {
+        // Generate registration number
+        const regNumber = this.generateRegNumber(studentData.program, studentData.intake);
+        
+        // Prepare student object for BOTH Supabase and localStorage
+        const studentForSupabase = {
+            reg_number: regNumber,
+            full_name: studentData.name,
+            email: studentData.email,
+            phone: studentData.phone,
+            dob: studentData.dob,
+            gender: studentData.gender,
+            program: studentData.program,
+            intake_year: studentData.intake,
+            status: 'active'
+        };
+        
+        const studentForLocalStorage = {
             id: Date.now().toString(),
-            reg_number: this.generateRegNumber(studentData.program, studentData.intake),
+            reg_number: regNumber,
             full_name: studentData.name,
             email: studentData.email,
             phone: studentData.phone,
@@ -138,48 +153,64 @@ class TEEPortalSupabaseDB {
             created_at: new Date().toISOString(),
             // For compatibility
             name: studentData.name,
-            regNumber: this.generateRegNumber(studentData.program, studentData.intake),
+            regNumber: regNumber,
             intake: studentData.intake
         };
         
-        if (this.localStorageFallback) {
-            const students = this.getLocalStorageData('students');
-            students.push(student);
-            this.saveLocalStorageData('students', students);
-            this.logActivity('student_registered', `Registered student: ${student.full_name}`);
-            return student;
-        }
+        // FIRST: Always try to save to Supabase
+        console.log('🔄 Attempting to save student to Supabase...', studentForSupabase);
         
         try {
+            // Check if Supabase is initialized
+            if (!this.supabase) {
+                throw new Error('Supabase client not initialized');
+            }
+            
             const { data, error } = await this.supabase
                 .from('students')
-                .insert([{
-                    reg_number: student.reg_number,
-                    full_name: student.full_name,
-                    email: student.email,
-                    phone: student.phone,
-                    dob: student.dob,
-                    gender: student.gender,
-                    program: student.program,
-                    intake_year: student.intake_year,
-                    status: 'active'
-                }])
+                .insert([studentForSupabase])
                 .select()
                 .single();
                 
-            if (error) throw error;
+            if (error) {
+                console.error('❌ Supabase insert error:', error);
+                throw error;
+            }
             
-            this.logActivity('student_registered', `Registered student: ${data.full_name}`);
-            return { ...data, ...student }; // Combine for compatibility
+            console.log('✅ Student saved to Supabase:', data);
             
-        } catch (error) {
-            console.error('Error adding student:', error);
-            this.localStorageFallback = true;
+            // ALSO save to localStorage for backup
             const students = this.getLocalStorageData('students');
-            students.push(student);
+            students.push({
+                ...studentForLocalStorage,
+                id: data.id // Use Supabase's ID
+            });
             this.saveLocalStorageData('students', students);
-            this.logActivity('student_registered', `Registered student (fallback): ${student.full_name}`);
-            return student;
+            
+            this.logActivity('student_registered', `Registered student in Supabase: ${data.full_name}`);
+            
+            // Return combined data for compatibility
+            return {
+                ...data,
+                ...studentForLocalStorage,
+                id: data.id,
+                regNumber: data.reg_number
+            };
+            
+        } catch (supabaseError) {
+            console.error('⚠️ Supabase failed, saving to localStorage:', supabaseError);
+            
+            // Fallback to localStorage
+            const students = this.getLocalStorageData('students');
+            students.push(studentForLocalStorage);
+            this.saveLocalStorageData('students', students);
+            
+            this.logActivity('student_registered', `Registered student (localStorage fallback): ${studentForLocalStorage.full_name}`);
+            
+            // Set fallback flag so future operations use localStorage
+            this.localStorageFallback = true;
+            
+            return studentForLocalStorage;
         }
     }
     
