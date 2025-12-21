@@ -1,46 +1,37 @@
 // ==============================
-// SUPABASE DATABASE MANAGEMENT
+// SUPABASE-ONLY DATABASE MANAGEMENT
 // ==============================
 
 class TEEPortalSupabaseDB {
     constructor() {
         this.supabase = null;
         this.initialized = false;
-        this.localStorageFallback = false;
-        this.storagePrefix = 'teeprod_';
         
-        // Initialize localStorage fallback immediately
-        this.useLocalStorageFallback();
-        
-        // Initialize Supabase if available
-        if (typeof supabase !== 'undefined') {
-            this.supabaseUrl = 'https://kmkjsessuzdfadlmndyr.supabase.co';
-            this.supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtta2pzZXNzdXpkZmFkbG1uZHlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYyNTA1MzUsImV4cCI6MjA4MTgyNjUzNX0.16m_thmf2Td8uB5lan8vZDLkGkWIlftaxSOroqvDkU4';
-            this.init();
-        } else {
-            console.warn('Supabase client not loaded - using localStorage only');
-            this.localStorageFallback = true;
-        }
+        // Initialize Supabase immediately
+        this.init();
     }
     
     async init() {
         try {
-            if (!this.supabaseUrl || !this.supabaseKey) {
-                throw new Error('Supabase credentials not set');
+            // Check if supabase is available
+            if (typeof supabase === 'undefined') {
+                throw new Error('Supabase client not loaded');
             }
+            
+            this.supabaseUrl = 'https://kmkjsessuzdfadlmndyr.supabase.co';
+            this.supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtta2pzZXNzdXpkZmFkbG1uZHlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYyNTA1MzUsImV4cCI6MjA4MTgyNjUzNX0.16m_thmf2Td8uB5lan8vZDLkGkWIlftaxSOroqvDkU4';
             
             this.supabase = supabase.createClient(this.supabaseUrl, this.supabaseKey);
             
             // Test connection
             await this.testConnection();
             this.initialized = true;
-            this.localStorageFallback = false;
             console.log('✅ Supabase connected successfully');
             
         } catch (error) {
             console.error('❌ Supabase connection failed:', error);
             this.initialized = false;
-            this.localStorageFallback = true;
+            throw error; // Throw error instead of falling back
         }
     }
     
@@ -48,27 +39,21 @@ class TEEPortalSupabaseDB {
         try {
             const { data, error } = await this.supabase
                 .from('students')
-                .select('*')
+                .select('count')
                 .limit(1);
                 
-            if (error && error.code !== 'PGRST116') {
+            if (error) {
+                // Check if table doesn't exist (PGRST116)
+                if (error.code === 'PGRST116' || error.code === '42P01') {
+                    console.warn('⚠️ Table might not exist yet, but connection is successful');
+                    return true;
+                }
                 throw error;
             }
+            
             return true;
         } catch (error) {
             throw error;
-        }
-    }
-    
-    useLocalStorageFallback() {
-        // Initialize localStorage if needed
-        if (!localStorage.getItem(this.storagePrefix + 'initialized')) {
-            localStorage.setItem(this.storagePrefix + 'students', JSON.stringify([]));
-            localStorage.setItem(this.storagePrefix + 'courses', JSON.stringify([]));
-            localStorage.setItem(this.storagePrefix + 'marks', JSON.stringify([]));
-            localStorage.setItem(this.storagePrefix + 'settings', JSON.stringify(this.getDefaultSettings()));
-            localStorage.setItem(this.storagePrefix + 'activity', JSON.stringify([]));
-            localStorage.setItem(this.storagePrefix + 'initialized', 'true');
         }
     }
     
@@ -97,61 +82,23 @@ class TEEPortalSupabaseDB {
     
     // ========== STUDENTS ==========
     async getStudents() {
-        if (this.localStorageFallback) {
-            return this.getLocalStorageData('students');
-        }
-        
         try {
             const { data, error } = await this.supabase
                 .from('students')
                 .select('*')
                 .order('created_at', { ascending: false });
                 
-            if (error) {
-                console.error('Supabase error, falling back to localStorage:', error);
-                this.localStorageFallback = true;
-                return this.getLocalStorageData('students');
-            }
+            if (error) throw error;
             
             return data || [];
             
         } catch (error) {
             console.error('Error fetching students:', error);
-            this.localStorageFallback = true;
-            return this.getLocalStorageData('students');
-        }
-    }
-    
-           async testSupabaseConnection() {
-        console.log('🔍 Testing Supabase connection...');
-        
-        try {
-            // Test 1: Can we connect?
-            const { data, error } = await this.supabase
-                .from('students')
-                .select('count')
-                .limit(1);
-            
-            if (error) {
-                console.error('❌ Connection test failed:', error);
-                return false;
-            }
-            
-            console.log('✅ Supabase connection successful');
-            return true;
-            
-        } catch (error) {
-            console.error('💥 Connection test exception:', error);
-            return false;
+            throw error; // No fallback
         }
     }
     
     async getStudent(id) {
-        if (this.localStorageFallback) {
-            const students = this.getLocalStorageData('students');
-            return students.find(s => s.id === id || s.reg_number === id || s.regNumber === id);
-        }
-        
         try {
             const { data, error } = await this.supabase
                 .from('students')
@@ -159,106 +106,130 @@ class TEEPortalSupabaseDB {
                 .or(`id.eq.${id},reg_number.eq.${id}`)
                 .single();
                 
-            if (error) {
-                const students = this.getLocalStorageData('students');
-                return students.find(s => s.id === id || s.reg_number === id || s.regNumber === id);
-            }
+            if (error) throw error;
             
             return data;
             
         } catch (error) {
             console.error('Error fetching student:', error);
-            const students = this.getLocalStorageData('students');
-            return students.find(s => s.id === id || s.reg_number === id || s.regNumber === id);
+            throw error;
+        }
+    }
+    
+    async addStudent(studentData) {
+        try {
+            // Generate registration number
+            const regNumber = await this.generateRegNumber(studentData.program, studentData.intake);
+            
+            const student = {
+                reg_number: regNumber,
+                full_name: studentData.name,
+                email: studentData.email,
+                phone: studentData.phone,
+                dob: studentData.dob || null,
+                gender: studentData.gender || null,
+                program: studentData.program,
+                intake_year: studentData.intake,
+                status: 'active'
+            };
+            
+            const { data, error } = await this.supabase
+                .from('students')
+                .insert([student])
+                .select()
+                .single();
+                
+            if (error) throw error;
+            
+            await this.logActivity('student_registered', `Registered student: ${data.full_name} (${data.reg_number})`);
+            
+            return data;
+            
+        } catch (error) {
+            console.error('Error adding student:', error);
+            throw error;
+        }
+    }
+    
+    async generateRegNumber(program, intakeYear) {
+        try {
+            // Get count of students in same program and intake
+            const { count, error } = await this.supabase
+                .from('students')
+                .select('*', { count: 'exact', head: true })
+                .eq('program', program)
+                .eq('intake_year', intakeYear);
+                
+            if (error) throw error;
+            
+            const programPrefix = {
+                'basic': 'TEE',
+                'hnc': 'HNC',
+                'advanced': 'ATE'
+            };
+            
+            const prefix = programPrefix[program] || 'TEE';
+            const year = intakeYear.toString().slice(-2);
+            const sequence = ((count || 0) + 1).toString().padStart(3, '0');
+            
+            return `${prefix}${year}${sequence}`;
+            
+        } catch (error) {
+            console.error('Error generating reg number:', error);
+            // Fallback to timestamp-based number
+            const timestamp = Date.now().toString().slice(-6);
+            return `TEMP${timestamp}`;
         }
     }
     
     // ========== COURSES ==========
     async getCourses() {
-        if (this.localStorageFallback) {
-            return this.getLocalStorageData('courses');
-        }
-        
         try {
             const { data, error } = await this.supabase
                 .from('courses')
                 .select('*')
                 .order('created_at', { ascending: false });
                 
-            if (error) {
-                console.error('Supabase error, falling back to localStorage:', error);
-                this.localStorageFallback = true;
-                return this.getLocalStorageData('courses');
-            }
+            if (error) throw error;
             
             return data || [];
             
         } catch (error) {
             console.error('Error fetching courses:', error);
-            this.localStorageFallback = true;
-            return this.getLocalStorageData('courses');
+            throw error;
         }
     }
     
     async addCourse(courseData) {
-        const course = {
-            id: Date.now().toString(),
-            course_code: courseData.code.toUpperCase(),
-            course_name: courseData.name,
-            program: courseData.program,
-            credits: courseData.credits,
-            description: courseData.description,
-            status: 'active',
-            created_at: new Date().toISOString(),
-            // For compatibility
-            code: courseData.code.toUpperCase(),
-            name: courseData.name
-        };
-        
-        if (this.localStorageFallback) {
-            const courses = this.getLocalStorageData('courses');
-            courses.push(course);
-            this.saveLocalStorageData('courses', courses);
-            this.logActivity('course_added', `Added course: ${course.course_code}`);
-            return course;
-        }
-        
         try {
+            const course = {
+                course_code: courseData.code.toUpperCase(),
+                course_name: courseData.name,
+                program: courseData.program,
+                credits: courseData.credits,
+                description: courseData.description,
+                status: 'active'
+            };
+            
             const { data, error } = await this.supabase
                 .from('courses')
-                .insert([{
-                    course_code: course.course_code,
-                    course_name: course.course_name,
-                    program: course.program,
-                    credits: course.credits,
-                    description: course.description,
-                    status: 'active'
-                }])
+                .insert([course])
                 .select()
                 .single();
                 
             if (error) throw error;
             
-            this.logActivity('course_added', `Added course: ${data.course_code}`);
-            return { ...data, ...course }; // Combine for compatibility
+            await this.logActivity('course_added', `Added course: ${data.course_code}`);
+            
+            return data;
             
         } catch (error) {
             console.error('Error adding course:', error);
-            this.localStorageFallback = true;
-            const courses = this.getLocalStorageData('courses');
-            courses.push(course);
-            this.saveLocalStorageData('courses', courses);
-            this.logActivity('course_added', `Added course (fallback): ${course.course_code}`);
-            return course;
+            throw error;
         }
     }
     
     async getCourse(id) {
-        if (this.localStorageFallback) {
-            const courses = this.getLocalStorageData('courses');
-            return courses.find(c => c.id === id || c.course_code === id || c.code === id);
-        }
-        
         try {
             const { data, error } = await this.supabase
                 .from('courses')
@@ -266,26 +237,18 @@ class TEEPortalSupabaseDB {
                 .or(`id.eq.${id},course_code.eq.${id}`)
                 .single();
                 
-            if (error) {
-                const courses = this.getLocalStorageData('courses');
-                return courses.find(c => c.id === id || c.course_code === id || c.code === id);
-            }
+            if (error) throw error;
             
             return data;
             
         } catch (error) {
             console.error('Error fetching course:', error);
-            const courses = this.getLocalStorageData('courses');
-            return courses.find(c => c.id === id || c.course_code === id || c.code === id);
+            throw error;
         }
     }
     
     // ========== MARKS ==========
     async getMarks() {
-        if (this.localStorageFallback) {
-            return this.getLocalStorageData('marks');
-        }
-        
         try {
             const { data, error } = await this.supabase
                 .from('marks')
@@ -296,190 +259,168 @@ class TEEPortalSupabaseDB {
                 `)
                 .order('created_at', { ascending: false });
                 
-            if (error) {
-                console.error('Supabase error, falling back to localStorage:', error);
-                this.localStorageFallback = true;
-                return this.getLocalStorageData('marks');
-            }
+            if (error) throw error;
             
             return data || [];
             
         } catch (error) {
             console.error('Error fetching marks:', error);
-            this.localStorageFallback = true;
-            return this.getLocalStorageData('marks');
+            throw error;
         }
     }
     
-  async addMark(markData) {
-    const percentage = (markData.score / markData.maxScore) * 100;
-    const grade = this.calculateGrade(percentage);
-    
-    const mark = {
-        student_id: markData.studentId,
-        course_id: markData.courseId,
-        assessment_type: markData.assessmentType,
-        assessment_name: markData.assessmentName,
-        score: markData.score,
-        max_score: markData.maxScore,
-        percentage: parseFloat(percentage.toFixed(2)),
-        grade: grade.grade,
-        grade_points: grade.points,
-        remarks: markData.remarks || '',
-        visible_to_student: markData.visibleToStudent,
-        entered_by: 'admin'
-    };
-    
-    console.log('📊 Processing marks for:', {
-        student: markData.studentId,
-        course: markData.courseId,
-        assessment: markData.assessmentName
-    });
-    
-    if (this.localStorageFallback) {
-        // LocalStorage logic remains the same
-        const marks = this.getLocalStorageData('marks');
-        const existingIndex = marks.findIndex(m => 
-            m.student_id === markData.studentId && 
-            m.course_id === markData.courseId && 
-            m.assessment_name === markData.assessmentName
-        );
-        
-        if (existingIndex > -1) {
-            // Update existing
-            marks[existingIndex] = {
-                ...marks[existingIndex],
-                ...mark,
-                updated_at: new Date().toISOString()
+    async addMark(markData) {
+        try {
+            const percentage = (markData.score / markData.maxScore) * 100;
+            const grade = this.calculateGrade(percentage);
+            
+            const mark = {
+                student_id: markData.studentId,
+                course_id: markData.courseId,
+                assessment_type: markData.assessmentType,
+                assessment_name: markData.assessmentName,
+                score: markData.score,
+                max_score: markData.maxScore,
+                percentage: parseFloat(percentage.toFixed(2)),
+                grade: grade.grade,
+                grade_points: grade.points,
+                remarks: markData.remarks || '',
+                visible_to_student: markData.visibleToStudent,
+                entered_by: 'admin'
             };
-            this.showToast('📝 Updated existing marks', 'info');
-        } else {
-            // Add new
-            mark.id = Date.now().toString();
-            mark.created_at = new Date().toISOString();
-            marks.push(mark);
-        }
-        
-        this.saveLocalStorageData('marks', marks);
-        this.logActivity('marks_entered', `Saved marks for student`);
-        return mark;
-    }
-    
-    try {
-        // FIRST: Check if marks already exist for this student/course/assessment
-        console.log('🔍 Checking for existing marks...');
-        
-        const { data: existingMarks, error: checkError } = await this.supabase
-            .from('marks')
-            .select('*')
-            .eq('student_id', markData.studentId)
-            .eq('course_id', markData.courseId)
-            .eq('assessment_name', markData.assessmentName)
-            .maybeSingle();
             
-        if (checkError && checkError.code !== 'PGRST116') {
-            console.error('Error checking existing marks:', checkError);
-        }
-        
-        if (existingMarks) {
-            console.log('📝 Existing marks found, updating...');
+            console.log('📊 Processing marks:', {
+                student: markData.studentId,
+                course: markData.courseId,
+                assessment: markData.assessmentName
+            });
             
-            // UPDATE EXISTING MARKS
-            const { data: updatedData, error: updateError } = await this.supabase
+            // Check if marks already exist
+            const { data: existingMarks, error: checkError } = await this.supabase
                 .from('marks')
-                .update({
-                    score: mark.score,
-                    max_score: mark.max_score,
-                    percentage: mark.percentage,
-                    grade: mark.grade,
-                    grade_points: mark.grade_points,
-                    remarks: mark.remarks,
-                    visible_to_student: mark.visible_to_student,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', existingMarks.id)
-                .select()
-                .single();
+                .select('*')
+                .eq('student_id', markData.studentId)
+                .eq('course_id', markData.courseId)
+                .eq('assessment_name', markData.assessmentName)
+                .maybeSingle();
                 
-            if (updateError) throw updateError;
+            let result;
             
-            console.log('✅ Marks updated successfully:', updatedData);
-            this.logActivity('marks_updated', `Updated marks for student`);
-            return updatedData;
-            
-        } else {
-            console.log('🆕 No existing marks found, inserting new...');
-            
-            // INSERT NEW MARKS
-            const { data: newData, error: insertError } = await this.supabase
-                .from('marks')
-                .insert([mark])
-                .select()
-                .single();
+            if (existingMarks) {
+                console.log('📝 Existing marks found, updating...');
                 
-            if (insertError) throw insertError;
+                // UPDATE EXISTING MARKS
+                const { data: updatedData, error: updateError } = await this.supabase
+                    .from('marks')
+                    .update({
+                        score: mark.score,
+                        max_score: mark.max_score,
+                        percentage: mark.percentage,
+                        grade: mark.grade,
+                        grade_points: mark.grade_points,
+                        remarks: mark.remarks,
+                        visible_to_student: mark.visible_to_student,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', existingMarks.id)
+                    .select()
+                    .single();
+                    
+                if (updateError) throw updateError;
+                
+                result = updatedData;
+                console.log('✅ Marks updated successfully');
+                await this.logActivity('marks_updated', `Updated marks for student`);
+                
+            } else {
+                console.log('🆕 No existing marks found, inserting new...');
+                
+                // INSERT NEW MARKS
+                const { data: newData, error: insertError } = await this.supabase
+                    .from('marks')
+                    .insert([mark])
+                    .select()
+                    .single();
+                    
+                if (insertError) throw insertError;
+                
+                result = newData;
+                console.log('✅ New marks inserted successfully');
+                await this.logActivity('marks_entered', `Entered new marks for student`);
+            }
             
-            console.log('✅ New marks inserted successfully:', newData);
-            this.logActivity('marks_entered', `Entered new marks for student`);
-            return newData;
+            return result;
+            
+        } catch (error) {
+            console.error('💥 Error in addMark:', error);
+            throw error;
         }
-        
-    } catch (error) {
-        console.error('💥 Error in addMark:', error);
-        
-        // Fallback to localStorage
-        console.warn('⚠️ Falling back to localStorage');
-        this.localStorageFallback = true;
-        return this.addMark(markData); // Recursive call with fallback flag
     }
-}
     
     async getStudentMarks(studentId) {
-        if (this.localStorageFallback) {
-            const marks = this.getLocalStorageData('marks');
-            return marks.filter(m => m.student_id === studentId || m.studentId === studentId);
-        }
-        
         try {
             const { data, error } = await this.supabase
                 .from('marks')
-                .select('*')
+                .select(`
+                    *,
+                    courses!inner(course_code, course_name)
+                `)
                 .eq('student_id', studentId)
                 .order('created_at', { ascending: false });
                 
-            if (error) {
-                const marks = this.getLocalStorageData('marks');
-                return marks.filter(m => m.student_id === studentId || m.studentId === studentId);
-            }
+            if (error) throw error;
             
             return data || [];
             
         } catch (error) {
             console.error('Error fetching student marks:', error);
-            const marks = this.getLocalStorageData('marks');
-            return marks.filter(m => m.student_id === studentId || m.studentId === studentId);
+            throw error;
+        }
+    }
+    
+    async getMarksTableData() {
+        try {
+            const { data, error } = await this.supabase
+                .from('marks')
+                .select(`
+                    id,
+                    score,
+                    max_score,
+                    percentage,
+                    grade,
+                    grade_points,
+                    assessment_type,
+                    assessment_name,
+                    remarks,
+                    created_at,
+                    students!inner (
+                        id,
+                        reg_number,
+                        full_name,
+                        program,
+                        intake_year
+                    ),
+                    courses!inner (
+                        id,
+                        course_code,
+                        course_name,
+                        program
+                    )
+                `)
+                .order('created_at', { ascending: false })
+                .limit(100); // Limit to 100 records for performance
+                
+            if (error) throw error;
+            
+            return data || [];
+            
+        } catch (error) {
+            console.error('Error fetching marks table data:', error);
+            throw error;
         }
     }
     
     // ========== UTILITY METHODS ==========
-    getLocalStorageData(key) {
-        try {
-            const data = localStorage.getItem(this.storagePrefix + key);
-            return data ? JSON.parse(data) : [];
-        } catch (error) {
-            console.error(`Error parsing localStorage data for ${key}:`, error);
-            return [];
-        }
-    }
-    
-    saveLocalStorageData(key, data) {
-        try {
-            localStorage.setItem(this.storagePrefix + key, JSON.stringify(data));
-        } catch (error) {
-            console.error(`Error saving localStorage data for ${key}:`, error);
-        }
-    }
-    
     calculateGrade(percentage) {
         const gradingScale = {
             'A': { min: 80, max: 100, points: 4.0 },
@@ -500,33 +441,12 @@ class TEEPortalSupabaseDB {
         return { grade: 'F', points: 0.0 };
     }
     
-    generateRegNumber(program, intakeYear) {
-        const programPrefix = {
-            'basic': 'TEE',
-            'hnc': 'HNC',
-            'advanced': 'ATE'
-        };
-        
-        const prefix = programPrefix[program] || 'TEE';
-        const year = intakeYear.toString().slice(-2);
-        
-        // Get existing students to generate sequential number
-        const students = this.getLocalStorageData('students');
-        const sameProgramCount = students.filter(s => 
-            (s.program === program || s.program === program) && 
-            (s.intake_year === intakeYear || s.intake === intakeYear)
-        ).length;
-        
-        const sequence = (sameProgramCount + 1).toString().padStart(3, '0');
-        return `${prefix}${year}${sequence}`;
-    }
-    
     async calculateStudentGPA(studentId) {
         try {
             const marks = await this.getStudentMarks(studentId);
             if (marks.length === 0) return 0;
             
-            const totalPoints = marks.reduce((sum, mark) => sum + (mark.grade_points || mark.gradePoints || 0), 0);
+            const totalPoints = marks.reduce((sum, mark) => sum + (mark.grade_points || 0), 0);
             return parseFloat((totalPoints / marks.length).toFixed(2));
         } catch (error) {
             console.error('Error calculating GPA:', error);
@@ -534,49 +454,57 @@ class TEEPortalSupabaseDB {
         }
     }
     
-    getSettings() {
+    async getSettings() {
         try {
-            const saved = localStorage.getItem(this.storagePrefix + 'settings');
-            return saved ? { ...this.getDefaultSettings(), ...JSON.parse(saved) } : this.getDefaultSettings();
+            // Store settings in Supabase table if you have one, or use hardcoded
+            return this.getDefaultSettings();
         } catch (error) {
             return this.getDefaultSettings();
         }
     }
     
-    logActivity(type, description) {
+    async logActivity(type, description) {
         try {
-            const activities = this.getLocalStorageData('activity');
-            activities.unshift({
-                id: Date.now().toString(),
-                type: type,
-                description: description,
-                timestamp: new Date().toISOString(),
-                user: 'Administrator'
-            });
-            
-            // Keep only last 50 activities
-            if (activities.length > 50) {
-                activities.length = 50;
+            // Create activities table in Supabase for this
+            const { error } = await this.supabase
+                .from('activities')
+                .insert([{
+                    type: type,
+                    description: description,
+                    user: 'Administrator'
+                }]);
+                
+            if (error) {
+                console.error('Error logging activity:', error);
             }
-            
-            this.saveLocalStorageData('activity', activities);
         } catch (error) {
             console.error('Error logging activity:', error);
         }
     }
     
-    getRecentActivities(limit = 10) {
+    async getRecentActivities(limit = 10) {
         try {
-            const activities = this.getLocalStorageData('activity');
-            return activities.slice(0, limit);
+            const { data, error } = await this.supabase
+                .from('activities')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(limit);
+                
+            if (error) {
+                console.error('Error fetching activities:', error);
+                return [];
+            }
+            
+            return data || [];
         } catch (error) {
+            console.error('Error fetching activities:', error);
             return [];
         }
     }
 }
 
 // ==============================
-// APPLICATION CORE
+// APPLICATION CORE - SUPABASE ONLY
 // ==============================
 
 class TEEPortalApp {
@@ -584,125 +512,132 @@ class TEEPortalApp {
         this.db = new TEEPortalSupabaseDB();
         this.currentStudentId = null;
         this.currentView = 'dashboard';
-        this.charts = {};
         
-        this.init();
+        // Initialize when ready
+        setTimeout(() => this.init(), 100);
     }
     
     async init() {
-        console.log('TEEPortal Application Starting...');
+        console.log('🚀 TEEPortal Application Starting...');
         
-        // Setup event listeners
-        this.setupEventListeners();
-        
-        // Load initial data
-        await this.loadInitialData();
-        
-        // Initialize UI components
-        this.initializeUI();
-        
-        console.log('TEEPortal Ready');
-        this.showToast('System initialized successfully', 'success');
-    }
-    
-   setupEventListeners() {
-    // Student form submission
-    const studentForm = document.getElementById('studentForm');
-    if (studentForm) {
-        studentForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            if (this.saveStudent && typeof this.saveStudent === 'function') {
-                this.saveStudent(e);
-            } else {
-                console.error('saveStudent not available');
-            }
-        });
-    }
-    
-    // Marks form submission
-    const marksForm = document.getElementById('marksForm');
-    if (marksForm) {
-        marksForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            if (this.saveMarks && typeof this.saveMarks === 'function') {
-                this.saveMarks(e);
-            } else {
-                console.error('saveMarks not available');
-            }
-        });
-    }
-    
-    // Course form submission
-    const courseForm = document.getElementById('courseForm');
-    if (courseForm) {
-        courseForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            if (this.saveCourse && typeof this.saveCourse === 'function') {
-                this.saveCourse(e);
-            } else {
-                console.error('saveCourse not available');
-            }
-        });
-    }
-    
-    // Real-time grade calculation - FIXED with proper binding
-    const marksScoreInput = document.getElementById('marksScore');
-    if (marksScoreInput) {
-        marksScoreInput.addEventListener('input', () => {
-            // Use a safer approach
-            if (this && typeof this.updateGradeDisplay === 'function') {
-                this.updateGradeDisplay();
-            } else if (window.app && typeof window.app.updateGradeDisplay === 'function') {
-                window.app.updateGradeDisplay();
-            } else {
-                console.warn('updateGradeDisplay not available yet');
-                // Fallback: calculate manually
-                this.fallbackGradeDisplay();
-            }
-        });
-    }
-}
-
-// Add this fallback method to your TEEPortalApp class
-fallbackGradeDisplay() {
-    try {
-        const scoreInput = document.getElementById('marksScore');
-        const score = parseFloat(scoreInput?.value);
-        
-        if (!isNaN(score)) {
-            const percentage = (score / 100) * 100;
-            const grade = this.db.calculateGrade(percentage);
+        try {
+            // Setup event listeners
+            this.setupEventListeners();
             
+            // Load initial data
+            await this.loadInitialData();
+            
+            // Initialize UI
+            this.initializeUI();
+            
+            console.log('✅ TEEPortal Ready');
+            this.showToast('System initialized successfully', 'success');
+            
+        } catch (error) {
+            console.error('❌ Initialization failed:', error);
+            this.showToast('Failed to connect to database', 'error');
+        }
+    }
+    
+    setupEventListeners() {
+        // Student form submission
+        const studentForm = document.getElementById('studentForm');
+        if (studentForm) {
+            studentForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveStudent(e);
+            });
+        }
+        
+        // Marks form submission
+        const marksForm = document.getElementById('marksForm');
+        if (marksForm) {
+            marksForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveMarks(e);
+            });
+        }
+        
+        // Course form submission
+        const courseForm = document.getElementById('courseForm');
+        if (courseForm) {
+            courseForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveCourse(e);
+            });
+        }
+        
+        // Real-time grade calculation
+        const marksScoreInput = document.getElementById('marksScore');
+        if (marksScoreInput) {
+            marksScoreInput.addEventListener('input', () => {
+                this.updateGradeDisplay();
+            });
+        }
+        
+        const maxScoreInput = document.getElementById('maxScore');
+        if (maxScoreInput) {
+            maxScoreInput.addEventListener('input', () => {
+                this.updateGradeDisplay();
+            });
+        }
+    }
+    
+    updateGradeDisplay() {
+        try {
+            const scoreInput = document.getElementById('marksScore');
+            const maxScoreInput = document.getElementById('maxScore');
             const gradeDisplay = document.getElementById('gradeDisplay');
             const percentageField = document.getElementById('percentage');
             
-            if (gradeDisplay) {
-                gradeDisplay.textContent = grade.grade;
+            if (!scoreInput || !gradeDisplay) return;
+            
+            const score = parseFloat(scoreInput.value);
+            const maxScore = parseFloat(maxScoreInput?.value) || 100;
+            
+            if (isNaN(score)) {
+                gradeDisplay.textContent = '--';
                 gradeDisplay.className = 'percentage-badge';
-                gradeDisplay.classList.add(`grade-${grade.grade.charAt(0)}`);
+                if (percentageField) percentageField.value = '';
+                return;
             }
+            
+            const percentage = (score / maxScore) * 100;
+            const grade = this.db.calculateGrade(percentage);
+            
+            gradeDisplay.textContent = grade.grade;
+            gradeDisplay.className = 'percentage-badge';
+            gradeDisplay.classList.add(`grade-${grade.grade.charAt(0)}`);
+            
             if (percentageField) {
                 percentageField.value = `${percentage.toFixed(2)}%`;
             }
+            
+        } catch (error) {
+            console.error('Error updating grade display:', error);
         }
-    } catch (error) {
-        console.error('Fallback grade display error:', error);
     }
-}
     
     async loadInitialData() {
         try {
+            console.log('📊 Loading initial data...');
+            
             // Load students table
             await this.loadStudentsTable();
             
             // Load courses
             await this.loadCourses();
             
+            // Load marks table
+            await this.loadMarksTable();
+            
             // Update dashboard
             await this.updateDashboard();
             
             // Load recent activities
             await this.loadRecentActivities();
+            
+            console.log('✅ Initial data loaded');
             
         } catch (error) {
             console.error('Error loading initial data:', error);
@@ -711,553 +646,61 @@ fallbackGradeDisplay() {
     
     initializeUI() {
         // Initialize date pickers
-        this.initializeDatePickers();
+        const dateInputs = document.querySelectorAll('input[type="date"]');
+        const today = new Date().toISOString().split('T')[0];
+        dateInputs.forEach(input => {
+            if (input) input.max = today;
+        });
         
         // Populate dropdowns
         this.populateDropdowns();
     }
-        // ==============================
-    // COMPLETE BUTTON FUNCTIONALITIES
-    // ==============================
     
-    // 1. COURSE MANAGEMENT COMPLETE FUNCTIONS
-    editCourse(courseId) {
-        try {
-            const course = this.db.getCourse(courseId);
-            if (!course) {
-                this.showToast('Course not found', 'error');
-                return;
-            }
-            
-            const modalHTML = `
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3><i class="fas fa-edit"></i> Edit Course</h3>
-                        <button class="close-btn" onclick="app.closeModal('editCourseModal')">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="editCourseForm">
-                            <div class="form-group">
-                                <label>Course Code *</label>
-                                <input type="text" id="editCourseCode" value="${course.course_code || course.code}" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Course Name *</label>
-                                <input type="text" id="editCourseName" value="${course.course_name || course.name}" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Program *</label>
-                                <select id="editCourseProgram" required>
-                                    <option value="basic" ${(course.program === 'basic') ? 'selected' : ''}>Basic TEE</option>
-                                    <option value="hnc" ${(course.program === 'hnc') ? 'selected' : ''}>HNC</option>
-                                    <option value="advanced" ${(course.program === 'advanced') ? 'selected' : ''}>Advanced TEE</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Credit Hours *</label>
-                                <select id="editCourseCredits" required>
-                                    <option value="2" ${course.credits === 2 ? 'selected' : ''}>2 Credits</option>
-                                    <option value="3" ${course.credits === 3 ? 'selected' : ''} ${!course.credits ? 'selected' : ''}>3 Credits</option>
-                                    <option value="4" ${course.credits === 4 ? 'selected' : ''}>4 Credits</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Description</label>
-                                <textarea id="editCourseDescription" rows="3">${course.description || ''}</textarea>
-                            </div>
-                            <div class="form-group">
-                                <label>Status</label>
-                                <select id="editCourseStatus">
-                                    <option value="active" ${(course.status === 'active') ? 'selected' : ''}>Active</option>
-                                    <option value="inactive" ${(course.status === 'inactive') ? 'selected' : ''}>Inactive</option>
-                                </select>
-                            </div>
-                            <div class="form-actions">
-                                <button type="button" class="btn-secondary" onclick="app.closeModal('editCourseModal')">Cancel</button>
-                                <button type="button" class="btn-primary" onclick="app.updateCourse('${courseId}')">Update Course</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            `;
-            
-            let modal = document.getElementById('editCourseModal');
-            if (!modal) {
-                modal = document.createElement('div');
-                modal.id = 'editCourseModal';
-                modal.className = 'modal';
-                document.body.appendChild(modal);
-            }
-            modal.innerHTML = modalHTML;
-            
-            this.openModal('editCourseModal');
-            
-        } catch (error) {
-            console.error('Error in editCourse:', error);
-            this.showToast('Error loading course for editing', 'error');
-        }
+    async populateDropdowns() {
+        await this.populateStudentDropdown();
+        await this.populateCourseDropdown();
     }
     
-    async updateCourse(courseId) {
-        try {
-            const updates = {
-                code: document.getElementById('editCourseCode').value.trim(),
-                name: document.getElementById('editCourseName').value.trim(),
-                program: document.getElementById('editCourseProgram').value,
-                credits: parseInt(document.getElementById('editCourseCredits').value),
-                description: document.getElementById('editCourseDescription').value.trim(),
-                status: document.getElementById('editCourseStatus').value
-            };
-            
-            if (!updates.code || !updates.name || !updates.program) {
-                this.showToast('Please fill in all required fields', 'error');
-                return;
-            }
-            
-            // For localStorage - update the course
-            if (this.db.localStorageFallback) {
-                const courses = this.db.getLocalStorageData('courses');
-                const index = courses.findIndex(c => c.id === courseId);
-                if (index !== -1) {
-                    courses[index] = {
-                        ...courses[index],
-                        ...updates,
-                        course_code: updates.code,
-                        course_name: updates.name,
-                        updated_at: new Date().toISOString()
-                    };
-                    this.db.saveLocalStorageData('courses', courses);
-                    this.showToast(`Course "${updates.code}" updated successfully`, 'success');
-                }
-            } else {
-                // For Supabase - you'll need to implement this
-                this.showToast('Course update for Supabase not implemented yet', 'warning');
-            }
-            
-            this.closeModal('editCourseModal');
-            await this.loadCourses();
-            await this.populateCourseDropdown();
-            
-        } catch (error) {
-            console.error('Error updating course:', error);
-            this.showToast('Error updating course', 'error');
-        }
-    }
-    
-    async deleteCourse(courseId) {
-        if (!confirm('Are you sure you want to delete this course? This action cannot be undone.')) {
-            return;
-        }
+    async populateStudentDropdown() {
+        const select = document.getElementById('marksStudent');
+        if (!select) return;
         
         try {
-            if (this.db.localStorageFallback) {
-                const courses = this.db.getLocalStorageData('courses');
-                const filteredCourses = courses.filter(c => c.id !== courseId);
-                this.db.saveLocalStorageData('courses', filteredCourses);
-                this.showToast('Course deleted successfully', 'success');
-            } else {
-                // For Supabase - you'll need to implement this
-                this.showToast('Course deletion for Supabase not implemented yet', 'warning');
-            }
+            const students = await this.db.getStudents();
+            select.innerHTML = '<option value="">Select Student</option>';
             
-            await this.loadCourses();
-            await this.populateCourseDropdown();
-            
-        } catch (error) {
-            console.error('Error deleting course:', error);
-            this.showToast('Error deleting course', 'error');
-        }
-    }
-    
-    // 2. STUDENT MANAGEMENT COMPLETE FUNCTIONS
-    async editStudent(studentId) {
-        try {
-            const student = await this.db.getStudent(studentId);
-            if (!student) {
-                this.showToast('Student not found', 'error');
-                return;
-            }
-            
-            const modalHTML = `
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3><i class="fas fa-edit"></i> Edit Student</h3>
-                        <button class="close-btn" onclick="app.closeModal('editStudentModal')">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="editStudentForm">
-                            <div class="form-group">
-                                <label>Registration Number</label>
-                                <input type="text" id="editRegNumber" value="${student.reg_number || student.regNumber}" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label>Full Name *</label>
-                                <input type="text" id="editStudentName" value="${student.full_name || student.name}" required>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Email *</label>
-                                    <input type="email" id="editStudentEmail" value="${student.email || ''}" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Phone *</label>
-                                    <input type="tel" id="editStudentPhone" value="${student.phone || ''}" required>
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Date of Birth</label>
-                                    <input type="date" id="editStudentDOB" value="${student.dob || ''}">
-                                </div>
-                                <div class="form-group">
-                                    <label>Gender</label>
-                                    <select id="editStudentGender">
-                                        <option value="">Select</option>
-                                        <option value="Male" ${student.gender === 'Male' ? 'selected' : ''}>Male</option>
-                                        <option value="Female" ${student.gender === 'Female' ? 'selected' : ''}>Female</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label>Program *</label>
-                                <select id="editStudentProgram" required>
-                                    <option value="">Select Program</option>
-                                    <option value="basic" ${student.program === 'basic' ? 'selected' : ''}>Basic TEE</option>
-                                    <option value="hnc" ${student.program === 'hnc' ? 'selected' : ''}>HNC</option>
-                                    <option value="advanced" ${student.program === 'advanced' ? 'selected' : ''}>Advanced TEE</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Intake Year *</label>
-                                <select id="editStudentIntake" required>
-                                    <option value="">Select Intake</option>
-                                    <option value="2024" ${(student.intake_year || student.intake) === '2024' ? 'selected' : ''}>2024</option>
-                                    <option value="2023" ${(student.intake_year || student.intake) === '2023' ? 'selected' : ''}>2023</option>
-                                    <option value="2022" ${(student.intake_year || student.intake) === '2022' ? 'selected' : ''}>2022</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Status</label>
-                                <select id="editStudentStatus">
-                                    <option value="active" ${student.status === 'active' ? 'selected' : ''}>Active</option>
-                                    <option value="graduated" ${student.status === 'graduated' ? 'selected' : ''}>Graduated</option>
-                                    <option value="withdrawn" ${student.status === 'withdrawn' ? 'selected' : ''}>Withdrawn</option>
-                                </select>
-                            </div>
-                            <div class="form-actions">
-                                <button type="button" class="btn-secondary" onclick="app.closeModal('editStudentModal')">Cancel</button>
-                                <button type="button" class="btn-primary" onclick="app.updateStudent('${studentId}')">Update Student</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            `;
-            
-            let modal = document.getElementById('editStudentModal');
-            if (!modal) {
-                modal = document.createElement('div');
-                modal.id = 'editStudentModal';
-                modal.className = 'modal';
-                document.body.appendChild(modal);
-            }
-            modal.innerHTML = modalHTML;
-            
-            this.openModal('editStudentModal');
-            
-        } catch (error) {
-            console.error('Error in editStudent:', error);
-            this.showToast('Error loading student for editing', 'error');
-        }
-    }
-    
-    async updateStudent(studentId) {
-        try {
-            const updates = {
-                name: document.getElementById('editStudentName').value.trim(),
-                email: document.getElementById('editStudentEmail').value.trim(),
-                phone: document.getElementById('editStudentPhone').value.trim(),
-                dob: document.getElementById('editStudentDOB').value,
-                gender: document.getElementById('editStudentGender').value,
-                program: document.getElementById('editStudentProgram').value,
-                intake: document.getElementById('editStudentIntake').value,
-                status: document.getElementById('editStudentStatus').value
-            };
-            
-            if (!updates.name || !updates.email || !updates.program || !updates.intake) {
-                this.showToast('Please fill in all required fields', 'error');
-                return;
-            }
-            
-            if (this.db.localStorageFallback) {
-                const students = this.db.getLocalStorageData('students');
-                const index = students.findIndex(s => s.id === studentId);
-                if (index !== -1) {
-                    students[index] = {
-                        ...students[index],
-                        full_name: updates.name,
-                        name: updates.name,
-                        email: updates.email,
-                        phone: updates.phone,
-                        dob: updates.dob,
-                        gender: updates.gender,
-                        program: updates.program,
-                        intake_year: updates.intake,
-                        intake: updates.intake,
-                        status: updates.status,
-                        updated_at: new Date().toISOString()
-                    };
-                    this.db.saveLocalStorageData('students', students);
-                    this.showToast(`Student "${updates.name}" updated successfully`, 'success');
-                }
-            }
-            
-            this.closeModal('editStudentModal');
-            await this.loadStudentsTable();
-            await this.updateDashboard();
-            
-        } catch (error) {
-            console.error('Error updating student:', error);
-            this.showToast('Error updating student', 'error');
-        }
-    }
-    
-    // 3. DASHBOARD BUTTONS
-    refreshDashboard() {
-        this.showToast('Dashboard refreshed', 'info');
-        this.updateDashboard();
-        this.loadRecentActivities();
-    }
-    
-    loadDashboardData() {
-        const year = document.getElementById('dashboardYear')?.value || new Date().getFullYear();
-        this.showToast(`Loading data for ${year}`, 'info');
-        this.updateDashboard();
-    }
-    
-    // 4. REPORTS SECTION
-    generateReport() {
-        const reportType = document.getElementById('reportType')?.value || 'student';
-        const format = document.getElementById('reportFormat')?.value || 'pdf';
-        
-        this.showToast(`Generating ${reportType} report in ${format.toUpperCase()} format...`, 'info');
-        
-        // Simulate report generation
-        setTimeout(() => {
-            this.showToast('Report generated successfully!', 'success');
-        }, 1500);
-    }
-    
-    previewReport() {
-        const reportType = document.getElementById('reportType')?.value || 'student';
-        const program = document.getElementById('reportProgram')?.value || 'all';
-        const intake = document.getElementById('reportIntake')?.value || 'all';
-        
-        const preview = document.getElementById('reportPreview');
-        if (preview) {
-            preview.innerHTML = `
-                <h4>Report Preview</h4>
-                <p><strong>Type:</strong> ${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report</p>
-                <p><strong>Program:</strong> ${program === 'all' ? 'All Programs' : program}</p>
-                <p><strong>Intake Year:</strong> ${intake === 'all' ? 'All Years' : intake}</p>
-                <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
-                <p><em>This is a preview. Click "Generate Report" to create the actual report.</em></p>
-            `;
-        }
-        
-        this.showToast('Report preview updated', 'info');
-    }
-    
-    // 5. SETTINGS SECTION
-    saveSettings() {
-        const instituteName = document.querySelector('#generalTab input[type="text"]')?.value || '';
-        const academicYear = document.querySelector('#generalTab select')?.value || '';
-        const timezone = document.querySelectorAll('#generalTab select')[1]?.value || '';
-        
-        const settings = {
-            instituteName,
-            academicYear,
-            timezone
-        };
-        
-        this.db.saveSettings(settings);
-        this.showToast('Settings saved successfully', 'success');
-    }
-    
-    openSettingsTab(tabName) {
-        // Hide all tab contents
-        document.querySelectorAll('.tab-content').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        
-        // Remove active class from all tab buttons
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        
-        // Show selected tab
-        const tabContent = document.getElementById(tabName + 'Tab');
-        const tabButton = document.querySelector(`.tab-btn[onclick*="${tabName}"]`);
-        
-        if (tabContent) tabContent.classList.add('active');
-        if (tabButton) tabButton.classList.add('active');
-    }
-    
-    // 6. INTAKE MANAGEMENT
-    openIntakeModal() {
-        const modalHTML = `
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3><i class="fas fa-calendar-plus"></i> New Intake</h3>
-                    <button class="close-btn" onclick="app.closeModal('intakeModal')">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <form id="intakeForm">
-                        <div class="form-group">
-                            <label>Intake Name *</label>
-                            <input type="text" id="intakeName" required placeholder="e.g., January 2024 Intake">
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Start Date *</label>
-                                <input type="date" id="intakeStartDate" required>
-                            </div>
-                            <div class="form-group">
-                                <label>End Date *</label>
-                                <input type="date" id="intakeEndDate" required>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Program *</label>
-                            <select id="intakeProgram" required>
-                                <option value="">Select Program</option>
-                                <option value="basic">Basic TEE</option>
-                                <option value="hnc">HNC</option>
-                                <option value="advanced">Advanced TEE</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Maximum Students</label>
-                            <input type="number" id="maxStudents" min="1" value="100">
-                        </div>
-                        <div class="form-group">
-                            <label>Description</label>
-                            <textarea id="intakeDescription" rows="3" placeholder="Additional information about this intake"></textarea>
-                        </div>
-                        <div class="form-actions">
-                            <button type="button" class="btn-secondary" onclick="app.closeModal('intakeModal')">Cancel</button>
-                            <button type="button" class="btn-primary" onclick="app.createIntake()">Create Intake</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        `;
-        
-        let modal = document.getElementById('intakeModal');
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = 'intakeModal';
-            modal.className = 'modal';
-            document.body.appendChild(modal);
-        }
-        modal.innerHTML = modalHTML;
-        
-        // Set minimum date to today
-        const today = new Date().toISOString().split('T')[0];
-        const startDate = document.getElementById('intakeStartDate');
-        if (startDate) startDate.min = today;
-        
-        this.openModal('intakeModal');
-    }
-    
-    createIntake() {
-        const intakeName = document.getElementById('intakeName')?.value;
-        const startDate = document.getElementById('intakeStartDate')?.value;
-        const endDate = document.getElementById('intakeEndDate')?.value;
-        
-        if (!intakeName || !startDate || !endDate) {
-            this.showToast('Please fill in all required fields', 'error');
-            return;
-        }
-        
-        this.showToast(`Intake "${intakeName}" created successfully`, 'success');
-        this.closeModal('intakeModal');
-    }
-    
-    // 7. ACADEMIC RECORDS
-    async exportMarks() {
-        try {
-            const marks = await this.db.getMarks();
-            if (marks.length === 0) {
-                this.showToast('No marks to export', 'warning');
-                return;
-            }
-            
-            // Create CSV content
-            let csv = 'Student, Course, Assessment, Score, Percentage, Grade, Date\n';
-            marks.forEach(mark => {
-                const student = mark.students ? `${mark.students.reg_number} - ${mark.students.full_name}` : 'Unknown';
-                const course = mark.courses ? `${mark.courses.course_code} - ${mark.courses.course_name}` : 'Unknown';
-                csv += `"${student}","${course}","${mark.assessment_name || 'Assessment'}","${mark.score}/${mark.max_score}","${mark.percentage}%","${mark.grade}","${new Date(mark.created_at).toLocaleDateString()}"\n`;
+            students.forEach(student => {
+                const option = document.createElement('option');
+                option.value = student.id;
+                option.textContent = `${student.reg_number} - ${student.full_name}`;
+                select.appendChild(option);
             });
-            
-            // Create download link
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `marks_export_${new Date().toISOString().split('T')[0]}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-            
-            this.showToast('Marks exported successfully', 'success');
-            
         } catch (error) {
-            console.error('Error exporting marks:', error);
-            this.showToast('Error exporting marks', 'error');
+            console.error('Error populating student dropdown:', error);
         }
     }
     
-    async loadCourseMarks() {
-        const courseId = document.getElementById('selectCourse')?.value;
-        if (!courseId) return;
+    async populateCourseDropdown() {
+        const select = document.getElementById('marksCourse');
+        if (!select) return;
         
-        this.showToast('Loading course marks...', 'info');
-        // Implementation for loading specific course marks
-    }
-    
-    async loadStudentMarks() {
-        const studentId = document.getElementById('selectStudent')?.value;
-        if (!studentId) return;
-        
-        this.showToast('Loading student marks...', 'info');
-        // Implementation for loading specific student marks
-    }
-    
-    // 8. SEARCH FUNCTIONALITY
-    async searchStudents() {
-        const searchTerm = document.getElementById('studentSearch')?.value.toLowerCase() || '';
-        await this.loadStudentsTable();
-        
-        if (searchTerm) {
-            const tbody = document.getElementById('studentsTableBody');
-            const rows = tbody?.querySelectorAll('tr') || [];
+        try {
+            const courses = await this.db.getCourses();
+            const activeCourses = courses.filter(c => c.status === 'active');
             
-            rows.forEach(row => {
-                const text = row.textContent.toLowerCase();
-                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            select.innerHTML = '<option value="">Select Course</option>';
+            
+            activeCourses.forEach(course => {
+                const option = document.createElement('option');
+                option.value = course.id;
+                option.textContent = `${course.course_code} - ${course.course_name}`;
+                select.appendChild(option);
             });
+        } catch (error) {
+            console.error('Error populating course dropdown:', error);
         }
     }
     
-    async filterStudents() {
-        const program = document.getElementById('filterProgram')?.value || '';
-        const intake = document.getElementById('filterIntake')?.value || '';
-        const status = document.getElementById('filterStatus')?.value || '';
-        
-        await this.loadStudentsTable({ program, intake, status });
-    }
     // ==============================
     // STUDENT MANAGEMENT
     // ==============================
@@ -1284,18 +727,11 @@ fallbackGradeDisplay() {
             
             const student = await this.db.addStudent(studentData);
             
-            // Update registration number display
-            const regNumberField = document.getElementById('regNumber');
-            if (regNumberField) {
-                regNumberField.value = student.reg_number || student.regNumber || '';
-            }
-            
-            this.showToast(`Student registered successfully! Registration Number: ${student.reg_number || student.regNumber}`, 'success');
+            this.showToast(`Student registered successfully! Registration Number: ${student.reg_number}`, 'success');
             
             // Close modal and reset form
             this.closeModal('studentModal');
             document.getElementById('studentForm').reset();
-            if (regNumberField) regNumberField.value = '';
             
             // Update UI
             await this.loadStudentsTable();
@@ -1307,16 +743,9 @@ fallbackGradeDisplay() {
         }
     }
     
-    async loadStudentsTable(filter = {}) {
+    async loadStudentsTable() {
         try {
             const students = await this.db.getStudents();
-            
-            // Ensure students is an array
-            if (!Array.isArray(students)) {
-                console.error('Students data is not an array:', students);
-                return;
-            }
-            
             const tbody = document.getElementById('studentsTableBody');
             if (!tbody) return;
             
@@ -1332,39 +761,34 @@ fallbackGradeDisplay() {
                 return;
             }
             
-            const settings = this.db.getSettings();
-            
+            const settings = await this.db.getSettings();
             let html = '';
+            
             students.forEach(student => {
                 const programName = settings.programs && settings.programs[student.program] ? 
                     settings.programs[student.program].name : student.program;
                 
-                const regNumber = student.reg_number || student.regNumber || 'N/A';
-                const studentName = student.full_name || student.name || 'Unknown';
-                const intake = student.intake_year || student.intake || 'N/A';
-                const status = student.status || 'active';
-                
                 html += `
                     <tr>
-                        <td><strong>${regNumber}</strong></td>
+                        <td><strong>${student.reg_number}</strong></td>
                         <td>
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <div style="width: 40px; height: 40px; background: #3498db; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;">
                                     <i class="fas fa-user"></i>
                                 </div>
                                 <div>
-                                    <strong>${studentName}</strong><br>
+                                    <strong>${student.full_name}</strong><br>
                                     <small>${student.email || ''}</small>
                                 </div>
                             </div>
                         </td>
                         <td>${programName}</td>
-                        <td>${intake}</td>
+                        <td>${student.intake_year}</td>
                         <td>${student.email || ''}</td>
                         <td>${student.phone || ''}</td>
                         <td>
-                            <span class="status-badge ${status}" style="padding: 4px 12px; border-radius: 20px; font-size: 12px;">
-                                ${status.charAt(0).toUpperCase() + status.slice(1)}
+                            <span class="status-badge ${student.status || 'active'}">
+                                ${(student.status || 'active').toUpperCase()}
                             </span>
                         </td>
                         <td>
@@ -1381,17 +805,145 @@ fallbackGradeDisplay() {
             
             tbody.innerHTML = html;
             
-            // Update counters
-            const studentCount = document.getElementById('studentCount');
-            const totalStudentCount = document.getElementById('totalStudentCount');
-            const headerStudentCount = document.getElementById('headerStudentCount');
-            
-            if (studentCount) studentCount.textContent = students.length;
-            if (totalStudentCount) totalStudentCount.textContent = students.length;
-            if (headerStudentCount) headerStudentCount.textContent = `${students.length} Students`;
-            
         } catch (error) {
             console.error('Error loading students table:', error);
+            const tbody = document.getElementById('studentsTableBody');
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="error-state">
+                            <i class="fas fa-exclamation-triangle fa-2x"></i>
+                            <p>Error loading students</p>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+    }
+    
+    // ==============================
+    // MARKS MANAGEMENT
+    // ==============================
+    
+    async loadMarksTable() {
+        try {
+            const marks = await this.db.getMarksTableData();
+            const tbody = document.querySelector('#marksTableBody');
+            
+            if (!tbody) {
+                console.error('Marks table body not found');
+                return;
+            }
+            
+            if (marks.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="10" class="empty-state">
+                            <i class="fas fa-chart-bar fa-2x"></i>
+                            <p>No marks recorded yet</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            let html = '';
+            
+            marks.forEach(mark => {
+                const student = mark.students;
+                const course = mark.courses;
+                const percentage = mark.percentage || ((mark.score / mark.max_score) * 100).toFixed(2);
+                
+                html += `
+                    <tr>
+                        <td>
+                            <strong>${student.reg_number}</strong><br>
+                            <small>${student.full_name}</small>
+                        </td>
+                        <td>
+                            <strong>${course.course_code}</strong><br>
+                            <small>${course.course_name}</small>
+                        </td>
+                        <td>${mark.assessment_name || 'Assessment'}</td>
+                        <td>${mark.assessment_type || 'Final'}</td>
+                        <td>${mark.score}/${mark.max_score}</td>
+                        <td>${percentage}%</td>
+                        <td>
+                            <span class="grade-badge grade-${mark.grade?.charAt(0) || 'F'}">
+                                ${mark.grade || 'F'}
+                            </span>
+                        </td>
+                        <td>${mark.grade_points || 0}</td>
+                        <td>${mark.remarks || '-'}</td>
+                        <td>
+                            ${mark.created_at ? new Date(mark.created_at).toLocaleDateString() : '-'}
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html;
+            
+        } catch (error) {
+            console.error('Error loading marks table:', error);
+            const tbody = document.querySelector('#marksTableBody');
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="10" class="error-state">
+                            <i class="fas fa-exclamation-triangle fa-2x"></i>
+                            <p>Error loading marks</p>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+    }
+    
+    async saveMarks(event) {
+        event.preventDefault();
+        
+        try {
+            const studentId = document.getElementById('marksStudent').value;
+            const courseId = document.getElementById('marksCourse').value;
+            const score = parseFloat(document.getElementById('marksScore').value);
+            const maxScore = parseFloat(document.getElementById('maxScore').value) || 100;
+            const assessmentType = document.getElementById('assessmentType').value;
+            const assessmentName = document.getElementById('assessmentName').value || 'Assessment';
+            
+            // Validation
+            if (!studentId || !courseId || isNaN(score)) {
+                this.showToast('Please fill in all required fields', 'error');
+                return;
+            }
+            
+            const markData = {
+                studentId: studentId,
+                courseId: courseId,
+                assessmentType: assessmentType,
+                assessmentName: assessmentName,
+                score: score,
+                maxScore: maxScore,
+                remarks: document.getElementById('marksRemarks').value || '',
+                visibleToStudent: document.getElementById('visibleToStudent')?.checked || true
+            };
+            
+            const mark = await this.db.addMark(markData);
+            
+            this.showToast('✅ Marks saved successfully!', 'success');
+            
+            // Close modal and reset form
+            this.closeModal('marksModal');
+            document.getElementById('marksForm').reset();
+            this.updateGradeDisplay();
+            
+            // Update UI
+            await this.loadMarksTable();
+            await this.updateDashboard();
+            
+        } catch (error) {
+            console.error('Error saving marks:', error);
+            this.showToast('Error saving marks', 'error');
         }
     }
     
@@ -1417,15 +969,11 @@ fallbackGradeDisplay() {
                 return;
             }
             
-            if (isNaN(courseData.credits) || courseData.credits < 1) {
-                courseData.credits = 3;
-            }
-            
             const course = await this.db.addCourse(courseData);
             
-            this.showToast(`Course "${course.course_code || course.code} - ${course.course_name || course.name}" added successfully`, 'success');
+            this.showToast(`Course "${course.course_code} - ${course.course_name}" added successfully`, 'success');
             
-            // Reset form and close modal
+            // Close modal and reset form
             this.closeModal('courseModal');
             document.getElementById('courseForm').reset();
             
@@ -1435,7 +983,7 @@ fallbackGradeDisplay() {
             
         } catch (error) {
             console.error('Error saving course:', error);
-            this.showToast('Error saving course. Please try again.', 'error');
+            this.showToast('Error saving course', 'error');
         }
     }
     
@@ -1444,19 +992,15 @@ fallbackGradeDisplay() {
             const courses = await this.db.getCourses();
             const grid = document.getElementById('coursesGrid');
             
-            if (!grid) {
-                console.error('Courses grid element not found');
-                return;
-            }
+            if (!grid) return;
             
             if (!courses || courses.length === 0) {
                 grid.innerHTML = `
-                    <div class="empty-state" style="grid-column: 1 / -1; text-align: center; padding: 40px;">
-                        <i class="fas fa-book-open fa-3x" style="color: #95a5a6; margin-bottom: 20px;"></i>
-                        <h3 style="color: #2c3e50; margin-bottom: 10px;">No Courses Found</h3>
-                        <p style="color: #7f8c8d; margin-bottom: 20px;">Add your first course to get started</p>
-                        <button class="btn-primary" onclick="app.openCourseModal()" 
-                                style="background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                    <div class="empty-state">
+                        <i class="fas fa-book-open fa-3x"></i>
+                        <h3>No Courses Found</h3>
+                        <p>Add your first course to get started</p>
+                        <button class="btn-primary" onclick="app.openCourseModal()">
                             <i class="fas fa-plus"></i> Add Course
                         </button>
                     </div>
@@ -1466,7 +1010,7 @@ fallbackGradeDisplay() {
             
             const programNames = {
                 'basic': 'Basic TEE',
-                'hnc': 'HNC (Higher National Certificate)',
+                'hnc': 'HNC',
                 'advanced': 'Advanced TEE'
             };
             
@@ -1480,34 +1024,25 @@ fallbackGradeDisplay() {
             courses.forEach(course => {
                 const programName = programNames[course.program] || course.program;
                 const programColor = programColors[course.program] || '#95a5a6';
-                const courseCode = course.course_code || course.code || 'N/A';
-                const courseName = course.course_name || course.name || 'Unknown';
-                const description = course.description || 'No description available';
-                const credits = course.credits || 3;
-                const status = course.status || 'active';
                 const createdAt = course.created_at ? new Date(course.created_at).toLocaleDateString() : 'Unknown';
                 
                 html += `
                     <div class="course-card">
                         <div class="course-header" style="background: ${programColor};">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h3 style="margin: 0; font-size: 18px; font-weight: 600;">${courseCode}</h3>
-                                <span class="course-status">
-                                    ${status}
-                                </span>
+                            <div class="course-header-content">
+                                <h3>${course.course_code}</h3>
+                                <span class="course-status">${course.status}</span>
                             </div>
                         </div>
-                        
                         <div class="course-body">
-                            <h4>${courseName}</h4>
-                            <p class="course-description">${description}</p>
+                            <h4>${course.course_name}</h4>
+                            <p class="course-description">${course.description || 'No description available'}</p>
                             <div class="course-meta">
                                 <span><i class="fas fa-graduation-cap"></i> ${programName}</span>
-                                <span><i class="fas fa-star"></i> ${credits} Credits</span>
+                                <span><i class="fas fa-star"></i> ${course.credits} Credits</span>
                                 <span><i class="fas fa-calendar"></i> ${createdAt}</span>
                             </div>
                         </div>
-                        
                         <div class="course-actions">
                             <button class="btn-edit" onclick="app.editCourse('${course.id}')">
                                 <i class="fas fa-edit"></i> Edit
@@ -1528,188 +1063,6 @@ fallbackGradeDisplay() {
     }
     
     // ==============================
-    // GRADING SYSTEM
-    // ==============================
-    
- async saveMarks(event) {
-    if (event) event.preventDefault();
-    
-    try {
-        // Get form values
-        const studentId = document.getElementById('marksStudent').value;
-        const courseId = document.getElementById('marksCourse').value;
-        const score = parseFloat(document.getElementById('marksScore').value);
-        const maxScore = parseFloat(document.getElementById('maxScore').value) || 100;
-        const assessmentType = document.getElementById('assessmentType').value;
-        const assessmentName = document.getElementById('assessmentName').value || 'Assessment';
-        
-        // Validation
-        if (!studentId || !courseId || isNaN(score)) {
-            this.showToast('Please fill in all required fields', 'error');
-            return;
-        }
-        
-        if (score < 0 || score > maxScore) {
-            this.showToast(`Score must be between 0 and ${maxScore}`, 'error');
-            return;
-        }
-        
-        // Check if marks already exist for this combination
-        console.log('🔍 Checking for existing marks...');
-        
-        try {
-            const existingMarks = await this.checkExistingMarks(studentId, courseId, assessmentName);
-            
-            if (existingMarks) {
-                // Show existing marks to user
-                const shouldUpdate = confirm(
-                    `📝 Marks already exist for this assessment!\n\n` +
-                    `Student: ${existingMarks.student_id}\n` +
-                    `Course: ${existingMarks.course_id}\n` +
-                    `Assessment: ${existingMarks.assessment_name}\n` +
-                    `Current Score: ${existingMarks.score}/${existingMarks.max_score} (${existingMarks.percentage}%)\n` +
-                    `Current Grade: ${existingMarks.grade}\n\n` +
-                    `New Score: ${score}/${maxScore} (${((score/maxScore)*100).toFixed(2)}%)\n\n` +
-                    `Do you want to UPDATE the existing marks?\n` +
-                    `Click OK to update, Cancel to use a different assessment name.`
-                );
-                
-                if (!shouldUpdate) {
-                    this.showToast('Please use a different assessment name', 'info');
-                    return;
-                }
-            }
-            
-        } catch (checkError) {
-            console.log('No existing marks found or error checking:', checkError);
-            // Continue with insertion
-        }
-        
-        // Prepare mark data
-        const markData = {
-            studentId: studentId,
-            courseId: courseId,
-            assessmentType: assessmentType,
-            assessmentName: assessmentName,
-            score: score,
-            maxScore: maxScore,
-            remarks: document.getElementById('marksRemarks').value || '',
-            visibleToStudent: document.getElementById('visibleToStudent')?.checked || true
-        };
-        
-        console.log('💾 Saving/Updating marks:', markData);
-        
-        // Save/Update marks
-        const mark = await this.db.addMark(markData);
-        
-        this.showToast(existingMarks ? '✅ Marks updated successfully!' : '✅ New marks saved successfully!', 'success');
-        
-        // Close modal and reset form
-        this.closeModal('marksModal');
-        document.getElementById('marksForm').reset();
-        
-        // Reset display
-        this.updateGradeDisplay();
-        
-        // Update UI
-        await this.updateDashboard();
-        
-    } catch (error) {
-        console.error('❌ Error saving marks:', error);
-        this.showToast(`Error: ${error.message}`, 'error');
-    }
-}
-
-// Helper method to check existing marks
-async checkExistingMarks(studentId, courseId, assessmentName) {
-    try {
-        if (this.db.localStorageFallback) {
-            const marks = this.db.getLocalStorageData('marks');
-            return marks.find(m => 
-                m.student_id === studentId && 
-                m.course_id === courseId && 
-                m.assessment_name === assessmentName
-            );
-        }
-        
-        const { data, error } = await this.db.supabase
-            .from('marks')
-            .select('*')
-            .eq('student_id', studentId)
-            .eq('course_id', courseId)
-            .eq('assessment_name', assessmentName)
-            .maybeSingle();
-            
-        if (error && error.code !== 'PGRST116') {
-            console.error('Error checking marks:', error);
-            return null;
-        }
-        
-        return data;
-        
-    } catch (error) {
-        console.error('Error in checkExistingMarks:', error);
-        return null;
-    }
-}
-    updateStudentInfo() {
-    try {
-        const studentId = document.getElementById('marksStudent').value;
-        const infoDiv = document.getElementById('studentInfo');
-        
-        if (!studentId || !infoDiv) {
-            if (infoDiv) infoDiv.style.display = 'none';
-            return;
-        }
-        
-        // Get student info
-        this.db.getStudent(studentId).then(student => {
-            if (student) {
-                const regNoElem = document.getElementById('infoRegNo');
-                const programElem = document.getElementById('infoProgram');
-                const intakeElem = document.getElementById('infoIntake');
-                
-                if (regNoElem) regNoElem.textContent = student.reg_number || student.regNumber || 'N/A';
-                if (programElem) programElem.textContent = student.program || 'N/A';
-                if (intakeElem) intakeElem.textContent = student.intake_year || student.intake || 'N/A';
-                
-                infoDiv.style.display = 'block';
-                
-                // Also load student's existing marks for this course
-                this.loadStudentCourseMarks(studentId);
-            } else {
-                infoDiv.style.display = 'none';
-            }
-        }).catch(() => {
-            infoDiv.style.display = 'none';
-        });
-        
-    } catch (error) {
-        console.error('Error updating student info:', error);
-    }
-}
-
-// Load existing marks for student in selected course
-async loadStudentCourseMarks(studentId) {
-    try {
-        const courseId = document.getElementById('marksCourse').value;
-        if (!courseId) return;
-        
-        const marks = await this.db.getStudentMarks(studentId);
-        const courseMarks = marks.filter(m => m.course_id === courseId);
-        
-        if (courseMarks.length > 0) {
-            console.log('📋 Existing marks for this course:', courseMarks);
-            
-            // You could display these in the modal
-            this.displayExistingMarks(courseMarks);
-        }
-        
-    } catch (error) {
-        console.error('Error loading student course marks:', error);
-    }
-}
-    // ==============================
     // DASHBOARD FUNCTIONS
     // ==============================
     
@@ -1721,25 +1074,22 @@ async loadStudentCourseMarks(studentId) {
                 this.db.getCourses()
             ]);
             
-            const settings = this.db.getSettings();
+            const settings = await this.db.getSettings();
             
             // Update stats
-            const totalStudents = document.getElementById('totalStudents');
-            const activePrograms = document.getElementById('activePrograms');
-            const currentIntake = document.getElementById('currentIntake');
-            const avgGrade = document.getElementById('avgGrade');
-            
-            if (totalStudents) totalStudents.textContent = students.length;
-            if (activePrograms) activePrograms.textContent = settings.programs ? Object.keys(settings.programs).length : 0;
-            if (currentIntake) currentIntake.textContent = settings.academicYear || new Date().getFullYear();
+            this.updateStat('totalStudents', students.length);
+            this.updateStat('activePrograms', this.countActivePrograms(students));
+            this.updateStat('currentIntake', settings.academicYear || new Date().getFullYear());
+            this.updateStat('totalCourses', courses.length);
+            this.updateStat('totalMarks', marks.length);
             
             // Calculate average grade
-            if (marks.length > 0 && avgGrade) {
-                const avgPercentage = marks.reduce((sum, mark) => sum + parseFloat(mark.percentage || 0), 0) / marks.length;
+            if (marks.length > 0) {
+                const avgPercentage = marks.reduce((sum, mark) => sum + (mark.percentage || 0), 0) / marks.length;
                 const grade = this.db.calculateGrade(avgPercentage);
-                avgGrade.textContent = grade.grade;
-            } else if (avgGrade) {
-                avgGrade.textContent = 'N/A';
+                this.updateStat('avgGrade', grade.grade);
+            } else {
+                this.updateStat('avgGrade', 'N/A');
             }
             
         } catch (error) {
@@ -1747,65 +1097,16 @@ async loadStudentCourseMarks(studentId) {
         }
     }
     
-    // ==============================
-    // UTILITY FUNCTIONS
-    // ==============================
-    
-    initializeDatePickers() {
-        const today = new Date().toISOString().split('T')[0];
-        const dateInputs = document.querySelectorAll('input[type="date"]');
-        dateInputs.forEach(input => {
-            if (input) input.max = today;
-        });
-    }
-    
-    async populateDropdowns() {
-        await this.populateStudentDropdown();
-        await this.populateCourseDropdown();
-    }
-    
-    async populateStudentDropdown() {
-        const select = document.getElementById('marksStudent');
-        if (!select) return;
-        
-        try {
-            const students = await this.db.getStudents();
-            select.innerHTML = '<option value="">Select Student</option>';
-            
-            students.forEach(student => {
-                const option = document.createElement('option');
-                option.value = student.id;
-                const regNumber = student.reg_number || student.regNumber || '';
-                const name = student.full_name || student.name || 'Unknown';
-                option.textContent = `${regNumber} - ${name}`;
-                select.appendChild(option);
-            });
-        } catch (error) {
-            console.error('Error populating student dropdown:', error);
+    updateStat(elementId, value) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.textContent = value;
         }
     }
     
-    async populateCourseDropdown() {
-        const select = document.getElementById('marksCourse');
-        if (!select) return;
-        
-        try {
-            const courses = await this.db.getCourses();
-            const activeCourses = courses.filter(c => (c.status || 'active') === 'active');
-            
-            select.innerHTML = '<option value="">Select Course</option>';
-            
-            activeCourses.forEach(course => {
-                const option = document.createElement('option');
-                option.value = course.id;
-                const code = course.course_code || course.code || '';
-                const name = course.course_name || course.name || '';
-                option.textContent = `${code} - ${name}`;
-                select.appendChild(option);
-            });
-        } catch (error) {
-            console.error('Error populating course dropdown:', error);
-        }
+    countActivePrograms(students) {
+        const programs = new Set(students.map(s => s.program).filter(Boolean));
+        return programs.size;
     }
     
     async loadRecentActivities() {
@@ -1821,7 +1122,7 @@ async loadStudentCourseMarks(studentId) {
             
             let html = '';
             activities.forEach(activity => {
-                const timeAgo = this.getTimeAgo(activity.timestamp);
+                const timeAgo = this.getTimeAgo(activity.created_at);
                 const icon = this.getActivityIcon(activity.type);
                 
                 html += `
@@ -1853,9 +1154,9 @@ async loadStudentCourseMarks(studentId) {
         const diffHours = Math.floor(diffMs / 3600000);
         const diffDays = Math.floor(diffMs / 86400000);
         
-        if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`;
-        if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
-        if (diffDays < 30) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 30) return `${diffDays}d ago`;
         return 'Over a month ago';
     }
     
@@ -1880,7 +1181,7 @@ async loadStudentCourseMarks(studentId) {
             toast.innerHTML = `
                 <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
                 <span>${message}</span>
-                <button onclick="this.parentElement.remove()" style="background: none; border: none; color: #666; cursor: pointer;">
+                <button onclick="this.parentElement.remove()">
                     <i class="fas fa-times"></i>
                 </button>
             `;
@@ -1945,92 +1246,156 @@ async loadStudentCourseMarks(studentId) {
     openCourseModal() {
         this.openModal('courseModal');
     }
+    
+    async viewStudent(studentId) {
+        try {
+            const student = await this.db.getStudent(studentId);
+            if (!student) {
+                this.showToast('Student not found', 'error');
+                return;
+            }
+            
+            const marks = await this.db.getStudentMarks(studentId);
+            const gpa = await this.db.calculateStudentGPA(studentId);
+            
+            alert(`
+                Student Details:
+                --------------------
+                Name: ${student.full_name}
+                Reg Number: ${student.reg_number}
+                Program: ${student.program}
+                Intake: ${student.intake_year}
+                Email: ${student.email}
+                Phone: ${student.phone}
+                GPA: ${gpa.toFixed(2)}
+                Total Marks: ${marks.length}
+                
+                Click "Enter Marks" to add marks for this student.
+            `);
+            
+        } catch (error) {
+            console.error('Error viewing student:', error);
+            this.showToast('Error loading student details', 'error');
+        }
+    }
 }
 
 // ==============================
-// GLOBAL APP INSTANCE WITH ALL BUTTONS
+// GLOBAL INITIALIZATION
 // ==============================
 
 let app = null;
 
 document.addEventListener('DOMContentLoaded', function() {
-    app = new TEEPortalApp();
+    console.log('📄 DOM Content Loaded');
     
-    // Make app methods globally available
-    window.app = app;
-    
-    // Setup navigation
+    try {
+        // Initialize app
+        app = new TEEPortalApp();
+        window.app = app;
+        
+        // Setup navigation
+        setupNavigation();
+        
+        console.log('🎉 TEEPortal System Ready');
+        
+    } catch (error) {
+        console.error('❌ Failed to initialize application:', error);
+        showCriticalError(error);
+    }
+});
+
+function setupNavigation() {
     window.showSection = function(sectionId) {
+        // Hide all sections
         document.querySelectorAll('.content-section').forEach(section => {
             section.classList.remove('active');
         });
         
+        // Remove active class from all nav links
         document.querySelectorAll('.nav-link').forEach(link => {
             link.classList.remove('active');
         });
         
+        // Show selected section
         const targetSection = document.getElementById(sectionId);
         if (targetSection) {
             targetSection.classList.add('active');
             
+            // Activate corresponding nav link
             const activeLink = document.querySelector(`a[href="#${sectionId}"]`);
             if (activeLink) {
                 activeLink.classList.add('active');
             }
             
+            // Update section title
             const titles = {
                 'dashboard': 'Dashboard Overview',
                 'students': 'Student Management',
                 'courses': 'Course Management',
                 'marks': 'Academic Records',
-                'intake': 'Intake Management',
                 'reports': 'Reports & Analytics',
                 'settings': 'System Settings'
             };
             
             const sectionTitle = document.getElementById('section-title');
             if (sectionTitle) {
-                sectionTitle.textContent = titles[sectionId] || 'TeePortal';
+                sectionTitle.textContent = titles[sectionId] || 'TEE Portal';
+            }
+            
+            // Load section-specific data
+            if (sectionId === 'marks' && app) {
+                app.loadMarksTable();
             }
         }
     };
     
-    // Make ALL utility functions globally available
-    window.openStudentModal = () => app.openStudentModal();
-    window.openMarksModal = () => app.openMarksModal();
-    window.openCourseModal = () => app.openCourseModal();
-    window.openIntakeModal = () => app.openIntakeModal();
-    window.closeModal = (modalId) => app.closeModal(modalId);
-    window.filterStudents = () => app.filterStudents();
-    window.searchStudents = () => app.searchStudents();
-    window.refreshDashboard = () => app.refreshDashboard();
-    window.loadDashboardData = () => app.loadDashboardData();
-    window.generateReport = () => app.generateReport();
-    window.previewReport = () => app.previewReport();
-    window.saveSettings = () => app.saveSettings();
-    window.openSettingsTab = (tabName) => app.openSettingsTab(tabName);
-    window.exportMarks = () => app.exportMarks();
-    window.loadCourseMarks = () => app.loadCourseMarks();
-    window.loadStudentMarks = () => app.loadStudentMarks();
-    window.handleLogout = () => {
-        if (confirm('Are you sure you want to logout?')) {
-            alert('Logout successful. Redirecting to login page...');
-        }
-    };
-    
-    // Set current academic year
-    const year = new Date().getFullYear();
-    const academicYearElement = document.getElementById('currentAcademicYear');
-    if (academicYearElement) {
-        academicYearElement.textContent = `${year} Academic Year`;
-    }
-    
-    console.log('TEEPortal System Ready - ALL BUTTONS WORKING');
-});
+    // Set default view to dashboard
+    setTimeout(() => showSection('dashboard'), 100);
+}
 
-// Add CSS for toast notifications
-const toastStyles = document.createElement('style');
-toastStyles.textContent = `
+function showCriticalError(error) {
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #f8d7da;
+        color: #721c24;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+        padding: 20px;
+        text-align: center;
+    `;
+    
+    errorDiv.innerHTML = `
+        <i class="fas fa-exclamation-triangle fa-3x" style="margin-bottom: 20px;"></i>
+        <h2 style="margin-bottom: 10px;">Database Connection Error</h2>
+        <p style="margin-bottom: 20px; max-width: 600px;">
+            Unable to connect to Supabase database. Please check:
+        </p>
+        <ul style="text-align: left; margin-bottom: 20px; max-width: 600px;">
+            <li>Internet connection</li>
+            <li>Supabase project status</li>
+            <li>Database tables exist</li>
+        </ul>
+        <button onclick="location.reload()" style="padding: 10px 20px; background: #721c24; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            <i class="fas fa-redo"></i> Retry Connection
+        </button>
+    `;
+    
+    document.body.appendChild(errorDiv);
+}
+
+// Add CSS styles
+const styles = document.createElement('style');
+styles.textContent = `
+    /* Toast styles */
     .toast {
         position: fixed;
         top: 20px;
@@ -2056,12 +1421,20 @@ toastStyles.textContent = `
         border-left: 4px solid #e74c3c;
     }
     
+    .toast.info {
+        border-left: 4px solid #3498db;
+    }
+    
     .toast.warning {
         border-left: 4px solid #f39c12;
     }
     
-    .toast.info {
-        border-left: 4px solid #3498db;
+    .toast button {
+        background: none;
+        border: none;
+        color: #666;
+        cursor: pointer;
+        margin-left: auto;
     }
     
     @keyframes slideIn {
@@ -2075,6 +1448,7 @@ toastStyles.textContent = `
         }
     }
     
+    /* Status badges */
     .status-badge {
         display: inline-block;
         padding: 4px 12px;
@@ -2098,6 +1472,24 @@ toastStyles.textContent = `
         color: #721c24;
     }
     
+    /* Grade badges */
+    .grade-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        color: white;
+        font-weight: bold;
+        text-align: center;
+        min-width: 30px;
+    }
+    
+    .grade-A { background: #27ae60; }
+    .grade-B { background: #2ecc71; }
+    .grade-C { background: #f1c40f; }
+    .grade-D { background: #e67e22; }
+    .grade-F { background: #e74c3c; }
+    
+    /* Action buttons */
     .btn-action {
         background: none;
         border: 1px solid #ddd;
@@ -2111,34 +1503,134 @@ toastStyles.textContent = `
         background: #f5f5f5;
     }
     
-    .percentage-badge {
-        padding: 4px 8px;
-        border-radius: 4px;
+    /* Course cards */
+    .course-card {
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .course-header {
+        padding: 15px;
         color: white;
-        font-weight: bold;
-        display: inline-block;
-        min-width: 30px;
+    }
+    
+    .course-header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .course-body {
+        padding: 15px;
+    }
+    
+    .course-description {
+        color: #666;
+        font-size: 14px;
+        margin: 10px 0;
+    }
+    
+    .course-meta {
+        display: flex;
+        gap: 15px;
+        font-size: 12px;
+        color: #888;
+        margin-top: 10px;
+    }
+    
+    .course-actions {
+        padding: 15px;
+        border-top: 1px solid #eee;
+        display: flex;
+        gap: 10px;
+    }
+    
+    /* Empty states */
+    .empty-state {
         text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
     }
     
-    .grade-A {
-        background: #27ae60;
+    .empty-state i {
+        font-size: 48px;
+        margin-bottom: 15px;
+        opacity: 0.5;
     }
     
-    .grade-B {
-        background: #2ecc71;
+    .error-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #dc3545;
     }
     
-    .grade-C {
-        background: #f1c40f;
+    .error-state i {
+        font-size: 48px;
+        margin-bottom: 15px;
     }
     
-    .grade-D {
-        background: #e67e22;
+    /* Activity items */
+    .activity-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        border-bottom: 1px solid #eee;
     }
     
-    .grade-F {
-        background: #e74c3c;
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+    
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #e3f2fd;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #3498db;
+        margin-right: 15px;
+    }
+    
+    .activity-details {
+        flex: 1;
+    }
+    
+    .activity-details p {
+        margin: 0 0 5px 0;
+        font-size: 14px;
+    }
+    
+    .activity-time {
+        font-size: 12px;
+        color: #95a5a6;
+    }
+    
+    /* Table styles */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    th {
+        background: #f8f9fa;
+        padding: 12px;
+        text-align: left;
+        border-bottom: 2px solid #dee2e6;
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    td {
+        padding: 12px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    tr:hover {
+        background: #f8f9fa;
     }
 `;
-document.head.appendChild(toastStyles);
+document.head.appendChild(styles);
