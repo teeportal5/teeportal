@@ -893,6 +893,61 @@
         </div>
     </div>
 </div>
+    <!-- Edit Marks Modal -->
+<div id="editMarksModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Edit Marks</h3>
+            <button type="button" class="close" onclick="closeModal('editMarksModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="editMarksForm" onsubmit="app.updateMark(event)">
+                <input type="hidden" id="editMarkId">
+                
+                <div class="form-group">
+                    <label>Assessment Type</label>
+                    <select id="editAssessmentType" class="form-control" required>
+                        <option value="final">Final Exam</option>
+                        <option value="midterm">Midterm</option>
+                        <option value="quiz">Quiz</option>
+                        <option value="assignment">Assignment</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Assessment Name</label>
+                    <input type="text" id="editAssessmentName" class="form-control" 
+                           placeholder="e.g., Final Exam">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Score</label>
+                        <input type="number" id="editScore" class="form-control" 
+                               step="0.01" min="0" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Maximum Score</label>
+                        <input type="number" id="editMaxScore" class="form-control" 
+                               value="100" min="1" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Remarks (Optional)</label>
+                    <textarea id="editRemarks" class="form-control" rows="2"></textarea>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" 
+                            onclick="closeModal('editMarksModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Marks</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
     <!-- CONFIRMATION MODAL -->
     <div id="confirmModal" class="modal">
         <div class="modal-content modal-sm">
