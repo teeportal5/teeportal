@@ -113,20 +113,96 @@ class TEEPortalDB {
     }
     
     // ========== COURSES ==========
-    getCourses() {
-        return JSON.parse(localStorage.getItem(this.storagePrefix + 'courses')) || [];
+getCourses() {
+    try {
+        const coursesData = localStorage.getItem(this.storagePrefix + 'courses');
+        if (!coursesData) {
+            // Initialize with some courses if empty
+            const initialCourses = [
+                {
+                    id: '1',
+                    code: 'TEE101',
+                    name: 'Introduction to Theology',
+                    program: 'basic',
+                    credits: 3,
+                    description: 'Foundational theological concepts',
+                    status: 'active',
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: '2',
+                    code: 'TEE102',
+                    name: 'Biblical Studies',
+                    program: 'basic',
+                    credits: 3,
+                    description: 'Study of Biblical texts',
+                    status: 'active',
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: '3',
+                    code: 'HNC101',
+                    name: 'Church History',
+                    program: 'hnc',
+                    credits: 4,
+                    description: 'Historical development of Christianity',
+                    status: 'active',
+                    createdAt: new Date().toISOString()
+                }
+            ];
+            this.saveCourses(initialCourses);
+            return initialCourses;
+        }
+        return JSON.parse(coursesData);
+    } catch (error) {
+        console.error('Error loading courses:', error);
+        return [];
     }
-    
-    saveCourses(courses) {
+}
+
+saveCourses(courses) {
+    try {
         localStorage.setItem(this.storagePrefix + 'courses', JSON.stringify(courses));
+    } catch (error) {
+        console.error('Error saving courses:', error);
     }
-    
-    addCourse(courseData) {
+}
+
+addCourse(courseData) {
+    try {
+        // Validate course data
+        if (!courseData || typeof courseData !== 'object') {
+            throw new Error('Invalid course data');
+        }
+        
+        // Ensure required fields exist with fallbacks
+        const validatedData = {
+            code: (courseData.code || '').toString().trim().toUpperCase(),
+            name: (courseData.name || '').toString().trim(),
+            program: courseData.program || 'basic',
+            credits: parseInt(courseData.credits) || 3,
+            description: (courseData.description || '').toString().trim()
+        };
+        
+        // Check for required fields
+        if (!validatedData.code) {
+            throw new Error('Course code is required');
+        }
+        if (!validatedData.name) {
+            throw new Error('Course name is required');
+        }
+        
         const courses = this.getCourses();
+        
+        // Check for duplicate course code
+        const duplicate = courses.find(c => c.code === validatedData.code);
+        if (duplicate) {
+            throw new Error(`Course code "${validatedData.code}" already exists`);
+        }
+        
         const course = {
             id: Date.now().toString(),
-            code: courseData.code.toUpperCase(),
-            ...courseData,
+            ...validatedData,
             status: 'active',
             createdAt: new Date().toISOString()
         };
@@ -137,49 +213,290 @@ class TEEPortalDB {
         this.logActivity('course_added', `New course added: ${course.code} - ${course.name}`);
         
         return course;
+    } catch (error) {
+        console.error('Error in addCourse:', error);
+        throw error; // Re-throw for handling in UI
     }
-    
-    // ========== MARKS/ACADEMIC RECORDS ==========
-    getMarks() {
-        return JSON.parse(localStorage.getItem(this.storagePrefix + 'marks')) || [];
+}
+
+updateCourse(id, updates) {
+    try {
+        const courses = this.getCourses();
+        const index = courses.findIndex(c => c.id === id);
+        
+        if (index === -1) {
+            throw new Error('Course not found');
+        }
+        
+        // Apply updates
+        courses[index] = {
+            ...courses[index],
+            ...updates,
+            updatedAt: new Date().toISOString()
+        };
+        
+        // Ensure code is uppercase
+        if (updates.code) {
+            courses[index].code = updates.code.toString().toUpperCase().trim();
+        }
+        
+        this.saveCourses(courses);
+        this.logActivity('course_updated', `Course updated: ${courses[index].code}`);
+        
+        return courses[index];
+    } catch (error) {
+        console.error('Error updating course:', error);
+        throw error;
     }
-    
-    saveMarks(marks) {
+}
+
+deleteCourse(id) {
+    try {
+        const courses = this.getCourses();
+        const courseIndex = courses.findIndex(c => c.id === id);
+        
+        if (courseIndex === -1) {
+            return false;
+        }
+        
+        const course = courses[courseIndex];
+        courses.splice(courseIndex, 1);
+        this.saveCourses(courses);
+        
+        this.logActivity('course_deleted', `Course deleted: ${course.code}`);
+        
+        return true;
+    } catch (error) {
+        console.error('Error deleting course:', error);
+        return false;
+    }
+}
+
+getCourse(id) {
+    return this.getCourses().find(c => c.id === id);
+}
+
+// ========== MARKS/ACADEMIC RECORDS ==========
+getMarks() {
+    try {
+        const marksData = localStorage.getItem(this.storagePrefix + 'marks');
+        return marksData ? JSON.parse(marksData) : [];
+    } catch (error) {
+        console.error('Error loading marks:', error);
+        return [];
+    }
+}
+
+saveMarks(marks) {
+    try {
         localStorage.setItem(this.storagePrefix + 'marks', JSON.stringify(marks));
+    } catch (error) {
+        console.error('Error saving marks:', error);
     }
-    
-    addMark(markData) {
-        const marks = this.getMarks();
+}
+
+addMark(markData) {
+    try {
+        // Validate mark data
+        if (!markData || typeof markData !== 'object') {
+            throw new Error('Invalid mark data');
+        }
+        
+        // Validate required fields
+        const requiredFields = ['studentId', 'courseId', 'score', 'maxScore'];
+        for (const field of requiredFields) {
+            if (!markData[field] && markData[field] !== 0) {
+                throw new Error(`Missing required field: ${field}`);
+            }
+        }
+        
         const settings = this.getSettings();
-        const percentage = (markData.score / markData.maxScore) * 100;
+        const maxScore = parseFloat(markData.maxScore) || 100;
+        const score = parseFloat(markData.score);
+        
+        // Validate score range
+        if (score < 0 || score > maxScore) {
+            throw new Error(`Score must be between 0 and ${maxScore}`);
+        }
+        
+        const percentage = (score / maxScore) * 100;
         const grade = this.calculateGrade(percentage);
         
         const mark = {
             id: Date.now().toString(),
-            ...markData,
-            percentage: percentage.toFixed(2),
+            studentId: markData.studentId.toString(),
+            courseId: markData.courseId.toString(),
+            assessmentType: (markData.assessmentType || 'assignment').toString(),
+            assessmentName: (markData.assessmentName || 'Assessment').toString(),
+            score: score,
+            maxScore: maxScore,
+            percentage: parseFloat(percentage.toFixed(2)),
             grade: grade.grade,
             gradePoints: grade.points,
+            remarks: (markData.remarks || '').toString(),
+            visibleToStudent: markData.visibleToStudent !== undefined ? Boolean(markData.visibleToStudent) : true,
             enteredBy: 'admin',
-            enteredAt: new Date().toISOString(),
-            visibleToStudent: markData.visibleToStudent !== undefined ? markData.visibleToStudent : true
+            enteredAt: new Date().toISOString()
         };
         
+        const marks = this.getMarks();
         marks.push(mark);
         this.saveMarks(marks);
         
-        this.logActivity('marks_entered', `Marks entered for student ${markData.studentId} in course ${markData.courseId}`);
+        // Get student and course info for logging
+        const student = this.getStudent(mark.studentId);
+        const course = this.getCourse(mark.courseId);
+        const studentName = student ? student.name : 'Unknown Student';
+        const courseName = course ? course.code : 'Unknown Course';
+        
+        this.logActivity('marks_entered', `Marks entered for ${studentName} in ${courseName}: ${mark.grade}`);
         
         return mark;
+    } catch (error) {
+        console.error('Error adding mark:', error);
+        throw error;
     }
-    
-    getStudentMarks(studentId) {
-        return this.getMarks().filter(m => m.studentId === studentId);
+}
+
+updateMark(id, updates) {
+    try {
+        const marks = this.getMarks();
+        const index = marks.findIndex(m => m.id === id);
+        
+        if (index === -1) {
+            throw new Error('Mark record not found');
+        }
+        
+        // Recalculate if score or maxScore changed
+        if (updates.score !== undefined || updates.maxScore !== undefined) {
+            const score = updates.score !== undefined ? parseFloat(updates.score) : marks[index].score;
+            const maxScore = updates.maxScore !== undefined ? parseFloat(updates.maxScore) : marks[index].maxScore;
+            const percentage = (score / maxScore) * 100;
+            const grade = this.calculateGrade(percentage);
+            
+            updates.percentage = parseFloat(percentage.toFixed(2));
+            updates.grade = grade.grade;
+            updates.gradePoints = grade.points;
+        }
+        
+        marks[index] = {
+            ...marks[index],
+            ...updates,
+            updatedAt: new Date().toISOString()
+        };
+        
+        this.saveMarks(marks);
+        this.logActivity('marks_updated', `Marks updated for record ${id}`);
+        
+        return marks[index];
+    } catch (error) {
+        console.error('Error updating mark:', error);
+        throw error;
     }
-    
-    getCourseMarks(courseId) {
-        return this.getMarks().filter(m => m.courseId === courseId);
+}
+
+deleteMark(id) {
+    try {
+        const marks = this.getMarks();
+        const markIndex = marks.findIndex(m => m.id === id);
+        
+        if (markIndex === -1) {
+            return false;
+        }
+        
+        marks.splice(markIndex, 1);
+        this.saveMarks(marks);
+        
+        this.logActivity('marks_deleted', `Marks record ${id} deleted`);
+        
+        return true;
+    } catch (error) {
+        console.error('Error deleting mark:', error);
+        return false;
     }
+}
+
+getStudentMarks(studentId) {
+    try {
+        const marks = this.getMarks();
+        return marks.filter(m => m.studentId === studentId.toString());
+    } catch (error) {
+        console.error('Error getting student marks:', error);
+        return [];
+    }
+}
+
+getCourseMarks(courseId) {
+    try {
+        const marks = this.getMarks();
+        return marks.filter(m => m.courseId === courseId.toString());
+    } catch (error) {
+        console.error('Error getting course marks:', error);
+        return [];
+    }
+}
+
+getStudentCourseMarks(studentId, courseId) {
+    try {
+        const marks = this.getMarks();
+        return marks.filter(m => 
+            m.studentId === studentId.toString() && 
+            m.courseId === courseId.toString()
+        );
+    } catch (error) {
+        console.error('Error getting student course marks:', error);
+        return [];
+    }
+}
+
+calculateStudentGPA(studentId) {
+    try {
+        const marks = this.getStudentMarks(studentId);
+        if (marks.length === 0) return 0;
+        
+        const totalPoints = marks.reduce((sum, mark) => sum + mark.gradePoints, 0);
+        const gpa = totalPoints / marks.length;
+        
+        return parseFloat(gpa.toFixed(2));
+    } catch (error) {
+        console.error('Error calculating GPA:', error);
+        return 0;
+    }
+}
+
+getStudentGradeSummary(studentId) {
+    try {
+        const marks = this.getStudentMarks(studentId);
+        const summary = {
+            totalMarks: marks.length,
+            averagePercentage: 0,
+            averageGrade: 'N/A',
+            gpa: 0,
+            gradeDistribution: {}
+        };
+        
+        if (marks.length > 0) {
+            const totalPercentage = marks.reduce((sum, mark) => sum + mark.percentage, 0);
+            summary.averagePercentage = parseFloat((totalPercentage / marks.length).toFixed(2));
+            
+            const avgGrade = this.calculateGrade(summary.averagePercentage);
+            summary.averageGrade = avgGrade.grade;
+            
+            summary.gpa = this.calculateStudentGPA(studentId);
+            
+            // Count grades
+            marks.forEach(mark => {
+                const grade = mark.grade.charAt(0);
+                summary.gradeDistribution[grade] = (summary.gradeDistribution[grade] || 0) + 1;
+            });
+        }
+        
+        return summary;
+    } catch (error) {
+        console.error('Error getting grade summary:', error);
+        return null;
+    }
+}
     
     // ========== GRADING SYSTEM ==========
     calculateGrade(percentage) {
@@ -740,85 +1057,231 @@ class TEEPortalApp {
         return colors[grade.charAt(0)] || '#95a5a6';
     }
     
-    // ==============================
-    // COURSE MANAGEMENT
-    // ==============================
+   // ==============================
+// COURSE MANAGEMENT
+// ==============================
+
+saveCourse(event) {
+    event.preventDefault();
     
-    saveCourse(event) {
-        event.preventDefault();
-        
-        const courseData = {
-            code: document.getElementById('courseCode').value.trim(),
-            name: document.getElementById('courseName').value.trim(),
-            program: document.getElementById('courseProgram').value,
-            credits: parseInt(document.getElementById('courseCredits').value),
-            description: document.getElementById('courseDescription')?.value || ''
+    try {
+        // Safely get form values with defensive checks
+        const getElementValue = (id) => {
+            const element = document.getElementById(id);
+            if (!element) {
+                console.error(`Element with id "${id}" not found`);
+                return '';
+            }
+            return element.value || '';
         };
         
-        if (!courseData.code || !courseData.name || !courseData.program) {
-            this.showToast('Please fill in all required fields', 'error');
+        const courseData = {
+            code: getElementValue('courseCode').trim(),
+            name: getElementValue('courseName').trim(),
+            program: getElementValue('courseProgram'),
+            credits: parseInt(getElementValue('courseCredits')),
+            description: getElementValue('courseDescription').trim()
+        };
+        
+        console.log('Course data to save:', courseData);
+        
+        // Validate required fields
+        if (!courseData.code) {
+            this.showToast('Course code is required', 'error');
             return;
         }
         
-        try {
-            const course = this.db.addCourse(courseData);
-            
-            this.showToast(`Course ${course.code} added successfully`, 'success');
-            
-            this.closeModal('courseModal');
-            document.getElementById('courseForm').reset();
-            
-            this.loadCourses();
-            this.loadRecentActivities();
-            
-        } catch (error) {
-            console.error('Error saving course:', error);
-            this.showToast('Error saving course', 'error');
+        if (!courseData.name) {
+            this.showToast('Course name is required', 'error');
+            return;
         }
+        
+        if (!courseData.program) {
+            this.showToast('Please select a program', 'error');
+            return;
+        }
+        
+        if (isNaN(courseData.credits) || courseData.credits < 1) {
+            courseData.credits = 3; // Default value
+        }
+        
+        // Save the course
+        const course = this.db.addCourse(courseData);
+        
+        this.showToast(`Course "${course.code} - ${course.name}" added successfully`, 'success');
+        
+        // Reset form and close modal
+        const form = document.getElementById('courseForm');
+        if (form) {
+            form.reset();
+        }
+        this.closeModal('courseModal');
+        
+        // Update UI
+        this.loadCourses();
+        this.populateCourseDropdown();
+        this.loadRecentActivities();
+        
+    } catch (error) {
+        console.error('Error saving course:', error);
+        this.showToast(error.message || 'Error saving course. Please try again.', 'error');
     }
-    
-    loadCourses() {
+}
+
+loadCourses() {
+    try {
         const courses = this.db.getCourses();
         const grid = document.getElementById('coursesGrid');
-        if (!grid) return;
+        
+        if (!grid) {
+            console.error('Courses grid element not found');
+            return;
+        }
         
         if (courses.length === 0) {
             grid.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-book-open fa-2x"></i>
-                    <p>No courses added yet</p>
+                <div class="empty-state" style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+                    <i class="fas fa-book-open fa-3x" style="color: #95a5a6; margin-bottom: 20px;"></i>
+                    <h3 style="color: #2c3e50; margin-bottom: 10px;">No Courses Found</h3>
+                    <p style="color: #7f8c8d; margin-bottom: 20px;">Add your first course to get started</p>
+                    <button class="btn-primary" onclick="app.openCourseModal()" 
+                            style="background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                        <i class="fas fa-plus"></i> Add Course
+                    </button>
                 </div>
             `;
             return;
         }
         
         const settings = this.db.getSettings();
+        const programNames = {
+            'basic': 'Basic TEE',
+            'hnc': 'HNC (Higher National Certificate)',
+            'advanced': 'Advanced TEE'
+        };
         
         let html = '';
         courses.forEach(course => {
-            const programName = settings.programs[course.program]?.name || course.program;
+            const programName = programNames[course.program] || course.program;
+            const programColors = {
+                'basic': '#3498db',
+                'hnc': '#2ecc71',
+                'advanced': '#9b59b6'
+            };
+            const programColor = programColors[course.program] || '#95a5a6';
             
             html += `
-                <div class="course-card">
-                    <div class="course-header">
-                        <h3>${course.code}</h3>
-                        <span class="course-status ${course.status}">${course.status}</span>
-                    </div>
-                    <div class="course-body">
-                        <h4>${course.name}</h4>
-                        <p class="course-description">${course.description || 'No description'}</p>
-                        <div class="course-meta">
-                            <span><i class="fas fa-graduation-cap"></i> ${programName}</span>
-                            <span><i class="fas fa-star"></i> ${course.credits || 3} Credits</span>
-                            <span><i class="fas fa-calendar"></i> Added: ${new Date(course.createdAt).toLocaleDateString()}</span>
+                <div class="course-card" style="
+                    background: white;
+                    border-radius: 10px;
+                    overflow: hidden;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                    transition: transform 0.3s, box-shadow 0.3s;
+                ">
+                    <div class="course-header" style="
+                        background: ${programColor};
+                        color: white;
+                        padding: 15px 20px;
+                    ">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="margin: 0; font-size: 18px; font-weight: 600;">${course.code}</h3>
+                            <span class="course-status" style="
+                                background: rgba(255,255,255,0.2);
+                                padding: 4px 12px;
+                                border-radius: 20px;
+                                font-size: 12px;
+                                font-weight: 500;
+                            ">
+                                ${course.status || 'Active'}
+                            </span>
                         </div>
                     </div>
-                    <div class="course-actions">
-                        <button class="btn-edit" onclick="app.editCourse('${course.id}')">
+                    
+                    <div class="course-body" style="padding: 20px;">
+                        <h4 style="
+                            margin: 0 0 10px 0;
+                            color: #2c3e50;
+                            font-size: 16px;
+                            font-weight: 600;
+                        ">
+                            ${course.name}
+                        </h4>
+                        
+                        <p class="course-description" style="
+                            color: #666;
+                            font-size: 14px;
+                            line-height: 1.5;
+                            margin-bottom: 15px;
+                            min-height: 42px;
+                        ">
+                            ${course.description || 'No description available'}
+                        </p>
+                        
+                        <div class="course-meta" style="
+                            display: flex;
+                            flex-wrap: wrap;
+                            gap: 15px;
+                            font-size: 13px;
+                            color: #7f8c8d;
+                        ">
+                            <span style="display: flex; align-items: center; gap: 5px;">
+                                <i class="fas fa-graduation-cap"></i>
+                                ${programName}
+                            </span>
+                            <span style="display: flex; align-items: center; gap: 5px;">
+                                <i class="fas fa-star"></i>
+                                ${course.credits || 3} Credits
+                            </span>
+                            <span style="display: flex; align-items: center; gap: 5px;">
+                                <i class="fas fa-calendar"></i>
+                                ${new Date(course.createdAt).toLocaleDateString()}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="course-actions" style="
+                        padding: 15px 20px;
+                        border-top: 1px solid #eee;
+                        display: flex;
+                        gap: 10px;
+                        background: #f8f9fa;
+                    ">
+                        <button class="btn-edit" onclick="app.editCourse('${course.id}')" 
+                                style="
+                                    flex: 1;
+                                    background: #3498db;
+                                    color: white;
+                                    border: none;
+                                    padding: 8px;
+                                    border-radius: 5px;
+                                    cursor: pointer;
+                                    font-size: 14px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    gap: 5px;
+                                ">
                             <i class="fas fa-edit"></i>
+                            <span>Edit</span>
                         </button>
-                        <button class="btn-delete" onclick="app.deleteCourse('${course.id}')">
+                        
+                        <button class="btn-delete" onclick="app.deleteCourse('${course.id}')"
+                                style="
+                                    flex: 1;
+                                    background: #e74c3c;
+                                    color: white;
+                                    border: none;
+                                    padding: 8px;
+                                    border-radius: 5px;
+                                    cursor: pointer;
+                                    font-size: 14px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    gap: 5px;
+                                ">
                             <i class="fas fa-trash"></i>
+                            <span>Delete</span>
                         </button>
                     </div>
                 </div>
@@ -826,8 +1289,176 @@ class TEEPortalApp {
         });
         
         grid.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error loading courses:', error);
+        this.showToast('Error loading courses', 'error');
+    }
+}
+
+editCourse(courseId) {
+    try {
+        const course = this.db.getCourse(courseId);
+        if (!course) {
+            this.showToast('Course not found', 'error');
+            return;
+        }
+        
+        // Create edit modal HTML
+        const modalHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-edit"></i> Edit Course</h3>
+                    <button class="close-btn" onclick="app.closeModal('editCourseModal')">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="editCourseForm" onsubmit="app.updateCourseHandler(event, '${course.id}')">
+                        <div class="form-group">
+                            <label>Course Code *</label>
+                            <input type="text" id="editCourseCode" value="${course.code}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Course Name *</label>
+                            <input type="text" id="editCourseName" value="${course.name}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Program *</label>
+                            <select id="editCourseProgram" required>
+                                <option value="basic" ${course.program === 'basic' ? 'selected' : ''}>Basic TEE</option>
+                                <option value="hnc" ${course.program === 'hnc' ? 'selected' : ''}>HNC</option>
+                                <option value="advanced" ${course.program === 'advanced' ? 'selected' : ''}>Advanced TEE</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Credit Hours *</label>
+                            <select id="editCourseCredits" required>
+                                <option value="2" ${course.credits === 2 ? 'selected' : ''}>2 Credits</option>
+                                <option value="3" ${course.credits === 3 ? 'selected' : ''}>3 Credits</option>
+                                <option value="4" ${course.credits === 4 ? 'selected' : ''}>4 Credits</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea id="editCourseDescription" rows="3">${course.description || ''}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select id="editCourseStatus">
+                                <option value="active" ${course.status === 'active' ? 'selected' : ''}>Active</option>
+                                <option value="inactive" ${course.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+                            </select>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" onclick="app.closeModal('editCourseModal')">Cancel</button>
+                            <button type="submit" class="btn-primary">Update Course</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        
+        // Create or update modal
+        let modal = document.getElementById('editCourseModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'editCourseModal';
+            modal.className = 'modal';
+            document.body.appendChild(modal);
+        }
+        modal.innerHTML = modalHTML;
+        
+        this.openModal('editCourseModal');
+        
+    } catch (error) {
+        console.error('Error in editCourse:', error);
+        this.showToast('Error loading course for editing', 'error');
+    }
+}
+
+updateCourseHandler(event, courseId) {
+    event.preventDefault();
+    
+    try {
+        const updates = {
+            code: document.getElementById('editCourseCode').value.trim(),
+            name: document.getElementById('editCourseName').value.trim(),
+            program: document.getElementById('editCourseProgram').value,
+            credits: parseInt(document.getElementById('editCourseCredits').value),
+            description: document.getElementById('editCourseDescription').value.trim(),
+            status: document.getElementById('editCourseStatus').value
+        };
+        
+        // Validate
+        if (!updates.code || !updates.name || !updates.program) {
+            this.showToast('Please fill in all required fields', 'error');
+            return;
+        }
+        
+        const updatedCourse = this.db.updateCourse(courseId, updates);
+        this.showToast(`Course "${updatedCourse.code}" updated successfully`, 'success');
+        
+        this.closeModal('editCourseModal');
+        this.loadCourses();
+        this.populateCourseDropdown();
+        
+    } catch (error) {
+        console.error('Error updating course:', error);
+        this.showToast(error.message || 'Error updating course', 'error');
+    }
+}
+
+deleteCourse(courseId) {
+    if (!confirm('Are you sure you want to delete this course? This action cannot be undone.')) {
+        return;
     }
     
+    try {
+        const success = this.db.deleteCourse(courseId);
+        if (success) {
+            this.showToast('Course deleted successfully', 'success');
+            this.loadCourses();
+            this.populateCourseDropdown();
+        } else {
+            this.showToast('Course not found', 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting course:', error);
+        this.showToast('Error deleting course', 'error');
+    }
+}
+
+populateCourseDropdown() {
+    try {
+        const select = document.getElementById('marksCourse');
+        if (!select) {
+            console.warn('marksCourse dropdown not found');
+            return;
+        }
+        
+        const courses = this.db.getCourses().filter(c => c.status === 'active');
+        
+        // Store current selection
+        const currentValue = select.value;
+        
+        // Clear and repopulate
+        select.innerHTML = '<option value="">Select Course</option>';
+        
+        courses.forEach(course => {
+            const option = document.createElement('option');
+            option.value = course.id;
+            option.textContent = `${course.code} - ${course.name}`;
+            select.appendChild(option);
+        });
+        
+        // Restore previous selection if possible
+        if (currentValue && courses.some(c => c.id === currentValue)) {
+            select.value = currentValue;
+        }
+        
+    } catch (error) {
+        console.error('Error populating course dropdown:', error);
+    }
+}
     // ==============================
     // DASHBOARD FUNCTIONS
     // ==============================
