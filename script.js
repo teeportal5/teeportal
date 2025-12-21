@@ -432,7 +432,112 @@ class TEEPortalSupabaseDB {
             throw error;
         }
     }
-    
+    // ========== MISSING MARK METHODS ==========
+
+async getMarkById(markId) {
+    try {
+        const supabase = await this.ensureConnected();
+        const { data, error } = await supabase
+            .from('marks')
+            .select(`
+                *,
+                students!inner (id, reg_number, full_name),
+                courses!inner (id, course_code, course_name, credits)
+            `)
+            .eq('id', markId)
+            .single();
+            
+        if (error) throw error;
+        return data;
+        
+    } catch (error) {
+        console.error('Error fetching mark by ID:', error);
+        throw error;
+    }
+}
+
+async updateMark(markId, updateData) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        // First get the current mark to preserve existing data
+        const { data: currentMark, error: fetchError } = await supabase
+            .from('marks')
+            .select('*')
+            .eq('id', markId)
+            .single();
+            
+        if (fetchError) throw fetchError;
+        
+        // Calculate new percentage and grade
+        const score = updateData.score || currentMark.score;
+        const maxScore = updateData.maxScore || currentMark.max_score;
+        const percentage = (score / maxScore) * 100;
+        const grade = this.calculateGrade(percentage);
+        
+        // Prepare update object
+        const updateObj = {
+            assessment_type: updateData.assessmentType || currentMark.assessment_type,
+            assessment_name: updateData.assessmentName || currentMark.assessment_name,
+            score: score,
+            max_score: maxScore,
+            percentage: parseFloat(percentage.toFixed(2)),
+            grade: grade.grade,
+            grade_points: grade.points,
+            remarks: updateData.remarks || currentMark.remarks,
+            updated_at: new Date().toISOString()
+        };
+        
+        // Update the mark
+        const { data, error } = await supabase
+            .from('marks')
+            .update(updateObj)
+            .eq('id', markId)
+            .select()
+            .single();
+            
+        if (error) throw error;
+        
+        await this.logActivity('marks_updated', `Updated marks for student`);
+        return data;
+        
+    } catch (error) {
+        console.error('Error updating mark:', error);
+        throw error;
+    }
+}
+
+async deleteMark(markId) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        // First get the mark details for logging
+        const { data: mark, error: fetchError } = await supabase
+            .from('marks')
+            .select('id, assessment_name')
+            .eq('id', markId)
+            .single();
+            
+        if (fetchError && fetchError.code !== 'PGRST116') {
+            console.warn('Mark not found or already deleted:', fetchError);
+        }
+        
+        // Delete the mark
+        const { error } = await supabase
+            .from('marks')
+            .delete()
+            .eq('id', markId);
+            
+        if (error) throw error;
+        
+        await this.logActivity('marks_deleted', `Deleted marks record`);
+        return true;
+        
+    } catch (error) {
+        console.error('Error deleting mark:', error);
+        throw error;
+    }
+}
     // ========== UTILITY METHODS ==========
     calculateGrade(percentage) {
         const gradingScale = {
@@ -892,10 +997,15 @@ async loadMarksTable() {
     }
 }
 
-// Edit mark function
+// ==============================
+// FIXED EDIT MARK FUNCTION
+// ==============================
+
 async editMark(markId) {
     try {
-        // Fetch mark data
+        console.log('🔧 Editing mark ID:', markId);
+        
+        // Fetch mark data - IMPORTANT: Use the new method we just added to db
         const mark = await this.db.getMarkById(markId);
         
         if (!mark) {
@@ -903,26 +1013,52 @@ async editMark(markId) {
             return;
         }
         
-        // Populate edit modal form
+        console.log('📊 Mark data fetched:', mark);
+        
+        // Populate edit modal form - CORRECTED PROPERTY NAMES
         document.getElementById('editMarkId').value = markId;
-        document.getElementById('editStudent').value = mark.studentId || '';
-        document.getElementById('editCourse').value = mark.courseId || '';
-        document.getElementById('editAssessmentType').value = mark.assessment_type || '';
+        // Use the actual column names from Supabase: student_id, not studentId
+        document.getElementById('editStudent').value = mark.student_id || '';
+        document.getElementById('editCourse').value = mark.course_id || '';
+        document.getElementById('editAssessmentType').value = mark.assessment_type || 'final';
         document.getElementById('editAssessmentName').value = mark.assessment_name || '';
-        document.getElementById('editScore').value = mark.score || '';
+        document.getElementById('editScore').value = mark.score || 0;
         document.getElementById('editMaxScore').value = mark.max_score || 100;
         document.getElementById('editRemarks').value = mark.remarks || '';
+        
+        // Display student and course info for reference
+        const student = mark.students || {};
+        const course = mark.courses || {};
+        
+        // Show student name if available
+        const studentDisplay = document.getElementById('editStudentDisplay');
+        if (studentDisplay) {
+            studentDisplay.textContent = student.full_name ? 
+                `${student.reg_number} - ${student.full_name}` : 
+                `Student ID: ${mark.student_id}`;
+        }
+        
+        // Show course name if available
+        const courseDisplay = document.getElementById('editCourseDisplay');
+        if (courseDisplay) {
+            courseDisplay.textContent = course.course_code ? 
+                `${course.course_code} - ${course.course_name}` : 
+                `Course ID: ${mark.course_id}`;
+        }
         
         // Show edit modal
         this.openModal('editMarksModal');
         
     } catch (error) {
-        console.error('Error loading mark for edit:', error);
-        this.showToast('Error loading mark details', 'error');
+        console.error('❌ Error loading mark for edit:', error);
+        this.showToast(`Error loading mark details: ${error.message}`, 'error');
     }
 }
 
-// Update mark function
+// ==============================
+// FIXED UPDATE MARK FUNCTION
+// ==============================
+
 async updateMark(event) {
     event.preventDefault();
     
@@ -932,7 +1068,12 @@ async updateMark(event) {
         const maxScore = parseFloat(document.getElementById('editMaxScore').value) || 100;
         
         if (!markId || isNaN(score)) {
-            this.showToast('Invalid data', 'error');
+            this.showToast('Please enter valid score data', 'error');
+            return;
+        }
+        
+        if (score < 0 || maxScore <= 0) {
+            this.showToast('Score must be positive and max score must be greater than 0', 'error');
             return;
         }
         
@@ -944,6 +1085,8 @@ async updateMark(event) {
             remarks: document.getElementById('editRemarks').value || ''
         };
         
+        console.log('🔄 Updating mark:', markId, updateData);
+        
         await this.db.updateMark(markId, updateData);
         
         this.showToast('✅ Marks updated successfully!', 'success');
@@ -954,38 +1097,54 @@ async updateMark(event) {
         await this.updateDashboard();
         
     } catch (error) {
-        console.error('Error updating mark:', error);
-        this.showToast('Error updating marks', 'error');
+        console.error('❌ Error updating mark:', error);
+        this.showToast(`Error updating marks: ${error.message}`, 'error');
     }
 }
 
-// Delete mark function
+// ==============================
+// FIXED DELETE MARK FUNCTION
+// ==============================
+
 async deleteMark(markId) {
     try {
         if (!confirm('Are you sure you want to delete this mark record? This action cannot be undone.')) {
             return;
         }
         
+        console.log('🗑️ Deleting mark:', markId);
+        
         await this.db.deleteMark(markId);
         
         this.showToast('✅ Mark deleted successfully!', 'success');
         
-        // Remove row from table
+        // Remove row from table with animation
         const row = document.querySelector(`tr[data-mark-id="${markId}"]`);
         if (row) {
-            row.remove();
+            row.style.opacity = '0.5';
+            row.style.transition = 'opacity 0.3s';
+            setTimeout(() => {
+                row.remove();
+                // Update counts if any
+                this.updateSelectedCounts();
+            }, 300);
         }
         
         // Update dashboard
-        await this.updateDashboard();
+        if (this.updateDashboard) {
+            await this.updateDashboard();
+        }
         
     } catch (error) {
-        console.error('Error deleting mark:', error);
-        this.showToast('Error deleting mark', 'error');
+        console.error('❌ Error deleting mark:', error);
+        this.showToast(`Error deleting mark: ${error.message}`, 'error');
     }
 }
 
-// Save marks (original function enhanced)
+// ==============================
+// SAVE MARKS FUNCTION
+// ==============================
+
 async saveMarks(event) {
     event.preventDefault();
     
@@ -1003,6 +1162,11 @@ async saveMarks(event) {
             return;
         }
         
+        if (score < 0 || maxScore <= 0) {
+            this.showToast('Score must be positive and max score must be greater than 0', 'error');
+            return;
+        }
+        
         const markData = {
             studentId: studentId,
             courseId: courseId,
@@ -1014,6 +1178,8 @@ async saveMarks(event) {
             visibleToStudent: document.getElementById('visibleToStudent')?.checked || true
         };
         
+        console.log('💾 Saving marks:', markData);
+        
         await this.db.addMark(markData);
         
         this.showToast('✅ Marks saved successfully!', 'success');
@@ -1021,27 +1187,52 @@ async saveMarks(event) {
         // Close modal and reset form
         closeModal('marksModal');
         document.getElementById('marksForm').reset();
-        updateGradeDisplay();
+        
+        if (typeof updateGradeDisplay === 'function') {
+            updateGradeDisplay();
+        }
         
         // Update UI
         await this.loadMarksTable();
         await this.updateDashboard();
         
     } catch (error) {
-        console.error('Error saving marks:', error);
-        this.showToast('Error saving marks', 'error');
+        console.error('❌ Error saving marks:', error);
+        this.showToast(`Error saving marks: ${error.message}`, 'error');
     }
 }
 
-// Open modal function
+// ==============================
+// OPEN MODAL FUNCTION
+// ==============================
+
 openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.style.display = 'block';
         modal.classList.add('show');
+        // Focus on first input if exists
+        setTimeout(() => {
+            const firstInput = modal.querySelector('input, select, textarea');
+            if (firstInput) firstInput.focus();
+        }, 100);
+    } else {
+        console.warn(`Modal #${modalId} not found`);
     }
 }
-    
+
+// ==============================
+// HELPER FUNCTIONS
+// ==============================
+
+updateSelectedCounts() {
+    // Update any selected counts in UI if needed
+    const rowCount = document.querySelectorAll('#marksTableBody tr:not(.empty-state)').length;
+    const countElement = document.getElementById('markCount');
+    if (countElement) {
+        countElement.textContent = `Total: ${rowCount} marks`;
+    }
+}
     // ==============================
     // COURSE MANAGEMENT
     // ==============================
