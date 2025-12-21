@@ -970,17 +970,37 @@ class TEEPortalApp {
         return programs.size;
     }
     
-    updateCharts(students, marks) {
-        try {
-            // Program Distribution Chart
-            const programCtx = document.getElementById('programChart');
-            if (programCtx) {
-                const programCounts = {};
-                students.forEach(student => {
-                    programCounts[student.program] = (programCounts[student.program] || 0) + 1;
-                });
-                
-                new Chart(programCtx.getContext('2d'), {
+  updateCharts(students, marks) {
+    try {
+        // Destroy existing charts before creating new ones
+        if (window.chartInstances) {
+            Object.values(window.chartInstances).forEach(chart => {
+                if (chart && typeof chart.destroy === 'function') {
+                    chart.destroy();
+                }
+            });
+        }
+        
+        // Initialize chart instances object if it doesn't exist
+        if (!window.chartInstances) {
+            window.chartInstances = {};
+        }
+        
+        // Program Distribution Chart
+        const programCtx = document.getElementById('programChart');
+        if (programCtx) {
+            // Clear previous canvas
+            const programCtx2D = programCtx.getContext('2d');
+            programCtx2D.clearRect(0, 0, programCtx.width, programCtx.height);
+            
+            const programCounts = {};
+            students.forEach(student => {
+                programCounts[student.program] = (programCounts[student.program] || 0) + 1;
+            });
+            
+            // Only create chart if we have data
+            if (Object.keys(programCounts).length > 0) {
+                window.chartInstances.programChart = new Chart(programCtx2D, {
                     type: 'doughnut',
                     data: {
                         labels: Object.keys(programCounts).map(p => p.toUpperCase()),
@@ -996,20 +1016,35 @@ class TEEPortalApp {
                         }
                     }
                 });
+            } else {
+                // Draw placeholder message
+                programCtx2D.font = '14px Arial';
+                programCtx2D.fillStyle = '#999';
+                programCtx2D.textAlign = 'center';
+                programCtx2D.fillText('No program data available', 
+                    programCtx.width / 2, 
+                    programCtx.height / 2);
             }
+        }
+        
+        // Enrollment Chart
+        const enrollmentCtx = document.getElementById('enrollmentChart');
+        if (enrollmentCtx) {
+            // Clear previous canvas
+            const enrollmentCtx2D = enrollmentCtx.getContext('2d');
+            enrollmentCtx2D.clearRect(0, 0, enrollmentCtx.width, enrollmentCtx.height);
             
-            // Enrollment Chart
-            const enrollmentCtx = document.getElementById('enrollmentChart');
-            if (enrollmentCtx) {
-                const intakeCounts = {};
-                students.forEach(student => {
-                    intakeCounts[student.intake_year] = (intakeCounts[student.intake_year] || 0) + 1;
-                });
-                
-                const years = Object.keys(intakeCounts).sort();
-                const counts = years.map(year => intakeCounts[year]);
-                
-                new Chart(enrollmentCtx.getContext('2d'), {
+            const intakeCounts = {};
+            students.forEach(student => {
+                intakeCounts[student.intake_year] = (intakeCounts[student.intake_year] || 0) + 1;
+            });
+            
+            const years = Object.keys(intakeCounts).sort();
+            const counts = years.map(year => intakeCounts[year]);
+            
+            // Only create chart if we have data
+            if (years.length > 0) {
+                window.chartInstances.enrollmentChart = new Chart(enrollmentCtx2D, {
                     type: 'line',
                     data: {
                         labels: years,
@@ -1018,45 +1053,119 @@ class TEEPortalApp {
                             data: counts,
                             borderColor: '#3498db',
                             backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                            fill: true
+                            fill: true,
+                            tension: 0.1
                         }]
                     },
                     options: {
                         responsive: true,
-                        maintainAspectRatio: false
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    precision: 0
+                                }
+                            }
+                        }
                     }
                 });
+            } else {
+                // Draw placeholder message
+                enrollmentCtx2D.font = '14px Arial';
+                enrollmentCtx2D.fillStyle = '#999';
+                enrollmentCtx2D.textAlign = 'center';
+                enrollmentCtx2D.fillText('No enrollment data available', 
+                    enrollmentCtx.width / 2, 
+                    enrollmentCtx.height / 2);
             }
+        }
+        
+        // Grade Distribution Chart - only if we're on the marks page
+        const gradeCtx = document.getElementById('gradeChart');
+        if (gradeCtx) {
+            // Clear previous canvas
+            const gradeCtx2D = gradeCtx.getContext('2d');
+            gradeCtx2D.clearRect(0, 0, gradeCtx.width, gradeCtx.height);
             
-            // Grade Distribution Chart
-            const gradeCtx = document.getElementById('gradeChart');
-            if (gradeCtx && marks.length > 0) {
+            // Only create chart if we have marks data and we're on marks page
+            const marksSection = document.getElementById('marks');
+            const isMarksSectionActive = marksSection && marksSection.classList.contains('active');
+            
+            if (marks.length > 0 && isMarksSectionActive) {
                 const gradeCounts = {};
                 marks.forEach(mark => {
                     gradeCounts[mark.grade] = (gradeCounts[mark.grade] || 0) + 1;
                 });
                 
-                new Chart(gradeCtx.getContext('2d'), {
+                // Sort grades in logical order
+                const gradeOrder = ['A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'F'];
+                const sortedGrades = gradeOrder.filter(grade => gradeCounts[grade]);
+                const sortedCounts = sortedGrades.map(grade => gradeCounts[grade]);
+                
+                // Color mapping for grades
+                const gradeColors = {
+                    'A': '#27ae60',
+                    'B+': '#2ecc71',
+                    'B': '#2ecc71',
+                    'C+': '#f1c40f',
+                    'C': '#f1c40f',
+                    'D+': '#e67e22',
+                    'D': '#e67e22',
+                    'F': '#e74c3c'
+                };
+                
+                window.chartInstances.gradeChart = new Chart(gradeCtx2D, {
                     type: 'bar',
                     data: {
-                        labels: Object.keys(gradeCounts),
+                        labels: sortedGrades,
                         datasets: [{
                             label: 'Number of Grades',
-                            data: Object.values(gradeCounts),
-                            backgroundColor: '#2ecc71'
+                            data: sortedCounts,
+                            backgroundColor: sortedGrades.map(grade => gradeColors[grade] || '#95a5a6'),
+                            borderColor: '#ffffff',
+                            borderWidth: 1
                         }]
                     },
                     options: {
                         responsive: true,
-                        maintainAspectRatio: false
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    precision: 0
+                                }
+                            }
+                        }
                     }
                 });
+            } else if (isMarksSectionActive) {
+                // Draw placeholder message for marks section
+                gradeCtx2D.font = '14px Arial';
+                gradeCtx2D.fillStyle = '#999';
+                gradeCtx2D.textAlign = 'center';
+                gradeCtx2D.fillText('No grade data available', 
+                    gradeCtx.width / 2, 
+                    gradeCtx.height / 2);
             }
-            
-        } catch (error) {
-            console.error('Error updating charts:', error);
+            // If not on marks section, do nothing (chart won't be created)
         }
+        
+    } catch (error) {
+        console.error('Error updating charts:', error);
     }
+}
     
     async loadRecentActivities() {
         try {
