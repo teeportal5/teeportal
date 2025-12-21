@@ -903,21 +903,47 @@
         <div class="modal-body">
             <form id="editMarksForm" onsubmit="app.updateMark(event)">
                 <input type="hidden" id="editMarkId">
+                <input type="hidden" id="editStudent">
+                <input type="hidden" id="editCourse">
                 
+                <!-- Student Info Display -->
                 <div class="form-group">
-                    <label>Assessment Type</label>
-                    <select id="editAssessmentType" class="form-control" required>
-                        <option value="final">Final Exam</option>
-                        <option value="midterm">Midterm</option>
-                        <option value="quiz">Quiz</option>
-                        <option value="assignment">Assignment</option>
-                    </select>
+                    <label>Student</label>
+                    <div id="editStudentDisplay" class="form-display" 
+                         style="padding: 10px; background: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6; margin-bottom: 15px;">
+                        <i class="fas fa-user-graduate"></i> 
+                        <span id="studentNameDisplay">Loading...</span>
+                    </div>
                 </div>
                 
+                <!-- Course Info Display -->
                 <div class="form-group">
-                    <label>Assessment Name</label>
-                    <input type="text" id="editAssessmentName" class="form-control" 
-                           placeholder="e.g., Final Exam">
+                    <label>Course</label>
+                    <div id="editCourseDisplay" class="form-display" 
+                         style="padding: 10px; background: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6; margin-bottom: 15px;">
+                        <i class="fas fa-book"></i> 
+                        <span id="courseNameDisplay">Loading...</span>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Assessment Type</label>
+                        <select id="editAssessmentType" class="form-control" required>
+                            <option value="final">Final Exam</option>
+                            <option value="midterm">Midterm</option>
+                            <option value="quiz">Quiz</option>
+                            <option value="assignment">Assignment</option>
+                            <option value="project">Project</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Assessment Name</label>
+                        <input type="text" id="editAssessmentName" class="form-control" 
+                               placeholder="e.g., Final Exam, Quiz 1" required>
+                    </div>
                 </div>
                 
                 <div class="form-row">
@@ -936,13 +962,26 @@
                 
                 <div class="form-group">
                     <label>Remarks (Optional)</label>
-                    <textarea id="editRemarks" class="form-control" rows="2"></textarea>
+                    <textarea id="editRemarks" class="form-control" rows="2" 
+                              placeholder="Add any remarks about this assessment"></textarea>
+                </div>
+                
+                <!-- Auto-calculated percentage display -->
+                <div class="form-group">
+                    <label>Calculated Percentage</label>
+                    <div id="editPercentageDisplay" class="form-display" 
+                         style="padding: 10px; background: #e8f4fd; border-radius: 6px; border: 1px solid #b3d7ff;">
+                        <i class="fas fa-percentage"></i> 
+                        <span id="percentageValue">0%</span>
+                    </div>
                 </div>
                 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" 
                             onclick="closeModal('editMarksModal')">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Update Marks</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Update Marks
+                    </button>
                 </div>
             </form>
         </div>
