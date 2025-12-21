@@ -2832,7 +2832,7 @@ class TEEPortalApp {
         this.showToast('Error generating PDF: ' + error.message, 'error');
         throw error;
     }
-    
+}
     async generateTranscriptExcel(data, options) {
         // Implement using ExcelJS or similar
         console.log('Generating Excel for:', data.student.full_name);
