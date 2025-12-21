@@ -2170,3 +2170,42 @@ td, th {
         border: 1px solid #000 !important;
     }
 }
+/* URGENT FIX: Force display on all screen sizes */
+.content-section,
+.tab-content,
+.card-body,
+.table-responsive {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    height: auto !important;
+    max-height: none !important;
+}
+
+/* Override any hiding media queries */
+@media (min-width: 769px) {
+    .content-section,
+    .dashboard-row,
+    .stats-grid,
+    .card,
+    table,
+    tbody,
+    tr,
+    td {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    
+    /* Ensure main content area is visible */
+    main {
+        overflow: visible !important;
+        position: relative !important;
+        z-index: 10 !important;
+    }
+}
+
+/* Debug borders - remove after fixing */
+.debug * {
+    outline: 1px solid red !important;
+}
