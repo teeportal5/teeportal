@@ -1927,85 +1927,724 @@ class TEEPortalApp {
     }
     
     async generateStudentTranscriptPrompt() {
-        const studentId = prompt('Enter Student ID or Registration Number:');
-        if (studentId) {
-            const format = prompt('Select format:\n1. PDF\n2. Excel\n3. CSV', '1');
-            let formatCode = 'pdf';
+    try {
+        // Create a modal for student selection
+        const modal = document.createElement('div');
+        modal.id = 'transcriptModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+        `;
+        
+        modal.innerHTML = `
+            <div style="
+                background: white;
+                border-radius: 12px;
+                width: 90%;
+                max-width: 900px;
+                max-height: 80vh;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            ">
+                <div style="
+                    padding: 20px;
+                    border-bottom: 1px solid #eee;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                ">
+                    <h3 style="margin: 0; color: #2c3e50;">
+                        <i class="fas fa-graduation-cap"></i> Generate Student Transcripts
+                    </h3>
+                    <button id="closeTranscriptModal" style="
+                        background: none;
+                        border: none;
+                        font-size: 24px;
+                        cursor: pointer;
+                        color: #7f8c8d;
+                    ">&times;</button>
+                </div>
+                
+                <div style="padding: 20px; flex: 1; overflow-y: auto;">
+                    <!-- Filters -->
+                    <div style="
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                        gap: 15px;
+                        margin-bottom: 20px;
+                        padding: 15px;
+                        background: #f8f9fa;
+                        border-radius: 8px;
+                    ">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #2c3e50;">
+                                <i class="fas fa-filter"></i> Filter by Program
+                            </label>
+                            <select id="transcriptProgramFilter" style="
+                                width: 100%;
+                                padding: 8px 12px;
+                                border: 1px solid #ddd;
+                                border-radius: 6px;
+                                background: white;
+                            ">
+                                <option value="all">All Programs</option>
+                                <option value="basic">Basic TEE</option>
+                                <option value="hnc">HNC</option>
+                                <option value="advanced">Advanced TEE</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #2c3e50;">
+                                <i class="fas fa-calendar"></i> Filter by Intake
+                            </label>
+                            <select id="transcriptIntakeFilter" style="
+                                width: 100%;
+                                padding: 8px 12px;
+                                border: 1px solid #ddd;
+                                border-radius: 6px;
+                                background: white;
+                            ">
+                                <option value="all">All Intakes</option>
+                                <option value="2024">2024</option>
+                                <option value="2023">2023</option>
+                                <option value="2022">2022</option>
+                                <option value="2021">2021</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #2c3e50;">
+                                <i class="fas fa-search"></i> Search Student
+                            </label>
+                            <input type="text" id="transcriptSearch" placeholder="Search by name or reg number" style="
+                                width: 100%;
+                                padding: 8px 12px;
+                                border: 1px solid #ddd;
+                                border-radius: 6px;
+                            ">
+                        </div>
+                    </div>
+                    
+                    <!-- Student Selection Table -->
+                    <div style="margin-bottom: 20px;">
+                        <div style="
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            margin-bottom: 10px;
+                        ">
+                            <h4 style="margin: 0; color: #2c3e50;">Select Students</h4>
+                            <div style="display: flex; gap: 10px;">
+                                <button id="selectAllStudents" style="
+                                    padding: 6px 12px;
+                                    background: #3498db;
+                                    color: white;
+                                    border: none;
+                                    border-radius: 4px;
+                                    cursor: pointer;
+                                    font-size: 13px;
+                                ">
+                                    <i class="fas fa-check-square"></i> Select All
+                                </button>
+                                <button id="deselectAllStudents" style="
+                                    padding: 6px 12px;
+                                    background: #e74c3c;
+                                    color: white;
+                                    border: none;
+                                    border-radius: 4px;
+                                    cursor: pointer;
+                                    font-size: 13px;
+                                ">
+                                    <i class="fas fa-times-circle"></i> Deselect All
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div style="
+                            max-height: 300px;
+                            overflow-y: auto;
+                            border: 1px solid #eee;
+                            border-radius: 8px;
+                        ">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead style="background: #f8f9fa; position: sticky; top: 0;">
+                                    <tr>
+                                        <th style="padding: 12px; text-align: left; width: 50px;">
+                                            <input type="checkbox" id="masterCheckbox" style="cursor: pointer;">
+                                        </th>
+                                        <th style="padding: 12px; text-align: left;">Reg Number</th>
+                                        <th style="padding: 12px; text-align: left;">Student Name</th>
+                                        <th style="padding: 12px; text-align: left;">Program</th>
+                                        <th style="padding: 12px; text-align: left;">Intake</th>
+                                        <th style="padding: 12px; text-align: left;">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transcriptStudentList">
+                                    <!-- Students will be loaded here -->
+                                    <tr>
+                                        <td colspan="6" style="padding: 40px; text-align: center; color: #7f8c8d;">
+                                            <i class="fas fa-spinner fa-spin"></i> Loading students...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div style="margin-top: 10px; font-size: 13px; color: #7f8c8d; text-align: right;">
+                            <span id="selectedCount">0</span> students selected
+                        </div>
+                    </div>
+                    
+                    <!-- Format Selection -->
+                    <div style="
+                        padding: 15px;
+                        background: #f8f9fa;
+                        border-radius: 8px;
+                        margin-bottom: 20px;
+                    ">
+                        <h4 style="margin: 0 0 15px 0; color: #2c3e50;">
+                            <i class="fas fa-file-export"></i> Export Settings
+                        </h4>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #2c3e50;">
+                                    Export Format
+                                </label>
+                                <select id="transcriptFormat" style="
+                                    width: 100%;
+                                    padding: 8px 12px;
+                                    border: 1px solid #ddd;
+                                    border-radius: 6px;
+                                    background: white;
+                                ">
+                                    <option value="pdf">PDF Document (Individual files)</option>
+                                    <option value="excel">Excel Spreadsheet (Combined)</option>
+                                    <option value="csv">CSV File (Combined)</option>
+                                    <option value="zip">ZIP Archive (All PDFs)</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #2c3e50;">
+                                    Include Details
+                                </label>
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                        <input type="checkbox" id="includeAllAssessments" checked>
+                                        <span>All assessment details</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                        <input type="checkbox" id="includeGPA" checked>
+                                        <span>GPA calculation</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                        <input type="checkbox" id="includeRemarks" checked>
+                                        <span>Remarks</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="
+                    padding: 20px;
+                    border-top: 1px solid #eee;
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: 10px;
+                ">
+                    <button id="cancelTranscript" style="
+                        padding: 10px 20px;
+                        background: #95a5a6;
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-weight: 600;
+                    ">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button id="generateTranscriptsBtn" style="
+                        padding: 10px 20px;
+                        background: #27ae60;
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-weight: 600;
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                    ">
+                        <i class="fas fa-download"></i> Generate Transcripts
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Load students
+        await this.loadTranscriptStudents();
+        
+        // Setup event listeners
+        this.setupTranscriptModalEvents();
+        
+    } catch (error) {
+        console.error('Error creating transcript modal:', error);
+        this.showToast('Error loading transcript interface', 'error');
+    }
+}
+
+async loadTranscriptStudents() {
+    try {
+        const students = await this.db.getStudents();
+        const tbody = document.getElementById('transcriptStudentList');
+        
+        if (!students || students.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="padding: 40px; text-align: center; color: #7f8c8d;">
+                        <i class="fas fa-user-graduate"></i>
+                        <p style="margin-top: 10px;">No students found</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        const settings = await this.db.getSettings();
+        let html = '';
+        
+        students.forEach(student => {
+            const programName = settings.programs && settings.programs[student.program] ? 
+                settings.programs[student.program].name : student.program;
             
-            switch(format) {
-                case '1': formatCode = 'pdf'; break;
-                case '2': formatCode = 'excel'; break;
-                case '3': formatCode = 'csv'; break;
+            html += `
+                <tr class="student-row" data-program="${student.program}" data-intake="${student.intake_year}" data-name="${student.full_name.toLowerCase()}" data-reg="${student.reg_number.toLowerCase()}">
+                    <td style="padding: 12px;">
+                        <input type="checkbox" class="student-checkbox" value="${student.reg_number}" style="cursor: pointer;">
+                    </td>
+                    <td style="padding: 12px;">
+                        <strong>${student.reg_number}</strong>
+                    </td>
+                    <td style="padding: 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 32px; height: 32px; background: #3498db; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px;">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div>
+                                <strong>${student.full_name}</strong><br>
+                                <small style="color: #7f8c8d;">${student.email || ''}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="padding: 12px;">${programName}</td>
+                    <td style="padding: 12px;">${student.intake_year}</td>
+                    <td style="padding: 12px;">
+                        <span style="
+                            display: inline-block;
+                            padding: 4px 12px;
+                            border-radius: 20px;
+                            font-size: 11px;
+                            font-weight: 600;
+                            background: ${student.status === 'active' ? '#d4edda' : student.status === 'graduated' ? '#cce5ff' : '#f8d7da'};
+                            color: ${student.status === 'active' ? '#155724' : student.status === 'graduated' ? '#004085' : '#721c24'};
+                        ">
+                            ${(student.status || 'active').toUpperCase()}
+                        </span>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
+        this.updateSelectedCount();
+        
+    } catch (error) {
+        console.error('Error loading students for transcript:', error);
+        const tbody = document.getElementById('transcriptStudentList');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" style="padding: 40px; text-align: center; color: #e74c3c;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p style="margin-top: 10px;">Error loading students</p>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+setupTranscriptModalEvents() {
+    // Close modal
+    document.getElementById('closeTranscriptModal').addEventListener('click', () => {
+        document.getElementById('transcriptModal').remove();
+    });
+    
+    document.getElementById('cancelTranscript').addEventListener('click', () => {
+        document.getElementById('transcriptModal').remove();
+    });
+    
+    // Master checkbox
+    document.getElementById('masterCheckbox').addEventListener('change', (e) => {
+        const checkboxes = document.querySelectorAll('.student-checkbox:not(:disabled)');
+        checkboxes.forEach(cb => cb.checked = e.target.checked);
+        this.updateSelectedCount();
+    });
+    
+    // Select all button
+    document.getElementById('selectAllStudents').addEventListener('click', () => {
+        const checkboxes = document.querySelectorAll('.student-checkbox:not(:disabled)');
+        checkboxes.forEach(cb => cb.checked = true);
+        document.getElementById('masterCheckbox').checked = true;
+        this.updateSelectedCount();
+    });
+    
+    // Deselect all button
+    document.getElementById('deselectAllStudents').addEventListener('click', () => {
+        const checkboxes = document.querySelectorAll('.student-checkbox');
+        checkboxes.forEach(cb => cb.checked = false);
+        document.getElementById('masterCheckbox').checked = false;
+        this.updateSelectedCount();
+    });
+    
+    // Individual checkboxes
+    document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('student-checkbox')) {
+            this.updateSelectedCount();
+        }
+    });
+    
+    // Filters
+    document.getElementById('transcriptProgramFilter').addEventListener('change', () => {
+        this.filterTranscriptStudents();
+    });
+    
+    document.getElementById('transcriptIntakeFilter').addEventListener('change', () => {
+        this.filterTranscriptStudents();
+    });
+    
+    document.getElementById('transcriptSearch').addEventListener('input', () => {
+        this.filterTranscriptStudents();
+    });
+    
+    // Generate button
+    document.getElementById('generateTranscriptsBtn').addEventListener('click', async () => {
+        const selectedStudents = Array.from(document.querySelectorAll('.student-checkbox:checked'))
+            .map(cb => cb.value);
+        
+        if (selectedStudents.length === 0) {
+            this.showToast('Please select at least one student', 'warning');
+            return;
+        }
+        
+        const format = document.getElementById('transcriptFormat').value;
+        const includeAllAssessments = document.getElementById('includeAllAssessments').checked;
+        const includeGPA = document.getElementById('includeGPA').checked;
+        const includeRemarks = document.getElementById('includeRemarks').checked;
+        
+        // Disable button and show loading
+        const btn = document.getElementById('generateTranscriptsBtn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+        btn.disabled = true;
+        
+        try {
+            if (selectedStudents.length === 1) {
+                // Single student
+                await this.generateStudentTranscript(selectedStudents[0], format, {
+                    includeAllAssessments,
+                    includeGPA,
+                    includeRemarks
+                });
+            } else {
+                // Multiple students
+                if (format === 'zip' || format === 'pdf') {
+                    // Generate individual PDFs
+                    for (let i = 0; i < selectedStudents.length; i++) {
+                        const studentId = selectedStudents[i];
+                        await this.generateStudentTranscript(studentId, 'pdf', {
+                            includeAllAssessments,
+                            includeGPA,
+                            includeRemarks,
+                            batchMode: true
+                        });
+                        
+                        // Update progress
+                        btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Generating (${i + 1}/${selectedStudents.length})...`;
+                    }
+                    
+                    if (format === 'zip') {
+                        // TODO: Create ZIP archive (would need JSZip library)
+                        this.showToast(`Generated ${selectedStudents.length} transcripts. ZIP feature coming soon.`, 'info');
+                    } else {
+                        this.showToast(`Generated ${selectedStudents.length} PDF transcripts`, 'success');
+                    }
+                } else {
+                    // Combined Excel/CSV
+                    await this.generateBulkTranscripts(selectedStudents, format, {
+                        includeAllAssessments,
+                        includeGPA,
+                        includeRemarks
+                    });
+                }
             }
             
-            await this.generateStudentTranscript(studentId, formatCode);
-        }
-    }
-    
-    async generateStudentTranscript(studentId, format = 'pdf') {
-        try {
-            console.log(`📚 Generating transcript for student: ${studentId}`);
+            // Close modal on success
+            setTimeout(() => {
+                document.getElementById('transcriptModal').remove();
+            }, 1000);
             
-            const student = await this.db.getStudent(studentId);
-            if (!student) {
-                this.showToast('Student not found', 'error');
+        } catch (error) {
+            console.error('Error generating transcripts:', error);
+            this.showToast('Error generating transcripts', 'error');
+        } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    });
+}
+
+filterTranscriptStudents() {
+    const programFilter = document.getElementById('transcriptProgramFilter').value;
+    const intakeFilter = document.getElementById('transcriptIntakeFilter').value;
+    const searchTerm = document.getElementById('transcriptSearch').value.toLowerCase();
+    
+    const rows = document.querySelectorAll('.student-row');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const program = row.dataset.program;
+        const intake = row.dataset.intake;
+        const name = row.dataset.name;
+        const reg = row.dataset.reg;
+        
+        let shouldShow = true;
+        
+        // Program filter
+        if (programFilter !== 'all' && program !== programFilter) {
+            shouldShow = false;
+        }
+        
+        // Intake filter
+        if (intakeFilter !== 'all' && intake !== intakeFilter) {
+            shouldShow = false;
+        }
+        
+        // Search filter
+        if (searchTerm && !name.includes(searchTerm) && !reg.includes(searchTerm)) {
+            shouldShow = false;
+        }
+        
+        if (shouldShow) {
+            row.style.display = '';
+            visibleCount++;
+            
+            // Enable checkbox
+            const checkbox = row.querySelector('.student-checkbox');
+            checkbox.disabled = false;
+        } else {
+            row.style.display = 'none';
+            
+            // Disable checkbox
+            const checkbox = row.querySelector('.student-checkbox');
+            checkbox.disabled = true;
+            checkbox.checked = false;
+        }
+    });
+    
+    // Update master checkbox state
+    const visibleCheckboxes = document.querySelectorAll('.student-checkbox:not(:disabled)');
+    const allChecked = visibleCheckboxes.length > 0 && 
+        Array.from(visibleCheckboxes).every(cb => cb.checked);
+    document.getElementById('masterCheckbox').checked = allChecked;
+    
+    this.updateSelectedCount();
+}
+
+updateSelectedCount() {
+    const selectedCount = document.querySelectorAll('.student-checkbox:checked').length;
+    document.getElementById('selectedCount').textContent = selectedCount;
+    
+    // Update generate button text
+    const btn = document.getElementById('generateTranscriptsBtn');
+    if (selectedCount === 0) {
+        btn.innerHTML = '<i class="fas fa-download"></i> Generate Transcripts';
+    } else if (selectedCount === 1) {
+        btn.innerHTML = `<i class="fas fa-download"></i> Generate 1 Transcript`;
+    } else {
+        btn.innerHTML = `<i class="fas fa-download"></i> Generate ${selectedCount} Transcripts`;
+    }
+}
+
+// Updated generateStudentTranscript with options
+async generateStudentTranscript(studentId, format = 'pdf', options = {}) {
+    try {
+        console.log(`📚 Generating transcript for student: ${studentId}`);
+        
+        const student = await this.db.getStudent(studentId);
+        if (!student) {
+            this.showToast('Student not found', 'error');
+            return;
+        }
+        
+        const marks = await this.db.getStudentMarks(student.id);
+        const gpa = await this.db.calculateStudentGPA(student.id);
+        
+        const courses = {};
+        marks.forEach(mark => {
+            if (!mark.courses || !mark.courses.course_code) {
+                console.warn('Mark missing course info:', mark);
                 return;
             }
+            
+            const courseCode = mark.courses.course_code;
+            if (!courses[courseCode]) {
+                courses[courseCode] = {
+                    courseCode: courseCode,
+                    courseName: mark.courses.course_name || 'Unknown Course',
+                    assessments: [],
+                    finalGrade: '',
+                    credits: 3
+                };
+            }
+            
+            if (options.includeAllAssessments !== false) {
+                courses[courseCode].assessments.push({
+                    name: mark.assessment_name || 'Assessment',
+                    type: mark.assessment_type || 'Unknown',
+                    score: mark.score || 0,
+                    maxScore: mark.max_score || 100,
+                    percentage: mark.percentage || 0,
+                    grade: mark.grade || 'F',
+                    remarks: options.includeRemarks !== false ? mark.remarks : ''
+                });
+            }
+            
+            // Calculate final grade
+            if (courses[courseCode].assessments.length > 0) {
+                const totalPercentage = courses[courseCode].assessments
+                    .reduce((sum, a) => sum + (a.percentage || 0), 0);
+                const avgPercentage = totalPercentage / courses[courseCode].assessments.length;
+                courses[courseCode].finalGrade = this.db.calculateGrade(avgPercentage).grade;
+            }
+        });
+        
+        const courseList = Object.values(courses);
+        const transcriptData = {
+            student: student,
+            courses: courseList,
+            gpa: options.includeGPA !== false ? gpa : null,
+            totalCredits: courseList.length * 3,
+            generatedDate: new Date().toLocaleDateString(),
+            options: options
+        };
+        
+        if (format === 'pdf') {
+            await this.generateTranscriptPDF(transcriptData);
+        } else if (format === 'excel') {
+            await this.generateTranscriptExcel(transcriptData);
+        } else if (format === 'csv') {
+            await this.generateTranscriptCSV(transcriptData);
+        }
+        
+        if (!options.batchMode) {
+            this.showToast(`Transcript generated for ${student.full_name}`, 'success');
+            await this.db.logActivity('transcript_generated', 
+                `Generated transcript for ${student.full_name} (${student.reg_number})`);
+        }
+        
+    } catch (error) {
+        console.error('Error generating transcript:', error);
+        if (!options.batchMode) {
+            this.showToast(`Error generating transcript: ${error.message}`, 'error');
+        }
+    }
+}
+
+// Bulk transcripts method
+async generateBulkTranscripts(studentIds, format, options) {
+    try {
+        console.log(`📚 Generating bulk transcripts for ${studentIds.length} students`);
+        
+        const allTranscripts = [];
+        
+        for (const studentId of studentIds) {
+            const student = await this.db.getStudent(studentId);
+            if (!student) continue;
             
             const marks = await this.db.getStudentMarks(student.id);
             const gpa = await this.db.calculateStudentGPA(student.id);
             
             const courses = {};
             marks.forEach(mark => {
-                if (!courses[mark.courses.course_code]) {
-                    courses[mark.courses.course_code] = {
-                        courseCode: mark.courses.course_code,
-                        courseName: mark.courses.course_name,
-                        assessments: [],
+                if (!mark.courses || !mark.courses.course_code) continue;
+                
+                const courseCode = mark.courses.course_code;
+                if (!courses[courseCode]) {
+                    courses[courseCode] = {
+                        courseCode: courseCode,
+                        courseName: mark.courses.course_name || 'Unknown Course',
                         finalGrade: '',
                         credits: 3
                     };
                 }
                 
-                courses[mark.courses.course_code].assessments.push({
-                    name: mark.assessment_name,
-                    type: mark.assessment_type,
-                    score: mark.score,
-                    maxScore: mark.max_score,
-                    percentage: mark.percentage,
-                    grade: mark.grade
-                });
+                // For bulk export, just calculate final grade
+                if (courses[courseCode].assessments) {
+                    courses[courseCode].assessments.push({
+                        percentage: mark.percentage || 0
+                    });
+                } else {
+                    courses[courseCode].assessments = [{
+                        percentage: mark.percentage || 0
+                    }];
+                }
                 
-                const totalPercentage = courses[mark.courses.course_code].assessments
+                const totalPercentage = courses[courseCode].assessments
                     .reduce((sum, a) => sum + a.percentage, 0);
-                const avgPercentage = totalPercentage / courses[mark.courses.course_code].assessments.length;
-                courses[mark.courses.course_code].finalGrade = this.db.calculateGrade(avgPercentage).grade;
+                const avgPercentage = totalPercentage / courses[courseCode].assessments.length;
+                courses[courseCode].finalGrade = this.db.calculateGrade(avgPercentage).grade;
             });
             
-            const transcriptData = {
-                student: student,
-                courses: Object.values(courses),
-                gpa: gpa,
-                totalCredits: Object.values(courses).length * 3,
-                generatedDate: new Date().toLocaleDateString()
+            const transcript = {
+                'Reg Number': student.reg_number,
+                'Full Name': student.full_name,
+                'Program': student.program,
+                'Intake Year': student.intake_year,
+                'GPA': options.includeGPA !== false ? gpa.toFixed(2) : 'N/A',
+                'Total Courses': Object.keys(courses).length,
+                'Total Credits': Object.keys(courses).length * 3,
+                'Courses': Object.values(courses).map(c => c.courseCode).join(', ')
             };
             
-            if (format === 'pdf') {
-                await this.generateTranscriptPDF(transcriptData);
-            } else if (format === 'excel') {
-                await this.generateTranscriptExcel(transcriptData);
-            } else {
-                await this.generateTranscriptCSV(transcriptData);
-            }
-            
-            this.showToast(`Transcript generated for ${student.full_name}`, 'success');
-            await this.db.logActivity('transcript_generated', 
-                `Generated transcript for ${student.full_name} (${student.reg_number})`);
-                
-        } catch (error) {
-            console.error('Error generating transcript:', error);
-            this.showToast('Error generating transcript', 'error');
+            allTranscripts.push(transcript);
         }
+        
+        if (format === 'excel') {
+            await this.exportToExcel(allTranscripts, `bulk-transcripts-${new Date().toISOString().split('T')[0]}`);
+        } else if (format === 'csv') {
+            await this.exportToCSV(allTranscripts, `bulk-transcripts-${new Date().toISOString().split('T')[0]}`);
+        }
+        
+        this.showToast(`Generated ${allTranscripts.length} transcripts in ${format.toUpperCase()} format`, 'success');
+        
+    } catch (error) {
+        console.error('Error generating bulk transcripts:', error);
+        this.showToast('Error generating bulk transcripts', 'error');
     }
 }
 
