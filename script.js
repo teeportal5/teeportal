@@ -2023,7 +2023,7 @@ async exportMarksToExcel() {
     }
 }
 
-exportToExcelXLSX(marks) {
+async exportToExcelXLSX(marks) {
     // Convert marks to worksheet data
     const worksheetData = marks.map(mark => {
         const student = mark.students || {};
@@ -2128,7 +2128,21 @@ function setupNavigation() {
     // Set default view to dashboard
     setTimeout(() => showSection('dashboard'), 100);
 }
-
+async generateStudentTranscriptPrompt() {
+    const studentId = prompt('Enter Student ID or Registration Number:');
+    if (studentId) {
+        const format = prompt('Select format:\n1. PDF\n2. Excel\n3. CSV', '1');
+        let formatCode = 'pdf';
+        
+        switch(format) {
+            case '1': formatCode = 'pdf'; break;
+            case '2': formatCode = 'excel'; break;
+            case '3': formatCode = 'csv'; break;
+        }
+        
+        await this.generateStudentTranscript(studentId, formatCode);
+    }
+}
 function showCriticalError(error) {
     const errorDiv = document.createElement('div');
     errorDiv.style.cssText = `
