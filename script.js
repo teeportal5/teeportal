@@ -1,29 +1,59 @@
-// script.js - TEEPortal Complete System
-// No demo data - Production ready system
-
-console.log('TEEPortal System Initializing...');
-
 // ==============================
-// DATABASE MANAGEMENT
+// SUPABASE DATABASE MANAGEMENT
 // ==============================
 
-class TEEPortalDB {
+class TEEPortalSupabaseDB {
     constructor() {
-        this.storagePrefix = 'teeprod_';
-        this.initializeDatabase();
+        this.supabase = null;
+        this.initialized = false;
+        // ⚠️ REPLACE THESE WITH YOUR ACTUAL SUPABASE CREDENTIALS
+        this.supabaseUrl = 'https://your-project-id.supabase.co';
+        this.supabaseKey = 'your-anon-key-here';
+        this.init();
     }
     
-    initializeDatabase() {
-        // Initialize empty database if not exists
+    async init() {
+        try {
+            // Initialize Supabase client
+            this.supabase = supabase.createClient(this.supabaseUrl, this.supabaseKey);
+            
+            // Test connection
+            await this.testConnection();
+            this.initialized = true;
+            console.log('✅ Supabase connected successfully');
+            
+        } catch (error) {
+            console.error('❌ Supabase connection failed:', error);
+            this.initialized = false;
+            // Fallback to localStorage
+            this.useLocalStorageFallback();
+        }
+    }
+    
+    async testConnection() {
+        const { data, error } = await this.supabase
+            .from('students')
+            .select('*')
+            .limit(1);
+            
+        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+            throw error;
+        }
+        return true;
+    }
+    
+    useLocalStorageFallback() {
+        console.log('⚠️ Using localStorage fallback');
+        this.storagePrefix = 'teeprod_';
+        this.localStorageFallback = true;
+        
+        // Initialize localStorage if needed
         if (!localStorage.getItem(this.storagePrefix + 'initialized')) {
             localStorage.setItem(this.storagePrefix + 'students', JSON.stringify([]));
             localStorage.setItem(this.storagePrefix + 'courses', JSON.stringify([]));
             localStorage.setItem(this.storagePrefix + 'marks', JSON.stringify([]));
             localStorage.setItem(this.storagePrefix + 'settings', JSON.stringify(this.getDefaultSettings()));
-            localStorage.setItem(this.storagePrefix + 'intakes', JSON.stringify([]));
-            localStorage.setItem(this.storagePrefix + 'activity', JSON.stringify([]));
             localStorage.setItem(this.storagePrefix + 'initialized', 'true');
-            console.log('Database initialized successfully');
         }
     }
     
@@ -32,472 +62,403 @@ class TEEPortalDB {
             instituteName: 'Theological Education by Extension College',
             academicYear: new Date().getFullYear(),
             timezone: 'Africa/Nairobi',
-            
-            // Grading System
-            gradingSystem: 'standard',
             gradingScale: {
-                'A': { min: 80, max: 100, points: 4.0, description: 'Excellent' },
-                'B+': { min: 75, max: 79, points: 3.5, description: 'Very Good' },
-                'B': { min: 70, max: 74, points: 3.0, description: 'Good' },
-                'C+': { min: 65, max: 69, points: 2.5, description: 'Above Average' },
-                'C': { min: 60, max: 64, points: 2.0, description: 'Average' },
-                'D+': { min: 55, max: 59, points: 1.5, description: 'Below Average' },
-                'D': { min: 50, max: 54, points: 1.0, description: 'Pass' },
-                'F': { min: 0, max: 49, points: 0.0, description: 'Fail' }
-            },
-            passingGrade: 'D',
-            
-            // Programs
-            programs: {
-                'basic': { name: 'Basic TEE', duration: '2 years', credits: 60 },
-                'hnc': { name: 'Higher National Certificate', duration: '3 years', credits: 90 },
-                'advanced': { name: 'Advanced TEE', duration: '4 years', credits: 120 }
-            },
-            
-            // Academic Settings
-            maxCreditsPerSemester: 18,
-            assessmentWeights: {
-                'assignment': 0.3,
-                'midterm': 0.3,
-                'final': 0.4
+                'A': { min: 80, max: 100, points: 4.0 },
+                'B+': { min: 75, max: 79, points: 3.5 },
+                'B': { min: 70, max: 74, points: 3.0 },
+                'C+': { min: 65, max: 69, points: 2.5 },
+                'C': { min: 60, max: 64, points: 2.0 },
+                'D+': { min: 55, max: 59, points: 1.5 },
+                'D': { min: 50, max: 54, points: 1.0 },
+                'F': { min: 0, max: 49, points: 0.0 }
             }
         };
     }
     
     // ========== STUDENTS ==========
-    getStudents() {
-        return JSON.parse(localStorage.getItem(this.storagePrefix + 'students')) || [];
-    }
-    
-    saveStudents(students) {
-        localStorage.setItem(this.storagePrefix + 'students', JSON.stringify(students));
-    }
-    
-    addStudent(studentData) {
-        const students = this.getStudents();
-        const student = {
-            id: Date.now().toString(),
-            regNumber: this.generateRegNumber(studentData.program, studentData.intake),
-            ...studentData,
-            status: 'active',
-            registrationDate: new Date().toISOString().split('T')[0],
-            createdAt: new Date().toISOString()
-        };
-        
-        students.push(student);
-        this.saveStudents(students);
-        
-        // Log activity
-        this.logActivity('student_registered', `New student registered: ${student.name} (${student.regNumber})`);
-        
-        return student;
-    }
-    
-    updateStudent(id, updates) {
-        const students = this.getStudents();
-        const index = students.findIndex(s => s.id === id);
-        if (index !== -1) {
-            students[index] = { ...students[index], ...updates, updatedAt: new Date().toISOString() };
-            this.saveStudents(students);
-            return students[index];
+    async getStudents() {
+        if (!this.initialized || this.localStorageFallback) {
+            // Fallback to localStorage
+            return JSON.parse(localStorage.getItem(this.storagePrefix + 'students')) || [];
         }
-        return null;
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('students')
+                .select('*')
+                .order('created_at', { ascending: false });
+                
+            if (error) throw error;
+            return data || [];
+            
+        } catch (error) {
+            console.error('Error fetching students:', error);
+            return [];
+        }
     }
     
-    getStudent(id) {
-        return this.getStudents().find(s => s.id === id);
+    async addStudent(studentData) {
+        if (!this.initialized || this.localStorageFallback) {
+            // Fallback to localStorage
+            const students = JSON.parse(localStorage.getItem(this.storagePrefix + 'students')) || [];
+            const student = {
+                id: Date.now().toString(),
+                reg_number: this.generateRegNumber(studentData.program, studentData.intake),
+                full_name: studentData.name,
+                email: studentData.email,
+                phone: studentData.phone,
+                dob: studentData.dob,
+                gender: studentData.gender,
+                program: studentData.program,
+                intake_year: studentData.intake,
+                status: 'active',
+                created_at: new Date().toISOString()
+            };
+            
+            students.push(student);
+            localStorage.setItem(this.storagePrefix + 'students', JSON.stringify(students));
+            return student;
+        }
+        
+        try {
+            const regNumber = this.generateRegNumber(studentData.program, studentData.intake);
+            
+            const { data, error } = await this.supabase
+                .from('students')
+                .insert([{
+                    reg_number: regNumber,
+                    full_name: studentData.name,
+                    email: studentData.email,
+                    phone: studentData.phone,
+                    dob: studentData.dob,
+                    gender: studentData.gender,
+                    program: studentData.program,
+                    intake_year: studentData.intake,
+                    status: 'active'
+                }])
+                .select()
+                .single();
+                
+            if (error) throw error;
+            return data;
+            
+        } catch (error) {
+            console.error('Error adding student:', error);
+            throw error;
+        }
     }
     
-    getStudentByRegNumber(regNumber) {
-        return this.getStudents().find(s => s.regNumber === regNumber);
+    async getStudent(id) {
+        if (!this.initialized || this.localStorageFallback) {
+            const students = JSON.parse(localStorage.getItem(this.storagePrefix + 'students')) || [];
+            return students.find(s => s.id === id);
+        }
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('students')
+                .select('*')
+                .eq('id', id)
+                .single();
+                
+            if (error) throw error;
+            return data;
+            
+        } catch (error) {
+            console.error('Error fetching student:', error);
+            return null;
+        }
     }
     
     // ========== COURSES ==========
-getCourses() {
-    try {
-        const coursesData = localStorage.getItem(this.storagePrefix + 'courses');
-        if (!coursesData) {
-            // Initialize with some courses if empty
-            const initialCourses = [
-                {
-                    id: '1',
-                    code: 'TEE101',
-                    name: 'Introduction to Theology',
-                    program: 'basic',
-                    credits: 3,
-                    description: 'Foundational theological concepts',
-                    status: 'active',
-                    createdAt: new Date().toISOString()
-                },
-                {
-                    id: '2',
-                    code: 'TEE102',
-                    name: 'Biblical Studies',
-                    program: 'basic',
-                    credits: 3,
-                    description: 'Study of Biblical texts',
-                    status: 'active',
-                    createdAt: new Date().toISOString()
-                },
-                {
-                    id: '3',
-                    code: 'HNC101',
-                    name: 'Church History',
-                    program: 'hnc',
-                    credits: 4,
-                    description: 'Historical development of Christianity',
-                    status: 'active',
-                    createdAt: new Date().toISOString()
-                }
-            ];
-            this.saveCourses(initialCourses);
-            return initialCourses;
+    async getCourses() {
+        if (!this.initialized || this.localStorageFallback) {
+            return JSON.parse(localStorage.getItem(this.storagePrefix + 'courses')) || [];
         }
-        return JSON.parse(coursesData);
-    } catch (error) {
-        console.error('Error loading courses:', error);
-        return [];
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('courses')
+                .select('*')
+                .order('created_at', { ascending: false });
+                
+            if (error) throw error;
+            return data || [];
+            
+        } catch (error) {
+            console.error('Error fetching courses:', error);
+            return [];
+        }
     }
-}
-
-saveCourses(courses) {
-    try {
-        localStorage.setItem(this.storagePrefix + 'courses', JSON.stringify(courses));
-    } catch (error) {
-        console.error('Error saving courses:', error);
+    
+    async addCourse(courseData) {
+        if (!this.initialized || this.localStorageFallback) {
+            const courses = JSON.parse(localStorage.getItem(this.storagePrefix + 'courses')) || [];
+            const course = {
+                id: Date.now().toString(),
+                course_code: courseData.code.toUpperCase(),
+                course_name: courseData.name,
+                program: courseData.program,
+                credits: courseData.credits,
+                description: courseData.description,
+                status: 'active',
+                created_at: new Date().toISOString()
+            };
+            
+            courses.push(course);
+            localStorage.setItem(this.storagePrefix + 'courses', JSON.stringify(courses));
+            return course;
+        }
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('courses')
+                .insert([{
+                    course_code: courseData.code.toUpperCase(),
+                    course_name: courseData.name,
+                    program: courseData.program,
+                    credits: courseData.credits,
+                    description: courseData.description,
+                    status: 'active'
+                }])
+                .select()
+                .single();
+                
+            if (error) throw error;
+            return data;
+            
+        } catch (error) {
+            console.error('Error adding course:', error);
+            throw error;
+        }
     }
-}
-
-addCourse(courseData) {
-    try {
-        // Validate course data
-        if (!courseData || typeof courseData !== 'object') {
-            throw new Error('Invalid course data');
+    
+    async getCourse(id) {
+        if (!this.initialized || this.localStorageFallback) {
+            const courses = JSON.parse(localStorage.getItem(this.storagePrefix + 'courses')) || [];
+            return courses.find(c => c.id === id);
         }
         
-        // Ensure required fields exist with fallbacks
-        const validatedData = {
-            code: (courseData.code || '').toString().trim().toUpperCase(),
-            name: (courseData.name || '').toString().trim(),
-            program: courseData.program || 'basic',
-            credits: parseInt(courseData.credits) || 3,
-            description: (courseData.description || '').toString().trim()
-        };
-        
-        // Check for required fields
-        if (!validatedData.code) {
-            throw new Error('Course code is required');
+        try {
+            const { data, error } = await this.supabase
+                .from('courses')
+                .select('*')
+                .eq('id', id)
+                .single();
+                
+            if (error) throw error;
+            return data;
+            
+        } catch (error) {
+            console.error('Error fetching course:', error);
+            return null;
         }
-        if (!validatedData.name) {
-            throw new Error('Course name is required');
-        }
-        
-        const courses = this.getCourses();
-        
-        // Check for duplicate course code
-        const duplicate = courses.find(c => c.code === validatedData.code);
-        if (duplicate) {
-            throw new Error(`Course code "${validatedData.code}" already exists`);
-        }
-        
-        const course = {
-            id: Date.now().toString(),
-            ...validatedData,
-            status: 'active',
-            createdAt: new Date().toISOString()
-        };
-        
-        courses.push(course);
-        this.saveCourses(courses);
-        
-        this.logActivity('course_added', `New course added: ${course.code} - ${course.name}`);
-        
-        return course;
-    } catch (error) {
-        console.error('Error in addCourse:', error);
-        throw error; // Re-throw for handling in UI
     }
-}
-
-updateCourse(id, updates) {
-    try {
-        const courses = this.getCourses();
-        const index = courses.findIndex(c => c.id === id);
-        
-        if (index === -1) {
-            throw new Error('Course not found');
+    
+    // ========== MARKS ==========
+    async getMarks() {
+        if (!this.initialized || this.localStorageFallback) {
+            return JSON.parse(localStorage.getItem(this.storagePrefix + 'marks')) || [];
         }
         
-        // Apply updates
-        courses[index] = {
-            ...courses[index],
-            ...updates,
-            updatedAt: new Date().toISOString()
-        };
-        
-        // Ensure code is uppercase
-        if (updates.code) {
-            courses[index].code = updates.code.toString().toUpperCase().trim();
+        try {
+            const { data, error } = await this.supabase
+                .from('marks')
+                .select(`
+                    *,
+                    students!inner(reg_number, full_name),
+                    courses!inner(course_code, course_name)
+                `)
+                .order('created_at', { ascending: false });
+                
+            if (error) throw error;
+            return data || [];
+            
+        } catch (error) {
+            console.error('Error fetching marks:', error);
+            return [];
         }
-        
-        this.saveCourses(courses);
-        this.logActivity('course_updated', `Course updated: ${courses[index].code}`);
-        
-        return courses[index];
-    } catch (error) {
-        console.error('Error updating course:', error);
-        throw error;
     }
-}
-
-deleteCourse(id) {
-    try {
-        const courses = this.getCourses();
-        const courseIndex = courses.findIndex(c => c.id === id);
-        
-        if (courseIndex === -1) {
-            return false;
-        }
-        
-        const course = courses[courseIndex];
-        courses.splice(courseIndex, 1);
-        this.saveCourses(courses);
-        
-        this.logActivity('course_deleted', `Course deleted: ${course.code}`);
-        
-        return true;
-    } catch (error) {
-        console.error('Error deleting course:', error);
-        return false;
-    }
-}
-
-getCourse(id) {
-    return this.getCourses().find(c => c.id === id);
-}
-
-// ========== MARKS/ACADEMIC RECORDS ==========
-getMarks() {
-    try {
-        const marksData = localStorage.getItem(this.storagePrefix + 'marks');
-        return marksData ? JSON.parse(marksData) : [];
-    } catch (error) {
-        console.error('Error loading marks:', error);
-        return [];
-    }
-}
-
-saveMarks(marks) {
-    try {
-        localStorage.setItem(this.storagePrefix + 'marks', JSON.stringify(marks));
-    } catch (error) {
-        console.error('Error saving marks:', error);
-    }
-}
-
-addMark(markData) {
-    try {
-        // Validate mark data
-        if (!markData || typeof markData !== 'object') {
-            throw new Error('Invalid mark data');
-        }
-        
-        // Validate required fields
-        const requiredFields = ['studentId', 'courseId', 'score', 'maxScore'];
-        for (const field of requiredFields) {
-            if (!markData[field] && markData[field] !== 0) {
-                throw new Error(`Missing required field: ${field}`);
-            }
-        }
-        
-        const settings = this.getSettings();
-        const maxScore = parseFloat(markData.maxScore) || 100;
-        const score = parseFloat(markData.score);
-        
-        // Validate score range
-        if (score < 0 || score > maxScore) {
-            throw new Error(`Score must be between 0 and ${maxScore}`);
-        }
-        
-        const percentage = (score / maxScore) * 100;
-        const grade = this.calculateGrade(percentage);
-        
-        const mark = {
-            id: Date.now().toString(),
-            studentId: markData.studentId.toString(),
-            courseId: markData.courseId.toString(),
-            assessmentType: (markData.assessmentType || 'assignment').toString(),
-            assessmentName: (markData.assessmentName || 'Assessment').toString(),
-            score: score,
-            maxScore: maxScore,
-            percentage: parseFloat(percentage.toFixed(2)),
-            grade: grade.grade,
-            gradePoints: grade.points,
-            remarks: (markData.remarks || '').toString(),
-            visibleToStudent: markData.visibleToStudent !== undefined ? Boolean(markData.visibleToStudent) : true,
-            enteredBy: 'admin',
-            enteredAt: new Date().toISOString()
-        };
-        
-        const marks = this.getMarks();
-        marks.push(mark);
-        this.saveMarks(marks);
-        
-        // Get student and course info for logging
-        const student = this.getStudent(mark.studentId);
-        const course = this.getCourse(mark.courseId);
-        const studentName = student ? student.name : 'Unknown Student';
-        const courseName = course ? course.code : 'Unknown Course';
-        
-        this.logActivity('marks_entered', `Marks entered for ${studentName} in ${courseName}: ${mark.grade}`);
-        
-        return mark;
-    } catch (error) {
-        console.error('Error adding mark:', error);
-        throw error;
-    }
-}
-
-updateMark(id, updates) {
-    try {
-        const marks = this.getMarks();
-        const index = marks.findIndex(m => m.id === id);
-        
-        if (index === -1) {
-            throw new Error('Mark record not found');
-        }
-        
-        // Recalculate if score or maxScore changed
-        if (updates.score !== undefined || updates.maxScore !== undefined) {
-            const score = updates.score !== undefined ? parseFloat(updates.score) : marks[index].score;
-            const maxScore = updates.maxScore !== undefined ? parseFloat(updates.maxScore) : marks[index].maxScore;
-            const percentage = (score / maxScore) * 100;
+    
+    async addMark(markData) {
+        if (!this.initialized || this.localStorageFallback) {
+            const marks = JSON.parse(localStorage.getItem(this.storagePrefix + 'marks')) || [];
+            const percentage = (markData.score / markData.maxScore) * 100;
             const grade = this.calculateGrade(percentage);
             
-            updates.percentage = parseFloat(percentage.toFixed(2));
-            updates.grade = grade.grade;
-            updates.gradePoints = grade.points;
+            const mark = {
+                id: Date.now().toString(),
+                student_id: markData.studentId,
+                course_id: markData.courseId,
+                assessment_type: markData.assessmentType,
+                assessment_name: markData.assessmentName,
+                score: markData.score,
+                max_score: markData.maxScore,
+                percentage: parseFloat(percentage.toFixed(2)),
+                grade: grade.grade,
+                grade_points: grade.points,
+                remarks: markData.remarks,
+                visible_to_student: markData.visibleToStudent,
+                entered_by: 'admin',
+                created_at: new Date().toISOString()
+            };
+            
+            marks.push(mark);
+            localStorage.setItem(this.storagePrefix + 'marks', JSON.stringify(marks));
+            return mark;
         }
         
-        marks[index] = {
-            ...marks[index],
-            ...updates,
-            updatedAt: new Date().toISOString()
-        };
-        
-        this.saveMarks(marks);
-        this.logActivity('marks_updated', `Marks updated for record ${id}`);
-        
-        return marks[index];
-    } catch (error) {
-        console.error('Error updating mark:', error);
-        throw error;
-    }
-}
-
-deleteMark(id) {
-    try {
-        const marks = this.getMarks();
-        const markIndex = marks.findIndex(m => m.id === id);
-        
-        if (markIndex === -1) {
-            return false;
+        try {
+            const percentage = (markData.score / markData.maxScore) * 100;
+            const grade = this.calculateGrade(percentage);
+            
+            const { data, error } = await this.supabase
+                .from('marks')
+                .insert([{
+                    student_id: markData.studentId,
+                    course_id: markData.courseId,
+                    assessment_type: markData.assessmentType,
+                    assessment_name: markData.assessmentName,
+                    score: markData.score,
+                    max_score: markData.maxScore,
+                    percentage: parseFloat(percentage.toFixed(2)),
+                    grade: grade.grade,
+                    grade_points: grade.points,
+                    remarks: markData.remarks,
+                    visible_to_student: markData.visibleToStudent,
+                    entered_by: 'admin'
+                }])
+                .select(`
+                    *,
+                    students!inner(reg_number, full_name),
+                    courses!inner(course_code, course_name)
+                `)
+                .single();
+                
+            if (error) throw error;
+            return data;
+            
+        } catch (error) {
+            console.error('Error adding mark:', error);
+            throw error;
         }
-        
-        marks.splice(markIndex, 1);
-        this.saveMarks(marks);
-        
-        this.logActivity('marks_deleted', `Marks record ${id} deleted`);
-        
-        return true;
-    } catch (error) {
-        console.error('Error deleting mark:', error);
-        return false;
     }
-}
-
-getStudentMarks(studentId) {
-    try {
-        const marks = this.getMarks();
-        return marks.filter(m => m.studentId === studentId.toString());
-    } catch (error) {
-        console.error('Error getting student marks:', error);
-        return [];
-    }
-}
-
-getCourseMarks(courseId) {
-    try {
-        const marks = this.getMarks();
-        return marks.filter(m => m.courseId === courseId.toString());
-    } catch (error) {
-        console.error('Error getting course marks:', error);
-        return [];
-    }
-}
-
-getStudentCourseMarks(studentId, courseId) {
-    try {
-        const marks = this.getMarks();
-        return marks.filter(m => 
-            m.studentId === studentId.toString() && 
-            m.courseId === courseId.toString()
-        );
-    } catch (error) {
-        console.error('Error getting student course marks:', error);
-        return [];
-    }
-}
-
-calculateStudentGPA(studentId) {
-    try {
-        const marks = this.getStudentMarks(studentId);
-        if (marks.length === 0) return 0;
-        
-        const totalPoints = marks.reduce((sum, mark) => sum + mark.gradePoints, 0);
-        const gpa = totalPoints / marks.length;
-        
-        return parseFloat(gpa.toFixed(2));
-    } catch (error) {
-        console.error('Error calculating GPA:', error);
-        return 0;
-    }
-}
-
-getStudentGradeSummary(studentId) {
-    try {
-        const marks = this.getStudentMarks(studentId);
-        const summary = {
-            totalMarks: marks.length,
-            averagePercentage: 0,
-            averageGrade: 'N/A',
-            gpa: 0,
-            gradeDistribution: {}
-        };
-        
-        if (marks.length > 0) {
-            const totalPercentage = marks.reduce((sum, mark) => sum + mark.percentage, 0);
-            summary.averagePercentage = parseFloat((totalPercentage / marks.length).toFixed(2));
-            
-            const avgGrade = this.calculateGrade(summary.averagePercentage);
-            summary.averageGrade = avgGrade.grade;
-            
-            summary.gpa = this.calculateStudentGPA(studentId);
-            
-            // Count grades
-            marks.forEach(mark => {
-                const grade = mark.grade.charAt(0);
-                summary.gradeDistribution[grade] = (summary.gradeDistribution[grade] || 0) + 1;
-            });
-        }
-        
-        return summary;
-    } catch (error) {
-        console.error('Error getting grade summary:', error);
-        return null;
-    }
-}
     
+    async getStudentMarks(studentId) {
+        if (!this.initialized || this.localStorageFallback) {
+            const marks = JSON.parse(localStorage.getItem(this.storagePrefix + 'marks')) || [];
+            return marks.filter(m => m.student_id === studentId);
+        }
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('marks')
+                .select(`
+                    *,
+                    courses!inner(course_code, course_name)
+                `)
+                .eq('student_id', studentId)
+                .order('created_at', { ascending: false });
+                
+            if (error) throw error;
+            return data || [];
+            
+        } catch (error) {
+            console.error('Error fetching student marks:', error);
+            return [];
+        }
+    }
+    
+    async getCourseMarks(courseId) {
+        if (!this.initialized || this.localStorageFallback) {
+            const marks = JSON.parse(localStorage.getItem(this.storagePrefix + 'marks')) || [];
+            return marks.filter(m => m.course_id === courseId);
+        }
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('marks')
+                .select(`
+                    *,
+                    students!inner(reg_number, full_name)
+                `)
+                .eq('course_id', courseId)
+                .order('created_at', { ascending: false });
+                
+            if (error) throw error;
+            return data || [];
+            
+        } catch (error) {
+            console.error('Error fetching course marks:', error);
+            return [];
+        }
+    }
+    
+    async calculateStudentGPA(studentId) {
+        try {
+            const marks = await this.getStudentMarks(studentId);
+            if (marks.length === 0) return 0;
+            
+            const totalPoints = marks.reduce((sum, mark) => sum + mark.grade_points, 0);
+            return parseFloat((totalPoints / marks.length).toFixed(2));
+        } catch (error) {
+            console.error('Error calculating GPA:', error);
+            return 0;
+        }
+    }
+    
+    // ========== UTILITY METHODS ==========
+    calculateGrade(percentage) {
+        const gradingScale = {
+            'A': { min: 80, max: 100, points: 4.0 },
+            'B+': { min: 75, max: 79, points: 3.5 },
+            'B': { min: 70, max: 74, points: 3.0 },
+            'C+': { min: 65, max: 69, points: 2.5 },
+            'C': { min: 60, max: 64, points: 2.0 },
+            'D+': { min: 55, max: 59, points: 1.5 },
+            'D': { min: 50, max: 54, points: 1.0 },
+            'F': { min: 0, max: 49, points: 0.0 }
+        };
+        
+        for (const [grade, range] of Object.entries(gradingScale)) {
+            if (percentage >= range.min && percentage <= range.max) {
+                return { grade, points: range.points };
+            }
+        }
+        return { grade: 'F', points: 0.0 };
+    }
+    
+    generateRegNumber(program, intakeYear) {
+        const programPrefix = {
+            'basic': 'TEE',
+            'hnc': 'HNC',
+            'advanced': 'ATE'
+        };
+        
+        const prefix = programPrefix[program] || 'TEE';
+        const year = intakeYear.toString().slice(-2);
+        
+        // Generate random 4-digit number
+        const randomNum = Math.floor(Math.random() * 9000) + 1000;
+        return `${prefix}${year}${randomNum}`;
+    }
+    
+    getSettings() {
+        // For now, return default settings
+        return this.getDefaultSettings();
+    }
+    
+    logActivity(type, description) {
+        // Simple logging to console for now
+        console.log(`📝 Activity [${type}]: ${description}`);
+    }
+    
+    getRecentActivities(limit = 5) {
+        // Return empty array for now
+        return [];
+    }
+}
+ 
     // ========== GRADING SYSTEM ==========
     calculateGrade(percentage) {
         const settings = this.getSettings();
