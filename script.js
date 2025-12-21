@@ -206,71 +206,190 @@ class TEEPortalSupabaseDB {
         }
     }
     
-    // ========== COURSES ==========
-    async getCourses() {
-        try {
-            const supabase = await this.ensureConnected();
-            const { data, error } = await supabase
-                .from('courses')
-                .select('*')
-                .order('created_at', { ascending: false });
-                
-            if (error) throw error;
-            return data || [];
+   // ========== COURSES ==========
+async getCourses() {
+    try {
+        const supabase = await this.ensureConnected();
+        const { data, error } = await supabase
+            .from('courses')
+            .select('*')
+            .order('created_at', { ascending: false });
             
-        } catch (error) {
-            console.error('Error fetching courses:', error);
+        if (error) throw error;
+        return data || [];
+        
+    } catch (error) {
+        console.error('Error fetching courses:', error);
+        throw error;
+    }
+}
+
+async addCourse(courseData) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        // First, check if course code already exists
+        const { data: existingCourse, error: checkError } = await supabase
+            .from('courses')
+            .select('course_code')
+            .eq('course_code', courseData.code.toUpperCase())
+            .maybeSingle();
+            
+        if (checkError) {
+            console.warn('Error checking existing course:', checkError);
+            // Continue anyway, let the insert fail if duplicate
+        }
+        
+        if (existingCourse) {
+            throw new Error(`Course code "${courseData.code}" already exists. Please use a different code.`);
+        }
+        
+        const course = {
+            course_code: courseData.code.toUpperCase(),
+            course_name: courseData.name,
+            program: courseData.program,
+            credits: courseData.credits || 3, // Default to 3 credits
+            description: courseData.description || '',
+            status: 'active'
+        };
+        
+        const { data, error } = await supabase
+            .from('courses')
+            .insert([course])
+            .select()
+            .single();
+            
+        if (error) {
+            // Handle specific PostgreSQL errors
+            if (error.code === '23505') { // Unique violation
+                throw new Error(`Course code "${courseData.code.toUpperCase()}" already exists. Please use a different course code.`);
+            } else if (error.code === '23502') { // Not null violation
+                throw new Error('Missing required fields. Please check your input.');
+            } else if (error.code === '22P02') { // Invalid input syntax
+                throw new Error('Invalid data format. Please check your input.');
+            } else {
+                // Generic error
+                console.error('Supabase error details:', error);
+                throw new Error(`Failed to add course: ${error.message}`);
+            }
+        }
+        
+        await this.logActivity('course_added', `Added course: ${data.course_code}`);
+        return data;
+        
+    } catch (error) {
+        console.error('Error adding course:', error);
+        // Re-throw with better error message
+        if (error.message.includes('already exists')) {
+            throw error; // Keep our custom message
+        }
+        throw new Error(`Failed to add course: ${error.message}`);
+    }
+}
+
+async getCourse(id) {
+    try {
+        const supabase = await this.ensureConnected();
+        const { data, error } = await supabase
+            .from('courses')
+            .select('*')
+            .or(`id.eq.${id},course_code.eq.${id}`)
+            .single();
+            
+        if (error) {
+            if (error.code === 'PGRST116') {
+                return null; // No course found
+            }
             throw error;
         }
+        return data;
+        
+    } catch (error) {
+        console.error('Error fetching course:', error);
+        throw error;
     }
-    
-    async addCourse(courseData) {
-        try {
-            const supabase = await this.ensureConnected();
-            const course = {
-                course_code: courseData.code.toUpperCase(),
-                course_name: courseData.name,
-                program: courseData.program,
-                credits: courseData.credits,
-                description: courseData.description,
-                status: 'active'
-            };
-            
-            const { data, error } = await supabase
+}
+
+// Add this method to update existing courses
+async updateCourse(courseId, updateData) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        // If updating course code, check if new code already exists (excluding current course)
+        if (updateData.code) {
+            const { data: existingCourse, error: checkError } = await supabase
                 .from('courses')
-                .insert([course])
-                .select()
-                .single();
+                .select('id')
+                .eq('course_code', updateData.code.toUpperCase())
+                .neq('id', courseId)
+                .maybeSingle();
                 
-            if (error) throw error;
-            
-            await this.logActivity('course_added', `Added course: ${data.course_code}`);
-            return data;
-            
-        } catch (error) {
-            console.error('Error adding course:', error);
-            throw error;
+            if (existingCourse) {
+                throw new Error(`Course code "${updateData.code}" is already used by another course.`);
+            }
         }
-    }
-    
-    async getCourse(id) {
-        try {
-            const supabase = await this.ensureConnected();
-            const { data, error } = await supabase
-                .from('courses')
-                .select('*')
-                .or(`id.eq.${id},course_code.eq.${id}`)
-                .single();
-                
-            if (error) throw error;
-            return data;
+        
+        const updateObj = {};
+        if (updateData.code) updateObj.course_code = updateData.code.toUpperCase();
+        if (updateData.name) updateObj.course_name = updateData.name;
+        if (updateData.program) updateObj.program = updateData.program;
+        if (updateData.credits !== undefined) updateObj.credits = updateData.credits;
+        if (updateData.description !== undefined) updateObj.description = updateData.description;
+        if (updateData.status) updateObj.status = updateData.status;
+        
+        const { data, error } = await supabase
+            .from('courses')
+            .update(updateObj)
+            .eq('id', courseId)
+            .select()
+            .single();
             
-        } catch (error) {
-            console.error('Error fetching course:', error);
-            throw error;
-        }
+        if (error) throw error;
+        
+        await this.logActivity('course_updated', `Updated course: ${data.course_code}`);
+        return data;
+        
+    } catch (error) {
+        console.error('Error updating course:', error);
+        throw error;
     }
-    
+}
+
+// Add this method to delete courses
+async deleteCourse(courseId) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        // First check if course exists
+        const { data: course, error: checkError } = await supabase
+            .from('courses')
+            .select('course_code')
+            .eq('id', courseId)
+            .single();
+            
+        if (checkError) {
+            if (checkError.code === 'PGRST116') {
+                throw new Error('Course not found');
+            }
+            throw checkError;
+        }
+        
+        // Then delete it
+        const { error } = await supabase
+            .from('courses')
+            .delete()
+            .eq('id', courseId);
+            
+        if (error) throw error;
+        
+        await this.logActivity('course_deleted', `Deleted course: ${course.course_code}`);
+        return true;
+        
+    } catch (error) {
+        console.error('Error deleting course:', error);
+        throw error;
+    }
+}
     // ========== MARKS ==========
     async getMarks() {
         try {
@@ -1233,120 +1352,243 @@ updateSelectedCounts() {
         countElement.textContent = `Total: ${rowCount} marks`;
     }
 }
-    // ==============================
-    // COURSE MANAGEMENT
-    // ==============================
+   
+// ==============================
+// COURSE MANAGEMENT - UPDATED
+// ==============================
+
+async saveCourse(event) {
+    event.preventDefault();
     
-    async saveCourse(event) {
-        event.preventDefault();
+    try {
+        const courseData = {
+            code: document.getElementById('courseCode').value.trim(),
+            name: document.getElementById('courseName').value.trim(),
+            program: document.getElementById('courseProgram').value,
+            credits: parseInt(document.getElementById('courseCredits').value),
+            description: document.getElementById('courseDescription').value.trim()
+        };
         
-        try {
-            const courseData = {
-                code: document.getElementById('courseCode').value.trim(),
-                name: document.getElementById('courseName').value.trim(),
-                program: document.getElementById('courseProgram').value,
-                credits: parseInt(document.getElementById('courseCredits').value),
-                description: document.getElementById('courseDescription').value.trim()
-            };
-            
-            // Validation
-            if (!courseData.code || !courseData.name || !courseData.program) {
-                this.showToast('Please fill in all required fields', 'error');
-                return;
-            }
-            
-            const course = await this.db.addCourse(courseData);
-            
-            this.showToast(`Course "${course.course_code} - ${course.course_name}" added successfully`, 'success');
-            
-            // Close modal and reset form
-            closeModal('courseModal');
-            document.getElementById('courseForm').reset();
-            
-            // Update UI
-            await this.loadCourses();
-            await this.populateCourseDropdown();
-            
-        } catch (error) {
-            console.error('Error saving course:', error);
-            this.showToast('Error saving course', 'error');
+        // Validation
+        if (!courseData.code) {
+            this.showToast('Please enter a course code', 'error');
+            return;
         }
+        
+        if (!courseData.name) {
+            this.showToast('Please enter a course name', 'error');
+            return;
+        }
+        
+        if (!courseData.program) {
+            this.showToast('Please select a program', 'error');
+            return;
+        }
+        
+        if (isNaN(courseData.credits) || courseData.credits < 1 || courseData.credits > 10) {
+            this.showToast('Credits must be a number between 1 and 10', 'error');
+            return;
+        }
+        
+        console.log('📝 Saving course:', courseData);
+        
+        // Check if we're editing an existing course
+        const form = document.getElementById('courseForm');
+        const isEditMode = form.dataset.editId;
+        
+        let course;
+        if (isEditMode) {
+            // Update existing course
+            course = await this.db.updateCourse(isEditMode, courseData);
+            this.showToast(`✅ Course "${course.course_code} - ${course.course_name}" updated successfully`, 'success');
+            
+            // Reset edit mode
+            delete form.dataset.editId;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-plus"></i> Add Course';
+                submitBtn.classList.remove('btn-update');
+                submitBtn.classList.add('btn-primary');
+            }
+        } else {
+            // Add new course
+            course = await this.db.addCourse(courseData);
+            this.showToast(`✅ Course "${course.course_code} - ${course.course_name}" added successfully`, 'success');
+        }
+        
+        // Close modal and reset form
+        closeModal('courseModal');
+        form.reset();
+        
+        // Update UI
+        await this.loadCourses();
+        await this.populateCourseDropdown();
+        
+    } catch (error) {
+        console.error('Error saving course:', error);
+        // Show specific error message from the database
+        this.showToast(`❌ ${error.message}`, 'error');
     }
-    
-    async loadCourses() {
-        try {
-            const courses = await this.db.getCourses();
-            const grid = document.getElementById('coursesGrid');
+}
+
+async loadCourses() {
+    try {
+        const courses = await this.db.getCourses();
+        const grid = document.getElementById('coursesGrid');
+        
+        if (!grid) return;
+        
+        if (!courses || courses.length === 0) {
+            grid.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-book-open fa-3x"></i>
+                    <h3>No Courses Found</h3>
+                    <p>Add your first course to get started</p>
+                    <button class="btn-primary" onclick="openCourseModal()">
+                        <i class="fas fa-plus"></i> Add Course
+                    </button>
+                </div>
+            `;
+            return;
+        }
+        
+        const programNames = {
+            'basic': 'Basic TEE',
+            'hnc': 'HNC',
+            'advanced': 'Advanced TEE'
+        };
+        
+        const programColors = {
+            'basic': '#3498db',
+            'hnc': '#2ecc71',
+            'advanced': '#9b59b6'
+        };
+        
+        let html = '';
+        courses.forEach(course => {
+            const programName = programNames[course.program] || course.program;
+            const programColor = programColors[course.program] || '#95a5a6';
+            const createdAt = course.created_at ? new Date(course.created_at).toLocaleDateString() : 'Unknown';
+            const status = course.status || 'active';
             
-            if (!grid) return;
-            
-            if (!courses || courses.length === 0) {
-                grid.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-book-open fa-3x"></i>
-                        <h3>No Courses Found</h3>
-                        <p>Add your first course to get started</p>
-                        <button class="btn-primary" onclick="openCourseModal()">
-                            <i class="fas fa-plus"></i> Add Course
+            html += `
+                <div class="course-card" data-course-id="${course.id}">
+                    <div class="course-header" style="background: ${programColor};">
+                        <div class="course-header-content">
+                            <h3>${course.course_code}</h3>
+                            <span class="course-status ${status}">${status.toUpperCase()}</span>
+                        </div>
+                    </div>
+                    <div class="course-body">
+                        <h4>${course.course_name}</h4>
+                        <p class="course-description">${course.description || 'No description available'}</p>
+                        <div class="course-meta">
+                            <span><i class="fas fa-graduation-cap"></i> ${programName}</span>
+                            <span><i class="fas fa-star"></i> ${course.credits || 3} Credits</span>
+                            <span><i class="fas fa-calendar"></i> ${createdAt}</span>
+                        </div>
+                    </div>
+                    <div class="course-actions">
+                        <button class="btn-edit" onclick="app.editCourse('${course.id}')" title="Edit Course">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn-delete" onclick="app.deleteCoursePrompt('${course.id}', '${course.course_code}')" title="Delete Course">
+                            <i class="fas fa-trash"></i> Delete
                         </button>
                     </div>
-                `;
-                return;
-            }
-            
-            const programNames = {
-                'basic': 'Basic TEE',
-                'hnc': 'HNC',
-                'advanced': 'Advanced TEE'
-            };
-            
-            const programColors = {
-                'basic': '#3498db',
-                'hnc': '#2ecc71',
-                'advanced': '#9b59b6'
-            };
-            
-            let html = '';
-            courses.forEach(course => {
-                const programName = programNames[course.program] || course.program;
-                const programColor = programColors[course.program] || '#95a5a6';
-                const createdAt = course.created_at ? new Date(course.created_at).toLocaleDateString() : 'Unknown';
-                
-                html += `
-                    <div class="course-card">
-                        <div class="course-header" style="background: ${programColor};">
-                            <div class="course-header-content">
-                                <h3>${course.course_code}</h3>
-                                <span class="course-status">${course.status}</span>
-                            </div>
-                        </div>
-                        <div class="course-body">
-                            <h4>${course.course_name}</h4>
-                            <p class="course-description">${course.description || 'No description available'}</p>
-                            <div class="course-meta">
-                                <span><i class="fas fa-graduation-cap"></i> ${programName}</span>
-                                <span><i class="fas fa-star"></i> ${course.credits} Credits</span>
-                                <span><i class="fas fa-calendar"></i> ${createdAt}</span>
-                            </div>
-                        </div>
-                        <div class="course-actions">
-                            <button class="btn-edit" onclick="app.editCourse('${course.id}')">
-                                <i class="fas fa-edit"></i> Edit
-                            </button>
-                            <button class="btn-delete" onclick="app.deleteCourse('${course.id}')">
-                                <i class="fas fa-trash"></i> Delete
-                            </button>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            grid.innerHTML = html;
-            
-        } catch (error) {
-            console.error('Error loading courses:', error);
+                </div>
+            `;
+        });
+        
+        grid.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error loading courses:', error);
+        const grid = document.getElementById('coursesGrid');
+        if (grid) {
+            grid.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-triangle fa-3x"></i>
+                    <h3>Error Loading Courses</h3>
+                    <p>${error.message}</p>
+                    <button class="btn-primary" onclick="app.loadCourses()">
+                        <i class="fas fa-redo"></i> Retry
+                    </button>
+                </div>
+            `;
         }
     }
+}
+
+async editCourse(courseId) {
+    try {
+        const course = await this.db.getCourse(courseId);
+        
+        if (!course) {
+            this.showToast('Course not found', 'error');
+            return;
+        }
+        
+        // Populate form
+        document.getElementById('courseCode').value = course.course_code;
+        document.getElementById('courseName').value = course.course_name;
+        document.getElementById('courseProgram').value = course.program;
+        document.getElementById('courseCredits').value = course.credits || 3;
+        document.getElementById('courseDescription').value = course.description || '';
+        
+        // Set edit mode
+        const form = document.getElementById('courseForm');
+        form.dataset.editId = courseId;
+        
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Course';
+            submitBtn.classList.remove('btn-primary');
+            submitBtn.classList.add('btn-update');
+        }
+        
+        openModal('courseModal');
+        
+    } catch (error) {
+        console.error('Error editing course:', error);
+        this.showToast(`Error loading course: ${error.message}`, 'error');
+    }
+}
+
+async deleteCoursePrompt(courseId, courseCode) {
+    const confirmMessage = `Are you sure you want to delete the course "${courseCode}"?\n\nThis action cannot be undone.`;
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    try {
+        await this.db.deleteCourse(courseId);
+        this.showToast('✅ Course deleted successfully', 'success');
+        
+        // Remove the course card with animation
+        const courseCard = document.querySelector(`.course-card[data-course-id="${courseId}"]`);
+        if (courseCard) {
+            courseCard.style.opacity = '0.5';
+            courseCard.style.transition = 'opacity 0.3s';
+            setTimeout(() => {
+                courseCard.remove();
+                // Check if grid is now empty
+                const grid = document.getElementById('coursesGrid');
+                if (grid && grid.children.length === 0) {
+                    this.loadCourses(); // Reload to show empty state
+                }
+            }, 300);
+        }
+        
+        // Update dropdown
+        await this.populateCourseDropdown();
+        
+    } catch (error) {
+        console.error('Error deleting course:', error);
+        this.showToast(`❌ Error: ${error.message}`, 'error');
+    }
+}
     
     // ==============================
     // DASHBOARD FUNCTIONS
