@@ -2000,63 +2000,7 @@ previewGraduationReport(data) {
         }
     }
 }
-   // ==============================
-    // EXPORT METHODS
-    // ==============================
-async exportMarksToExcel() {
-    try {
-        const marks = await this.db.getMarksTableData();
-        
-        if (!marks || marks.length === 0) {
-            this.showToast('No marks data to export', 'warning');
-            return;
-        }
-        
-        // Create Excel workbook using SheetJS (if included)
-        if (typeof XLSX !== 'undefined') {
-            this.exportToExcelXLSX(marks);
-        } else {
-            // Fallback to CSV
-            this.exportMarks();
-        }
-        
-    } catch (error) {
-        console.error('Error exporting to Excel:', error);
-        this.showToast('Error exporting to Excel', 'error');
-    }
-}
-
-async exportToExcelXLSX(marks) {
-    // Convert marks to worksheet data
-    const worksheetData = marks.map(mark => {
-        const student = mark.students || {};
-        const course = mark.courses || {};
-        
-        return {
-            'Reg No': student.reg_number || '',
-            'Student Name': student.full_name || '',
-            'Course Code': course.course_code || '',
-            'Course Name': course.course_name || '',
-            'Assessment Type': mark.assessment_type || '',
-            'Assessment Name': mark.assessment_name || '',
-            'Score': mark.score || 0,
-            'Max Score': mark.max_score || 100,
-            'Percentage': mark.percentage || 0,
-            'Grade': mark.grade || '',
-            'Grade Points': mark.grade_points || 0,
-            'Remarks': mark.remarks || '',
-            'Date': mark.created_at ? new Date(mark.created_at).toLocaleDateString() : ''
-        };
-    });
-    
-    const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Marks');
-    
-    // Export to Excel
-    XLSX.writeFile(workbook, `teeportal-marks-${new Date().toISOString().split('T')[0]}.xlsx`);
-}
-
+  
 
 // ==============================
 // GLOBAL INITIALIZATION
@@ -2426,3 +2370,169 @@ styles.textContent = `
     }
 `;
 document.head.appendChild(styles);
+ // ==============================
+    // EXPORT METHODS (MUST BE INSIDE THE CLASS)
+    // ==============================
+    
+    async exportMarksToExcel() {
+        try {
+            const marks = await this.db.getMarksTableData();
+            
+            if (!marks || marks.length === 0) {
+                this.showToast('No marks data to export', 'warning');
+                return;
+            }
+            
+            // Create Excel workbook using SheetJS (if included)
+            if (typeof XLSX !== 'undefined') {
+                await this.exportToExcelXLSX(marks);
+            } else {
+                // Fallback to CSV
+                await this.exportMarks();
+            }
+            
+        } catch (error) {
+            console.error('Error exporting to Excel:', error);
+            this.showToast('Error exporting to Excel', 'error');
+        }
+    }
+
+    async exportToExcelXLSX(marks) {
+        // Convert marks to worksheet data
+        const worksheetData = marks.map(mark => {
+            const student = mark.students || {};
+            const course = mark.courses || {};
+            
+            return {
+                'Reg No': student.reg_number || '',
+                'Student Name': student.full_name || '',
+                'Course Code': course.course_code || '',
+                'Course Name': course.course_name || '',
+                'Assessment Type': mark.assessment_type || '',
+                'Assessment Name': mark.assessment_name || '',
+                'Score': mark.score || 0,
+                'Max Score': mark.max_score || 100,
+                'Percentage': mark.percentage || 0,
+                'Grade': mark.grade || '',
+                'Grade Points': mark.grade_points || 0,
+                'Remarks': mark.remarks || '',
+                'Date': mark.created_at ? new Date(mark.created_at).toLocaleDateString() : ''
+            };
+        });
+        
+        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Marks');
+        
+        // Export to Excel
+        XLSX.writeFile(workbook, `teeportal-marks-${new Date().toISOString().split('T')[0]}.xlsx`);
+    }
+    
+    async exportMarks() {
+        try {
+            console.log('📊 Exporting marks...');
+            
+            // Get all marks data with student and course info
+            const marks = await this.db.getMarksTableData();
+            
+            if (!marks || marks.length === 0) {
+                this.showToast('No marks data to export', 'warning');
+                return;
+            }
+            
+            // Convert to CSV format
+            const csv = this.convertMarksToCSV(marks);
+            
+            // Create and download CSV file
+            this.downloadCSV(csv, `teeportal-marks-${new Date().toISOString().split('T')[0]}.csv`);
+            
+            this.showToast(`Exported ${marks.length} marks records`, 'success');
+            
+        } catch (error) {
+            console.error('Error exporting marks:', error);
+            this.showToast('Error exporting marks', 'error');
+        }
+    }
+
+    convertMarksToCSV(marks) {
+        // CSV headers
+        const headers = [
+            'Student Reg No',
+            'Student Name', 
+            'Course Code',
+            'Course Name',
+            'Assessment Type',
+            'Assessment Name',
+            'Score',
+            'Max Score',
+            'Percentage',
+            'Grade',
+            'Grade Points',
+            'Remarks',
+            'Date Entered'
+        ];
+        
+        // Convert data to CSV rows
+        const rows = marks.map(mark => {
+            const student = mark.students || {};
+            const course = mark.courses || {};
+            
+            return [
+                `"${student.reg_number || ''}"`,
+                `"${student.full_name || ''}"`,
+                `"${course.course_code || ''}"`,
+                `"${course.course_name || ''}"`,
+                `"${mark.assessment_type || ''}"`,
+                `"${mark.assessment_name || ''}"`,
+                mark.score || 0,
+                mark.max_score || 100,
+                mark.percentage || 0,
+                `"${mark.grade || ''}"`,
+                mark.grade_points || 0,
+                `"${mark.remarks || ''}"`,
+                `"${mark.created_at ? new Date(mark.created_at).toLocaleDateString() : ''}"`
+            ].join(',');
+        });
+        
+        // Combine headers and rows
+        return [headers.join(','), ...rows].join('\n');
+    }
+
+    downloadCSV(csvContent, fileName) {
+        // Create a blob
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        
+        // Create download link
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', fileName);
+        link.style.visibility = 'hidden';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    
+    // Also add this method for the transcript button
+    async generateStudentTranscriptPrompt() {
+        const studentId = prompt('Enter Student ID or Registration Number:');
+        if (studentId) {
+            const format = prompt('Select format:\n1. PDF\n2. Excel\n3. CSV', '1');
+            let formatCode = 'pdf';
+            
+            switch(format) {
+                case '1': formatCode = 'pdf'; break;
+                case '2': formatCode = 'excel'; break;
+                case '3': formatCode = 'csv'; break;
+            }
+            
+            await this.generateStudentTranscript(studentId, formatCode);
+        }
+    }
+    
+} // <-- END OF TEEPortal
