@@ -1,5 +1,5 @@
 // ============================================
-// TEEPORTAL - Complete JavaScript with Supabase
+// TEEPORTAL - Complete JavaScript with Supabase Backend
 // ============================================
 
 // Prevent duplicate loading
@@ -14,6 +14,7 @@ if (window.__teePortalLoaded) {
     const SUPABASE_URL = 'https://kmkjsessuzdfadlmndyr.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtta2pzZXNzdXpkZmFkbG1uZHlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYyNTA1MzUsImV4cCI6MjA4MTgyNjUzNX0.16m_thmf2Td8uB5lan8vZDLkGkWIlftaxSOroqvDkU4';
 
+    // Global supabase client
     let supabase = null;
 
     // ============================================
@@ -51,114 +52,85 @@ if (window.__teePortalLoaded) {
             enableAdvancedTEE: false,
             enableTEENS: false
         },
-        subscriptions: {},
+        charts: {}, // Store chart instances
         pendingConfirm: null,
-        isLoading: false,
-        useLocalStorage: true // Default to localStorage until Supabase loads
+        isLoading: false
     };
 
     // DOM Elements Cache
     const elements = {};
 
     // ============================================
-    // CORE INITIALIZATION
+    // LOAD SUPABASE FROM CDN
     // ============================================
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('TEEPortal Initializing...');
-        
-        // First, load Supabase from CDN if not already loaded
-        loadSupabase().then(() => {
-            initializeApp();
-        }).catch(error => {
-            console.error('Failed to load Supabase:', error);
-            // Continue with localStorage mode
-            state.useLocalStorage = true;
-            initializeApp();
-        });
-    });
-
-    async function loadSupabase() {
+    function loadSupabaseScript() {
         return new Promise((resolve, reject) => {
-            // Check if Supabase is already loaded
+            // Check if already loaded
             if (window.supabase && window.supabase.createClient) {
                 console.log('Supabase already loaded');
                 resolve();
                 return;
             }
 
-            // Load Supabase from CDN
             console.log('Loading Supabase from CDN...');
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
-            script.onload = function() {
-                console.log('Supabase CDN script loaded');
-                
-                // Initialize Supabase client
-                if (window.supabase && window.supabase.createClient) {
-                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                    console.log('Supabase client initialized');
-                    
-                    // Test connection
-                    testSupabaseConnection().then(resolve).catch(reject);
-                } else {
-                    reject(new Error('Supabase library not available after loading'));
-                }
+            
+            script.onload = () => {
+                console.log('Supabase script loaded successfully');
+                resolve();
             };
             
-            script.onerror = function() {
-                reject(new Error('Failed to load Supabase script'));
+            script.onerror = (error) => {
+                console.error('Failed to load Supabase script:', error);
+                reject(new Error('Failed to load Supabase'));
             };
             
             document.head.appendChild(script);
         });
     }
 
-    async function testSupabaseConnection() {
+    // ============================================
+    // CORE INITIALIZATION
+    // ============================================
+    document.addEventListener('DOMContentLoaded', async function() {
+        console.log('TEEPortal Initializing...');
+        
         try {
-            console.log('Testing Supabase connection...');
-            const { data, error } = await supabase.from('students').select('count', { count: 'exact', head: true });
+            // 1. Load Supabase script
+            await loadSupabaseScript();
             
-            if (error) {
-                console.warn('Supabase connection test failed:', error.message);
-                state.useLocalStorage = true;
-                showToast('Connected to Supabase (read-only mode)', 'warning');
-            } else {
-                console.log('Supabase connection successful');
-                state.useLocalStorage = false;
-                showToast('Connected to live database', 'success');
-            }
-        } catch (error) {
-            console.warn('Supabase connection error:', error.message);
-            state.useLocalStorage = true;
-            showToast('Using local storage mode', 'info');
-        }
-    }
-
-    async function initializeApp() {
-        try {
-            // 1. Cache DOM elements
+            // 2. Initialize Supabase client
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('Supabase client initialized');
+            
+            // 3. Cache DOM elements
             cacheElements();
             
-            // 2. Initialize navigation
+            // 4. Initialize navigation
             initializeNavigation();
             
-            // 3. Setup event listeners
+            // 5. Setup event listeners
             setupEventListeners();
             
-            // 4. Initialize UI components
+            // 6. Initialize UI components
             initializeUI();
             
-            // 5. Load initial data
+            // 7. Load data from Supabase
             await loadInitialData();
             
-            // 6. Show success message
-            showToast('TEE Portal initialized successfully', 'success');
+            // 8. Start real-time subscriptions
+            startRealtimeSubscriptions();
+            
+            // 9. Show success message
+            showToast('TEE Portal connected to live database', 'success');
             
         } catch (error) {
             console.error('Initialization error:', error);
-            showToast('Error initializing system: ' + error.message, 'error');
+            showToast('Error connecting to database. Using demo mode.', 'error');
+            loadDemoData();
         }
-    }
+    });
 
     function cacheElements() {
         // Cache frequently used elements
@@ -191,8 +163,9 @@ if (window.__teePortalLoaded) {
         // Search inputs
         elements.studentSearch = document.getElementById('studentSearch');
         
-        // Loading indicators
-        elements.loadingOverlay = document.getElementById('loadingOverlay');
+        // Charts
+        elements.enrollmentChartCanvas = document.getElementById('enrollmentChart');
+        elements.gradeChartCanvas = document.getElementById('gradeChart');
     }
 
     function initializeNavigation() {
@@ -215,235 +188,408 @@ if (window.__teePortalLoaded) {
         try {
             showLoading(true);
             
-            // Load demo data immediately for better UX
-            await loadDemoData();
-            
-            // Then try to load from Supabase
-            if (!state.useLocalStorage && supabase) {
-                await Promise.all([
-                    loadStudentsFromSupabase(),
-                    loadCoursesFromSupabase(),
-                    loadMarksFromSupabase(),
-                    loadIntakesFromSupabase()
-                ]);
-            }
+            // Load all data in parallel
+            await Promise.all([
+                loadStudents(),
+                loadCourses(),
+                loadMarks(),
+                loadIntakes()
+            ]);
             
             updateDashboard();
+            showToast('Data loaded successfully', 'success');
             
         } catch (error) {
             console.error('Error loading initial data:', error);
-            showToast('Using demo data for now', 'info');
+            showToast('Error loading data from database', 'error');
+            throw error;
         } finally {
             showLoading(false);
         }
     }
 
-    async function loadDemoData() {
-        // Load demo data for immediate display
-        state.students = [
-            {
-                id: '1',
-                full_name: 'John Doe',
-                email: 'john@example.com',
-                program: 'Basic TEE',
-                status: 'Active',
-                enrollment_date: '2024-01-15'
-            },
-            {
-                id: '2',
-                full_name: 'Jane Smith',
-                email: 'jane@example.com',
-                program: 'HNC',
-                status: 'Active',
-                enrollment_date: '2024-01-20'
-            },
-            {
-                id: '3',
-                full_name: 'Michael Johnson',
-                email: 'michael@example.com',
-                program: 'Advanced TEE',
-                status: 'Graduated',
-                enrollment_date: '2023-09-10'
-            }
-        ];
-        
-        state.courses = [
-            {
-                id: '1',
-                code: 'TEE101',
-                name: 'Introduction to Theology',
-                program: 'Basic TEE',
-                credits: 3,
-                status: 'Active'
-            },
-            {
-                id: '2',
-                code: 'TEE102',
-                name: 'Biblical Studies',
-                program: 'Basic TEE',
-                credits: 4,
-                status: 'Active'
-            },
-            {
-                id: '3',
-                code: 'HNC201',
-                name: 'Pastoral Counseling',
-                program: 'HNC',
-                credits: 3,
-                status: 'Active'
-            }
-        ];
-        
-        state.marks = [
-            {
-                id: '1',
-                student: { full_name: 'John Doe' },
-                course: { name: 'Introduction to Theology' },
-                assignment1: 85,
-                midterm: 78,
-                final_exam: 92,
-                total: 85,
-                grade: 'A'
-            },
-            {
-                id: '2',
-                student: { full_name: 'Jane Smith' },
-                course: { name: 'Biblical Studies' },
-                assignment1: 72,
-                midterm: 68,
-                final_exam: 75,
-                total: 71,
-                grade: 'B'
-            }
-        ];
-        
-        state.intakes = [
-            {
-                id: '1',
-                name: 'Spring 2024',
-                deadline: '2024-04-30',
-                students: 120,
-                status: 'Active'
-            },
-            {
-                id: '2',
-                name: 'Fall 2023',
-                deadline: '2023-11-30',
-                students: 98,
-                status: 'Completed'
-            }
-        ];
-        
-        renderStudentsTable();
-        renderCoursesGrid();
-        renderMarksTable();
-        updateDashboard();
-    }
-
-    async function loadStudentsFromSupabase() {
+    // ============================================
+    // SUPABASE DATA OPERATIONS
+    // ============================================
+    async function loadStudents() {
         try {
-            if (!supabase) {
-                console.log('Supabase not available, skipping student load');
-                return;
-            }
-            
             const { data, error } = await supabase
                 .from('students')
                 .select('*')
-                .order('created_at', { ascending: false })
-                .limit(100);
+                .order('created_at', { ascending: false });
             
             if (error) throw error;
             
-            if (data && data.length > 0) {
-                state.students = data;
-                renderStudentsTable();
-                updateStudentCounts();
-                console.log('Loaded', data.length, 'students from Supabase');
-            }
+            state.students = data || [];
+            renderStudentsTable();
+            updateStudentCounts();
+            
+            console.log('Loaded', state.students.length, 'students from Supabase');
+            
         } catch (error) {
-            console.error('Error loading students from Supabase:', error);
-            // Don't show error toast here - localStorage mode is acceptable
+            console.error('Error loading students:', error);
+            throw error;
         }
     }
 
-    async function loadCoursesFromSupabase() {
+    async function loadCourses() {
         try {
-            if (!supabase) return;
-            
             const { data, error } = await supabase
                 .from('courses')
                 .select('*')
-                .order('created_at', { ascending: false })
-                .limit(100);
+                .order('created_at', { ascending: false });
             
             if (error) throw error;
             
-            if (data && data.length > 0) {
-                state.courses = data;
-                renderCoursesGrid();
-                updateCourseCounts();
-            }
+            state.courses = data || [];
+            renderCoursesGrid();
+            updateCourseCounts();
+            
         } catch (error) {
-            console.error('Error loading courses from Supabase:', error);
+            console.error('Error loading courses:', error);
+            throw error;
         }
     }
 
-    async function loadMarksFromSupabase() {
+    async function loadMarks() {
         try {
-            if (!supabase) return;
-            
             const { data, error } = await supabase
                 .from('marks')
                 .select(`
                     *,
-                    students (full_name),
+                    students (full_name, email),
                     courses (name, code)
                 `)
-                .order('created_at', { ascending: false })
-                .limit(100);
+                .order('created_at', { ascending: false });
             
             if (error) throw error;
             
-            if (data && data.length > 0) {
-                state.marks = data;
-                renderMarksTable();
-                updateAverageGrade();
-            }
+            state.marks = data || [];
+            renderMarksTable();
+            updateAverageGrade();
+            
         } catch (error) {
-            console.error('Error loading marks from Supabase:', error);
+            console.error('Error loading marks:', error);
+            throw error;
         }
     }
 
-    async function loadIntakesFromSupabase() {
+    async function loadIntakes() {
         try {
-            if (!supabase) return;
-            
             const { data, error } = await supabase
                 .from('intakes')
                 .select('*')
-                .order('created_at', { ascending: false })
-                .limit(100);
+                .order('created_at', { ascending: false });
             
             if (error) throw error;
             
-            if (data && data.length > 0) {
-                state.intakes = data;
-            }
+            state.intakes = data || [];
+            
         } catch (error) {
-            console.error('Error loading intakes from Supabase:', error);
+            console.error('Error loading intakes:', error);
+            throw error;
+        }
+    }
+
+    async function saveStudent(e) {
+        e.preventDefault();
+        
+        try {
+            const form = e.target;
+            const studentName = form.querySelector('input[placeholder="Full Name"]')?.value;
+            const studentEmail = form.querySelector('input[type="email"]')?.value;
+            const studentProgram = form.querySelector('select')?.value || 'Basic TEE';
+            
+            if (!studentName || !studentEmail) {
+                showToast('Please fill in all required fields', 'error');
+                return;
+            }
+            
+            const studentData = {
+                full_name: studentName,
+                email: studentEmail,
+                program: studentProgram,
+                status: 'Active',
+                enrollment_date: new Date().toISOString().split('T')[0]
+            };
+            
+            const { data, error } = await supabase
+                .from('students')
+                .insert([studentData])
+                .select()
+                .single();
+            
+            if (error) throw error;
+            
+            showToast('Student saved to database', 'success');
+            
+            // Refresh data
+            await loadStudents();
+            
+            closeModal('studentModal');
+            form.reset();
+            
+        } catch (error) {
+            console.error('Error saving student:', error);
+            showToast('Error saving student: ' + error.message, 'error');
+        }
+    }
+
+    async function deleteStudent(studentId) {
+        try {
+            const confirmed = await showConfirmModal('Are you sure you want to delete this student? This will also delete all their academic records.');
+            if (!confirmed) return;
+            
+            const { error } = await supabase
+                .from('students')
+                .delete()
+                .eq('id', studentId);
+            
+            if (error) throw error;
+            
+            showToast('Student deleted from database', 'success');
+            
+            // Refresh data
+            await loadStudents();
+            
+        } catch (error) {
+            console.error('Error deleting student:', error);
+            showToast('Error deleting student: ' + error.message, 'error');
+        }
+    }
+
+    async function saveCourse(e) {
+        e.preventDefault();
+        
+        try {
+            const form = e.target;
+            const courseCode = document.getElementById('courseCode')?.value;
+            const courseName = document.getElementById('courseName')?.value;
+            const courseProgram = document.getElementById('courseProgram')?.value;
+            const courseCredits = document.getElementById('courseCredits')?.value;
+            
+            if (!courseCode || !courseName || !courseProgram) {
+                showToast('Please fill in all required fields', 'error');
+                return;
+            }
+            
+            const courseData = {
+                code: courseCode,
+                name: courseName,
+                program: courseProgram,
+                credits: parseInt(courseCredits) || 3,
+                status: 'Active'
+            };
+            
+            const { data, error } = await supabase
+                .from('courses')
+                .insert([courseData])
+                .select()
+                .single();
+            
+            if (error) throw error;
+            
+            showToast('Course saved to database', 'success');
+            
+            // Refresh data
+            await loadCourses();
+            
+            closeModal('courseModal');
+            form.reset();
+            
+        } catch (error) {
+            console.error('Error saving course:', error);
+            showToast('Error saving course: ' + error.message, 'error');
+        }
+    }
+
+    async function deleteCourse(courseId) {
+        try {
+            const confirmed = await showConfirmModal('Are you sure you want to delete this course?');
+            if (!confirmed) return;
+            
+            const { error } = await supabase
+                .from('courses')
+                .delete()
+                .eq('id', courseId);
+            
+            if (error) throw error;
+            
+            showToast('Course deleted from database', 'success');
+            
+            // Refresh data
+            await loadCourses();
+            
+        } catch (error) {
+            console.error('Error deleting course:', error);
+            showToast('Error deleting course: ' + error.message, 'error');
+        }
+    }
+
+    async function saveMarks(e) {
+        e.preventDefault();
+        
+        try {
+            const form = e.target;
+            const studentId = document.getElementById('marksStudent')?.value;
+            const courseId = document.getElementById('marksCourse')?.value;
+            const assignment1 = parseInt(document.getElementById('assignment1')?.value) || 0;
+            const midterm = parseInt(document.getElementById('midterm')?.value) || 0;
+            const finalExam = parseInt(document.getElementById('finalExam')?.value) || 0;
+            
+            if (!studentId || !courseId) {
+                showToast('Please select student and course', 'error');
+                return;
+            }
+            
+            // Calculate total and grade
+            const total = Math.round((assignment1 + midterm + finalExam) / 3);
+            const grade = calculateGrade(total);
+            
+            const marksData = {
+                student_id: studentId,
+                course_id: courseId,
+                assignment1,
+                midterm,
+                final_exam: finalExam,
+                total,
+                grade,
+                assessment_date: new Date().toISOString().split('T')[0]
+            };
+            
+            const { data, error } = await supabase
+                .from('marks')
+                .insert([marksData])
+                .select(`
+                    *,
+                    students (full_name),
+                    courses (name)
+                `)
+                .single();
+            
+            if (error) throw error;
+            
+            showToast('Marks saved to database', 'success');
+            
+            // Refresh data
+            await loadMarks();
+            
+            closeModal('marksModal');
+            form.reset();
+            
+        } catch (error) {
+            console.error('Error saving marks:', error);
+            showToast('Error saving marks: ' + error.message, 'error');
+        }
+    }
+
+    async function saveIntake(e) {
+        e.preventDefault();
+        
+        try {
+            const form = e.target;
+            const intakeName = form.querySelector('input[placeholder="e.g., Spring 2025"]')?.value;
+            const deadline = form.querySelector('input[type="date"]')?.value;
+            
+            if (!intakeName || !deadline) {
+                showToast('Please fill in all fields', 'error');
+                return;
+            }
+            
+            const intakeData = {
+                name: intakeName,
+                deadline,
+                status: 'Upcoming'
+            };
+            
+            const { data, error } = await supabase
+                .from('intakes')
+                .insert([intakeData])
+                .select()
+                .single();
+            
+            if (error) throw error;
+            
+            showToast('Intake saved to database', 'success');
+            
+            // Refresh data
+            await loadIntakes();
+            
+            closeModal('intakeModal');
+            form.reset();
+            
+        } catch (error) {
+            console.error('Error saving intake:', error);
+            showToast('Error saving intake: ' + error.message, 'error');
         }
     }
 
     // ============================================
-    // UI FUNCTIONS (SAME AS BEFORE, but simplified)
+    // REALTIME SUBSCRIPTIONS
+    // ============================================
+    function startRealtimeSubscriptions() {
+        try {
+            // Subscribe to students table changes
+            supabase
+                .channel('students-changes')
+                .on('postgres_changes', 
+                    { event: '*', schema: 'public', table: 'students' }, 
+                    async (payload) => {
+                        console.log('Students changed:', payload);
+                        await loadStudents();
+                        showToast('Students updated in real-time', 'info');
+                    }
+                )
+                .subscribe();
+            
+            // Subscribe to courses table changes
+            supabase
+                .channel('courses-changes')
+                .on('postgres_changes', 
+                    { event: '*', schema: 'public', table: 'courses' }, 
+                    async (payload) => {
+                        console.log('Courses changed:', payload);
+                        await loadCourses();
+                        showToast('Courses updated in real-time', 'info');
+                    }
+                )
+                .subscribe();
+            
+            // Subscribe to marks table changes
+            supabase
+                .channel('marks-changes')
+                .on('postgres_changes', 
+                    { event: '*', schema: 'public', table: 'marks' }, 
+                    async (payload) => {
+                        console.log('Marks changed:', payload);
+                        await loadMarks();
+                        showToast('Marks updated in real-time', 'info');
+                    }
+                )
+                .subscribe();
+            
+            console.log('Real-time subscriptions started');
+            
+        } catch (error) {
+            console.error('Error starting real-time subscriptions:', error);
+        }
+    }
+
+    // ============================================
+    // UI FUNCTIONS
     // ============================================
     function showSection(sectionId) {
-        elements.sections.forEach(section => section.classList.remove('active'));
+        // Hide all sections
+        elements.sections.forEach(section => {
+            section.classList.remove('active');
+        });
+        
+        // Show selected section
         const targetSection = document.getElementById(sectionId);
         if (targetSection) {
             targetSection.classList.add('active');
             
+            // Update title
             const title = document.getElementById('section-title');
             const titles = {
                 dashboard: 'Dashboard',
@@ -455,6 +601,11 @@ if (window.__teePortalLoaded) {
             };
             if (title && titles[sectionId]) {
                 title.textContent = titles[sectionId];
+            }
+            
+            // Update charts when switching to dashboard
+            if (sectionId === 'dashboard') {
+                updateCharts();
             }
         }
     }
@@ -480,11 +631,11 @@ if (window.__teePortalLoaded) {
             html += `
                 <tr>
                     <td>${student.id}</td>
-                    <td>${student.full_name || student.name}</td>
+                    <td>${student.full_name}</td>
                     <td>${student.email}</td>
                     <td>${student.program}</td>
                     <td>
-                        <span class="status-badge status-${(student.status || 'Active').toLowerCase()}">
+                        <span class="status-badge status-${student.status?.toLowerCase() || 'active'}">
                             ${student.status || 'Active'}
                         </span>
                     </td>
@@ -524,7 +675,7 @@ if (window.__teePortalLoaded) {
                 <div class="course-card">
                     <div class="course-header">
                         <h3>${course.code}</h3>
-                        <span class="course-status ${(course.status || 'Active').toLowerCase()}">
+                        <span class="course-status ${course.status?.toLowerCase() || 'active'}">
                             ${course.status || 'Active'}
                         </span>
                     </div>
@@ -568,15 +719,15 @@ if (window.__teePortalLoaded) {
         
         let html = '';
         state.marks.forEach(record => {
-            const studentName = record.students?.full_name || record.student_name || 'Unknown';
-            const courseName = record.courses?.name || record.course_name || 'Unknown';
+            const studentName = record.students?.full_name || 'Unknown';
+            const courseName = record.courses?.name || 'Unknown';
             
             html += `
                 <tr>
                     <td>${studentName}</td>
                     <td>${record.assignment1 || 0}</td>
                     <td>${record.midterm || 0}</td>
-                    <td>${record.final_exam || record.finalExam || 0}</td>
+                    <td>${record.final_exam || 0}</td>
                     <td>${record.total || 0}</td>
                     <td><strong class="grade-${record.grade}">${record.grade || 'N/A'}</strong></td>
                 </tr>
@@ -591,8 +742,7 @@ if (window.__teePortalLoaded) {
         updateStudentCounts();
         updateCourseCounts();
         updateAverageGrade();
-        updateEnrollmentChart();
-        updateGradeDistributionChart();
+        updateCharts();
     }
 
     function updateStudentCounts() {
@@ -612,99 +762,127 @@ if (window.__teePortalLoaded) {
 
     function updateAverageGrade() {
         if (state.marks.length === 0) {
-            if (elements.avgGrade) elements.avgGrade.textContent = 'N/A';
+            if (elements.avgGrade) {
+                elements.avgGrade.textContent = 'N/A';
+            }
             return;
         }
         
         const total = state.marks.reduce((sum, mark) => sum + (mark.total || 0), 0);
         const average = Math.round(total / state.marks.length);
-        if (elements.avgGrade) elements.avgGrade.textContent = `${average}%`;
-    }
-
-    // ============================================
-    // CRUD OPERATIONS
-    // ============================================
-    async function saveStudent(e) {
-        e.preventDefault();
         
-        try {
-            const form = e.target;
-            const studentName = form.querySelector('input[placeholder="Full Name"]')?.value;
-            const studentEmail = form.querySelector('input[type="email"]')?.value;
-            const studentProgram = form.querySelector('select')?.value || 'Basic TEE';
-            
-            if (!studentName || !studentEmail) {
-                showToast('Please fill in all required fields', 'error');
-                return;
-            }
-            
-            const studentData = {
-                full_name: studentName,
-                email: studentEmail,
-                program: studentProgram,
-                status: 'Active',
-                enrollment_date: new Date().toISOString().split('T')[0],
-                created_at: new Date().toISOString()
-            };
-            
-            // Try to save to Supabase first
-            if (!state.useLocalStorage && supabase) {
-                const { data, error } = await supabase
-                    .from('students')
-                    .insert([studentData])
-                    .select()
-                    .single();
-                
-                if (error) throw error;
-                
-                showToast('Student saved to database', 'success');
-                await loadStudentsFromSupabase();
-            } else {
-                // Fallback to localStorage
-                const studentId = Date.now().toString();
-                const newStudent = {
-                    id: studentId,
-                    ...studentData
-                };
-                state.students.unshift(newStudent);
-                localStorage.setItem('teeportal_students', JSON.stringify(state.students));
-                showToast('Student saved locally', 'success');
-                renderStudentsTable();
-            }
-            
-            closeModal('studentModal');
-            form.reset();
-            
-        } catch (error) {
-            console.error('Error saving student:', error);
-            showToast('Error saving student: ' + error.message, 'error');
+        if (elements.avgGrade) {
+            elements.avgGrade.textContent = `${average}%`;
         }
     }
 
-    async function deleteStudent(studentId) {
-        try {
-            const confirmed = await showConfirmModal('Are you sure you want to delete this student?');
-            if (!confirmed) return;
-            
-            if (!state.useLocalStorage && supabase) {
-                const { error } = await supabase
-                    .from('students')
-                    .delete()
-                    .eq('id', studentId);
-                
-                if (error) throw error;
-                
-                showToast('Student deleted from database', 'success');
-                await loadStudentsFromSupabase();
-            } else {
-                state.students = state.students.filter(s => s.id !== studentId);
-                localStorage.setItem('teeportal_students', JSON.stringify(state.students));
-                showToast('Student deleted locally', 'success');
-                renderStudentsTable();
+    function calculateGrade(percentage) {
+        const system = state.gradingSystem;
+        for (const grade of system) {
+            if (percentage >= grade.min && percentage <= grade.max) {
+                return grade.grade;
             }
-        } catch (error) {
-            console.error('Error deleting student:', error);
-            showToast('Error deleting student', 'error');
+        }
+        return 'F';
+    }
+
+    function updateCharts() {
+        initializeCharts();
+    }
+
+    function initializeCharts() {
+        // Destroy existing charts
+        if (state.charts.enrollmentChart) {
+            state.charts.enrollmentChart.destroy();
+        }
+        if (state.charts.gradeChart) {
+            state.charts.gradeChart.destroy();
+        }
+        
+        // Enrollment Chart
+        if (elements.enrollmentChartCanvas) {
+            const ctx = elements.enrollmentChartCanvas.getContext('2d');
+            
+            // Calculate enrollment by month
+            const monthlyData = [0, 0, 0, 0, 0, 0]; // Jan-Jun
+            state.students.forEach(student => {
+                if (student.enrollment_date) {
+                    const month = new Date(student.enrollment_date).getMonth();
+                    if (month >= 0 && month <= 5) {
+                        monthlyData[month]++;
+                    }
+                }
+            });
+            
+            state.charts.enrollmentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Student Enrollment',
+                        data: monthlyData,
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Grade Distribution Chart
+        if (elements.gradeChartCanvas) {
+            const ctx = elements.gradeChartCanvas.getContext('2d');
+            
+            // Calculate grade distribution
+            const gradeCount = { A: 0, B: 0, C: 0, D: 0, F: 0 };
+            state.marks.forEach(mark => {
+                const grade = mark.grade?.[0] || 'F';
+                if (gradeCount.hasOwnProperty(grade)) {
+                    gradeCount[grade]++;
+                }
+            });
+            
+            state.charts.gradeChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['A', 'B', 'C', 'D', 'F'],
+                    datasets: [{
+                        data: [
+                            gradeCount.A,
+                            gradeCount.B,
+                            gradeCount.C,
+                            gradeCount.D,
+                            gradeCount.F
+                        ],
+                        backgroundColor: [
+                            '#22c55e',
+                            '#3b82f6',
+                            '#eab308',
+                            '#f97316',
+                            '#ef4444'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
         }
     }
 
@@ -718,27 +896,15 @@ if (window.__teePortalLoaded) {
         }
         
         if (elements.courseForm) {
-            elements.courseForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                showToast('Course saved (demo mode)', 'success');
-                closeModal('courseModal');
-            });
+            elements.courseForm.addEventListener('submit', saveCourse);
         }
         
         if (elements.marksForm) {
-            elements.marksForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                showToast('Marks saved (demo mode)', 'success');
-                closeModal('marksModal');
-            });
+            elements.marksForm.addEventListener('submit', saveMarks);
         }
         
         if (elements.intakeForm) {
-            elements.intakeForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                showToast('Intake saved (demo mode)', 'success');
-                closeModal('intakeModal');
-            });
+            elements.intakeForm.addEventListener('submit', saveIntake);
         }
         
         // Search inputs
@@ -754,10 +920,16 @@ if (window.__teePortalLoaded) {
             });
         });
         
-        // Refresh button
-        const refreshBtn = document.querySelector('.btn-refresh');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', refreshDashboard);
+        // Confirm modal
+        const confirmYes = document.getElementById('confirmYes');
+        const confirmNo = document.getElementById('confirmNo');
+        
+        if (confirmYes) {
+            confirmYes.addEventListener('click', confirmAction);
+        }
+        
+        if (confirmNo) {
+            confirmNo.addEventListener('click', () => closeModal('confirmModal'));
         }
     }
 
@@ -765,27 +937,28 @@ if (window.__teePortalLoaded) {
         initializeDatePickers();
         initializeSelects();
         initializeCharts();
-        loadSettings();
     }
 
     function showLoading(show) {
+        state.isLoading = show;
+        
         if (show) {
-            if (!elements.loadingOverlay) {
-                const overlay = document.createElement('div');
-                overlay.id = 'loadingOverlay';
-                overlay.className = 'loading-overlay';
-                overlay.innerHTML = `
-                    <div class="loading-spinner">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <p>Loading...</p>
-                    </div>
-                `;
-                document.body.appendChild(overlay);
-                elements.loadingOverlay = overlay;
+            // Create loading overlay if it doesn't exist
+            const overlay = document.createElement('div');
+            overlay.id = 'loadingOverlay';
+            overlay.className = 'loading-overlay';
+            overlay.innerHTML = `
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading data from database...</p>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        } else {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.remove();
             }
-            elements.loadingOverlay.style.display = 'flex';
-        } else if (elements.loadingOverlay) {
-            elements.loadingOverlay.style.display = 'none';
         }
     }
 
@@ -870,8 +1043,9 @@ if (window.__teePortalLoaded) {
         if (!tbody) return;
         
         const filtered = state.students.filter(student => 
-            (student.full_name || student.name || '').toLowerCase().includes(searchTerm) ||
-            (student.email || '').toLowerCase().includes(searchTerm)
+            (student.full_name || '').toLowerCase().includes(searchTerm) ||
+            (student.email || '').toLowerCase().includes(searchTerm) ||
+            (student.program || '').toLowerCase().includes(searchTerm)
         );
         
         if (filtered.length === 0) {
@@ -888,7 +1062,7 @@ if (window.__teePortalLoaded) {
             html += `
                 <tr>
                     <td>${student.id}</td>
-                    <td>${student.full_name || student.name}</td>
+                    <td>${student.full_name}</td>
                     <td>${student.email}</td>
                     <td>${student.program}</td>
                     <td>${student.status || 'Active'}</td>
@@ -908,12 +1082,55 @@ if (window.__teePortalLoaded) {
     }
 
     function refreshDashboard() {
-        if (!state.useLocalStorage && supabase) {
-            loadInitialData();
-            showToast('Refreshing from database...', 'info');
-        } else {
-            showToast('Refreshed local data', 'info');
-        }
+        loadInitialData();
+        showToast('Refreshing data from database...', 'info');
+    }
+
+    // ============================================
+    // DEMO DATA (FALLBACK)
+    // ============================================
+    function loadDemoData() {
+        // Load minimal demo data for UI
+        state.students = [
+            {
+                id: 'demo-1',
+                full_name: 'John Doe',
+                email: 'john@example.com',
+                program: 'Basic TEE',
+                status: 'Active',
+                enrollment_date: '2024-01-15'
+            }
+        ];
+        
+        state.courses = [
+            {
+                id: 'demo-1',
+                code: 'TEE101',
+                name: 'Introduction to Theology',
+                program: 'Basic TEE',
+                credits: 3,
+                status: 'Active',
+                description: 'Sample course description'
+            }
+        ];
+        
+        state.marks = [
+            {
+                id: 'demo-1',
+                student: { full_name: 'John Doe' },
+                course: { name: 'Introduction to Theology' },
+                assignment1: 85,
+                midterm: 78,
+                final_exam: 92,
+                total: 85,
+                grade: 'A'
+            }
+        ];
+        
+        renderStudentsTable();
+        renderCoursesGrid();
+        renderMarksTable();
+        updateDashboard();
     }
 
     // ============================================
