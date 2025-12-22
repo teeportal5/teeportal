@@ -1,4 +1,4 @@
-// modules/marks.js - Marks management module (with plus/minus grades)
+// modules/marks.js - Marks management module
 class MarksManager {
     constructor(db, app) {
         this.db = db;
@@ -10,7 +10,7 @@ class MarksManager {
     
     calculateGrade(percentage) {
         if (typeof percentage !== 'number' || isNaN(percentage)) {
-            return 'F';
+            return 'FAIL';
         }
         
         // Try to get grading scale from settings
@@ -29,35 +29,23 @@ class MarksManager {
             }
         }
         
-        // Default comprehensive grading scale with plus/minus
-        return this.getDefaultGrade(percentage);
-    }
-    
-    getDefaultGrade(percentage) {
-        // Comprehensive grading scale with plus/minus
-        if (percentage >= 97) return 'A+';
-        if (percentage >= 93) return 'A';
-        if (percentage >= 90) return 'A-';
-        if (percentage >= 87) return 'B+';
-        if (percentage >= 83) return 'B';
-        if (percentage >= 80) return 'B-';
-        if (percentage >= 77) return 'C+';
-        if (percentage >= 73) return 'C';
-        if (percentage >= 70) return 'C-';
-        if (percentage >= 67) return 'D+';
-        if (percentage >= 63) return 'D';
-        if (percentage >= 60) return 'D-';
-        return 'F';
+        // Simplified 4-grade system
+        // 85% and above = DISTINCTION
+        // 70% - 84% = CREDIT
+        // 50% - 69% = PASS
+        // Below 50% = FAIL
+        if (percentage >= 85) return 'DISTINCTION';
+        if (percentage >= 70) return 'CREDIT';
+        if (percentage >= 50) return 'PASS';
+        return 'FAIL';
     }
     
     getGradePoints(grade) {
-        // Grade point mapping (4.0 scale)
         const gradePoints = {
-            'A+': 4.0, 'A': 4.0, 'A-': 3.7,
-            'B+': 3.3, 'B': 3.0, 'B-': 2.7,
-            'C+': 2.3, 'C': 2.0, 'C-': 1.7,
-            'D+': 1.3, 'D': 1.0, 'D-': 0.7,
-            'F': 0.0
+            'DISTINCTION': 4.0,
+            'CREDIT': 3.0,
+            'PASS': 2.0,
+            'FAIL': 0.0
         };
         
         // Try to get from settings first
@@ -66,28 +54,32 @@ class MarksManager {
             if (points !== undefined) return points;
         }
         
-        return gradePoints[grade] || 0.0;
+        const upperGrade = grade.toUpperCase();
+        return gradePoints[upperGrade] || 0.0;
     }
     
     getGradeDescription(grade) {
-        // Grade descriptions
         const descriptions = {
-            'A+': 'Outstanding',
-            'A': 'Excellent',
-            'A-': 'Excellent',
-            'B+': 'Very Good',
-            'B': 'Good',
-            'B-': 'Good',
-            'C+': 'Satisfactory',
-            'C': 'Average',
-            'C-': 'Average',
-            'D+': 'Below Average',
-            'D': 'Poor',
-            'D-': 'Poor',
-            'F': 'Fail'
+            'DISTINCTION': 'Excellent - Outstanding achievement (85% and above)',
+            'CREDIT': 'Good - Above average achievement (70% - 84%)',
+            'PASS': 'Satisfactory - Minimum requirements met (50% - 69%)',
+            'FAIL': 'Fail - Requirements not met (Below 50%)'
         };
         
-        return descriptions[grade] || 'No Description';
+        const upperGrade = grade.toUpperCase();
+        return descriptions[upperGrade] || 'No Description Available';
+    }
+    
+    getGradeCSSClass(grade) {
+        const classes = {
+            'DISTINCTION': 'grade-distinction',
+            'CREDIT': 'grade-credit',
+            'PASS': 'grade-pass',
+            'FAIL': 'grade-fail'
+        };
+        
+        const upperGrade = grade.toUpperCase();
+        return classes[upperGrade] || 'grade-default';
     }
     
     // ==================== MARKS TABLE ====================
@@ -103,14 +95,90 @@ class MarksManager {
             }
             
             if (marks.length === 0) {
-                tbody.innerHTML = this.getEmptyStateHTML();
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="13" class="empty-state">
+                            <i class="fas fa-chart-bar fa-2x"></i>
+                            <p>No marks recorded yet</p>
+                            <button class="btn btn-primary mt-2" onclick="app.marks.openMarksModal()">
+                                <i class="fas fa-plus"></i> Add First Mark
+                            </button>
+                        </td>
+                    </tr>
+                `;
                 return;
             }
             
             let html = '';
             
             marks.forEach(mark => {
-                html += this.createMarkRowHTML(mark);
+                const student = mark.students || {};
+                const course = mark.courses || {};
+                
+                // Calculate values
+                const score = mark.score || 0;
+                const maxScore = mark.max_score || 100;
+                let percentage = mark.percentage;
+                if (!percentage && maxScore > 0) {
+                    percentage = (score / maxScore) * 100;
+                }
+                
+                let grade = mark.grade;
+                if (!grade && percentage !== undefined) {
+                    grade = this.calculateGrade(parseFloat(percentage));
+                }
+                
+                const gradePoints = this.getGradePoints(grade);
+                const gradeDescription = this.getGradeDescription(grade);
+                const gradeCSSClass = this.getGradeCSSClass(grade);
+                
+                const markId = mark.id || mark._id || '';
+                let studentName = student.full_name || 'N/A';
+                studentName = studentName.replace(/\s+test\s+\d*$/i, '');
+                
+                const dateObj = mark.created_at ? new Date(mark.created_at) : 
+                              mark.date ? new Date(mark.date) : new Date();
+                const formattedDate = dateObj.toLocaleDateString('en-GB');
+                
+                html += `
+                    <tr data-mark-id="${markId}" data-grade="${grade}">
+                        <td>${student.reg_number || 'N/A'}</td>
+                        <td>${studentName}</td>
+                        <td>${course.course_code || 'N/A'}</td>
+                        <td>${course.course_name || 'N/A'}</td>
+                        <td>${mark.assessment_type || 'N/A'}</td>
+                        <td>${mark.assessment_name || 'N/A'}</td>
+                        <td><strong>${score}/${maxScore}</strong></td>
+                        <td>${percentage ? percentage.toFixed(2) : 'N/A'}%</td>
+                        <td>
+                            <div class="grade-display">
+                                <span class="grade-badge ${gradeCSSClass}" title="${gradeDescription}">
+                                    ${grade || 'FAIL'}
+                                </span>
+                                <div class="grade-tooltip">
+                                    ${gradeDescription}
+                                </div>
+                            </div>
+                        </td>
+                        <td>${gradePoints.toFixed(1)}</td>
+                        <td>${course.credits || mark.credits || 3}</td>
+                        <td>${formattedDate}</td>
+                        <td>
+                            <div class="action-buttons">
+                                <button type="button" class="btn-action btn-edit" 
+                                        onclick="app.marks.editMark('${markId}')" 
+                                        title="Edit Marks">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn-action btn-delete" 
+                                        onclick="app.marks.deleteMark('${markId}')" 
+                                        title="Delete Marks">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
             });
             
             tbody.innerHTML = html;
@@ -120,107 +188,20 @@ class MarksManager {
             console.error('Error loading marks table:', error);
             const tbody = document.querySelector('#marksTableBody');
             if (tbody) {
-                tbody.innerHTML = this.getErrorStateHTML(error);
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="13" class="error-state">
+                            <i class="fas fa-exclamation-triangle fa-2x"></i>
+                            <p>Error loading marks</p>
+                            <small class="d-block mt-1">${error.message}</small>
+                            <button class="btn btn-secondary mt-2" onclick="app.marks.loadMarksTable()">
+                                <i class="fas fa-redo"></i> Retry
+                            </button>
+                        </td>
+                    </tr>
+                `;
             }
         }
-    }
-    
-    createMarkRowHTML(mark) {
-        const student = mark.students || {};
-        const course = mark.courses || {};
-        
-        // Calculate values
-        const score = mark.score || 0;
-        const maxScore = mark.max_score || 100;
-        let percentage = mark.percentage;
-        if (!percentage && maxScore > 0) {
-            percentage = (score / maxScore) * 100;
-        }
-        
-        let grade = mark.grade;
-        if (!grade && percentage !== undefined) {
-            grade = this.calculateGrade(parseFloat(percentage));
-        }
-        
-        const gradePoints = this.getGradePoints(grade);
-        const gradeDescription = this.getGradeDescription(grade);
-        
-        const markId = mark.id || mark._id || '';
-        let studentName = student.full_name || 'N/A';
-        studentName = studentName.replace(/\s+test\s+\d*$/i, '');
-        
-        const dateObj = mark.created_at ? new Date(mark.created_at) : 
-                      mark.date ? new Date(mark.date) : new Date();
-        const formattedDate = dateObj.toLocaleDateString('en-GB');
-        
-        return `
-            <tr data-mark-id="${markId}" data-grade="${grade}">
-                <td>${student.reg_number || 'N/A'}</td>
-                <td>${studentName}</td>
-                <td>${course.course_code || 'N/A'}</td>
-                <td>${course.course_name || 'N/A'}</td>
-                <td>${mark.assessment_type || 'N/A'}</td>
-                <td>${mark.assessment_name || 'N/A'}</td>
-                <td><strong>${score}/${maxScore}</strong></td>
-                <td>${percentage ? percentage.toFixed(2) : 'N/A'}%</td>
-                <td>
-                    <div class="grade-display">
-                        <span class="grade-badge grade-${grade?.charAt(0) || 'F'}">
-                            ${grade || 'F'}
-                        </span>
-                        <div class="grade-tooltip">
-                            ${gradeDescription} (${gradePoints.toFixed(1)} GPA)
-                        </div>
-                    </div>
-                </td>
-                <td>${gradePoints.toFixed(1)}</td>
-                <td>${course.credits || mark.credits || 3}</td>
-                <td>${formattedDate}</td>
-                <td>
-                    <div class="action-buttons">
-                        <button type="button" class="btn-action btn-edit" 
-                                onclick="app.marks.editMark('${markId}')" 
-                                title="Edit Marks">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button type="button" class="btn-action btn-delete" 
-                                onclick="app.marks.deleteMark('${markId}')" 
-                                title="Delete Marks">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `;
-    }
-    
-    getEmptyStateHTML() {
-        return `
-            <tr>
-                <td colspan="13" class="empty-state">
-                    <i class="fas fa-chart-bar fa-2x"></i>
-                    <p>No marks recorded yet</p>
-                    <button class="btn btn-primary mt-2" onclick="app.marks.openMarksModal()">
-                        <i class="fas fa-plus"></i> Add First Mark
-                    </button>
-                </td>
-            </tr>
-        `;
-    }
-    
-    getErrorStateHTML(error) {
-        return `
-            <tr>
-                <td colspan="13" class="error-state">
-                    <i class="fas fa-exclamation-triangle fa-2x"></i>
-                    <p>Error loading marks</p>
-                    <small class="d-block mt-1">${error.message}</small>
-                    <button class="btn btn-secondary mt-2" onclick="app.marks.loadMarksTable()">
-                        <i class="fas fa-redo"></i> Retry
-                    </button>
-                </td>
-            </tr>
-        `;
     }
     
     // ==================== ENTER MARKS MODAL ====================
@@ -277,7 +258,6 @@ class MarksManager {
             const maxScoreInput = document.getElementById('maxScore');
             const gradeDisplay = document.getElementById('gradeDisplay');
             const percentageDisplay = document.getElementById('percentageDisplay');
-            const gradePointsDisplay = document.getElementById('marksGradePoints');
             const gradeDescriptionDisplay = document.getElementById('marksGradeDescription');
             
             if (!scoreInput || !gradeDisplay) return;
@@ -286,26 +266,22 @@ class MarksManager {
             const maxScore = parseFloat(maxScoreInput?.value) || 100;
             
             if (isNaN(score) || maxScore <= 0) {
-                this.resetMarksGradeDisplay(gradeDisplay, percentageDisplay, gradePointsDisplay, gradeDescriptionDisplay);
+                this.resetMarksGradeDisplay(gradeDisplay, percentageDisplay, gradeDescriptionDisplay);
                 return;
             }
             
             const percentage = (score / maxScore) * 100;
             const grade = this.calculateGrade(percentage);
-            const gradePoints = this.getGradePoints(grade);
             const gradeDescription = this.getGradeDescription(grade);
+            const gradeCSSClass = this.getGradeCSSClass(grade);
             
             // Update display
             gradeDisplay.textContent = grade;
-            gradeDisplay.className = `grade-badge-lg grade-${grade.charAt(0)}`;
+            gradeDisplay.className = `grade-badge-lg ${gradeCSSClass}`;
             gradeDisplay.title = gradeDescription;
             
             if (percentageDisplay) {
                 percentageDisplay.textContent = `${percentage.toFixed(2)}%`;
-            }
-            
-            if (gradePointsDisplay) {
-                gradePointsDisplay.textContent = gradePoints.toFixed(1);
             }
             
             if (gradeDescriptionDisplay) {
@@ -317,7 +293,7 @@ class MarksManager {
         }
     }
     
-    resetMarksGradeDisplay(gradeDisplay, percentageDisplay, gradePointsDisplay, gradeDescriptionDisplay) {
+    resetMarksGradeDisplay(gradeDisplay, percentageDisplay, gradeDescriptionDisplay) {
         if (gradeDisplay) {
             gradeDisplay.textContent = '--';
             gradeDisplay.className = 'grade-badge-lg';
@@ -326,10 +302,6 @@ class MarksManager {
         
         if (percentageDisplay) {
             percentageDisplay.textContent = '0.00%';
-        }
-        
-        if (gradePointsDisplay) {
-            gradePointsDisplay.textContent = '0.0';
         }
         
         if (gradeDescriptionDisplay) {
@@ -346,7 +318,7 @@ class MarksManager {
             const courseId = document.getElementById('marksCourse').value;
             const score = parseFloat(document.getElementById('marksScore').value);
             const maxScore = parseFloat(document.getElementById('maxScore').value) || 100;
-            const assessmentType = document.getElementById('assessmentType').value;
+            const assessmentType = document.getElementById('assessmentType')?.value || 'final';
             const assessmentName = document.getElementById('assessmentName')?.value || '';
             const remarks = document.getElementById('marksRemarks')?.value || '';
             
@@ -361,6 +333,12 @@ class MarksManager {
                 return;
             }
             
+            // Ensure assessment type is not empty
+            if (!assessmentType.trim()) {
+                this.showToast('Assessment type is required', 'error');
+                return;
+            }
+            
             // Calculate grade
             const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
             const grade = this.calculateGrade(percentage);
@@ -371,7 +349,7 @@ class MarksManager {
                 student_id: studentId,
                 course_id: courseId,
                 assessment_type: assessmentType,
-                assessment_name: assessmentName,
+                assessment_name: assessmentName || 'Assessment',
                 score: score,
                 max_score: maxScore,
                 percentage: percentage,
@@ -506,7 +484,6 @@ class MarksManager {
             const maxScoreInput = document.getElementById('editMaxScore');
             const gradeDisplay = document.getElementById('editGradeDisplay');
             const percentageDisplay = document.getElementById('editPercentage');
-            const gradePointsDisplay = document.getElementById('editGradePoints');
             const gradeDescriptionDisplay = document.getElementById('editGradeDescription');
             
             if (!scoreInput || !gradeDisplay) {
@@ -518,26 +495,22 @@ class MarksManager {
             const maxScore = parseFloat(maxScoreInput?.value) || 100;
             
             if (isNaN(score)) {
-                this.resetEditGradeDisplay(gradeDisplay, percentageDisplay, gradePointsDisplay, gradeDescriptionDisplay);
+                this.resetEditGradeDisplay(gradeDisplay, percentageDisplay, gradeDescriptionDisplay);
                 return;
             }
             
             const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
             const grade = this.calculateGrade(percentage);
-            const gradePoints = this.getGradePoints(grade);
             const gradeDescription = this.getGradeDescription(grade);
+            const gradeCSSClass = this.getGradeCSSClass(grade);
             
             // Update display
             gradeDisplay.textContent = grade;
-            gradeDisplay.className = `grade-badge-lg grade-${grade.charAt(0)}`;
+            gradeDisplay.className = `grade-badge-lg ${gradeCSSClass}`;
             gradeDisplay.title = gradeDescription;
             
             if (percentageDisplay) {
                 percentageDisplay.textContent = `${percentage.toFixed(2)}%`;
-            }
-            
-            if (gradePointsDisplay) {
-                gradePointsDisplay.textContent = gradePoints.toFixed(1);
             }
             
             if (gradeDescriptionDisplay) {
@@ -549,7 +522,7 @@ class MarksManager {
         }
     }
     
-    resetEditGradeDisplay(gradeDisplay, percentageDisplay, gradePointsDisplay, gradeDescriptionDisplay) {
+    resetEditGradeDisplay(gradeDisplay, percentageDisplay, gradeDescriptionDisplay) {
         if (gradeDisplay) {
             gradeDisplay.textContent = '--';
             gradeDisplay.className = 'grade-badge-lg';
@@ -558,10 +531,6 @@ class MarksManager {
         
         if (percentageDisplay) {
             percentageDisplay.textContent = '0.00%';
-        }
-        
-        if (gradePointsDisplay) {
-            gradePointsDisplay.textContent = '0.0';
         }
         
         if (gradeDescriptionDisplay) {
@@ -754,7 +723,6 @@ class MarksManager {
                     this.resetMarksGradeDisplay(
                         document.getElementById('gradeDisplay'),
                         document.getElementById('percentageDisplay'),
-                        document.getElementById('marksGradePoints'),
                         document.getElementById('marksGradeDescription')
                     );
                 }
@@ -765,11 +733,6 @@ class MarksManager {
                 if (form) {
                     form.reset();
                 }
-            }
-            
-            // Close all collapsible sections
-            if (window.closeAllCollapsibleSections) {
-                window.closeAllCollapsibleSections();
             }
         }
     }
