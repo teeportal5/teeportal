@@ -1135,7 +1135,100 @@ class TEEPortalApp {
             console.error('Error populating course dropdown:', error);
         }
     }
+
+openSettingsTab(tabName) {
+    console.log('Opening settings tab:', tabName);
     
+    try {
+        // Hide all tab contents
+        document.querySelectorAll('.settings-tab-content').forEach(content => {
+            content.style.display = 'none';
+            content.classList.remove('active');
+        });
+        
+        // Remove active class from all tab buttons
+        document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // Show selected tab content
+        const tabContent = document.getElementById(`${tabName}Settings`);
+        if (tabContent) {
+            tabContent.style.display = 'block';
+            tabContent.classList.add('active');
+            console.log('Tab content found:', tabName);
+        } else {
+            console.error('Tab content not found:', `${tabName}Settings`);
+            // Try alternative naming
+            const altTabContent = document.getElementById(`${tabName}-settings`);
+            if (altTabContent) {
+                altTabContent.style.display = 'block';
+                altTabContent.classList.add('active');
+            }
+        }
+        
+        // Activate selected tab button
+        const activeBtn = document.querySelector(`.settings-tab-btn[data-tab="${tabName}"]`);
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+        } else {
+            console.warn('Tab button not found for:', tabName);
+        }
+        
+    } catch (error) {
+        console.error('Error opening settings tab:', error);
+    }
+}
+
+// Also update the initializeUI method to include this:
+initializeUI() {
+    // Initialize date pickers
+    const dateInputs = document.querySelectorAll('input[type="date"]');
+    const today = new Date().toISOString().split('T')[0];
+    dateInputs.forEach(input => {
+        if (input) input.max = today;
+    });
+    
+    this.populateDropdowns();
+    
+    // Initialize settings tabs if we're on the settings page
+    if (document.querySelector('.settings-tab-btn')) {
+        console.log('Initializing settings tabs...');
+        this.initializeSettingsTabs();
+    }
+}
+
+// Add this new method to initialize settings tabs
+initializeSettingsTabs() {
+    console.log('Setting up settings tab navigation...');
+    
+    // Add click handlers to all tab buttons
+    const tabButtons = document.querySelectorAll('.settings-tab-btn');
+    tabButtons.forEach(btn => {
+        // Remove existing event listeners to avoid duplicates
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+        
+        // Add new event listener
+        newBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const tabName = newBtn.getAttribute('data-tab');
+            console.log('Tab button clicked:', tabName);
+            if (tabName) {
+                this.openSettingsTab(tabName);
+            }
+        });
+    });
+    
+    // Open the first tab by default
+    if (tabButtons.length > 0) {
+        const firstTab = tabButtons[0].getAttribute('data-tab');
+        if (firstTab) {
+            console.log('Opening first tab:', firstTab);
+            setTimeout(() => this.openSettingsTab(firstTab), 100);
+        }
+    }
+}
     // ==============================
     // STUDENT MANAGEMENT
     // ==============================
