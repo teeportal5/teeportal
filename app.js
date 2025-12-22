@@ -305,3 +305,86 @@ if (typeof showSection === 'undefined') {
         }
     };
 }
+// Add to the end of app.js, before the closing </script> tag
+const style = document.createElement('style');
+style.textContent = `
+    /* Section styling */
+    .content-section {
+        display: none;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        padding: 20px;
+        min-height: 500px;
+    }
+    
+    .content-section.active {
+        display: block;
+        opacity: 1;
+    }
+    
+    /* Navigation styling */
+    .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 15px;
+        color: #2c3e50;
+        text-decoration: none;
+        border-radius: 8px;
+        margin: 5px 0;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .nav-link:hover {
+        background: #f8f9fa;
+        color: #3498db;
+        transform: translateX(5px);
+    }
+    
+    .nav-link.active {
+        background: #3498db;
+        color: white;
+        font-weight: 600;
+    }
+    
+    .nav-link i {
+        width: 20px;
+        text-align: center;
+    }
+    
+    /* Dashboard specific */
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-left: 4px solid #3498db;
+    }
+    
+    .stat-card h3 {
+        margin: 0 0 10px 0;
+        color: #2c3e50;
+        font-size: 16px;
+    }
+    
+    .stat-value {
+        font-size: 32px;
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        color: #7f8c8d;
+        font-size: 14px;
+    }
+`;
+document.head.appendChild(style);
