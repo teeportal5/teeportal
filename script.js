@@ -8,6 +8,7 @@ class TEEPortalSupabaseDB {
         this.initialized = false;
         this.initPromise = null;
         this.settings = null;
+        this.isInitializing = false; // Add this flag
     }
     
     async init() {
@@ -23,52 +24,81 @@ class TEEPortalSupabaseDB {
     }
     
     async _init() {
+        // Prevent re-entrance
+        if (this.isInitializing) {
+            return await this.initPromise;
+        }
+        
+        this.isInitializing = true;
+        
         try {
+            console.log('🔄 Initializing Supabase connection...');
+            
             // Check if supabase is available
             if (typeof supabase === 'undefined') {
-                throw new Error('Supabase client not loaded');
+                throw new Error('Supabase client not loaded. Please include supabase.min.js');
             }
             
             this.supabaseUrl = 'https://kmkjsessuzdfadlmndyr.supabase.co';
             this.supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtta2pzZXNzdXpkZmFkbG1uZHlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYyNTA1MzUsImV4cCI6MjA4MTgyNjUzNX0.16m_thmf2Td8uB5lan8vZDLkGkWIlftaxSOroqvDkU4';
             
+            console.log('🔗 Creating Supabase client...');
             // Initialize Supabase client
             this.supabase = supabase.createClient(this.supabaseUrl, this.supabaseKey);
             
-            // Load settings
-            this.settings = await this.getSettings();
-            
-            // Test connection
+            console.log('🧪 Testing connection...');
+            // Test connection - only once
             await this.testConnection();
+            
             this.initialized = true;
             console.log('✅ Supabase connected successfully');
+            
+            // Load settings after successful connection
+            await this.loadSettings();
+            
             return true;
             
         } catch (error) {
-            console.error('❌ Supabase connection failed:', error);
+            console.error('❌ Supabase initialization failed:', error);
             this.initialized = false;
+            this.isInitializing = false;
             throw error;
+        } finally {
+            this.isInitializing = false;
         }
     }
     
     async testConnection() {
+        if (!this.supabase) {
+            throw new Error('Supabase client not created yet');
+        }
+        
         try {
             const { data, error } = await this.supabase
                 .from('students')
-                .select('count')
+                .select('count', { count: 'exact', head: true })
                 .limit(1);
                 
             if (error) {
+                // These are non-fatal errors - table might not exist yet
                 if (error.code === 'PGRST116' || error.code === '42P01') {
-                    console.warn('⚠️ Table might not exist yet');
+                    console.warn('⚠️ Table might not exist yet, but connection is OK');
                     return true;
                 }
                 throw error;
             }
             
+            console.log('✅ Connection test passed');
             return true;
         } catch (error) {
             console.error('Connection test error:', error);
+            
+            // Check if it's an authentication error
+            if (error.message.includes('JWT') || error.message.includes('auth')) {
+                console.error('❌ Authentication error - check your Supabase key');
+                throw new Error('Invalid Supabase credentials. Please check your API key.');
+            }
+            
             throw error;
         }
     }
@@ -76,7 +106,7 @@ class TEEPortalSupabaseDB {
     // ========== SAFE DATABASE METHODS ==========
     
     async ensureConnected() {
-        if (!this.initialized) {
+        if (!this.initialized && !this.isInitializing) {
             await this.init();
         }
         
@@ -85,6 +115,20 @@ class TEEPortalSupabaseDB {
         }
         
         return this.supabase;
+    }
+    
+    async loadSettings() {
+        try {
+            console.log('📋 Loading settings...');
+            const settings = await this.getSettings();
+            this.settings = settings;
+            console.log('✅ Settings loaded:', Object.keys(settings).length, 'items');
+            return settings;
+        } catch (error) {
+            console.warn('⚠️ Could not load settings, using defaults:', error.message);
+            this.settings = this.getDefaultSettings();
+            return this.settings;
+        }
     }
     
     getDefaultSettings() {
@@ -138,12 +182,54 @@ class TEEPortalSupabaseDB {
                 showGPA: true,
                 enableEmailNotifications: false,
                 defaultPassword: 'Welcome123',
-                sessionTimeout: 30, // minutes
+                sessionTimeout: 30,
                 maxLoginAttempts: 5,
                 enableTwoFactor: false
             }
         };
     }
+    
+    // ========== SETTINGS MANAGEMENT ==========
+    
+    async getSettings() {
+        try {
+            const supabase = await this.ensureConnected();
+            
+            const { data, error } = await supabase
+                .from('settings')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+                
+            if (error) {
+                // If no settings exist, return default settings
+                if (error.code === 'PGRST116') {
+                    console.log('📋 No settings found in database, using defaults');
+                    const defaults = this.getDefaultSettings();
+                    return defaults;
+                }
+                console.warn('⚠️ Error fetching settings:', error.message);
+                throw error;
+            }
+            
+            // Merge with default settings to ensure all fields exist
+            const defaultSettings = this.getDefaultSettings();
+            const mergedSettings = { 
+                ...defaultSettings, 
+                ...(data.settings_data || {}) 
+            };
+            
+            console.log('📋 Settings loaded from database');
+            return mergedSettings;
+            
+        } catch (error) {
+            console.error('❌ Error fetching settings:', error);
+            // Return defaults on any error
+            return this.getDefaultSettings();
+        }
+    };
+}
     
     // ========== STUDENTS ==========
     async getStudents() {
