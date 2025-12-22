@@ -97,43 +97,41 @@ class TEEPortalSupabaseDB {
         }
     }
     
-    getDefaultSettings() {
-        return {
-            instituteName: 'Theological Education by Extension College',
-            instituteAbbreviation: 'TEE College',
-            academicYear: new Date().getFullYear(),
-            semester: 'Spring',
-            timezone: 'Africa/Nairobi',
-            currency: 'KES',
-            language: 'en',
-            gradingScale: {
-                'A': { min: 80, max: 100, points: 4.0, description: 'Excellent' },
-                'B+': { min: 75, max: 79, points: 3.5, description: 'Very Good' },
-                'B': { min: 70, max: 74, points: 3.0, description: 'Good' },
-                'C+': { min: 65, max: 69, points: 2.5, description: 'Above Average' },
-                'C': { min: 60, max: 64, points: 2.0, description: 'Average' },
-                'D+': { min: 55, max: 59, points: 1.5, description: 'Below Average' },
-                'D': { min: 50, max: 54, points: 1.0, description: 'Pass' },
-                'F': { min: 0, max: 49, points: 0.0, description: 'Fail' }
-            },
-            programs: {
-                'basic': { name: 'Basic TEE', duration: '2 years', maxCredits: 60 },
-                'hnc': { name: 'Higher National Certificate', duration: '3 years', maxCredits: 90 },
-                'advanced': { name: 'Advanced TEE', duration: '4 years', maxCredits: 120 }
-            },
-            system: {
-                autoGenerateRegNumbers: true,
-                allowMarkOverwrite: false,
-                showGPA: true,
-                enableEmailNotifications: false,
-                defaultPassword: 'Welcome123',
-                sessionTimeout: 30,
-                maxLoginAttempts: 5,
-                enableTwoFactor: false
-            }
-        };
-    }
-    
+ getDefaultSettings() {
+    return {
+        instituteName: 'Theological Education by Extension College',
+        instituteAbbreviation: 'TEE College',
+        academicYear: new Date().getFullYear(),
+        semester: 'Spring',
+        timezone: 'Africa/Nairobi',
+        currency: 'KES',
+        language: 'en',
+        
+        // FIXED: Use DISTINCTION/CREDIT/PASS/FAIL system
+        gradingScale: {
+            'DISTINCTION': { min: 85, max: 100, points: 4.0, description: 'Excellent - Outstanding achievement' },
+            'CREDIT': { min: 70, max: 84, points: 3.0, description: 'Good - Above average achievement' },
+            'PASS': { min: 50, max: 69, points: 2.0, description: 'Satisfactory - Minimum requirements met' },
+            'FAIL': { min: 0, max: 49, points: 0.0, description: 'Fail - Requirements not met' }
+        },
+        
+        programs: {
+            'basic': { name: 'Basic TEE', duration: '2 years', maxCredits: 60 },
+            'hnc': { name: 'Higher National Certificate', duration: '3 years', maxCredits: 90 },
+            'advanced': { name: 'Advanced TEE', duration: '4 years', maxCredits: 120 }
+        },
+        system: {
+            autoGenerateRegNumbers: true,
+            allowMarkOverwrite: false,
+            showGPA: true,
+            enableEmailNotifications: false,
+            defaultPassword: 'Welcome123',
+            sessionTimeout: 30,
+            maxLoginAttempts: 5,
+            enableTwoFactor: false
+        }
+    };
+}
     // ========== SETTINGS MANAGEMENT ==========
     async getSettings() {
         try {
@@ -722,29 +720,52 @@ class TEEPortalSupabaseDB {
     }
     
     // ========== UTILITY METHODS ==========
-    calculateGrade(percentage) {
-        const gradingScale = this.settings?.gradingScale || this.getDefaultSettings().gradingScale;
-        
-        for (const [grade, range] of Object.entries(gradingScale)) {
-            if (percentage >= range.min && percentage <= range.max) {
-                return { grade, points: range.points };
-            }
-        }
-        return { grade: 'F', points: 0.0 };
+calculateGrade(percentage) {
+    if (typeof percentage !== 'number' || isNaN(percentage)) {
+        return { grade: 'FAIL', points: 0.0 };
     }
     
-    async calculateStudentGPA(studentId) {
-        try {
-            const marks = await this.getStudentMarks(studentId);
-            if (marks.length === 0) return 0;
-            
-            const totalPoints = marks.reduce((sum, mark) => sum + (mark.grade_points || 0), 0);
-            return parseFloat((totalPoints / marks.length).toFixed(2));
-        } catch (error) {
-            console.error('Error calculating GPA:', error);
-            return 0;
-        }
+    // Use DISTINCTION/CREDIT/PASS/FAIL system
+    if (percentage >= 85) {
+        return { grade: 'DISTINCTION', points: 4.0 };
+    } else if (percentage >= 70) {
+        return { grade: 'CREDIT', points: 3.0 };
+    } else if (percentage >= 50) {
+        return { grade: 'PASS', points: 2.0 };
+    } else {
+        return { grade: 'FAIL', points: 0.0 };
     }
+}
+    
+   async calculateStudentGPA(studentId) {
+    try {
+        const marks = await this.getStudentMarks(studentId);
+        if (marks.length === 0) return 0;
+        
+        // Filter out failed grades if you want (optional)
+        const validMarks = marks.filter(mark => mark.grade !== 'FAIL');
+        if (validMarks.length === 0) return 0;
+        
+        // Calculate weighted GPA based on credits
+        let totalWeightedPoints = 0;
+        let totalCredits = 0;
+        
+        for (const mark of validMarks) {
+            const credits = mark.courses?.credits || 3; // Default 3 credits
+            const gradePoints = mark.grade_points || 0;
+            
+            totalWeightedPoints += gradePoints * credits;
+            totalCredits += credits;
+        }
+        
+        if (totalCredits === 0) return 0;
+        
+        return parseFloat((totalWeightedPoints / totalCredits).toFixed(2));
+    } catch (error) {
+        console.error('Error calculating GPA:', error);
+        return 0;
+    }
+}
     
     async logActivity(type, description) {
         try {
