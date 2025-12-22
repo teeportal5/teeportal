@@ -3,7 +3,7 @@ class SettingsManager {
     constructor(db) {
         this.db = db;
     }
-    
+     
     async loadSettings() {
         // Load settings
     }
