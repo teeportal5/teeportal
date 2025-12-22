@@ -2547,3 +2547,176 @@ body {
     transform: scale(1.05);
     transition: transform 0.2s;
 }
+/* Edit Marks Modal Styling */
+#editMarksModal .modal-content {
+    max-width: 800px;
+    margin: 20px auto;
+}
+
+#editMarksModal .modal-header {
+    background: linear-gradient(135deg, #3498db, #2c3e50);
+    color: white;
+    border-radius: 8px 8px 0 0;
+    padding: 15px 20px;
+}
+
+#editMarksModal .modal-header h3 {
+    margin: 0;
+    font-size: 1.3rem;
+}
+
+#editMarksModal .modal-body {
+    padding: 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+#editMarksModal .info-display {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 10px;
+    font-weight: 500;
+    min-height: 45px;
+}
+
+#editMarksModal .info-display .loading-text {
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Grade Info Section */
+#editMarksModal .grade-info-section {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 20px 0;
+}
+
+#editMarksModal .grade-info-section h4 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 8px;
+}
+
+/* Grade Display */
+#editMarksModal .grade-display-wrapper {
+    position: relative;
+    display: inline-block;
+    min-height: 45px;
+}
+
+#editMarksModal #editGradeDisplay {
+    font-size: 1.2rem;
+    padding: 10px 20px;
+    min-width: 60px;
+    cursor: help;
+    transition: all 0.3s ease;
+}
+
+#editMarksModal #editGradeDisplay:hover {
+    transform: scale(1.05);
+}
+
+#editMarksModal .grade-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    min-width: 200px;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 1000;
+    text-align: left;
+    pointer-events: none;
+}
+
+#editMarksModal .grade-display-wrapper:hover .grade-tooltip {
+    opacity: 1;
+    visibility: visible;
+}
+
+#editMarksModal .grade-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 5px;
+    border-style: solid;
+    border-color: #333 transparent transparent transparent;
+}
+
+/* Grade Scale Reference */
+#editMarksModal .grade-scale-reference {
+    background: #e3f2fd;
+    border: 1px solid #bbdefb;
+    border-radius: 4px;
+    padding: 10px;
+    margin-top: 15px;
+    font-size: 12px;
+    color: #1565c0;
+}
+
+/* Update Info */
+#editMarksModal .update-info {
+    background: #e8f5e9;
+    border: 1px solid #c8e6c9;
+    border-radius: 4px;
+    padding: 10px;
+    margin-top: 15px;
+    color: #2e7d32;
+}
+
+/* Form Controls */
+#editMarksModal .form-control:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
+#editMarksModal .form-check-input:checked {
+    background-color: #3498db;
+    border-color: #3498db;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    #editMarksModal .modal-content {
+        margin: 10px;
+    }
+    
+    #editMarksModal .form-row {
+        flex-direction: column;
+    }
+    
+    #editMarksModal .form-group.col-md-6,
+    #editMarksModal .form-group.col-md-4 {
+        width: 100%;
+        margin-bottom: 15px;
+    }
+}
+
+/* Animation for modal */
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#editMarksModal.modal.show {
+    animation: modalFadeIn 0.3s ease-out;
+}
