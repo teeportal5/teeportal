@@ -2482,3 +2482,68 @@ body {
 .program-field:hover {
     background: #f8f9fa;
 }
+/* Enhanced grade badges */
+.grade-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 12px;
+    text-align: center;
+    min-width: 40px;
+    position: relative;
+    cursor: help;
+}
+
+.grade-display {
+    position: relative;
+    display: inline-block;
+}
+
+.grade-display:hover .grade-tooltip {
+    visibility: visible;
+    opacity: 1;
+}
+
+.grade-tooltip {
+    visibility: hidden;
+    width: 200px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 4px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -100px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 11px;
+    pointer-events: none;
+}
+
+.grade-tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #333 transparent transparent transparent;
+}
+
+/* Grade colors */
+.grade-A { background-color: #28a745; color: white; }
+.grade-B { background-color: #17a2b8; color: white; }
+.grade-C { background-color: #ffc107; color: #212529; }
+.grade-D { background-color: #fd7e14; color: white; }
+.grade-F { background-color: #dc3545; color: white; }
+
+/* Hover effects */
+.grade-badge:hover {
+    transform: scale(1.05);
+    transition: transform 0.2s;
+}
