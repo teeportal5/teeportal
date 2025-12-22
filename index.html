@@ -1424,77 +1424,152 @@
         </div>
     </div>
     
-    <!-- Edit Marks Modal -->
-    <div id="editMarksModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Edit Marks</h3>
-                <span class="close" onclick="closeModal('editMarksModal')">&times;</span>
-            </div>
-            <form id="editMarksForm">
-                <input type="hidden" id="editMarkId">
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label>Student</label>
-                        <div id="editStudentDisplay" class="form-control-static"></div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Course</label>
-                        <div id="editCourseDisplay" class="form-control-static"></div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Assessment Type</label>
-                            <select id="editAssessmentType" class="form-control">
-                                <option value="assignment">Assignment</option>
-                                <option value="quiz">Quiz</option>
-                                <option value="midterm">Midterm</option>
-                                <option value="final" selected>Final Exam</option>
-                                <option value="project">Project</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Assessment Name</label>
-                            <input type="text" id="editAssessmentName" class="form-control">
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Score *</label>
-                            <input type="number" id="editScore" class="form-control" required min="0" step="0.1">
-                        </div>
-                        <div class="form-group">
-                            <label>Max Score</label>
-                            <input type="number" id="editMaxScore" class="form-control" value="100" min="1">
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Percentage</label>
-                            <input type="text" id="editPercentage" class="form-control" readonly>
-                        </div>
-                        <div class="form-group">
-                            <label>Grade</label>
-                            <div id="editGradeDisplay" class="percentage-badge">--</div>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Remarks</label>
-                        <textarea id="editRemarks" class="form-control" rows="2"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-secondary" onclick="closeModal('editMarksModal')">Cancel</button>
-                    <button type="submit" class="btn-primary">Update Marks</button>
-                </div>
-            </form>
+   <!-- Edit Marks Modal -->
+<div id="editMarksModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-edit"></i> Edit Marks</h3>
+            <span class="close" onclick="app.marks.closeModal('editMarksModal')">&times;</span>
         </div>
+        <form id="editMarksForm" onsubmit="app.marks.updateMark(event)">
+            <input type="hidden" id="editMarkId">
+            <div class="modal-body">
+                <!-- Student & Course Info -->
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label><i class="fas fa-user-graduate"></i> Student</label>
+                        <div id="editStudentDisplay" class="form-control-static info-display">
+                            <span class="loading-text">Loading...</span>
+                        </div>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label><i class="fas fa-book"></i> Course</label>
+                        <div id="editCourseDisplay" class="form-control-static info-display">
+                            <span class="loading-text">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Assessment Details -->
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label><i class="fas fa-tasks"></i> Assessment Type</label>
+                        <select id="editAssessmentType" class="form-control">
+                            <option value="assignment">Assignment</option>
+                            <option value="quiz">Quiz</option>
+                            <option value="midterm">Midterm</option>
+                            <option value="final" selected>Final Exam</option>
+                            <option value="project">Project</option>
+                            <option value="presentation">Presentation</option>
+                            <option value="test">Test</option>
+                            <option value="practical">Practical</option>
+                        </select>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label><i class="fas fa-heading"></i> Assessment Name</label>
+                        <input type="text" id="editAssessmentName" class="form-control" 
+                               placeholder="e.g., Final Exam, Assignment 1" required>
+                    </div>
+                </div>
+                
+                <!-- Scores -->
+                <div class="form-row">
+                    <div class="form-group col-md-4">
+                        <label><i class="fas fa-star"></i> Score *</label>
+                        <input type="number" id="editScore" class="form-control" 
+                               required min="0" max="1000" step="0.01" placeholder="0.00">
+                        <small class="form-text text-muted">Enter the student's score</small>
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label><i class="fas fa-chart-line"></i> Max Score</label>
+                        <input type="number" id="editMaxScore" class="form-control" 
+                               value="100" min="1" max="1000" step="0.01">
+                        <small class="form-text text-muted">Maximum possible score</small>
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label><i class="fas fa-percentage"></i> Percentage</label>
+                        <div class="input-group">
+                            <input type="text" id="editPercentage" class="form-control" 
+                                   readonly placeholder="0.00%">
+                            <div class="input-group-append">
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                        <small class="form-text text-muted">Auto-calculated</small>
+                    </div>
+                </div>
+                
+                <!-- Grade Information -->
+                <div class="grade-info-section">
+                    <h4><i class="fas fa-graduation-cap"></i> Grade Information</h4>
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label>Grade</label>
+                            <div class="grade-display-wrapper">
+                                <div id="editGradeDisplay" class="grade-badge" title="Grade will be calculated">
+                                    --
+                                </div>
+                                <div class="grade-tooltip">
+                                    <strong>Grade Description:</strong> <span id="editGradeDescription">--</span><br>
+                                    <strong>GPA Points:</strong> <span id="editGradePoints">0.0</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label>GPA Points</label>
+                            <input type="text" id="editGradePointsInput" class="form-control" readonly>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label>Grade Description</label>
+                            <input type="text" id="editGradeDescriptionInput" class="form-control" readonly>
+                        </div>
+                    </div>
+                    
+                    <!-- Grade Scale Reference -->
+                    <div class="grade-scale-reference">
+                        <small><strong>Grade Scale:</strong> 
+                            A+ (97-100), A (93-96), A- (90-92), B+ (87-89), B (83-86), B- (80-82),
+                            C+ (77-79), C (73-76), C- (70-72), D+ (67-69), D (63-66), D- (60-62), F (0-59)
+                        </small>
+                    </div>
+                </div>
+                
+                <!-- Remarks -->
+                <div class="form-group">
+                    <label><i class="fas fa-comment"></i> Remarks</label>
+                    <textarea id="editRemarks" class="form-control" rows="3" 
+                              placeholder="Enter any additional remarks or comments..."></textarea>
+                </div>
+                
+                <!-- Visibility -->
+                <div class="form-group">
+                    <div class="form-check">
+                        <input type="checkbox" id="editVisibleToStudent" class="form-check-input" checked>
+                        <label class="form-check-label" for="editVisibleToStudent">
+                            <i class="fas fa-eye"></i> Visible to student
+                        </label>
+                        <small class="form-text text-muted">If checked, student can see this mark in their portal</small>
+                    </div>
+                </div>
+                
+                <!-- Last Updated Info -->
+                <div class="update-info">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i> Grades and percentages update automatically as you change scores
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="app.marks.closeModal('editMarksModal')">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Update Marks
+                </button>
+            </div>
+        </form>
     </div>
+</div>
     
     <!-- JavaScript Modules -->
     <script src="modules/database.js"></script>
