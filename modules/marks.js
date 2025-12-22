@@ -223,7 +223,185 @@ class MarksManager {
         `;
     }
     
-    // ==================== EDIT MARKS ====================
+    // ==================== ENTER MARKS MODAL ====================
+    
+    async openMarksModal() {
+        try {
+            await this.populateStudentDropdown();
+            await this.populateCourseDropdown();
+            
+            // Setup real-time grade updates
+            this.setupMarksModalListeners();
+            
+            this.openModal('marksModal');
+            
+            // Initial grade update
+            this.updateMarksGradeDisplay();
+            
+        } catch (error) {
+            console.error('Error opening marks modal:', error);
+            this.showToast('Error opening marks form', 'error');
+        }
+    }
+    
+    setupMarksModalListeners() {
+        const scoreInput = document.getElementById('marksScore');
+        const maxScoreInput = document.getElementById('maxScore');
+        
+        if (scoreInput) {
+            scoreInput.addEventListener('input', () => this.updateMarksGradeDisplay());
+            scoreInput.addEventListener('blur', () => {
+                const value = parseFloat(scoreInput.value);
+                if (value < 0) {
+                    scoreInput.value = 0;
+                    this.updateMarksGradeDisplay();
+                }
+            });
+        }
+        
+        if (maxScoreInput) {
+            maxScoreInput.addEventListener('input', () => this.updateMarksGradeDisplay());
+            maxScoreInput.addEventListener('blur', () => {
+                const value = parseFloat(maxScoreInput.value);
+                if (value <= 0) {
+                    maxScoreInput.value = 100;
+                    this.updateMarksGradeDisplay();
+                }
+            });
+        }
+    }
+    
+    updateMarksGradeDisplay() {
+        try {
+            const scoreInput = document.getElementById('marksScore');
+            const maxScoreInput = document.getElementById('maxScore');
+            const gradeDisplay = document.getElementById('gradeDisplay');
+            const percentageDisplay = document.getElementById('percentageDisplay');
+            const gradePointsDisplay = document.getElementById('marksGradePoints');
+            const gradeDescriptionDisplay = document.getElementById('marksGradeDescription');
+            
+            if (!scoreInput || !gradeDisplay) return;
+            
+            const score = parseFloat(scoreInput.value);
+            const maxScore = parseFloat(maxScoreInput?.value) || 100;
+            
+            if (isNaN(score) || maxScore <= 0) {
+                this.resetMarksGradeDisplay(gradeDisplay, percentageDisplay, gradePointsDisplay, gradeDescriptionDisplay);
+                return;
+            }
+            
+            const percentage = (score / maxScore) * 100;
+            const grade = this.calculateGrade(percentage);
+            const gradePoints = this.getGradePoints(grade);
+            const gradeDescription = this.getGradeDescription(grade);
+            
+            // Update display
+            gradeDisplay.textContent = grade;
+            gradeDisplay.className = `grade-badge-lg grade-${grade.charAt(0)}`;
+            gradeDisplay.title = gradeDescription;
+            
+            if (percentageDisplay) {
+                percentageDisplay.textContent = `${percentage.toFixed(2)}%`;
+            }
+            
+            if (gradePointsDisplay) {
+                gradePointsDisplay.textContent = gradePoints.toFixed(1);
+            }
+            
+            if (gradeDescriptionDisplay) {
+                gradeDescriptionDisplay.textContent = gradeDescription;
+            }
+            
+        } catch (error) {
+            console.error('Error updating marks grade display:', error);
+        }
+    }
+    
+    resetMarksGradeDisplay(gradeDisplay, percentageDisplay, gradePointsDisplay, gradeDescriptionDisplay) {
+        if (gradeDisplay) {
+            gradeDisplay.textContent = '--';
+            gradeDisplay.className = 'grade-badge-lg';
+            gradeDisplay.title = 'Enter score to see grade';
+        }
+        
+        if (percentageDisplay) {
+            percentageDisplay.textContent = '0.00%';
+        }
+        
+        if (gradePointsDisplay) {
+            gradePointsDisplay.textContent = '0.0';
+        }
+        
+        if (gradeDescriptionDisplay) {
+            gradeDescriptionDisplay.textContent = '--';
+        }
+    }
+    
+    async saveMarks(event) {
+        event.preventDefault();
+        
+        try {
+            // Get form values
+            const studentId = document.getElementById('marksStudent').value;
+            const courseId = document.getElementById('marksCourse').value;
+            const score = parseFloat(document.getElementById('marksScore').value);
+            const maxScore = parseFloat(document.getElementById('maxScore').value) || 100;
+            const assessmentType = document.getElementById('assessmentType').value;
+            const assessmentName = document.getElementById('assessmentName')?.value || '';
+            const remarks = document.getElementById('marksRemarks')?.value || '';
+            
+            // Validation
+            if (!studentId || !courseId || isNaN(score)) {
+                this.showToast('Please select student, course, and enter score', 'error');
+                return;
+            }
+            
+            if (score < 0 || maxScore <= 0) {
+                this.showToast('Score must be positive and max score must be greater than 0', 'error');
+                return;
+            }
+            
+            // Calculate grade
+            const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
+            const grade = this.calculateGrade(percentage);
+            const gradePoints = this.getGradePoints(grade);
+            
+            // Prepare data
+            const markData = {
+                student_id: studentId,
+                course_id: courseId,
+                assessment_type: assessmentType,
+                assessment_name: assessmentName,
+                score: score,
+                max_score: maxScore,
+                percentage: percentage,
+                grade: grade,
+                grade_points: gradePoints,
+                remarks: remarks,
+                visible_to_student: document.getElementById('visibleToStudent')?.checked || true
+            };
+            
+            console.log('💾 Saving marks:', markData);
+            
+            // Save to database
+            await this.db.addMark(markData);
+            
+            // Success
+            this.showToast('✅ Marks saved successfully!', 'success');
+            
+            // Close modal and reset
+            this.closeModal('marksModal');
+            
+            // Refresh marks table
+            await this.loadMarksTable();
+            
+        } catch (error) {
+            console.error('❌ Error saving marks:', error);
+            this.showToast(`Error saving marks: ${error.message}`, 'error');
+        }
+    }
+    
+    // ==================== EDIT MARKS MODAL ====================
     
     async editMark(markId) {
         try {
@@ -255,17 +433,6 @@ class MarksManager {
         const course = mark.courses || {};
         
         // Required fields
-        const requiredFields = ['editMarkId', 'editStudent', 'editCourse', 'editScore'];
-        for (const fieldId of requiredFields) {
-            const element = document.getElementById(fieldId);
-            if (!element) {
-                console.error(`Required field ${fieldId} not found`);
-                this.showToast('Edit form is incomplete', 'error');
-                return;
-            }
-        }
-        
-        // Set values
         document.getElementById('editMarkId').value = mark.id || '';
         document.getElementById('editStudent').value = mark.student_id || '';
         document.getElementById('editCourse').value = mark.course_id || '';
@@ -312,9 +479,24 @@ class MarksManager {
         
         if (scoreInput) {
             scoreInput.addEventListener('input', () => this.updateEditGradeDisplay());
+            scoreInput.addEventListener('blur', () => {
+                const value = parseFloat(scoreInput.value);
+                if (value < 0) {
+                    scoreInput.value = 0;
+                    this.updateEditGradeDisplay();
+                }
+            });
         }
+        
         if (maxScoreInput) {
             maxScoreInput.addEventListener('input', () => this.updateEditGradeDisplay());
+            maxScoreInput.addEventListener('blur', () => {
+                const value = parseFloat(maxScoreInput.value);
+                if (value <= 0) {
+                    maxScoreInput.value = 100;
+                    this.updateEditGradeDisplay();
+                }
+            });
         }
     }
     
@@ -323,8 +505,9 @@ class MarksManager {
             const scoreInput = document.getElementById('editScore');
             const maxScoreInput = document.getElementById('editMaxScore');
             const gradeDisplay = document.getElementById('editGradeDisplay');
-            const percentageField = document.getElementById('editPercentage');
-            const gradePointsField = document.getElementById('editGradePoints');
+            const percentageDisplay = document.getElementById('editPercentage');
+            const gradePointsDisplay = document.getElementById('editGradePoints');
+            const gradeDescriptionDisplay = document.getElementById('editGradeDescription');
             
             if (!scoreInput || !gradeDisplay) {
                 console.warn('Grade display elements not found');
@@ -335,7 +518,7 @@ class MarksManager {
             const maxScore = parseFloat(maxScoreInput?.value) || 100;
             
             if (isNaN(score)) {
-                this.resetGradeDisplay(gradeDisplay, percentageField, gradePointsField);
+                this.resetEditGradeDisplay(gradeDisplay, percentageDisplay, gradePointsDisplay, gradeDescriptionDisplay);
                 return;
             }
             
@@ -346,15 +529,19 @@ class MarksManager {
             
             // Update display
             gradeDisplay.textContent = grade;
-            gradeDisplay.className = `grade-badge grade-${grade.charAt(0)}`;
+            gradeDisplay.className = `grade-badge-lg grade-${grade.charAt(0)}`;
             gradeDisplay.title = gradeDescription;
             
-            if (percentageField) {
-                percentageField.value = `${percentage.toFixed(2)}%`;
+            if (percentageDisplay) {
+                percentageDisplay.textContent = `${percentage.toFixed(2)}%`;
             }
             
-            if (gradePointsField) {
-                gradePointsField.value = gradePoints.toFixed(1);
+            if (gradePointsDisplay) {
+                gradePointsDisplay.textContent = gradePoints.toFixed(1);
+            }
+            
+            if (gradeDescriptionDisplay) {
+                gradeDescriptionDisplay.textContent = gradeDescription;
             }
             
         } catch (error) {
@@ -362,45 +549,23 @@ class MarksManager {
         }
     }
     
-    resetGradeDisplay(gradeDisplay, percentageField, gradePointsField) {
-        gradeDisplay.textContent = '--';
-        gradeDisplay.className = 'grade-badge';
-        gradeDisplay.title = '';
+    resetEditGradeDisplay(gradeDisplay, percentageDisplay, gradePointsDisplay, gradeDescriptionDisplay) {
+        if (gradeDisplay) {
+            gradeDisplay.textContent = '--';
+            gradeDisplay.className = 'grade-badge-lg';
+            gradeDisplay.title = '';
+        }
         
-        if (percentageField) percentageField.value = '';
-        if (gradePointsField) gradePointsField.value = '';
-    }
-    
-    // ==================== SAVE/UPDATE MARKS ====================
-    
-    async saveMarks(event) {
-        event.preventDefault();
+        if (percentageDisplay) {
+            percentageDisplay.textContent = '0.00%';
+        }
         
-        try {
-            // Get form values
-            const formData = this.getMarksFormData();
-            
-            // Validate
-            if (!this.validateMarksData(formData)) return;
-            
-            // Calculate additional values
-            const processedData = this.processMarksData(formData);
-            
-            console.log('💾 Saving marks:', processedData);
-            
-            await this.db.addMark(processedData);
-            
-            this.showToast('✅ Marks saved successfully!', 'success');
-            
-            this.closeModal('marksModal');
-            document.getElementById('marksForm').reset();
-            this.resetGradeDisplayInModal();
-            
-            await this.loadMarksTable();
-            
-        } catch (error) {
-            console.error('❌ Error saving marks:', error);
-            this.showToast(`Error saving marks: ${error.message}`, 'error');
+        if (gradePointsDisplay) {
+            gradePointsDisplay.textContent = '0.0';
+        }
+        
+        if (gradeDescriptionDisplay) {
+            gradeDescriptionDisplay.textContent = '--';
         }
     }
     
@@ -416,21 +581,53 @@ class MarksManager {
             }
             
             // Get form values
-            const formData = this.getEditFormData();
+            const score = parseFloat(document.getElementById('editScore').value);
+            const maxScore = parseFloat(document.getElementById('editMaxScore').value) || 100;
+            const assessmentType = document.getElementById('editAssessmentType')?.value || 'final';
+            const assessmentName = document.getElementById('editAssessmentName')?.value || '';
+            const remarks = document.getElementById('editRemarks')?.value || '';
+            const visibleToStudent = document.getElementById('editVisibleToStudent')?.checked || true;
             
             // Validate
-            if (!this.validateMarksData(formData)) return;
+            if (isNaN(score)) {
+                this.showToast('Please enter a valid score', 'error');
+                return;
+            }
             
-            // Calculate additional values
-            const processedData = this.processMarksData(formData);
+            if (score < 0 || maxScore <= 0) {
+                this.showToast('Score must be positive and max score must be greater than 0', 'error');
+                return;
+            }
             
-            console.log('🔄 Updating mark:', markId, processedData);
+            // Calculate grade
+            const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
+            const grade = this.calculateGrade(percentage);
+            const gradePoints = this.getGradePoints(grade);
             
-            await this.db.updateMark(markId, processedData);
+            // Prepare update data
+            const updateData = {
+                assessment_type: assessmentType,
+                assessment_name: assessmentName,
+                score: score,
+                max_score: maxScore,
+                percentage: percentage,
+                grade: grade,
+                grade_points: gradePoints,
+                remarks: remarks,
+                visible_to_student: visibleToStudent,
+                updated_at: new Date().toISOString()
+            };
             
+            console.log('🔄 Updating mark:', markId, updateData);
+            
+            // Update in database
+            await this.db.updateMark(markId, updateData);
+            
+            // Success
             this.showToast('✅ Marks updated successfully!', 'success');
             this.closeModal('editMarksModal');
             
+            // Refresh marks table
             await this.loadMarksTable();
             
         } catch (error) {
@@ -439,166 +636,38 @@ class MarksManager {
         }
     }
     
-    getMarksFormData() {
-        return {
-            studentId: document.getElementById('marksStudent').value,
-            courseId: document.getElementById('marksCourse').value,
-            score: parseFloat(document.getElementById('marksScore').value),
-            maxScore: parseFloat(document.getElementById('maxScore').value) || 100,
-            assessmentType: document.getElementById('assessmentType').value,
-            assessmentName: document.getElementById('assessmentName').value || 'Assessment',
-            remarks: document.getElementById('marksRemarks')?.value || ''
-        };
-    }
+    // ==================== DELETE MARKS ====================
     
-    getEditFormData() {
-        return {
-            score: parseFloat(document.getElementById('editScore').value),
-            maxScore: parseFloat(document.getElementById('editMaxScore').value) || 100,
-            assessmentType: document.getElementById('editAssessmentType')?.value || 'Exam',
-            assessmentName: document.getElementById('editAssessmentName')?.value || 'Assessment',
-            remarks: document.getElementById('editRemarks')?.value || ''
-        };
-    }
-    
-    validateMarksData(data) {
-        if (!data.studentId && !data.courseId) {
-            this.showToast('Please select student and course', 'error');
-            return false;
-        }
-        
-        if (isNaN(data.score)) {
-            this.showToast('Please enter a valid score', 'error');
-            return false;
-        }
-        
-        if (data.score < 0 || data.maxScore <= 0) {
-            this.showToast('Score must be positive and max score must be greater than 0', 'error');
-            return false;
-        }
-        
-        return true;
-    }
-    
-    processMarksData(data) {
-        const percentage = data.maxScore > 0 ? (data.score / data.maxScore) * 100 : 0;
-        const grade = this.calculateGrade(percentage);
-        const gradePoints = this.getGradePoints(grade);
-        
-        return {
-            student_id: data.studentId,
-            course_id: data.courseId,
-            assessment_type: data.assessmentType,
-            assessment_name: data.assessmentName,
-            score: data.score,
-            max_score: data.maxScore,
-            percentage: percentage,
-            grade: grade,
-            grade_points: gradePoints,
-            remarks: data.remarks || '',
-            visible_to_student: document.getElementById('visibleToStudent')?.checked || true
-        };
-    }
-    
-    // ==================== MODAL MANAGEMENT ====================
-    
-    async openMarksModal() {
+    async deleteMark(markId) {
         try {
-            await this.populateStudentDropdown();
-            await this.populateCourseDropdown();
-            
-            // Setup real-time grade updates
-            this.setupMarksModalListeners();
-            
-            this.openModal('marksModal');
-            
-            // Initial grade update
-            this.updateMarksModalGradeDisplay();
-            
-        } catch (error) {
-            console.error('Error opening marks modal:', error);
-            this.showToast('Error opening marks form', 'error');
-        }
-    }
-    
-    setupMarksModalListeners() {
-        const scoreInput = document.getElementById('marksScore');
-        const maxScoreInput = document.getElementById('maxScore');
-        const gradeDisplay = document.getElementById('gradeDisplay');
-        const percentageDisplay = document.getElementById('percentageDisplay');
-        const gradePointsDisplay = document.getElementById('gradePointsDisplay');
-        
-        if (scoreInput && gradeDisplay) {
-            const updateGrade = () => {
-                const score = parseFloat(scoreInput.value);
-                const maxScore = parseFloat(maxScoreInput?.value) || 100;
-                
-                if (!isNaN(score) && maxScore > 0) {
-                    const percentage = (score / maxScore) * 100;
-                    const grade = this.calculateGrade(percentage);
-                    const gradePoints = this.getGradePoints(grade);
-                    const gradeDescription = this.getGradeDescription(grade);
-                    
-                    gradeDisplay.textContent = grade;
-                    gradeDisplay.className = `grade-badge grade-${grade.charAt(0)}`;
-                    gradeDisplay.title = gradeDescription;
-                    
-                    if (percentageDisplay) {
-                        percentageDisplay.textContent = `${percentage.toFixed(2)}%`;
-                    }
-                    
-                    if (gradePointsDisplay) {
-                        gradePointsDisplay.textContent = gradePoints.toFixed(1);
-                    }
-                } else {
-                    this.resetMarksModalGradeDisplay(gradeDisplay, percentageDisplay, gradePointsDisplay);
-                }
-            };
-            
-            scoreInput.addEventListener('input', updateGrade);
-            if (maxScoreInput) {
-                maxScoreInput.addEventListener('input', updateGrade);
+            if (!confirm('Are you sure you want to delete this mark record? This action cannot be undone.')) {
+                return;
             }
             
-            // Trigger initial update
-            updateGrade();
+            console.log('🗑️ Deleting mark:', markId);
+            
+            await this.db.deleteMark(markId);
+            
+            this.showToast('✅ Mark deleted successfully!', 'success');
+            
+            // Remove from table with animation
+            const row = document.querySelector(`tr[data-mark-id="${markId}"]`);
+            if (row) {
+                row.style.opacity = '0.5';
+                row.style.transition = 'opacity 0.3s';
+                setTimeout(() => {
+                    row.remove();
+                    this.updateSelectedCounts();
+                }, 300);
+            }
+            
+        } catch (error) {
+            console.error('❌ Error deleting mark:', error);
+            this.showToast(`Error deleting mark: ${error.message}`, 'error');
         }
     }
     
-    resetMarksModalGradeDisplay(gradeDisplay, percentageDisplay, gradePointsDisplay) {
-        if (gradeDisplay) {
-            gradeDisplay.textContent = '--';
-            gradeDisplay.className = 'grade-badge';
-            gradeDisplay.title = '';
-        }
-        
-        if (percentageDisplay) {
-            percentageDisplay.textContent = '--%';
-        }
-        
-        if (gradePointsDisplay) {
-            gradePointsDisplay.textContent = '0.0';
-        }
-    }
-    
-    resetGradeDisplayInModal() {
-        const gradeDisplay = document.getElementById('gradeDisplay');
-        const percentageDisplay = document.getElementById('percentageDisplay');
-        const gradePointsDisplay = document.getElementById('gradePointsDisplay');
-        
-        this.resetMarksModalGradeDisplay(gradeDisplay, percentageDisplay, gradePointsDisplay);
-    }
-    
-    updateMarksModalGradeDisplay() {
-        const scoreInput = document.getElementById('marksScore');
-        const maxScoreInput = document.getElementById('maxScore');
-        
-        if (scoreInput && (parseFloat(scoreInput.value) || 0) > 0) {
-            this.setupMarksModalListeners();
-        }
-    }
-    
-    // ==================== OTHER METHODS ====================
+    // ==================== UTILITY METHODS ====================
     
     async populateStudentDropdown() {
         const select = document.getElementById('marksStudent');
@@ -640,6 +709,22 @@ class MarksManager {
         }
     }
     
+    enterMarksForStudent(studentId) {
+        this.openMarksModal();
+        if (studentId) {
+            const marksStudent = document.getElementById('marksStudent');
+            if (marksStudent) marksStudent.value = studentId;
+        }
+    }
+    
+    updateSelectedCounts() {
+        const rowCount = document.querySelectorAll('#marksTableBody tr:not(.empty-state)').length;
+        const countElement = document.getElementById('markCount');
+        if (countElement) {
+            countElement.textContent = `Total: ${rowCount} marks`;
+        }
+    }
+    
     openModal(modalId) {
         const modal = document.getElementById(modalId);
         if (modal) {
@@ -659,14 +744,33 @@ class MarksManager {
         if (modal) {
             modal.style.display = 'none';
             modal.classList.remove('show');
-        }
-    }
-    
-    updateSelectedCounts() {
-        const rowCount = document.querySelectorAll('#marksTableBody tr:not(.empty-state)').length;
-        const countElement = document.getElementById('markCount');
-        if (countElement) {
-            countElement.textContent = `Total: ${rowCount} marks`;
+            
+            // Reset forms
+            if (modalId === 'marksModal') {
+                const form = document.getElementById('marksForm');
+                if (form) {
+                    form.reset();
+                    document.getElementById('maxScore').value = '100';
+                    this.resetMarksGradeDisplay(
+                        document.getElementById('gradeDisplay'),
+                        document.getElementById('percentageDisplay'),
+                        document.getElementById('marksGradePoints'),
+                        document.getElementById('marksGradeDescription')
+                    );
+                }
+            }
+            
+            if (modalId === 'editMarksModal') {
+                const form = document.getElementById('editMarksForm');
+                if (form) {
+                    form.reset();
+                }
+            }
+            
+            // Close all collapsible sections
+            if (window.closeAllCollapsibleSections) {
+                window.closeAllCollapsibleSections();
+            }
         }
     }
     
