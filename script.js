@@ -7,6 +7,7 @@ class TEEPortalSupabaseDB {
         this.supabase = null;
         this.initialized = false;
         this.initPromise = null;
+        this.settings = null;
     }
     
     async init() {
@@ -33,6 +34,9 @@ class TEEPortalSupabaseDB {
             
             // Initialize Supabase client
             this.supabase = supabase.createClient(this.supabaseUrl, this.supabaseKey);
+            
+            // Load settings
+            this.settings = await this.getSettings();
             
             // Test connection
             await this.testConnection();
@@ -86,22 +90,57 @@ class TEEPortalSupabaseDB {
     getDefaultSettings() {
         return {
             instituteName: 'Theological Education by Extension College',
+            instituteAbbreviation: 'TEE College',
             academicYear: new Date().getFullYear(),
+            semester: 'Spring',
             timezone: 'Africa/Nairobi',
+            currency: 'KES',
+            language: 'en',
+            
+            // Grading Scale
             gradingScale: {
-                'A': { min: 80, max: 100, points: 4.0 },
-                'B+': { min: 75, max: 79, points: 3.5 },
-                'B': { min: 70, max: 74, points: 3.0 },
-                'C+': { min: 65, max: 69, points: 2.5 },
-                'C': { min: 60, max: 64, points: 2.0 },
-                'D+': { min: 55, max: 59, points: 1.5 },
-                'D': { min: 50, max: 54, points: 1.0 },
-                'F': { min: 0, max: 49, points: 0.0 }
+                'A': { min: 80, max: 100, points: 4.0, description: 'Excellent' },
+                'B+': { min: 75, max: 79, points: 3.5, description: 'Very Good' },
+                'B': { min: 70, max: 74, points: 3.0, description: 'Good' },
+                'C+': { min: 65, max: 69, points: 2.5, description: 'Above Average' },
+                'C': { min: 60, max: 64, points: 2.0, description: 'Average' },
+                'D+': { min: 55, max: 59, points: 1.5, description: 'Below Average' },
+                'D': { min: 50, max: 54, points: 1.0, description: 'Pass' },
+                'F': { min: 0, max: 49, points: 0.0, description: 'Fail' }
             },
+            
+            // Programs Configuration
             programs: {
-                'basic': { name: 'Basic TEE', duration: '2 years' },
-                'hnc': { name: 'HNC', duration: '3 years' },
-                'advanced': { name: 'Advanced TEE', duration: '4 years' }
+                'basic': { 
+                    name: 'Basic TEE', 
+                    duration: '2 years',
+                    maxCredits: 60,
+                    description: 'Basic theological education program'
+                },
+                'hnc': { 
+                    name: 'Higher National Certificate', 
+                    duration: '3 years',
+                    maxCredits: 90,
+                    description: 'Advanced certificate program'
+                },
+                'advanced': { 
+                    name: 'Advanced TEE', 
+                    duration: '4 years',
+                    maxCredits: 120,
+                    description: 'Advanced theological education program'
+                }
+            },
+            
+            // System Settings
+            system: {
+                autoGenerateRegNumbers: true,
+                allowMarkOverwrite: false,
+                showGPA: true,
+                enableEmailNotifications: false,
+                defaultPassword: 'Welcome123',
+                sessionTimeout: 30, // minutes
+                maxLoginAttempts: 5,
+                enableTwoFactor: false
             }
         };
     }
@@ -207,189 +246,190 @@ class TEEPortalSupabaseDB {
     }
     
    // ========== COURSES ==========
-async getCourses() {
-    try {
-        const supabase = await this.ensureConnected();
-        const { data, error } = await supabase
-            .from('courses')
-            .select('*')
-            .order('created_at', { ascending: false });
+    async getCourses() {
+        try {
+            const supabase = await this.ensureConnected();
+            const { data, error } = await supabase
+                .from('courses')
+                .select('*')
+                .order('created_at', { ascending: false });
+                
+            if (error) throw error;
+            return data || [];
             
-        if (error) throw error;
-        return data || [];
-        
-    } catch (error) {
-        console.error('Error fetching courses:', error);
-        throw error;
-    }
-}
-
-async addCourse(courseData) {
-    try {
-        const supabase = await this.ensureConnected();
-        
-        // First, check if course code already exists
-        const { data: existingCourse, error: checkError } = await supabase
-            .from('courses')
-            .select('course_code')
-            .eq('course_code', courseData.code.toUpperCase())
-            .maybeSingle();
-            
-        if (checkError) {
-            console.warn('Error checking existing course:', checkError);
-            // Continue anyway, let the insert fail if duplicate
-        }
-        
-        if (existingCourse) {
-            throw new Error(`Course code "${courseData.code}" already exists. Please use a different code.`);
-        }
-        
-        const course = {
-            course_code: courseData.code.toUpperCase(),
-            course_name: courseData.name,
-            program: courseData.program,
-            credits: courseData.credits || 3, // Default to 3 credits
-            description: courseData.description || '',
-            status: 'active'
-        };
-        
-        const { data, error } = await supabase
-            .from('courses')
-            .insert([course])
-            .select()
-            .single();
-            
-        if (error) {
-            // Handle specific PostgreSQL errors
-            if (error.code === '23505') { // Unique violation
-                throw new Error(`Course code "${courseData.code.toUpperCase()}" already exists. Please use a different course code.`);
-            } else if (error.code === '23502') { // Not null violation
-                throw new Error('Missing required fields. Please check your input.');
-            } else if (error.code === '22P02') { // Invalid input syntax
-                throw new Error('Invalid data format. Please check your input.');
-            } else {
-                // Generic error
-                console.error('Supabase error details:', error);
-                throw new Error(`Failed to add course: ${error.message}`);
-            }
-        }
-        
-        await this.logActivity('course_added', `Added course: ${data.course_code}`);
-        return data;
-        
-    } catch (error) {
-        console.error('Error adding course:', error);
-        // Re-throw with better error message
-        if (error.message.includes('already exists')) {
-            throw error; // Keep our custom message
-        }
-        throw new Error(`Failed to add course: ${error.message}`);
-    }
-}
-
-async getCourse(id) {
-    try {
-        const supabase = await this.ensureConnected();
-        const { data, error } = await supabase
-            .from('courses')
-            .select('*')
-            .or(`id.eq.${id},course_code.eq.${id}`)
-            .single();
-            
-        if (error) {
-            if (error.code === 'PGRST116') {
-                return null; // No course found
-            }
+        } catch (error) {
+            console.error('Error fetching courses:', error);
             throw error;
         }
-        return data;
-        
-    } catch (error) {
-        console.error('Error fetching course:', error);
-        throw error;
     }
-}
 
-// Add this method to update existing courses
-async updateCourse(courseId, updateData) {
-    try {
-        const supabase = await this.ensureConnected();
-        
-        // If updating course code, check if new code already exists (excluding current course)
-        if (updateData.code) {
+    async addCourse(courseData) {
+        try {
+            const supabase = await this.ensureConnected();
+            
+            // First, check if course code already exists
             const { data: existingCourse, error: checkError } = await supabase
                 .from('courses')
-                .select('id')
-                .eq('course_code', updateData.code.toUpperCase())
-                .neq('id', courseId)
+                .select('course_code')
+                .eq('course_code', courseData.code.toUpperCase())
                 .maybeSingle();
                 
+            if (checkError) {
+                console.warn('Error checking existing course:', checkError);
+                // Continue anyway, let the insert fail if duplicate
+            }
+            
             if (existingCourse) {
-                throw new Error(`Course code "${updateData.code}" is already used by another course.`);
+                throw new Error(`Course code "${courseData.code}" already exists. Please use a different code.`);
             }
-        }
-        
-        const updateObj = {};
-        if (updateData.code) updateObj.course_code = updateData.code.toUpperCase();
-        if (updateData.name) updateObj.course_name = updateData.name;
-        if (updateData.program) updateObj.program = updateData.program;
-        if (updateData.credits !== undefined) updateObj.credits = updateData.credits;
-        if (updateData.description !== undefined) updateObj.description = updateData.description;
-        if (updateData.status) updateObj.status = updateData.status;
-        
-        const { data, error } = await supabase
-            .from('courses')
-            .update(updateObj)
-            .eq('id', courseId)
-            .select()
-            .single();
             
-        if (error) throw error;
-        
-        await this.logActivity('course_updated', `Updated course: ${data.course_code}`);
-        return data;
-        
-    } catch (error) {
-        console.error('Error updating course:', error);
-        throw error;
+            const course = {
+                course_code: courseData.code.toUpperCase(),
+                course_name: courseData.name,
+                program: courseData.program,
+                credits: courseData.credits || 3, // Default to 3 credits
+                description: courseData.description || '',
+                status: 'active'
+            };
+            
+            const { data, error } = await supabase
+                .from('courses')
+                .insert([course])
+                .select()
+                .single();
+                
+            if (error) {
+                // Handle specific PostgreSQL errors
+                if (error.code === '23505') { // Unique violation
+                    throw new Error(`Course code "${courseData.code.toUpperCase()}" already exists. Please use a different course code.`);
+                } else if (error.code === '23502') { // Not null violation
+                    throw new Error('Missing required fields. Please check your input.');
+                } else if (error.code === '22P02') { // Invalid input syntax
+                    throw new Error('Invalid data format. Please check your input.');
+                } else {
+                    // Generic error
+                    console.error('Supabase error details:', error);
+                    throw new Error(`Failed to add course: ${error.message}`);
+                }
+            }
+            
+            await this.logActivity('course_added', `Added course: ${data.course_code}`);
+            return data;
+            
+        } catch (error) {
+            console.error('Error adding course:', error);
+            // Re-throw with better error message
+            if (error.message.includes('already exists')) {
+                throw error; // Keep our custom message
+            }
+            throw new Error(`Failed to add course: ${error.message}`);
+        }
     }
-}
 
-// Add this method to delete courses
-async deleteCourse(courseId) {
-    try {
-        const supabase = await this.ensureConnected();
-        
-        // First check if course exists
-        const { data: course, error: checkError } = await supabase
-            .from('courses')
-            .select('course_code')
-            .eq('id', courseId)
-            .single();
-            
-        if (checkError) {
-            if (checkError.code === 'PGRST116') {
-                throw new Error('Course not found');
+    async getCourse(id) {
+        try {
+            const supabase = await this.ensureConnected();
+            const { data, error } = await supabase
+                .from('courses')
+                .select('*')
+                .or(`id.eq.${id},course_code.eq.${id}`)
+                .single();
+                
+            if (error) {
+                if (error.code === 'PGRST116') {
+                    return null; // No course found
+                }
+                throw error;
             }
-            throw checkError;
-        }
-        
-        // Then delete it
-        const { error } = await supabase
-            .from('courses')
-            .delete()
-            .eq('id', courseId);
+            return data;
             
-        if (error) throw error;
-        
-        await this.logActivity('course_deleted', `Deleted course: ${course.course_code}`);
-        return true;
-        
-    } catch (error) {
-        console.error('Error deleting course:', error);
-        throw error;
+        } catch (error) {
+            console.error('Error fetching course:', error);
+            throw error;
+        }
     }
-}
+
+    // Add this method to update existing courses
+    async updateCourse(courseId, updateData) {
+        try {
+            const supabase = await this.ensureConnected();
+            
+            // If updating course code, check if new code already exists (excluding current course)
+            if (updateData.code) {
+                const { data: existingCourse, error: checkError } = await supabase
+                    .from('courses')
+                    .select('id')
+                    .eq('course_code', updateData.code.toUpperCase())
+                    .neq('id', courseId)
+                    .maybeSingle();
+                    
+                if (existingCourse) {
+                    throw new Error(`Course code "${updateData.code}" is already used by another course.`);
+                }
+            }
+            
+            const updateObj = {};
+            if (updateData.code) updateObj.course_code = updateData.code.toUpperCase();
+            if (updateData.name) updateObj.course_name = updateData.name;
+            if (updateData.program) updateObj.program = updateData.program;
+            if (updateData.credits !== undefined) updateObj.credits = updateData.credits;
+            if (updateData.description !== undefined) updateObj.description = updateData.description;
+            if (updateData.status) updateObj.status = updateData.status;
+            
+            const { data, error } = await supabase
+                .from('courses')
+                .update(updateObj)
+                .eq('id', courseId)
+                .select()
+                .single();
+                
+            if (error) throw error;
+            
+            await this.logActivity('course_updated', `Updated course: ${data.course_code}`);
+            return data;
+            
+        } catch (error) {
+            console.error('Error updating course:', error);
+            throw error;
+        }
+    }
+
+    // Add this method to delete courses
+    async deleteCourse(courseId) {
+        try {
+            const supabase = await this.ensureConnected();
+            
+            // First check if course exists
+            const { data: course, error: checkError } = await supabase
+                .from('courses')
+                .select('course_code')
+                .eq('id', courseId)
+                .single();
+                
+            if (checkError) {
+                if (checkError.code === 'PGRST116') {
+                    throw new Error('Course not found');
+                }
+                throw checkError;
+            }
+            
+            // Then delete it
+            const { error } = await supabase
+                .from('courses')
+                .delete()
+                .eq('id', courseId);
+                
+            if (error) throw error;
+            
+            await this.logActivity('course_deleted', `Deleted course: ${course.course_code}`);
+            return true;
+            
+        } catch (error) {
+            console.error('Error deleting course:', error);
+            throw error;
+        }
+    }
+    
     // ========== MARKS ==========
     async getMarks() {
         try {
@@ -551,124 +591,116 @@ async deleteCourse(courseId) {
             throw error;
         }
     }
+    
     // ========== MISSING MARK METHODS ==========
-
-async getMarkById(markId) {
-    try {
-        const supabase = await this.ensureConnected();
-        const { data, error } = await supabase
-            .from('marks')
-            .select(`
-                *,
-                students!inner (id, reg_number, full_name),
-                courses!inner (id, course_code, course_name, credits)
-            `)
-            .eq('id', markId)
-            .single();
+    async getMarkById(markId) {
+        try {
+            const supabase = await this.ensureConnected();
+            const { data, error } = await supabase
+                .from('marks')
+                .select(`
+                    *,
+                    students!inner (id, reg_number, full_name),
+                    courses!inner (id, course_code, course_name, credits)
+                `)
+                .eq('id', markId)
+                .single();
+                
+            if (error) throw error;
+            return data;
             
-        if (error) throw error;
-        return data;
-        
-    } catch (error) {
-        console.error('Error fetching mark by ID:', error);
-        throw error;
-    }
-}
-
-async updateMark(markId, updateData) {
-    try {
-        const supabase = await this.ensureConnected();
-        
-        // First get the current mark to preserve existing data
-        const { data: currentMark, error: fetchError } = await supabase
-            .from('marks')
-            .select('*')
-            .eq('id', markId)
-            .single();
-            
-        if (fetchError) throw fetchError;
-        
-        // Calculate new percentage and grade
-        const score = updateData.score || currentMark.score;
-        const maxScore = updateData.maxScore || currentMark.max_score;
-        const percentage = (score / maxScore) * 100;
-        const grade = this.calculateGrade(percentage);
-        
-        // Prepare update object
-        const updateObj = {
-            assessment_type: updateData.assessmentType || currentMark.assessment_type,
-            assessment_name: updateData.assessmentName || currentMark.assessment_name,
-            score: score,
-            max_score: maxScore,
-            percentage: parseFloat(percentage.toFixed(2)),
-            grade: grade.grade,
-            grade_points: grade.points,
-            remarks: updateData.remarks || currentMark.remarks,
-            updated_at: new Date().toISOString()
-        };
-        
-        // Update the mark
-        const { data, error } = await supabase
-            .from('marks')
-            .update(updateObj)
-            .eq('id', markId)
-            .select()
-            .single();
-            
-        if (error) throw error;
-        
-        await this.logActivity('marks_updated', `Updated marks for student`);
-        return data;
-        
-    } catch (error) {
-        console.error('Error updating mark:', error);
-        throw error;
-    }
-}
-
-async deleteMark(markId) {
-    try {
-        const supabase = await this.ensureConnected();
-        
-        // First get the mark details for logging
-        const { data: mark, error: fetchError } = await supabase
-            .from('marks')
-            .select('id, assessment_name')
-            .eq('id', markId)
-            .single();
-            
-        if (fetchError && fetchError.code !== 'PGRST116') {
-            console.warn('Mark not found or already deleted:', fetchError);
+        } catch (error) {
+            console.error('Error fetching mark by ID:', error);
+            throw error;
         }
-        
-        // Delete the mark
-        const { error } = await supabase
-            .from('marks')
-            .delete()
-            .eq('id', markId);
-            
-        if (error) throw error;
-        
-        await this.logActivity('marks_deleted', `Deleted marks record`);
-        return true;
-        
-    } catch (error) {
-        console.error('Error deleting mark:', error);
-        throw error;
     }
-}
+
+    async updateMark(markId, updateData) {
+        try {
+            const supabase = await this.ensureConnected();
+            
+            // First get the current mark to preserve existing data
+            const { data: currentMark, error: fetchError } = await supabase
+                .from('marks')
+                .select('*')
+                .eq('id', markId)
+                .single();
+                
+            if (fetchError) throw fetchError;
+            
+            // Calculate new percentage and grade
+            const score = updateData.score || currentMark.score;
+            const maxScore = updateData.maxScore || currentMark.max_score;
+            const percentage = (score / maxScore) * 100;
+            const grade = this.calculateGrade(percentage);
+            
+            // Prepare update object
+            const updateObj = {
+                assessment_type: updateData.assessmentType || currentMark.assessment_type,
+                assessment_name: updateData.assessmentName || currentMark.assessment_name,
+                score: score,
+                max_score: maxScore,
+                percentage: parseFloat(percentage.toFixed(2)),
+                grade: grade.grade,
+                grade_points: grade.points,
+                remarks: updateData.remarks || currentMark.remarks,
+                updated_at: new Date().toISOString()
+            };
+            
+            // Update the mark
+            const { data, error } = await supabase
+                .from('marks')
+                .update(updateObj)
+                .eq('id', markId)
+                .select()
+                .single();
+                
+            if (error) throw error;
+            
+            await this.logActivity('marks_updated', `Updated marks for student`);
+            return data;
+            
+        } catch (error) {
+            console.error('Error updating mark:', error);
+            throw error;
+        }
+    }
+
+    async deleteMark(markId) {
+        try {
+            const supabase = await this.ensureConnected();
+            
+            // First get the mark details for logging
+            const { data: mark, error: fetchError } = await supabase
+                .from('marks')
+                .select('id, assessment_name')
+                .eq('id', markId)
+                .single();
+                
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                console.warn('Mark not found or already deleted:', fetchError);
+            }
+            
+            // Delete the mark
+            const { error } = await supabase
+                .from('marks')
+                .delete()
+                .eq('id', markId);
+                
+            if (error) throw error;
+            
+            await this.logActivity('marks_deleted', `Deleted marks record`);
+            return true;
+            
+        } catch (error) {
+            console.error('Error deleting mark:', error);
+            throw error;
+        }
+    }
+    
     // ========== UTILITY METHODS ==========
     calculateGrade(percentage) {
-        const gradingScale = {
-            'A': { min: 80, max: 100, points: 4.0 },
-            'B+': { min: 75, max: 79, points: 3.5 },
-            'B': { min: 70, max: 74, points: 3.0 },
-            'C+': { min: 65, max: 69, points: 2.5 },
-            'C': { min: 60, max: 64, points: 2.0 },
-            'D+': { min: 55, max: 59, points: 1.5 },
-            'D': { min: 50, max: 54, points: 1.0 },
-            'F': { min: 0, max: 49, points: 0.0 }
-        };
+        const gradingScale = this.settings?.gradingScale || this.getDefaultSettings().gradingScale;
         
         for (const [grade, range] of Object.entries(gradingScale)) {
             if (percentage >= range.min && percentage <= range.max) {
@@ -692,145 +724,95 @@ async deleteMark(markId) {
     }
     
    // ========== SETTINGS MANAGEMENT ==========
-async getSettings() {
-    try {
-        const supabase = await this.ensureConnected();
-        const { data, error } = await supabase
-            .from('settings')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-            
-        if (error) {
-            // If no settings exist, return default settings
-            if (error.code === 'PGRST116') {
-                return this.getDefaultSettings();
+    async getSettings() {
+        try {
+            const supabase = await this.ensureConnected();
+            const { data, error } = await supabase
+                .from('settings')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+                
+            if (error) {
+                // If no settings exist, return default settings
+                if (error.code === 'PGRST116') {
+                    const defaults = this.getDefaultSettings();
+                    this.settings = defaults;
+                    return defaults;
+                }
+                throw error;
             }
+            
+            // Merge with default settings to ensure all fields exist
+            const defaultSettings = this.getDefaultSettings();
+            const mergedSettings = { ...defaultSettings, ...(data.settings_data || {}) };
+            this.settings = mergedSettings;
+            return mergedSettings;
+            
+        } catch (error) {
+            console.error('Error fetching settings:', error);
+            const defaults = this.getDefaultSettings();
+            this.settings = defaults;
+            return defaults;
+        }
+    }
+
+    async saveSettings(settingsData) {
+        try {
+            const supabase = await this.ensureConnected();
+            
+            // Get existing settings to update or create new
+            const { data: existingSettings, error: fetchError } = await supabase
+                .from('settings')
+                .select('*')
+                .limit(1)
+                .maybeSingle();
+                
+            let result;
+            
+            if (existingSettings) {
+                // Update existing settings
+                const { data, error } = await supabase
+                    .from('settings')
+                    .update({
+                        settings_data: settingsData,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', existingSettings.id)
+                    .select()
+                    .single();
+                    
+                if (error) throw error;
+                result = data;
+            } else {
+                // Create new settings
+                const { data, error } = await supabase
+                    .from('settings')
+                    .insert([{
+                        settings_data: settingsData,
+                        setting_type: 'system',
+                        created_at: new Date().toISOString()
+                    }])
+                    .select()
+                    .single();
+                    
+                if (error) throw error;
+                result = data;
+            }
+            
+            // Update cached settings
+            this.settings = settingsData;
+            
+            // Log the activity
+            await this.logActivity('settings_updated', 'System settings updated');
+            return result;
+            
+        } catch (error) {
+            console.error('Error saving settings:', error);
             throw error;
         }
-        
-        // Merge with default settings to ensure all fields exist
-        const defaultSettings = this.getDefaultSettings();
-        return { ...defaultSettings, ...(data.settings_data || {}) };
-        
-    } catch (error) {
-        console.error('Error fetching settings:', error);
-        return this.getDefaultSettings();
     }
-}
-
-async saveSettings(settingsData) {
-    try {
-        const supabase = await this.ensureConnected();
-        
-        // Get existing settings to update or create new
-        const { data: existingSettings, error: fetchError } = await supabase
-            .from('settings')
-            .select('*')
-            .limit(1)
-            .maybeSingle();
-            
-        let result;
-        
-        if (existingSettings) {
-            // Update existing settings
-            const { data, error } = await supabase
-                .from('settings')
-                .update({
-                    settings_data: settingsData,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', existingSettings.id)
-                .select()
-                .single();
-                
-            if (error) throw error;
-            result = data;
-        } else {
-            // Create new settings
-            const { data, error } = await supabase
-                .from('settings')
-                .insert([{
-                    settings_data: settingsData,
-                    setting_type: 'system',
-                    created_at: new Date().toISOString()
-                }])
-                .select()
-                .single();
-                
-            if (error) throw error;
-            result = data;
-        }
-        
-        // Log the activity
-        await this.logActivity('settings_updated', 'System settings updated');
-        return result;
-        
-    } catch (error) {
-        console.error('Error saving settings:', error);
-        throw error;
-    }
-}
-
-// Update your existing getDefaultSettings() to be more comprehensive
-getDefaultSettings() {
-    return {
-        instituteName: 'Theological Education by Extension College',
-        instituteAbbreviation: 'TEE College',
-        academicYear: new Date().getFullYear(),
-        semester: 'Spring',
-        timezone: 'Africa/Nairobi',
-        currency: 'KES',
-        language: 'en',
-        
-        // Grading Scale
-        gradingScale: {
-            'A': { min: 80, max: 100, points: 4.0, description: 'Excellent' },
-            'B+': { min: 75, max: 79, points: 3.5, description: 'Very Good' },
-            'B': { min: 70, max: 74, points: 3.0, description: 'Good' },
-            'C+': { min: 65, max: 69, points: 2.5, description: 'Above Average' },
-            'C': { min: 60, max: 64, points: 2.0, description: 'Average' },
-            'D+': { min: 55, max: 59, points: 1.5, description: 'Below Average' },
-            'D': { min: 50, max: 54, points: 1.0, description: 'Pass' },
-            'F': { min: 0, max: 49, points: 0.0, description: 'Fail' }
-        },
-        
-        // Programs Configuration
-        programs: {
-            'basic': { 
-                name: 'Basic TEE', 
-                duration: '2 years',
-                maxCredits: 60,
-                description: 'Basic theological education program'
-            },
-            'hnc': { 
-                name: 'Higher National Certificate', 
-                duration: '3 years',
-                maxCredits: 90,
-                description: 'Advanced certificate program'
-            },
-            'advanced': { 
-                name: 'Advanced TEE', 
-                duration: '4 years',
-                maxCredits: 120,
-                description: 'Advanced theological education program'
-            }
-        },
-        
-        // System Settings
-        system: {
-            autoGenerateRegNumbers: true,
-            allowMarkOverwrite: false,
-            showGPA: true,
-            enableEmailNotifications: false,
-            defaultPassword: 'Welcome123',
-            sessionTimeout: 30, // minutes
-            maxLoginAttempts: 5,
-            enableTwoFactor: false
-        }
-    };
-}
     
     async logActivity(type, description) {
         try {
@@ -913,61 +895,124 @@ class TEEPortalApp {
     }
     
    setupEventListeners() {
-    // Setup form submissions
-    const studentForm = document.getElementById('studentForm');
-    if (studentForm) {
-        studentForm.addEventListener('submit', (e) => this.saveStudent(e));
-    }
-    
-    const marksForm = document.getElementById('marksForm');
-    if (marksForm) {
-        marksForm.addEventListener('submit', (e) => this.saveMarks(e));
-    }
-    
-    const courseForm = document.getElementById('courseForm');
-    if (courseForm) {
-        courseForm.addEventListener('submit', (e) => this.saveCourse(e));
-    }
-    
-    // ADD THIS - Settings form submission
-    const settingsForm = document.getElementById('settingsForm');
-    if (settingsForm) {
-        settingsForm.addEventListener('submit', (e) => this.saveSettings(e));
-    }
-    
-    // Setup real-time grade calculation
-    const marksScoreInput = document.getElementById('marksScore');
-    if (marksScoreInput) {
-        marksScoreInput.addEventListener('input', () => updateGradeDisplay());
-    }
-    
-    const maxScoreInput = document.getElementById('maxScore');
-    if (maxScoreInput) {
-        maxScoreInput.addEventListener('input', () => updateGradeDisplay());
-    }
-    
-    // ADD THESE - Settings page buttons if they exist
-    const addGradeRowBtn = document.getElementById('addGradeRowBtn');
-    if (addGradeRowBtn) {
-        addGradeRowBtn.addEventListener('click', () => this.addGradingScaleRow());
-    }
-    
-    const addProgramBtn = document.getElementById('addProgramBtn');
-    if (addProgramBtn) {
-        addProgramBtn.addEventListener('click', () => this.addProgramSetting());
-    }
-    
-    // ADD THIS - Settings tab navigation
-    const settingsTabBtns = document.querySelectorAll('.settings-tab-btn');
-    settingsTabBtns.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const tabName = e.target.dataset.tab;
-            if (tabName) {
-                this.openSettingsTab(tabName);
-            }
+        // Setup form submissions
+        const studentForm = document.getElementById('studentForm');
+        if (studentForm) {
+            studentForm.addEventListener('submit', (e) => this.saveStudent(e));
+        }
+        
+        const marksForm = document.getElementById('marksForm');
+        if (marksForm) {
+            marksForm.addEventListener('submit', (e) => this.saveMarks(e));
+        }
+        
+        const courseForm = document.getElementById('courseForm');
+        if (courseForm) {
+            courseForm.addEventListener('submit', (e) => this.saveCourse(e));
+        }
+        
+        // ADD THIS - Settings form submission
+        const settingsForm = document.getElementById('settingsForm');
+        if (settingsForm) {
+            settingsForm.addEventListener('submit', (e) => this.saveSettings(e));
+        }
+        
+        // ADD THIS - Edit marks form submission
+        const editMarksForm = document.getElementById('editMarksForm');
+        if (editMarksForm) {
+            editMarksForm.addEventListener('submit', (e) => this.updateMark(e));
+        }
+        
+        // Setup real-time grade calculation
+        const marksScoreInput = document.getElementById('marksScore');
+        if (marksScoreInput) {
+            marksScoreInput.addEventListener('input', () => updateGradeDisplay());
+        }
+        
+        const maxScoreInput = document.getElementById('maxScore');
+        if (maxScoreInput) {
+            maxScoreInput.addEventListener('input', () => updateGradeDisplay());
+        }
+        
+        // Setup edit marks form grade calculation
+        const editScoreInput = document.getElementById('editScore');
+        if (editScoreInput) {
+            editScoreInput.addEventListener('input', () => this.updateEditGradeDisplay());
+        }
+        
+        const editMaxScoreInput = document.getElementById('editMaxScore');
+        if (editMaxScoreInput) {
+            editMaxScoreInput.addEventListener('input', () => this.updateEditGradeDisplay());
+        }
+        
+        // ADD THESE - Settings page buttons if they exist
+        const addGradeRowBtn = document.getElementById('addGradeRowBtn');
+        if (addGradeRowBtn) {
+            addGradeRowBtn.addEventListener('click', () => this.addGradingScaleRow());
+        }
+        
+        const addProgramBtn = document.getElementById('addProgramBtn');
+        if (addProgramBtn) {
+            addProgramBtn.addEventListener('click', () => this.addProgramSetting());
+        }
+        
+        // ADD THIS - Settings tab navigation
+        const settingsTabBtns = document.querySelectorAll('.settings-tab-btn');
+        settingsTabBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const tabName = e.target.dataset.tab;
+                if (tabName) {
+                    this.openSettingsTab(tabName);
+                }
+            });
         });
-    });
-}
+        
+        // Report generation
+        const generateReportBtn = document.getElementById('generateReportBtn');
+        if (generateReportBtn) {
+            generateReportBtn.addEventListener('click', () => this.generateReport());
+        }
+        
+        const previewReportBtn = document.getElementById('previewReportBtn');
+        if (previewReportBtn) {
+            previewReportBtn.addEventListener('click', () => this.previewReport());
+        }
+    }
+    
+    updateEditGradeDisplay() {
+        try {
+            const scoreInput = document.getElementById('editScore');
+            const maxScoreInput = document.getElementById('editMaxScore');
+            const gradeDisplay = document.getElementById('editGradeDisplay');
+            const percentageField = document.getElementById('editPercentage');
+            
+            if (!scoreInput || !gradeDisplay) return;
+            
+            const score = parseFloat(scoreInput.value);
+            const maxScore = parseFloat(maxScoreInput?.value) || 100;
+            
+            if (isNaN(score)) {
+                gradeDisplay.textContent = '--';
+                gradeDisplay.className = 'percentage-badge';
+                if (percentageField) percentageField.value = '';
+                return;
+            }
+            
+            const percentage = (score / maxScore) * 100;
+            const grade = this.db.calculateGrade(percentage);
+            
+            gradeDisplay.textContent = grade.grade;
+            gradeDisplay.className = `percentage-badge grade-${grade.grade.charAt(0)}`;
+            
+            if (percentageField) {
+                percentageField.value = `${percentage.toFixed(2)}%`;
+            }
+            
+        } catch (error) {
+            console.error('Error updating edit grade display:', error);
+        }
+    }
+    
     async loadInitialData() {
         try {
             console.log('📊 Loading initial data...');
@@ -994,6 +1039,11 @@ class TEEPortalApp {
         });
         
         this.populateDropdowns();
+        
+        // Initialize settings tabs
+        if (document.querySelector('.settings-tab-btn')) {
+            this.openSettingsTab('general');
+        }
     }
     
     async populateDropdowns() {
@@ -1160,916 +1210,1012 @@ class TEEPortalApp {
             }
         }
     }
+    
     // ==============================
-// MARKS MANAGEMENT
-// ==============================
-async loadMarksTable() {
-    try {
-        const marks = await this.db.getMarksTableData();
-        const tbody = document.querySelector('#marksTableBody');
-        
-        if (!tbody) {
-            console.error('Marks table body not found');
-            return;
+    // MARKS MANAGEMENT
+    // ==============================
+    async loadMarksTable() {
+        try {
+            const marks = await this.db.getMarksTableData();
+            const tbody = document.querySelector('#marksTableBody');
+            
+            if (!tbody) {
+                console.error('Marks table body not found');
+                return;
+            }
+            
+            if (marks.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="11" class="empty-state">
+                            <i class="fas fa-chart-bar fa-2x"></i>
+                            <p>No marks recorded yet</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            let html = '';
+            
+            marks.forEach(mark => {
+                const student = mark.students || {};
+                const course = mark.courses || {};
+                const percentage = mark.percentage || ((mark.score / mark.max_score) * 100).toFixed(2);
+                const markId = mark.id || mark._id || '';
+                
+                // Get student name and remove any "test" suffix
+                let studentName = student.full_name || 'N/A';
+                studentName = studentName.replace(/\s+test\s+\d*$/i, '');
+                
+                // Format date
+                const dateObj = mark.created_at ? new Date(mark.created_at) : 
+                              mark.date ? new Date(mark.date) : new Date();
+                const formattedDate = dateObj.toLocaleDateString('en-GB'); // DD/MM/YYYY format
+                
+                html += `
+                    <tr data-mark-id="${markId}">
+                        <!-- Student ID -->
+                        <td>${student.reg_number || 'N/A'}</td>
+                        
+                        <!-- Student Name -->
+                        <td>${studentName}</td>
+                        
+                        <!-- Course Code -->
+                        <td>${course.course_code || 'N/A'}</td>
+                        
+                        <!-- Course Name -->
+                        <td>${course.course_name || 'N/A'}</td>
+                        
+                        <!-- Assessment -->
+                        <td>${mark.assessment_name || 'Assessment'}</td>
+                        
+                        <!-- Score -->
+                        <td><strong>${mark.score || 0}/${mark.max_score || 100}</strong></td>
+                        
+                        <!-- Percentage -->
+                        <td>${percentage}%</td>
+                        
+                        <!-- Grade -->
+                        <td>
+                            <span class="grade-badge grade-${mark.grade?.charAt(0) || 'F'}">
+                                ${mark.grade || 'F'}
+                            </span>
+                        </td>
+                        
+                        <!-- Credits -->
+                        <td>${course.credits || mark.credits || 3}</td>
+                        
+                        <!-- Date -->
+                        <td>${formattedDate}</td>
+                        
+                        <!-- Actions -->
+                        <td>
+                            <div class="action-buttons">
+                                <button type="button" class="btn-action btn-edit" 
+                                        onclick="app.editMark('${markId}')" 
+                                        title="Edit Marks">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn-action btn-delete" 
+                                        onclick="app.deleteMark('${markId}')" 
+                                        title="Delete Marks">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html;
+            
+        } catch (error) {
+            console.error('Error loading marks table:', error);
+            const tbody = document.querySelector('#marksTableBody');
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="11" class="error-state">
+                            <i class="fas fa-exclamation-triangle fa-2x"></i>
+                            <p>Error loading marks</p>
+                            <small class="d-block mt-1">${error.message}</small>
+                        </td>
+                    </tr>
+                `;
+            }
         }
-        
-        if (marks.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="11" class="empty-state">
-                        <i class="fas fa-chart-bar fa-2x"></i>
-                        <p>No marks recorded yet</p>
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-        
-        let html = '';
-        
-        marks.forEach(mark => {
+    }
+
+    // ==============================
+    // FIXED EDIT MARK FUNCTION
+    // ==============================
+
+    async editMark(markId) {
+        try {
+            console.log('🔧 Editing mark ID:', markId);
+            
+            // Fetch mark data
+            const mark = await this.db.getMarkById(markId);
+            
+            if (!mark) {
+                this.showToast('Mark not found', 'error');
+                return;
+            }
+            
+            console.log('📊 Mark data fetched:', mark);
+            
+            // Populate edit modal form
+            document.getElementById('editMarkId').value = markId;
+            document.getElementById('editStudent').value = mark.student_id || '';
+            document.getElementById('editCourse').value = mark.course_id || '';
+            document.getElementById('editAssessmentType').value = mark.assessment_type || 'final';
+            document.getElementById('editAssessmentName').value = mark.assessment_name || '';
+            document.getElementById('editScore').value = mark.score || 0;
+            document.getElementById('editMaxScore').value = mark.max_score || 100;
+            document.getElementById('editRemarks').value = mark.remarks || '';
+            
+            // Display student and course info for reference
             const student = mark.students || {};
             const course = mark.courses || {};
-            const percentage = mark.percentage || ((mark.score / mark.max_score) * 100).toFixed(2);
-            const markId = mark.id || mark._id || '';
             
-            // Get student name and remove any "test" suffix
-            let studentName = student.full_name || 'N/A';
-            studentName = studentName.replace(/\s+test\s+\d*$/i, '');
+            // Show student name if available
+            const studentDisplay = document.getElementById('editStudentDisplay');
+            if (studentDisplay) {
+                studentDisplay.textContent = student.full_name ? 
+                    `${student.reg_number} - ${student.full_name}` : 
+                    `Student ID: ${mark.student_id}`;
+            }
             
-            // Format date
-            const dateObj = mark.created_at ? new Date(mark.created_at) : 
-                          mark.date ? new Date(mark.date) : new Date();
-            const formattedDate = dateObj.toLocaleDateString('en-GB'); // DD/MM/YYYY format
+            // Show course name if available
+            const courseDisplay = document.getElementById('editCourseDisplay');
+            if (courseDisplay) {
+                courseDisplay.textContent = course.course_code ? 
+                    `${course.course_code} - ${course.course_name}` : 
+                    `Course ID: ${mark.course_id}`;
+            }
             
-            html += `
-                <tr data-mark-id="${markId}">
-                    <!-- Student ID -->
-                    <td>${student.reg_number || 'N/A'}</td>
-                    
-                    <!-- Student Name -->
-                    <td>${studentName}</td>
-                    
-                    <!-- Course Code -->
-                    <td>${course.course_code || 'N/A'}</td>
-                    
-                    <!-- Course Name -->
-                    <td>${course.course_name || 'N/A'}</td>
-                    
-                    <!-- Assessment -->
-                    <td>${mark.assessment_name || 'Assessment'}</td>
-                    
-                    <!-- Score -->
-                    <td><strong>${mark.score || 0}/${mark.max_score || 100}</strong></td>
-                    
-                    <!-- Percentage -->
-                    <td>${percentage}%</td>
-                    
-                    <!-- Grade -->
-                    <td>
-                        <span class="grade-badge grade-${mark.grade?.charAt(0) || 'F'}">
-                            ${mark.grade || 'F'}
-                        </span>
-                    </td>
-                    
-                    <!-- Credits -->
-                    <td>${course.credits || mark.credits || 3}</td>
-                    
-                    <!-- Date -->
-                    <td>${formattedDate}</td>
-                    
-                    <!-- Actions -->
-                    <td>
-                        <div class="action-buttons">
-                            <button type="button" class="btn-action btn-edit" 
-                                    onclick="app.editMark('${markId}')" 
-                                    title="Edit Marks">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button type="button" class="btn-action btn-delete" 
-                                    onclick="app.deleteMark('${markId}')" 
-                                    title="Delete Marks">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `;
+            // Update grade display
+            this.updateEditGradeDisplay();
+            
+            // Show edit modal
+            this.openModal('editMarksModal');
+            
+        } catch (error) {
+            console.error('❌ Error loading mark for edit:', error);
+            this.showToast(`Error loading mark details: ${error.message}`, 'error');
+        }
+    }
+
+    // ==============================
+    // FIXED UPDATE MARK FUNCTION
+    // ==============================
+
+    async updateMark(event) {
+        event.preventDefault();
+        
+        try {
+            const markId = document.getElementById('editMarkId').value;
+            const score = parseFloat(document.getElementById('editScore').value);
+            const maxScore = parseFloat(document.getElementById('editMaxScore').value) || 100;
+            
+            if (!markId || isNaN(score)) {
+                this.showToast('Please enter valid score data', 'error');
+                return;
+            }
+            
+            if (score < 0 || maxScore <= 0) {
+                this.showToast('Score must be positive and max score must be greater than 0', 'error');
+                return;
+            }
+            
+            const updateData = {
+                assessmentType: document.getElementById('editAssessmentType').value,
+                assessmentName: document.getElementById('editAssessmentName').value,
+                score: score,
+                maxScore: maxScore,
+                remarks: document.getElementById('editRemarks').value || ''
+            };
+            
+            console.log('🔄 Updating mark:', markId, updateData);
+            
+            await this.db.updateMark(markId, updateData);
+            
+            this.showToast('✅ Marks updated successfully!', 'success');
+            closeModal('editMarksModal');
+            
+            // Refresh UI
+            await this.loadMarksTable();
+            await this.updateDashboard();
+            
+        } catch (error) {
+            console.error('❌ Error updating mark:', error);
+            this.showToast(`Error updating marks: ${error.message}`, 'error');
+        }
+    }
+
+    // ==============================
+    // FIXED DELETE MARK FUNCTION
+    // ==============================
+
+    async deleteMark(markId) {
+        try {
+            if (!confirm('Are you sure you want to delete this mark record? This action cannot be undone.')) {
+                return;
+            }
+            
+            console.log('🗑️ Deleting mark:', markId);
+            
+            await this.db.deleteMark(markId);
+            
+            this.showToast('✅ Mark deleted successfully!', 'success');
+            
+            // Remove row from table with animation
+            const row = document.querySelector(`tr[data-mark-id="${markId}"]`);
+            if (row) {
+                row.style.opacity = '0.5';
+                row.style.transition = 'opacity 0.3s';
+                setTimeout(() => {
+                    row.remove();
+                    // Update counts if any
+                    this.updateSelectedCounts();
+                }, 300);
+            }
+            
+            // Update dashboard
+            if (this.updateDashboard) {
+                await this.updateDashboard();
+            }
+            
+        } catch (error) {
+            console.error('❌ Error deleting mark:', error);
+            this.showToast(`Error deleting mark: ${error.message}`, 'error');
+        }
+    }
+
+    // ==============================
+    // SAVE MARKS FUNCTION
+    // ==============================
+
+    async saveMarks(event) {
+        event.preventDefault();
+        
+        try {
+            const studentId = document.getElementById('marksStudent').value;
+            const courseId = document.getElementById('marksCourse').value;
+            const score = parseFloat(document.getElementById('marksScore').value);
+            const maxScore = parseFloat(document.getElementById('maxScore').value) || 100;
+            const assessmentType = document.getElementById('assessmentType').value;
+            const assessmentName = document.getElementById('assessmentName').value || 'Assessment';
+            
+            // Validation
+            if (!studentId || !courseId || isNaN(score)) {
+                this.showToast('Please fill in all required fields', 'error');
+                return;
+            }
+            
+            if (score < 0 || maxScore <= 0) {
+                this.showToast('Score must be positive and max score must be greater than 0', 'error');
+                return;
+            }
+            
+            const markData = {
+                studentId: studentId,
+                courseId: courseId,
+                assessmentType: assessmentType,
+                assessmentName: assessmentName,
+                score: score,
+                maxScore: maxScore,
+                remarks: document.getElementById('marksRemarks').value || '',
+                visibleToStudent: document.getElementById('visibleToStudent')?.checked || true
+            };
+            
+            console.log('💾 Saving marks:', markData);
+            
+            await this.db.addMark(markData);
+            
+            this.showToast('✅ Marks saved successfully!', 'success');
+            
+            // Close modal and reset form
+            closeModal('marksModal');
+            document.getElementById('marksForm').reset();
+            
+            if (typeof updateGradeDisplay === 'function') {
+                updateGradeDisplay();
+            }
+            
+            // Update UI
+            await this.loadMarksTable();
+            await this.updateDashboard();
+            
+        } catch (error) {
+            console.error('❌ Error saving marks:', error);
+            this.showToast(`Error saving marks: ${error.message}`, 'error');
+        }
+    }
+
+    // ==============================
+    // OPEN MODAL FUNCTION
+    // ==============================
+
+    openModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'block';
+            modal.classList.add('show');
+            // Focus on first input if exists
+            setTimeout(() => {
+                const firstInput = modal.querySelector('input, select, textarea');
+                if (firstInput) firstInput.focus();
+            }, 100);
+        } else {
+            console.warn(`Modal #${modalId} not found`);
+        }
+    }
+
+    // ==============================
+    // HELPER FUNCTIONS
+    // ==============================
+
+    updateSelectedCounts() {
+        // Update any selected counts in UI if needed
+        const rowCount = document.querySelectorAll('#marksTableBody tr:not(.empty-state)').length;
+        const countElement = document.getElementById('markCount');
+        if (countElement) {
+            countElement.textContent = `Total: ${rowCount} marks`;
+        }
+    }
+    
+    // ==============================
+    // SETTINGS MANAGEMENT
+    // ==============================
+
+    async loadSettings() {
+        try {
+            const settings = await this.db.getSettings();
+            
+            // Populate settings form if it exists
+            this.populateSettingsForm(settings);
+            
+            // Apply settings to UI
+            this.applySettings(settings);
+            
+            return settings;
+            
+        } catch (error) {
+            console.error('Error loading settings:', error);
+            return this.db.getDefaultSettings();
+        }
+    }
+
+    populateSettingsForm(settings) {
+        try {
+            // Institute Settings
+            if (document.getElementById('instituteName')) {
+                document.getElementById('instituteName').value = settings.instituteName || '';
+            }
+            
+            if (document.getElementById('instituteAbbreviation')) {
+                document.getElementById('instituteAbbreviation').value = settings.instituteAbbreviation || '';
+            }
+            
+            if (document.getElementById('academicYear')) {
+                document.getElementById('academicYear').value = settings.academicYear || new Date().getFullYear();
+            }
+            
+            if (document.getElementById('timezone')) {
+                document.getElementById('timezone').value = settings.timezone || 'Africa/Nairobi';
+            }
+            
+            // System Settings
+            if (document.getElementById('autoGenerateRegNumbers')) {
+                document.getElementById('autoGenerateRegNumbers').checked = settings.system?.autoGenerateRegNumbers !== false;
+            }
+            
+            if (document.getElementById('allowMarkOverwrite')) {
+                document.getElementById('allowMarkOverwrite').checked = settings.system?.allowMarkOverwrite || false;
+            }
+            
+            if (document.getElementById('showGPA')) {
+                document.getElementById('showGPA').checked = settings.system?.showGPA !== false;
+            }
+            
+            // Populate grading scale table if it exists
+            this.populateGradingScaleTable(settings.gradingScale);
+            
+            // Populate programs settings
+            this.populateProgramsSettings(settings.programs);
+            
+        } catch (error) {
+            console.error('Error populating settings form:', error);
+        }
+    }
+
+    openSettingsTab(tabName) {
+        // Hide all tab contents
+        document.querySelectorAll('.settings-tab-content').forEach(content => {
+            content.style.display = 'none';
         });
         
-        tbody.innerHTML = html;
+        // Remove active class from all tab buttons
+        document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
         
-    } catch (error) {
-        console.error('Error loading marks table:', error);
-        const tbody = document.querySelector('#marksTableBody');
-        if (tbody) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="11" class="error-state">
-                        <i class="fas fa-exclamation-triangle fa-2x"></i>
-                        <p>Error loading marks</p>
-                        <small class="d-block mt-1">${error.message}</small>
-                    </td>
-                </tr>
-            `;
+        // Show selected tab content
+        const tabContent = document.getElementById(`${tabName}Settings`);
+        if (tabContent) {
+            tabContent.style.display = 'block';
+        }
+        
+        // Activate selected tab button
+        const activeBtn = document.querySelector(`[data-tab="${tabName}"]`);
+        if (activeBtn) {
+            activeBtn.classList.add('active');
         }
     }
-}
 
-// ==============================
-// FIXED EDIT MARK FUNCTION
-// ==============================
-
-async editMark(markId) {
-    try {
-        console.log('🔧 Editing mark ID:', markId);
+    populateGradingScaleTable(gradingScale) {
+        const tbody = document.getElementById('grading-scale-body');
+        if (!tbody) return;
         
-        // Fetch mark data - IMPORTANT: Use the new method we just added to db
-        const mark = await this.db.getMarkById(markId);
+        tbody.innerHTML = '';
         
-        if (!mark) {
-            this.showToast('Mark not found', 'error');
-            return;
-        }
-        
-        console.log('📊 Mark data fetched:', mark);
-        
-        // Populate edit modal form - CORRECTED PROPERTY NAMES
-        document.getElementById('editMarkId').value = markId;
-        // Use the actual column names from Supabase: student_id, not studentId
-        document.getElementById('editStudent').value = mark.student_id || '';
-        document.getElementById('editCourse').value = mark.course_id || '';
-        document.getElementById('editAssessmentType').value = mark.assessment_type || 'final';
-        document.getElementById('editAssessmentName').value = mark.assessment_name || '';
-        document.getElementById('editScore').value = mark.score || 0;
-        document.getElementById('editMaxScore').value = mark.max_score || 100;
-        document.getElementById('editRemarks').value = mark.remarks || '';
-        
-        // Display student and course info for reference
-        const student = mark.students || {};
-        const course = mark.courses || {};
-        
-        // Show student name if available
-        const studentDisplay = document.getElementById('editStudentDisplay');
-        if (studentDisplay) {
-            studentDisplay.textContent = student.full_name ? 
-                `${student.reg_number} - ${student.full_name}` : 
-                `Student ID: ${mark.student_id}`;
-        }
-        
-        // Show course name if available
-        const courseDisplay = document.getElementById('editCourseDisplay');
-        if (courseDisplay) {
-            courseDisplay.textContent = course.course_code ? 
-                `${course.course_code} - ${course.course_name}` : 
-                `Course ID: ${mark.course_id}`;
-        }
-        
-        // Show edit modal
-        this.openModal('editMarksModal');
-        
-    } catch (error) {
-        console.error('❌ Error loading mark for edit:', error);
-        this.showToast(`Error loading mark details: ${error.message}`, 'error');
-    }
-}
-
-// ==============================
-// FIXED UPDATE MARK FUNCTION
-// ==============================
-
-async updateMark(event) {
-    event.preventDefault();
-    
-    try {
-        const markId = document.getElementById('editMarkId').value;
-        const score = parseFloat(document.getElementById('editScore').value);
-        const maxScore = parseFloat(document.getElementById('editMaxScore').value) || 100;
-        
-        if (!markId || isNaN(score)) {
-            this.showToast('Please enter valid score data', 'error');
-            return;
-        }
-        
-        if (score < 0 || maxScore <= 0) {
-            this.showToast('Score must be positive and max score must be greater than 0', 'error');
-            return;
-        }
-        
-        const updateData = {
-            assessmentType: document.getElementById('editAssessmentType').value,
-            assessmentName: document.getElementById('editAssessmentName').value,
-            score: score,
-            maxScore: maxScore,
-            remarks: document.getElementById('editRemarks').value || ''
-        };
-        
-        console.log('🔄 Updating mark:', markId, updateData);
-        
-        await this.db.updateMark(markId, updateData);
-        
-        this.showToast('✅ Marks updated successfully!', 'success');
-        closeModal('editMarksModal');
-        
-        // Refresh UI
-        await this.loadMarksTable();
-        await this.updateDashboard();
-        
-    } catch (error) {
-        console.error('❌ Error updating mark:', error);
-        this.showToast(`Error updating marks: ${error.message}`, 'error');
-    }
-}
-
-// ==============================
-// FIXED DELETE MARK FUNCTION
-// ==============================
-
-async deleteMark(markId) {
-    try {
-        if (!confirm('Are you sure you want to delete this mark record? This action cannot be undone.')) {
-            return;
-        }
-        
-        console.log('🗑️ Deleting mark:', markId);
-        
-        await this.db.deleteMark(markId);
-        
-        this.showToast('✅ Mark deleted successfully!', 'success');
-        
-        // Remove row from table with animation
-        const row = document.querySelector(`tr[data-mark-id="${markId}"]`);
-        if (row) {
-            row.style.opacity = '0.5';
-            row.style.transition = 'opacity 0.3s';
-            setTimeout(() => {
-                row.remove();
-                // Update counts if any
-                this.updateSelectedCounts();
-            }, 300);
-        }
-        
-        // Update dashboard
-        if (this.updateDashboard) {
-            await this.updateDashboard();
-        }
-        
-    } catch (error) {
-        console.error('❌ Error deleting mark:', error);
-        this.showToast(`Error deleting mark: ${error.message}`, 'error');
-    }
-}
-
-// ==============================
-// SAVE MARKS FUNCTION
-// ==============================
-
-async saveMarks(event) {
-    event.preventDefault();
-    
-    try {
-        const studentId = document.getElementById('marksStudent').value;
-        const courseId = document.getElementById('marksCourse').value;
-        const score = parseFloat(document.getElementById('marksScore').value);
-        const maxScore = parseFloat(document.getElementById('maxScore').value) || 100;
-        const assessmentType = document.getElementById('assessmentType').value;
-        const assessmentName = document.getElementById('assessmentName').value || 'Assessment';
-        
-        // Validation
-        if (!studentId || !courseId || isNaN(score)) {
-            this.showToast('Please fill in all required fields', 'error');
-            return;
-        }
-        
-        if (score < 0 || maxScore <= 0) {
-            this.showToast('Score must be positive and max score must be greater than 0', 'error');
-            return;
-        }
-        
-        const markData = {
-            studentId: studentId,
-            courseId: courseId,
-            assessmentType: assessmentType,
-            assessmentName: assessmentName,
-            score: score,
-            maxScore: maxScore,
-            remarks: document.getElementById('marksRemarks').value || '',
-            visibleToStudent: document.getElementById('visibleToStudent')?.checked || true
-        };
-        
-        console.log('💾 Saving marks:', markData);
-        
-        await this.db.addMark(markData);
-        
-        this.showToast('✅ Marks saved successfully!', 'success');
-        
-        // Close modal and reset form
-        closeModal('marksModal');
-        document.getElementById('marksForm').reset();
-        
-        if (typeof updateGradeDisplay === 'function') {
-            updateGradeDisplay();
-        }
-        
-        // Update UI
-        await this.loadMarksTable();
-        await this.updateDashboard();
-        
-    } catch (error) {
-        console.error('❌ Error saving marks:', error);
-        this.showToast(`Error saving marks: ${error.message}`, 'error');
-    }
-}
-
-// ==============================
-// OPEN MODAL FUNCTION
-// ==============================
-
-openModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.style.display = 'block';
-        modal.classList.add('show');
-        // Focus on first input if exists
-        setTimeout(() => {
-            const firstInput = modal.querySelector('input, select, textarea');
-            if (firstInput) firstInput.focus();
-        }, 100);
-    } else {
-        console.warn(`Modal #${modalId} not found`);
-    }
-}
-
-// ==============================
-// HELPER FUNCTIONS
-// ==============================
-
-updateSelectedCounts() {
-    // Update any selected counts in UI if needed
-    const rowCount = document.querySelectorAll('#marksTableBody tr:not(.empty-state)').length;
-    const countElement = document.getElementById('markCount');
-    if (countElement) {
-        countElement.textContent = `Total: ${rowCount} marks`;
-    }
-}
- // ==============================
-// SETTINGS MANAGEMENT
-// ==============================
-
-async loadSettings() {
-    try {
-        const settings = await this.db.getSettings();
-        
-        // Populate settings form if it exists
-        this.populateSettingsForm(settings);
-        
-        // Apply settings to UI
-        this.applySettings(settings);
-        
-        return settings;
-        
-    } catch (error) {
-        console.error('Error loading settings:', error);
-        return this.db.getDefaultSettings();
-    }
-}
-
-populateSettingsForm(settings) {
-    try {
-        // Institute Settings
-        if (document.getElementById('instituteName')) {
-            document.getElementById('instituteName').value = settings.instituteName || '';
-        }
-        
-        if (document.getElementById('instituteAbbreviation')) {
-            document.getElementById('instituteAbbreviation').value = settings.instituteAbbreviation || '';
-        }
-        
-        if (document.getElementById('academicYear')) {
-            document.getElementById('academicYear').value = settings.academicYear || new Date().getFullYear();
-        }
-        
-        if (document.getElementById('timezone')) {
-            document.getElementById('timezone').value = settings.timezone || 'Africa/Nairobi';
-        }
-        
-        // System Settings
-        if (document.getElementById('autoGenerateRegNumbers')) {
-            document.getElementById('autoGenerateRegNumbers').checked = settings.system?.autoGenerateRegNumbers !== false;
-        }
-        
-        if (document.getElementById('allowMarkOverwrite')) {
-            document.getElementById('allowMarkOverwrite').checked = settings.system?.allowMarkOverwrite || false;
-        }
-        
-        if (document.getElementById('showGPA')) {
-            document.getElementById('showGPA').checked = settings.system?.showGPA !== false;
-        }
-        
-        // Populate grading scale table if it exists
-        this.populateGradingScaleTable(settings.gradingScale);
-        
-        // Populate programs settings
-        this.populateProgramsSettings(settings.programs);
-        
-    } catch (error) {
-        console.error('Error populating settings form:', error);
-    }
-}
-
-populateGradingScaleTable(gradingScale) {
-    const tbody = document.getElementById('grading-scale-body');
-    if (!tbody) return;
-    
-    let html = '';
-    Object.entries(gradingScale).forEach(([grade, data]) => {
-        html += `
-            <tr>
-                <td><strong>${grade}</strong></td>
-                <td><input type="number" class="form-control-sm" value="${data.min}" min="0" max="100"></td>
-                <td><input type="number" class="form-control-sm" value="${data.max}" min="0" max="100"></td>
-                <td><input type="number" class="form-control-sm" value="${data.points}" step="0.1" min="0" max="4"></td>
-                <td><input type="text" class="form-control" value="${data.description || ''}"></td>
+        Object.entries(gradingScale || {}).forEach(([grade, data]) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><input type="text" class="form-control form-control-sm grade-input" 
+                          value="${grade}" readonly style="font-weight: bold; background: #f8f9fa;"></td>
+                <td><input type="number" class="form-control form-control-sm min-input" 
+                          value="${data.min}" min="0" max="100" data-grade="${grade}"></td>
+                <td><input type="number" class="form-control form-control-sm max-input" 
+                          value="${data.max}" min="0" max="100" data-grade="${grade}"></td>
+                <td><input type="number" class="form-control form-control-sm points-input" 
+                          value="${data.points}" step="0.1" min="0" max="4" data-grade="${grade}"></td>
+                <td><input type="text" class="form-control description-input" 
+                          value="${data.description || ''}" data-grade="${grade}"></td>
                 <td>
-                    <button class="btn-action btn-delete" onclick="app.removeGradingScaleRow(this)">
+                    <button type="button" class="btn btn-sm btn-danger" 
+                            onclick="app.removeGradingScaleRow('${grade}')">
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>
-            </tr>
-        `;
-    });
-    
-    tbody.innerHTML = html;
-}
-
-populateProgramsSettings(programs) {
-    const container = document.getElementById('programs-settings');
-    if (!container) return;
-    
-    let html = '';
-    Object.entries(programs).forEach(([code, data]) => {
-        html += `
-            <div class="program-setting-card">
-                <div class="program-setting-header">
-                    <h5>${data.name}</h5>
-                    <span class="program-code">${code}</span>
-                </div>
-                <div class="program-setting-body">
-                    <div class="form-group">
-                        <label>Program Name</label>
-                        <input type="text" class="form-control" value="${data.name}" data-field="name">
-                    </div>
-                    <div class="form-group">
-                        <label>Duration</label>
-                        <input type="text" class="form-control" value="${data.duration}" data-field="duration">
-                    </div>
-                    <div class="form-group">
-                        <label>Max Credits</label>
-                        <input type="number" class="form-control" value="${data.maxCredits || 0}" data-field="maxCredits">
-                    </div>
-                    <div class="form-group">
-                        <label>Description</label>
-                        <textarea class="form-control" rows="2" data-field="description">${data.description || ''}</textarea>
-                    </div>
-                </div>
-                <input type="hidden" class="program-code" value="${code}">
-            </div>
-        `;
-    });
-    
-    container.innerHTML = html;
-}
-
-async saveSettings(event) {
-    if (event) event.preventDefault();
-    
-    try {
-        // Collect settings from form
-        const settingsData = {
-            instituteName: document.getElementById('instituteName')?.value || '',
-            instituteAbbreviation: document.getElementById('instituteAbbreviation')?.value || '',
-            academicYear: parseInt(document.getElementById('academicYear')?.value) || new Date().getFullYear(),
-            timezone: document.getElementById('timezone')?.value || 'Africa/Nairobi',
-            currency: document.getElementById('currency')?.value || 'KES',
-            language: document.getElementById('language')?.value || 'en',
-            
-            // Grading Scale
-            gradingScale: this.collectGradingScaleData(),
-            
-            // Programs
-            programs: this.collectProgramsData(),
-            
-            // System Settings
-            system: {
-                autoGenerateRegNumbers: document.getElementById('autoGenerateRegNumbers')?.checked || true,
-                allowMarkOverwrite: document.getElementById('allowMarkOverwrite')?.checked || false,
-                showGPA: document.getElementById('showGPA')?.checked || true,
-                enableEmailNotifications: document.getElementById('enableEmailNotifications')?.checked || false,
-                defaultPassword: document.getElementById('defaultPassword')?.value || 'Welcome123',
-                sessionTimeout: parseInt(document.getElementById('sessionTimeout')?.value) || 30,
-                maxLoginAttempts: parseInt(document.getElementById('maxLoginAttempts')?.value) || 5,
-                enableTwoFactor: document.getElementById('enableTwoFactor')?.checked || false
-            }
-        };
-        
-        console.log('💾 Saving settings:', settingsData);
-        
-        await this.db.saveSettings(settingsData);
-        
-        this.showToast('✅ Settings saved successfully!', 'success');
-        
-        // Apply settings to UI
-        this.applySettings(settingsData);
-        
-        // Refresh dashboard to reflect new settings
-        await this.updateDashboard();
-        
-    } catch (error) {
-        console.error('❌ Error saving settings:', error);
-        this.showToast(`Error saving settings: ${error.message}`, 'error');
-    }
-}
-
-collectGradingScaleData() {
-    const gradingScale = {};
-    const rows = document.querySelectorAll('#grading-scale-body tr');
-    
-    rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        if (cells.length >= 5) {
-            const grade = cells[0].querySelector('strong')?.textContent || '';
-            const min = parseFloat(cells[1].querySelector('input')?.value) || 0;
-            const max = parseFloat(cells[2].querySelector('input')?.value) || 0;
-            const points = parseFloat(cells[3].querySelector('input')?.value) || 0;
-            const description = cells[4].querySelector('input')?.value || '';
-            
-            if (grade) {
-                gradingScale[grade] = { min, max, points, description };
-            }
-        }
-    });
-    
-    return gradingScale;
-}
-
-collectProgramsData() {
-    const programs = {};
-    const cards = document.querySelectorAll('.program-setting-card');
-    
-    cards.forEach(card => {
-        const code = card.querySelector('.program-code').value;
-        const name = card.querySelector('[data-field="name"]')?.value || '';
-        const duration = card.querySelector('[data-field="duration"]')?.value || '';
-        const maxCredits = parseInt(card.querySelector('[data-field="maxCredits"]')?.value) || 0;
-        const description = card.querySelector('[data-field="description"]')?.value || '';
-        
-        if (code && name) {
-            programs[code] = {
-                name,
-                duration,
-                maxCredits,
-                description
-            };
-        }
-    });
-    
-    return programs;
-}
-
-applySettings(settings) {
-    // Update page title and headers
-    document.title = `${settings.instituteName} - TEE Portal`;
-    
-    const instituteNameElements = document.querySelectorAll('.institute-name');
-    instituteNameElements.forEach(el => {
-        el.textContent = settings.instituteName;
-    });
-    
-    const instituteAbbrElements = document.querySelectorAll('.institute-abbr');
-    instituteAbbrElements.forEach(el => {
-        el.textContent = settings.instituteAbbreviation;
-    });
-    
-    // Update academic year display
-    const academicYearElements = document.querySelectorAll('.academic-year');
-    academicYearElements.forEach(el => {
-        el.textContent = settings.academicYear;
-    });
-}
-
-// Helper methods for grading scale
-removeGradingScaleRow(button) {
-    const row = button.closest('tr');
-    if (row) {
-        row.remove();
-    }
-}
-
-addGradingScaleRow() {
-    const tbody = document.getElementById('grading-scale-body');
-    if (!tbody) return;
-    
-    const newRow = document.createElement('tr');
-    newRow.innerHTML = `
-        <td><input type="text" class="form-control-sm" placeholder="A, B+, etc"></td>
-        <td><input type="number" class="form-control-sm" placeholder="Min %" min="0" max="100"></td>
-        <td><input type="number" class="form-control-sm" placeholder="Max %" min="0" max="100"></td>
-        <td><input type="number" class="form-control-sm" placeholder="Points" step="0.1" min="0" max="4"></td>
-        <td><input type="text" class="form-control" placeholder="Description"></td>
-        <td>
-            <button class="btn-action btn-delete" onclick="app.removeGradingScaleRow(this)">
-                <i class="fas fa-trash"></i>
-            </button>
-        </td>
-    `;
-    
-    tbody.appendChild(newRow);
-}
-
-addProgramSetting() {
-    const container = document.getElementById('programs-settings');
-    if (!container) return;
-    
-    const newCard = document.createElement('div');
-    newCard.className = 'program-setting-card';
-    newCard.innerHTML = `
-        <div class="program-setting-header">
-            <h5>New Program</h5>
-            <span class="program-code">NEW</span>
-        </div>
-        <div class="program-setting-body">
-            <div class="form-group">
-                <label>Program Code</label>
-                <input type="text" class="form-control program-code-input" placeholder="e.g., basic, hnc">
-            </div>
-            <div class="form-group">
-                <label>Program Name</label>
-                <input type="text" class="form-control" data-field="name" placeholder="Program Name">
-            </div>
-            <div class="form-group">
-                <label>Duration</label>
-                <input type="text" class="form-control" data-field="duration" placeholder="e.g., 2 years">
-            </div>
-            <div class="form-group">
-                <label>Max Credits</label>
-                <input type="number" class="form-control" data-field="maxCredits" value="0">
-            </div>
-            <div class="form-group">
-                <label>Description</label>
-                <textarea class="form-control" rows="2" data-field="description"></textarea>
-            </div>
-        </div>
-        <input type="hidden" class="program-code" value="">
-    `;
-    
-    container.appendChild(newCard);
-    
-    // Add event listener for program code input
-    const codeInput = newCard.querySelector('.program-code-input');
-    const hiddenCode = newCard.querySelector('.program-code');
-    const codeSpan = newCard.querySelector('.program-code');
-    
-    codeInput.addEventListener('input', function() {
-        hiddenCode.value = this.value.toLowerCase();
-        codeSpan.textContent = this.value.toUpperCase();
-    });
-}  
-// ==============================
-// COURSE MANAGEMENT - UPDATED
-// ==============================
-
-async saveCourse(event) {
-    event.preventDefault();
-    
-    try {
-        const courseData = {
-            code: document.getElementById('courseCode').value.trim(),
-            name: document.getElementById('courseName').value.trim(),
-            program: document.getElementById('courseProgram').value,
-            credits: parseInt(document.getElementById('courseCredits').value),
-            description: document.getElementById('courseDescription').value.trim()
-        };
-        
-        // Validation
-        if (!courseData.code) {
-            this.showToast('Please enter a course code', 'error');
-            return;
-        }
-        
-        if (!courseData.name) {
-            this.showToast('Please enter a course name', 'error');
-            return;
-        }
-        
-        if (!courseData.program) {
-            this.showToast('Please select a program', 'error');
-            return;
-        }
-        
-        if (isNaN(courseData.credits) || courseData.credits < 1 || courseData.credits > 10) {
-            this.showToast('Credits must be a number between 1 and 10', 'error');
-            return;
-        }
-        
-        console.log('📝 Saving course:', courseData);
-        
-        // Check if we're editing an existing course
-        const form = document.getElementById('courseForm');
-        const isEditMode = form.dataset.editId;
-        
-        let course;
-        if (isEditMode) {
-            // Update existing course
-            course = await this.db.updateCourse(isEditMode, courseData);
-            this.showToast(`✅ Course "${course.course_code} - ${course.course_name}" updated successfully`, 'success');
-            
-            // Reset edit mode
-            delete form.dataset.editId;
-            const submitBtn = form.querySelector('button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.innerHTML = '<i class="fas fa-plus"></i> Add Course';
-                submitBtn.classList.remove('btn-update');
-                submitBtn.classList.add('btn-primary');
-            }
-        } else {
-            // Add new course
-            course = await this.db.addCourse(courseData);
-            this.showToast(`✅ Course "${course.course_code} - ${course.course_name}" added successfully`, 'success');
-        }
-        
-        // Close modal and reset form
-        closeModal('courseModal');
-        form.reset();
-        
-        // Update UI
-        await this.loadCourses();
-        await this.populateCourseDropdown();
-        
-    } catch (error) {
-        console.error('Error saving course:', error);
-        // Show specific error message from the database
-        this.showToast(`❌ ${error.message}`, 'error');
-    }
-}
-
-async loadCourses() {
-    try {
-        const courses = await this.db.getCourses();
-        const grid = document.getElementById('coursesGrid');
-        
-        if (!grid) return;
-        
-        if (!courses || courses.length === 0) {
-            grid.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-book-open fa-3x"></i>
-                    <h3>No Courses Found</h3>
-                    <p>Add your first course to get started</p>
-                    <button class="btn-primary" onclick="openCourseModal()">
-                        <i class="fas fa-plus"></i> Add Course
-                    </button>
-                </div>
             `;
-            return;
-        }
-        
-        const programNames = {
-            'basic': 'Basic TEE',
-            'hnc': 'HNC',
-            'advanced': 'Advanced TEE'
-        };
-        
-        const programColors = {
-            'basic': '#3498db',
-            'hnc': '#2ecc71',
-            'advanced': '#9b59b6'
-        };
+            tbody.appendChild(row);
+        });
+    }
+
+    populateProgramsSettings(programs) {
+        const container = document.getElementById('programs-settings');
+        if (!container) return;
         
         let html = '';
-        courses.forEach(course => {
-            const programName = programNames[course.program] || course.program;
-            const programColor = programColors[course.program] || '#95a5a6';
-            const createdAt = course.created_at ? new Date(course.created_at).toLocaleDateString() : 'Unknown';
-            const status = course.status || 'active';
-            
+        Object.entries(programs).forEach(([code, data]) => {
             html += `
-                <div class="course-card" data-course-id="${course.id}">
-                    <div class="course-header" style="background: ${programColor};">
-                        <div class="course-header-content">
-                            <h3>${course.course_code}</h3>
-                            <span class="course-status ${status}">${status.toUpperCase()}</span>
+                <div class="program-setting-card">
+                    <div class="program-setting-header">
+                        <h5>${data.name}</h5>
+                        <span class="program-code">${code}</span>
+                    </div>
+                    <div class="program-setting-body">
+                        <div class="form-group">
+                            <label>Program Name</label>
+                            <input type="text" class="form-control" value="${data.name}" data-field="name">
+                        </div>
+                        <div class="form-group">
+                            <label>Duration</label>
+                            <input type="text" class="form-control" value="${data.duration}" data-field="duration">
+                        </div>
+                        <div class="form-group">
+                            <label>Max Credits</label>
+                            <input type="number" class="form-control" value="${data.maxCredits || 0}" data-field="maxCredits">
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea class="form-control" rows="2" data-field="description">${data.description || ''}</textarea>
                         </div>
                     </div>
-                    <div class="course-body">
-                        <h4>${course.course_name}</h4>
-                        <p class="course-description">${course.description || 'No description available'}</p>
-                        <div class="course-meta">
-                            <span><i class="fas fa-graduation-cap"></i> ${programName}</span>
-                            <span><i class="fas fa-star"></i> ${course.credits || 3} Credits</span>
-                            <span><i class="fas fa-calendar"></i> ${createdAt}</span>
-                        </div>
-                    </div>
-                    <div class="course-actions">
-                        <button class="btn-edit" onclick="app.editCourse('${course.id}')" title="Edit Course">
-                            <i class="fas fa-edit"></i> Edit
-                        </button>
-                        <button class="btn-delete" onclick="app.deleteCoursePrompt('${course.id}', '${course.course_code}')" title="Delete Course">
-                            <i class="fas fa-trash"></i> Delete
-                        </button>
-                    </div>
+                    <input type="hidden" class="program-code" value="${code}">
                 </div>
             `;
         });
         
-        grid.innerHTML = html;
+        container.innerHTML = html;
+    }
+
+    async saveSettings(event) {
+        if (event) event.preventDefault();
         
-    } catch (error) {
-        console.error('Error loading courses:', error);
-        const grid = document.getElementById('coursesGrid');
-        if (grid) {
-            grid.innerHTML = `
-                <div class="error-state">
-                    <i class="fas fa-exclamation-triangle fa-3x"></i>
-                    <h3>Error Loading Courses</h3>
-                    <p>${error.message}</p>
-                    <button class="btn-primary" onclick="app.loadCourses()">
-                        <i class="fas fa-redo"></i> Retry
-                    </button>
-                </div>
-            `;
+        try {
+            // Collect settings from form
+            const settingsData = {
+                instituteName: document.getElementById('instituteName')?.value || '',
+                instituteAbbreviation: document.getElementById('instituteAbbreviation')?.value || '',
+                academicYear: parseInt(document.getElementById('academicYear')?.value) || new Date().getFullYear(),
+                timezone: document.getElementById('timezone')?.value || 'Africa/Nairobi',
+                currency: document.getElementById('currency')?.value || 'KES',
+                language: document.getElementById('language')?.value || 'en',
+                
+                // Grading Scale
+                gradingScale: this.collectGradingScaleData(),
+                
+                // Programs
+                programs: this.collectProgramsData(),
+                
+                // System Settings
+                system: {
+                    autoGenerateRegNumbers: document.getElementById('autoGenerateRegNumbers')?.checked || true,
+                    allowMarkOverwrite: document.getElementById('allowMarkOverwrite')?.checked || false,
+                    showGPA: document.getElementById('showGPA')?.checked || true,
+                    enableEmailNotifications: document.getElementById('enableEmailNotifications')?.checked || false,
+                    defaultPassword: document.getElementById('defaultPassword')?.value || 'Welcome123',
+                    sessionTimeout: parseInt(document.getElementById('sessionTimeout')?.value) || 30,
+                    maxLoginAttempts: parseInt(document.getElementById('maxLoginAttempts')?.value) || 5,
+                    enableTwoFactor: document.getElementById('enableTwoFactor')?.checked || false
+                }
+            };
+            
+            console.log('💾 Saving settings:', settingsData);
+            
+            await this.db.saveSettings(settingsData);
+            
+            this.showToast('✅ Settings saved successfully!', 'success');
+            
+            // Apply settings to UI
+            this.applySettings(settingsData);
+            
+            // Refresh dashboard to reflect new settings
+            await this.updateDashboard();
+            
+        } catch (error) {
+            console.error('❌ Error saving settings:', error);
+            this.showToast(`Error saving settings: ${error.message}`, 'error');
         }
     }
-}
 
-async editCourse(courseId) {
-    try {
-        const course = await this.db.getCourse(courseId);
+    collectGradingScaleData() {
+        const gradingScale = {};
+        const rows = document.querySelectorAll('#grading-scale-body tr');
         
-        if (!course) {
-            this.showToast('Course not found', 'error');
+        rows.forEach(row => {
+            const gradeInput = row.querySelector('.grade-input');
+            const minInput = row.querySelector('.min-input');
+            const maxInput = row.querySelector('.max-input');
+            const pointsInput = row.querySelector('.points-input');
+            const descInput = row.querySelector('.description-input');
+            
+            if (gradeInput && gradeInput.value) {
+                const grade = gradeInput.value.trim();
+                const min = parseInt(minInput?.value) || 0;
+                const max = parseInt(maxInput?.value) || 0;
+                const points = parseFloat(pointsInput?.value) || 0;
+                const description = descInput?.value || '';
+                
+                // Validation
+                if (min < 0 || min > 100 || max < 0 || max > 100 || min > max) {
+                    throw new Error(`Invalid range for grade ${grade}. Min must be ≤ Max and between 0-100.`);
+                }
+                
+                if (points < 0 || points > 4) {
+                    throw new Error(`Invalid points for grade ${grade}. Must be between 0-4.`);
+                }
+                
+                gradingScale[grade] = { min, max, points, description };
+            }
+        });
+        
+        // Ensure all grades are present and ranges are contiguous
+        this.validateGradingScale(gradingScale);
+        
+        return gradingScale;
+    }
+
+    collectProgramsData() {
+        const programs = {};
+        const cards = document.querySelectorAll('.program-setting-card');
+        
+        cards.forEach(card => {
+            const code = card.querySelector('.program-code').value;
+            const name = card.querySelector('[data-field="name"]')?.value || '';
+            const duration = card.querySelector('[data-field="duration"]')?.value || '';
+            const maxCredits = parseInt(card.querySelector('[data-field="maxCredits"]')?.value) || 0;
+            const description = card.querySelector('[data-field="description"]')?.value || '';
+            
+            if (code && name) {
+                programs[code] = {
+                    name,
+                    duration,
+                    maxCredits,
+                    description
+                };
+            }
+        });
+        
+        return programs;
+    }
+
+    applySettings(settings) {
+        // Update page title and headers
+        document.title = `${settings.instituteName} - TEE Portal`;
+        
+        const instituteNameElements = document.querySelectorAll('.institute-name');
+        instituteNameElements.forEach(el => {
+            el.textContent = settings.instituteName;
+        });
+        
+        const instituteAbbrElements = document.querySelectorAll('.institute-abbr');
+        instituteAbbrElements.forEach(el => {
+            el.textContent = settings.instituteAbbreviation;
+        });
+        
+        // Update academic year display
+        const academicYearElements = document.querySelectorAll('.academic-year');
+        academicYearElements.forEach(el => {
+            el.textContent = settings.academicYear;
+        });
+    }
+
+    validateGradingScale(gradingScale) {
+        const grades = Object.keys(gradingScale).sort();
+        
+        if (grades.length === 0) {
+            throw new Error('Grading scale must have at least one grade');
+        }
+        
+        // Check for gaps or overlaps
+        for (let i = 0; i < grades.length - 1; i++) {
+            const currentGrade = gradingScale[grades[i]];
+            const nextGrade = gradingScale[grades[i + 1]];
+            
+            if (currentGrade.max !== nextGrade.min - 1) {
+                throw new Error(`Gap or overlap between ${grades[i]} (${currentGrade.max}%) and ${grades[i + 1]} (${nextGrade.min}%)`);
+            }
+        }
+        
+        // Ensure F grade covers 0-49%
+        if (!gradingScale['F'] || gradingScale['F'].min !== 0 || gradingScale['F'].max < 49) {
+            throw new Error('F grade must cover 0-49% range');
+        }
+        
+        // Ensure A grade covers up to 100%
+        if (!gradingScale['A'] || gradingScale['A'].max !== 100) {
+            throw new Error('A grade must cover up to 100%');
+        }
+    }
+    
+    removeGradingScaleRow(grade) {
+        if (!confirm(`Remove grade ${grade} from the grading scale?`)) {
             return;
         }
         
-        // Populate form
-        document.getElementById('courseCode').value = course.course_code;
-        document.getElementById('courseName').value = course.course_name;
-        document.getElementById('courseProgram').value = course.program;
-        document.getElementById('courseCredits').value = course.credits || 3;
-        document.getElementById('courseDescription').value = course.description || '';
-        
-        // Set edit mode
-        const form = document.getElementById('courseForm');
-        form.dataset.editId = courseId;
-        
-        const submitBtn = form.querySelector('button[type="submit"]');
-        if (submitBtn) {
-            submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Course';
-            submitBtn.classList.remove('btn-primary');
-            submitBtn.classList.add('btn-update');
-        }
-        
-        openModal('courseModal');
-        
-    } catch (error) {
-        console.error('Error editing course:', error);
-        this.showToast(`Error loading course: ${error.message}`, 'error');
+        const rows = document.querySelectorAll('#grading-scale-body tr');
+        rows.forEach(row => {
+            const gradeCell = row.querySelector('.grade-input');
+            if (gradeCell && gradeCell.value === grade) {
+                row.remove();
+            }
+        });
     }
-}
 
-async deleteCoursePrompt(courseId, courseCode) {
-    const confirmMessage = `Are you sure you want to delete the course "${courseCode}"?\n\nThis action cannot be undone.`;
-    
-    if (!confirm(confirmMessage)) {
-        return;
+    addGradingScaleRow() {
+        const tbody = document.getElementById('grading-scale-body');
+        if (!tbody) return;
+        
+        const newRow = document.createElement('tr');
+        const newGrade = 'NEW' + Date.now().toString().slice(-4);
+        
+        newRow.innerHTML = `
+            <td><input type="text" class="form-control form-control-sm grade-input" 
+                      value="${newGrade}" style="font-weight: bold;"></td>
+            <td><input type="number" class="form-control form-control-sm min-input" 
+                      placeholder="Min %" min="0" max="100" value="0"></td>
+            <td><input type="number" class="form-control form-control-sm max-input" 
+                      placeholder="Max %" min="0" max="100" value="0"></td>
+            <td><input type="number" class="form-control form-control-sm points-input" 
+                      placeholder="Points" step="0.1" min="0" max="4" value="0"></td>
+            <td><input type="text" class="form-control description-input" 
+                      placeholder="Description"></td>
+            <td>
+                <button type="button" class="btn btn-sm btn-danger" 
+                        onclick="app.removeGradingScaleRow('${newGrade}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+        
+        tbody.appendChild(newRow);
+    }
+
+    addProgramSetting() {
+        const container = document.getElementById('programs-settings');
+        if (!container) return;
+        
+        const newCard = document.createElement('div');
+        newCard.className = 'program-setting-card';
+        const newCode = 'new' + Date.now().toString().slice(-4);
+        
+        newCard.innerHTML = `
+            <div class="program-setting-header">
+                <h5>New Program</h5>
+                <span class="program-code">${newCode.toUpperCase()}</span>
+            </div>
+            <div class="program-setting-body">
+                <div class="form-group">
+                    <label>Program Code</label>
+                    <input type="text" class="form-control program-code-input" 
+                          value="${newCode}" placeholder="e.g., basic, hnc">
+                </div>
+                <div class="form-group">
+                    <label>Program Name</label>
+                    <input type="text" class="form-control" data-field="name" placeholder="Program Name">
+                </div>
+                <div class="form-group">
+                    <label>Duration</label>
+                    <input type="text" class="form-control" data-field="duration" placeholder="e.g., 2 years">
+                </div>
+                <div class="form-group">
+                    <label>Max Credits</label>
+                    <input type="number" class="form-control" data-field="maxCredits" value="60">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea class="form-control" rows="2" data-field="description"></textarea>
+                </div>
+            </div>
+            <input type="hidden" class="program-code" value="${newCode}">
+        `;
+        
+        container.appendChild(newCard);
+        
+        // Add event listener for program code input
+        const codeInput = newCard.querySelector('.program-code-input');
+        const hiddenCode = newCard.querySelector('.program-code');
+        const codeSpan = newCard.querySelector('.program-code');
+        
+        codeInput.addEventListener('input', function() {
+            const newValue = this.value.toLowerCase().replace(/[^a-z0-9]/g, '');
+            hiddenCode.value = newValue;
+            codeSpan.textContent = newValue.toUpperCase();
+            this.value = newValue;
+        });
     }
     
-    try {
-        await this.db.deleteCourse(courseId);
-        this.showToast('✅ Course deleted successfully', 'success');
+    // ==============================
+    // COURSE MANAGEMENT - UPDATED
+    // ==============================
+
+    async saveCourse(event) {
+        event.preventDefault();
         
-        // Remove the course card with animation
-        const courseCard = document.querySelector(`.course-card[data-course-id="${courseId}"]`);
-        if (courseCard) {
-            courseCard.style.opacity = '0.5';
-            courseCard.style.transition = 'opacity 0.3s';
-            setTimeout(() => {
-                courseCard.remove();
-                // Check if grid is now empty
-                const grid = document.getElementById('coursesGrid');
-                if (grid && grid.children.length === 0) {
-                    this.loadCourses(); // Reload to show empty state
+        try {
+            const courseData = {
+                code: document.getElementById('courseCode').value.trim(),
+                name: document.getElementById('courseName').value.trim(),
+                program: document.getElementById('courseProgram').value,
+                credits: parseInt(document.getElementById('courseCredits').value),
+                description: document.getElementById('courseDescription').value.trim()
+            };
+            
+            // Validation
+            if (!courseData.code) {
+                this.showToast('Please enter a course code', 'error');
+                return;
+            }
+            
+            if (!courseData.name) {
+                this.showToast('Please enter a course name', 'error');
+                return;
+            }
+            
+            if (!courseData.program) {
+                this.showToast('Please select a program', 'error');
+                return;
+            }
+            
+            if (isNaN(courseData.credits) || courseData.credits < 1 || courseData.credits > 10) {
+                this.showToast('Credits must be a number between 1 and 10', 'error');
+                return;
+            }
+            
+            console.log('📝 Saving course:', courseData);
+            
+            // Check if we're editing an existing course
+            const form = document.getElementById('courseForm');
+            const isEditMode = form.dataset.editId;
+            
+            let course;
+            if (isEditMode) {
+                // Update existing course
+                course = await this.db.updateCourse(isEditMode, courseData);
+                this.showToast(`✅ Course "${course.course_code} - ${course.course_name}" updated successfully`, 'success');
+                
+                // Reset edit mode
+                delete form.dataset.editId;
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.innerHTML = '<i class="fas fa-plus"></i> Add Course';
+                    submitBtn.classList.remove('btn-update');
+                    submitBtn.classList.add('btn-primary');
                 }
-            }, 300);
+            } else {
+                // Add new course
+                course = await this.db.addCourse(courseData);
+                this.showToast(`✅ Course "${course.course_code} - ${course.course_name}" added successfully`, 'success');
+            }
+            
+            // Close modal and reset form
+            closeModal('courseModal');
+            form.reset();
+            
+            // Update UI
+            await this.loadCourses();
+            await this.populateCourseDropdown();
+            
+        } catch (error) {
+            console.error('Error saving course:', error);
+            // Show specific error message from the database
+            this.showToast(`❌ ${error.message}`, 'error');
+        }
+    }
+
+    async loadCourses() {
+        try {
+            const courses = await this.db.getCourses();
+            const grid = document.getElementById('coursesGrid');
+            
+            if (!grid) return;
+            
+            if (!courses || courses.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-book-open fa-3x"></i>
+                        <h3>No Courses Found</h3>
+                        <p>Add your first course to get started</p>
+                        <button class="btn-primary" onclick="openCourseModal()">
+                            <i class="fas fa-plus"></i> Add Course
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            const programNames = {
+                'basic': 'Basic TEE',
+                'hnc': 'HNC',
+                'advanced': 'Advanced TEE'
+            };
+            
+            const programColors = {
+                'basic': '#3498db',
+                'hnc': '#2ecc71',
+                'advanced': '#9b59b6'
+            };
+            
+            let html = '';
+            courses.forEach(course => {
+                const programName = programNames[course.program] || course.program;
+                const programColor = programColors[course.program] || '#95a5a6';
+                const createdAt = course.created_at ? new Date(course.created_at).toLocaleDateString() : 'Unknown';
+                const status = course.status || 'active';
+                
+                html += `
+                    <div class="course-card" data-course-id="${course.id}">
+                        <div class="course-header" style="background: ${programColor};">
+                            <div class="course-header-content">
+                                <h3>${course.course_code}</h3>
+                                <span class="course-status ${status}">${status.toUpperCase()}</span>
+                            </div>
+                        </div>
+                        <div class="course-body">
+                            <h4>${course.course_name}</h4>
+                            <p class="course-description">${course.description || 'No description available'}</p>
+                            <div class="course-meta">
+                                <span><i class="fas fa-graduation-cap"></i> ${programName}</span>
+                                <span><i class="fas fa-star"></i> ${course.credits || 3} Credits</span>
+                                <span><i class="fas fa-calendar"></i> ${createdAt}</span>
+                            </div>
+                        </div>
+                        <div class="course-actions">
+                            <button class="btn-edit" onclick="app.editCourse('${course.id}')" title="Edit Course">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button class="btn-delete" onclick="app.deleteCoursePrompt('${course.id}', '${course.course_code}')" title="Delete Course">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            grid.innerHTML = html;
+            
+        } catch (error) {
+            console.error('Error loading courses:', error);
+            const grid = document.getElementById('coursesGrid');
+            if (grid) {
+                grid.innerHTML = `
+                    <div class="error-state">
+                        <i class="fas fa-exclamation-triangle fa-3x"></i>
+                        <h3>Error Loading Courses</h3>
+                        <p>${error.message}</p>
+                        <button class="btn-primary" onclick="app.loadCourses()">
+                            <i class="fas fa-redo"></i> Retry
+                        </button>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    async editCourse(courseId) {
+        try {
+            const course = await this.db.getCourse(courseId);
+            
+            if (!course) {
+                this.showToast('Course not found', 'error');
+                return;
+            }
+            
+            // Populate form
+            document.getElementById('courseCode').value = course.course_code;
+            document.getElementById('courseName').value = course.course_name;
+            document.getElementById('courseProgram').value = course.program;
+            document.getElementById('courseCredits').value = course.credits || 3;
+            document.getElementById('courseDescription').value = course.description || '';
+            
+            // Set edit mode
+            const form = document.getElementById('courseForm');
+            form.dataset.editId = courseId;
+            
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Course';
+                submitBtn.classList.remove('btn-primary');
+                submitBtn.classList.add('btn-update');
+            }
+            
+            openModal('courseModal');
+            
+        } catch (error) {
+            console.error('Error editing course:', error);
+            this.showToast(`Error loading course: ${error.message}`, 'error');
+        }
+    }
+
+    async deleteCoursePrompt(courseId, courseCode) {
+        const confirmMessage = `Are you sure you want to delete the course "${courseCode}"?\n\nThis action cannot be undone.`;
+        
+        if (!confirm(confirmMessage)) {
+            return;
         }
         
-        // Update dropdown
-        await this.populateCourseDropdown();
-        
-    } catch (error) {
-        console.error('Error deleting course:', error);
-        this.showToast(`❌ Error: ${error.message}`, 'error');
+        try {
+            await this.db.deleteCourse(courseId);
+            this.showToast('✅ Course deleted successfully', 'success');
+            
+            // Remove the course card with animation
+            const courseCard = document.querySelector(`.course-card[data-course-id="${courseId}"]`);
+            if (courseCard) {
+                courseCard.style.opacity = '0.5';
+                courseCard.style.transition = 'opacity 0.3s';
+                setTimeout(() => {
+                    courseCard.remove();
+                    // Check if grid is now empty
+                    const grid = document.getElementById('coursesGrid');
+                    if (grid && grid.children.length === 0) {
+                        this.loadCourses(); // Reload to show empty state
+                    }
+                }, 300);
+            }
+            
+            // Update dropdown
+            await this.populateCourseDropdown();
+            
+        } catch (error) {
+            console.error('Error deleting course:', error);
+            this.showToast(`❌ Error: ${error.message}`, 'error');
+        }
     }
-}
     
     // ==============================
     // DASHBOARD FUNCTIONS
@@ -2278,7 +2424,9 @@ async deleteCoursePrompt(courseId, courseCode) {
             'student_registered': 'fas fa-user-plus',
             'marks_entered': 'fas fa-chart-bar',
             'course_added': 'fas fa-book',
-            'settings_updated': 'fas fa-cog'
+            'settings_updated': 'fas fa-cog',
+            'transcript_generated': 'fas fa-file-pdf',
+            'report_generated': 'fas fa-chart-line'
         };
         return icons[type] || 'fas fa-info-circle';
     }
@@ -2377,60 +2525,6 @@ async deleteCoursePrompt(courseId, courseCode) {
         } catch (error) {
             console.error('Error refreshing dashboard:', error);
             this.showToast('Refresh failed', 'error');
-        }
-    }
-    
-    async editCourse(courseId) {
-        try {
-            const course = await this.db.getCourse(courseId);
-            if (!course) {
-                this.showToast('Course not found', 'error');
-                return;
-            }
-            
-            document.getElementById('courseCode').value = course.course_code;
-            document.getElementById('courseName').value = course.course_name;
-            document.getElementById('courseProgram').value = course.program;
-            document.getElementById('courseCredits').value = course.credits;
-            document.getElementById('courseDescription').value = course.description || '';
-            
-            const form = document.getElementById('courseForm');
-            form.dataset.editId = courseId;
-            
-            const submitBtn = form.querySelector('button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Course';
-            }
-            
-            openCourseModal();
-            
-        } catch (error) {
-            console.error('Error editing course:', error);
-            this.showToast('Error loading course', 'error');
-        }
-    }
-    
-    async deleteCourse(courseId) {
-        if (!confirm('Are you sure you want to delete this course?')) {
-            return;
-        }
-        
-        try {
-            const supabase = await this.db.ensureConnected();
-            const { error } = await supabase
-                .from('courses')
-                .delete()
-                .eq('id', courseId);
-                
-            if (error) throw error;
-            
-            this.showToast('Course deleted successfully', 'success');
-            await this.loadCourses();
-            await this.populateCourseDropdown();
-            
-        } catch (error) {
-            console.error('Error deleting course:', error);
-            this.showToast('Error deleting course', 'error');
         }
     }
     
@@ -3886,6 +3980,7 @@ async deleteCoursePrompt(courseId, courseCode) {
         throw error;
     }
 }
+    
     async generateTranscriptExcel(data, options) {
         // Implement using ExcelJS or similar
         console.log('Generating Excel for:', data.student.full_name);
@@ -4526,11 +4621,21 @@ function showSection(sectionId) {
     }
 }
 
+// UPDATED GLOBAL MODAL FUNCTIONS
 function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.style.display = 'flex';
-        setTimeout(() => modal.classList.add('active'), 10);
+        modal.classList.add('active');
+        
+        // Prevent body scroll
+        document.body.style.overflow = 'hidden';
+        
+        // Focus trap for accessibility
+        setTimeout(() => {
+            const focusable = modal.querySelector('input, select, button, textarea, [tabindex]:not([tabindex="-1"])');
+            if (focusable) focusable.focus();
+        }, 100);
     }
 }
 
@@ -4540,6 +4645,23 @@ function closeModal(modalId) {
         modal.classList.remove('active');
         setTimeout(() => {
             modal.style.display = 'none';
+            document.body.style.overflow = '';
+            
+            // Reset form if exists
+            const form = modal.querySelector('form');
+            if (form) {
+                form.reset();
+                // Remove edit mode from course form
+                if (modalId === 'courseModal' && form.dataset.editId) {
+                    delete form.dataset.editId;
+                    const submitBtn = form.querySelector('button[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.innerHTML = '<i class="fas fa-plus"></i> Add Course';
+                        submitBtn.classList.remove('btn-update');
+                        submitBtn.classList.add('btn-primary');
+                    }
+                }
+            }
         }, 300);
     }
 }
@@ -4719,6 +4841,136 @@ style.textContent = `
             transform: translateX(0);
             opacity: 1;
         }
+    }
+    
+    /* Settings Tab Styles */
+    .settings-tab-btn {
+        padding: 10px 20px;
+        background: #f8f9fa;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-right: 5px;
+        transition: all 0.3s;
+    }
+    
+    .settings-tab-btn.active {
+        background: #3498db;
+        color: white;
+    }
+    
+    .settings-tab-content {
+        display: none;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        margin-top: 15px;
+    }
+    
+    .settings-tab-content.active {
+        display: block;
+    }
+    
+    .program-setting-card {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        background: #f8f9fa;
+    }
+    
+    .program-setting-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #ddd;
+    }
+    
+    .program-code {
+        background: #3498db;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    
+    /* Course Card Styles */
+    .course-card {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+    
+    .course-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .course-header {
+        background: #3498db;
+        color: white;
+        padding: 15px;
+    }
+    
+    .course-header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .course-status {
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 4px;
+        background: rgba(255,255,255,0.2);
+    }
+    
+    .course-body {
+        padding: 15px;
+    }
+    
+    .course-description {
+        color: #6c757d;
+        font-size: 14px;
+        margin: 10px 0;
+    }
+    
+    .course-meta {
+        display: flex;
+        gap: 15px;
+        font-size: 13px;
+        color: #6c757d;
+    }
+    
+    .course-actions {
+        display: flex;
+        gap: 10px;
+        padding: 15px;
+        border-top: 1px solid #ddd;
+    }
+    
+    .btn-edit {
+        background: #f39c12;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        flex: 1;
+    }
+    
+    .btn-delete {
+        background: #e74c3c;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        flex: 1;
     }
 `;
 document.head.appendChild(style);
