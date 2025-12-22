@@ -3203,3 +3203,606 @@ body {
 .score-input-number-large:valid {
     border-color: #28a745;
 }
+/* ==================== */
+/* BALANCED WIDE GRADE SECTION */
+/* ==================== */
+
+.grade-section-balanced {
+    background: #ffffff
+    border-radius: 10px
+    padding: 25px
+    margin-bottom: 25px
+    border: 1px solid #e3e6f0
+    max-width: 900px
+    margin: 0 auto 25px
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05)
+    
+    h4 {
+        color: #2c3e50
+        margin-bottom: 20px
+        padding-bottom: 12px
+        border-bottom: 2px solid #eee
+        font-size: 1.2rem
+        font-weight: 600
+        display: flex
+        align-items: center
+        gap: 10px
+        
+        i {
+            color: #3498db
+        }
+    }
+}
+
+.grade-display-balanced {
+    display: flex
+    gap: 30px
+    align-items: stretch
+    justify-content: space-between
+}
+
+/* Left: Main Grade Display */
+.grade-main-balanced {
+    flex: 1
+    text-align: center
+    min-width: 250px
+    background: #f8fafc
+    padding: 20px
+    border-radius: 8px
+    border: 1px solid #e9ecef
+}
+
+.grade-badge-balanced {
+    display: inline-block
+    padding: 20px 35px
+    border-radius: 10px
+    font-weight: 800
+    font-size: 1.8rem
+    text-align: center
+    min-width: 200px
+    margin-bottom: 15px
+    border: 3px solid transparent
+    box-shadow: 0 6px 15px rgba(0,0,0,0.1)
+    letter-spacing: 1px
+    transition: all 0.3s ease
+    
+    &:hover {
+        transform: translateY(-3px)
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15)
+    }
+}
+
+/* Grade Colors for Balanced Badge */
+.grade-badge-balanced.grade-distinction {
+    background: linear-gradient(135deg, #28a745, #20c997)
+    color: white
+    border-color: #1e7e34
+}
+
+.grade-badge-balanced.grade-credit {
+    background: linear-gradient(135deg, #17a2b8, #20c9c9)
+    color: white
+    border-color: #117a8b
+}
+
+.grade-badge-balanced.grade-pass {
+    background: linear-gradient(135deg, #ffc107, #ffd54f)
+    color: #212529
+    border-color: #d39e00
+}
+
+.grade-badge-balanced.grade-fail {
+    background: linear-gradient(135deg, #dc3545, #e83e8c)
+    color: white
+    border-color: #bd2130
+}
+
+.grade-details-balanced {
+    margin-top: 15px
+}
+
+.grade-percentage-balanced {
+    font-size: 1.3rem
+    font-weight: 700
+    color: #2c3e50
+    margin-bottom: 8px
+    display: flex
+    align-items: center
+    justify-content: center
+    gap: 10px
+    
+    .percentage-value {
+        background: #ffffff
+        padding: 8px 18px
+        border-radius: 20px
+        border: 2px solid #dee2e6
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05)
+    }
+}
+
+.grade-desc-balanced {
+    color: #6c757d
+    font-size: 0.95rem
+    display: flex
+    align-items: center
+    justify-content: center
+    gap: 8px
+}
+
+/* Right: Compact Grade Scale */
+.grade-scale-balanced {
+    flex: 1
+    min-width: 250px
+    background: #ffffff
+    padding: 20px
+    border-radius: 8px
+    border: 1px solid #e9ecef
+}
+
+.scale-title-balanced {
+    font-size: 1rem
+    font-weight: 700
+    color: #495057
+    margin-bottom: 15px
+    display: flex
+    align-items: center
+    gap: 8px
+    
+    i {
+        color: #3498db
+    }
+}
+
+.scale-list-balanced {
+    display: flex
+    flex-direction: column
+    gap: 10px
+}
+
+.scale-item-balanced {
+    padding: 12px 15px
+    border-radius: 6px
+    display: flex
+    justify-content: space-between
+    align-items: center
+    border: 2px solid #dee2e6
+    transition: all 0.2s ease
+    position: relative
+    
+    &.active {
+        background: rgba(23, 162, 184, 0.1)
+        border-color: #17a2b8
+        font-weight: 600
+        
+        &::before {
+            content: "✓"
+            position: absolute
+            left: -10px
+            top: 50%
+            transform: translateY(-50%)
+            background: #17a2b8
+            color: white
+            width: 20px
+            height: 20px
+            border-radius: 50%
+            display: flex
+            align-items: center
+            justify-content: center
+            font-size: 12px
+            font-weight: bold
+        }
+    }
+    
+    &.grade-distinction {
+        background: rgba(40, 167, 69, 0.08)
+        border-left: 4px solid #28a745
+    }
+    
+    &.grade-credit {
+        background: rgba(23, 162, 184, 0.08)
+        border-left: 4px solid #17a2b8
+    }
+    
+    &.grade-pass {
+        background: rgba(255, 193, 7, 0.08)
+        border-left: 4px solid #ffc107
+    }
+    
+    &.grade-fail {
+        background: rgba(220, 53, 69, 0.08)
+        border-left: 4px solid #dc3545
+    }
+}
+
+.scale-grade {
+    font-weight: 600
+    min-width: 100px
+    color: #2c3e50
+}
+
+.scale-range {
+    color: #6c757d
+    font-size: 0.9rem
+    font-weight: 500
+}
+
+.current-indicator {
+    background: #17a2b8
+    color: white
+    padding: 3px 10px
+    border-radius: 12px
+    font-size: 0.8rem
+    font-weight: bold
+    text-transform: uppercase
+    letter-spacing: 0.5px
+}
+
+/* ==================== */
+/* ADDITIONAL INFO - BALANCED */
+/* ==================== */
+
+.additional-info-balanced {
+    background: #ffffff
+    border-radius: 10px
+    padding: 25px
+    margin-bottom: 25px
+    border: 1px solid #e3e6f0
+    max-width: 900px
+    margin: 0 auto 25px
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05)
+    
+    h4 {
+        color: #2c3e50
+        margin-bottom: 20px
+        font-size: 1.2rem
+        font-weight: 600
+        display: flex
+        align-items: center
+        gap: 10px
+        
+        i {
+            color: #3498db
+        }
+    }
+}
+
+.form-control-textarea-balanced {
+    width: 100%
+    padding: 15px
+    border: 2px solid #e0e6ed
+    border-radius: 8px
+    resize: vertical
+    font-size: 14px
+    font-family: inherit
+    line-height: 1.5
+    color: #2c3e50
+    background: #f8f9fa
+    transition: all 0.3s ease
+    
+    &:focus {
+        border-color: #3498db
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2)
+        background: white
+        outline: none
+    }
+    
+    &::placeholder {
+        color: #95a5a6
+    }
+}
+
+/* Bottom Options Row */
+.bottom-options-balanced {
+    display: flex
+    justify-content: space-between
+    align-items: flex-start
+    margin-top: 25px
+    padding-top: 25px
+    border-top: 2px solid #eee
+}
+
+.visibility-balanced {
+    flex: 1
+}
+
+.visibility-checkbox-balanced {
+    width: 18px
+    height: 18px
+    margin-right: 10px
+    vertical-align: middle
+    cursor: pointer
+    
+    &:checked {
+        background-color: #3498db
+        border-color: #3498db
+    }
+}
+
+.visibility-label-balanced {
+    font-size: 14px
+    font-weight: 600
+    color: #2c3e50
+    vertical-align: middle
+    cursor: pointer
+    display: inline-flex
+    align-items: center
+    gap: 8px
+    
+    i {
+        color: #3498db
+    }
+}
+
+.visibility-hint-balanced {
+    display: block
+    color: #6c757d
+    font-size: 0.9rem
+    margin-top: 6px
+    margin-left: 28px
+    line-height: 1.4
+}
+
+.quick-tips-balanced {
+    flex: 1
+    text-align: right
+    max-width: 400px
+}
+
+.tips-title {
+    font-weight: 600
+    color: #495057
+    margin-bottom: 10px
+    font-size: 0.95rem
+    display: flex
+    align-items: center
+    justify-content: flex-end
+    gap: 8px
+    
+    i {
+        color: #f39c12
+    }
+}
+
+.tips-list {
+    display: flex
+    flex-direction: column
+    gap: 8px
+    align-items: flex-end
+}
+
+.tip-item {
+    font-size: 0.9rem
+    color: #6c757d
+    display: flex
+    align-items: center
+    gap: 6px
+    justify-content: flex-end
+    
+    &:before {
+        content: "•"
+        color: #3498db
+        font-weight: bold
+    }
+}
+
+/* ==================== */
+/* MODAL FOOTER - BALANCED */
+/* ==================== */
+
+.modal-footer-balanced {
+    display: flex
+    justify-content: flex-end
+    gap: 15px
+    padding: 25px
+    background: #f8f9fa
+    border-top: 2px solid #dee2e6
+    max-width: 900px
+    margin: 0 auto
+    border-radius: 0 0 10px 10px
+}
+
+.btn-primary-balanced {
+    background: linear-gradient(135deg, #3498db, #2980b9)
+    color: white
+    padding: 12px 28px
+    font-size: 1rem
+    font-weight: 600
+    border: none
+    border-radius: 8px
+    cursor: pointer
+    transition: all 0.2s ease
+    display: flex
+    align-items: center
+    gap: 10px
+    min-width: 160px
+    justify-content: center
+    
+    &:hover {
+        background: linear-gradient(135deg, #2980b9, #1c5d87)
+        transform: translateY(-2px)
+        box-shadow: 0 6px 12px rgba(52, 152, 219, 0.3)
+    }
+    
+    &:active {
+        transform: translateY(0)
+    }
+    
+    i {
+        font-size: 1.1rem
+    }
+}
+
+.btn-secondary-balanced {
+    background: #6c757d
+    color: white
+    padding: 12px 28px
+    font-size: 1rem
+    font-weight: 600
+    border: none
+    border-radius: 8px
+    cursor: pointer
+    transition: all 0.2s ease
+    display: flex
+    align-items: center
+    gap: 10px
+    min-width: 140px
+    justify-content: center
+    
+    &:hover {
+        background: #5a6268
+        transform: translateY(-2px)
+        box-shadow: 0 6px 12px rgba(108, 117, 125, 0.3)
+    }
+    
+    &:active {
+        transform: translateY(0)
+    }
+    
+    i {
+        font-size: 1.1rem
+    }
+}
+
+/* ==================== */
+/* RESPONSIVE ADJUSTMENTS */
+/* ==================== */
+
+@media (max-width: 768px) {
+    .grade-section-balanced,
+    .additional-info-balanced {
+        max-width: 100%
+        margin: 0 0 20px 0
+        padding: 20px
+    }
+    
+    .grade-display-balanced {
+        flex-direction: column
+        gap: 20px
+    }
+    
+    .grade-main-balanced,
+    .grade-scale-balanced {
+        width: 100%
+        min-width: auto
+    }
+    
+    .grade-badge-balanced {
+        font-size: 1.6rem
+        padding: 18px 30px
+        min-width: 180px
+    }
+    
+    .bottom-options-balanced {
+        flex-direction: column
+        gap: 20px
+    }
+    
+    .quick-tips-balanced {
+        text-align: left
+        max-width: 100%
+    }
+    
+    .tips-list {
+        align-items: flex-start
+    }
+    
+    .tip-item {
+        justify-content: flex-start
+    }
+    
+    .modal-footer-balanced {
+        flex-direction: column
+        gap: 12px
+        padding: 20px
+    }
+    
+    .btn-primary-balanced,
+    .btn-secondary-balanced {
+        width: 100%
+        min-width: auto
+    }
+}
+
+/* For larger screens */
+@media (min-width: 1200px) {
+    .grade-section-balanced,
+    .additional-info-balanced,
+    .modal-footer-balanced {
+        max-width: 950px
+    }
+}
+
+/* Smooth animations */
+.grade-badge-balanced,
+.scale-item-balanced,
+.btn-primary-balanced,
+.btn-secondary-balanced {
+    animation-duration: 0.3s
+    animation-fill-mode: both
+}
+
+/* Modal container adjustments */
+.modal-content {
+    &.modal-wide {
+        max-width: 950px
+        width: 90%
+        margin: 30px auto
+        
+        .modal-body {
+            padding: 0
+            background: #f8fafc
+        }
+    }
+}
+
+/* Loading state for grade badge */
+.grade-badge-balanced.loading {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)
+    background-size: 200% 100%
+    animation: loadingShimmer 1.5s infinite
+    color: transparent
+}
+
+@keyframes loadingShimmer {
+    0% {
+        background-position: -200% 0
+    }
+    100% {
+        background-position: 200% 0
+    }
+}
+
+/* ==================== */
+/* INTEGRATION WITH EXISTING STYLES */
+/* ==================== */
+
+/* Update existing grade-badge-xxl to be compatible */
+.grade-badge-xxl {
+    /* Keep existing styles but add balanced compatibility */
+    &.grade-credit {
+        @extend .grade-badge-balanced.grade-credit
+    }
+    &.grade-distinction {
+        @extend .grade-badge-balanced.grade-distinction
+    }
+    &.grade-pass {
+        @extend .grade-badge-balanced.grade-pass
+    }
+    &.grade-fail {
+        @extend .grade-badge-balanced.grade-fail
+    }
+}
+
+/* Ensure modal-body accommodates the balanced design */
+#marksModal .modal-body-large {
+    &.modal-body-balanced {
+        max-height: 85vh
+        padding: 30px
+        background: #f8fafc
+        
+        .grade-section-balanced,
+        .additional-info-balanced {
+            margin-bottom: 25px
+        }
+    }
+}
