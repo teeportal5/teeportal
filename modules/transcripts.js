@@ -5,8 +5,34 @@ class TranscriptsManager {
         this.cachedStudents = null;
     }
 
+    // ==================== INITIALIZATION ====================
+    
+    async initializeTranscriptsUI() {
+        try {
+            console.log('📄 Initializing Transcripts UI...');
+            
+            // Update button in HTML to call this method
+            const transcriptBtn = document.querySelector('[onclick*="generateStudentTranscriptPrompt"]');
+            if (transcriptBtn) {
+                transcriptBtn.onclick = () => this.generateStudentTranscriptPrompt();
+            }
+            
+            console.log('✅ Transcripts UI initialized');
+        } catch (error) {
+            console.error('Error initializing transcripts UI:', error);
+        }
+    }
+
+    // ==================== MODAL FUNCTIONS ====================
+    
     async generateStudentTranscriptPrompt() {
         try {
+            // Remove existing modal if any
+            const existingModal = document.getElementById('transcriptModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
             const modal = document.createElement('div');
             modal.id = 'transcriptModal';
             modal.style.cssText = `
@@ -289,6 +315,8 @@ class TranscriptsManager {
         }
     }
     
+    // ==================== STUDENT MANAGEMENT ====================
+    
     async loadTranscriptStudents() {
         try {
             const tbody = document.getElementById('transcriptStudentList');
@@ -552,7 +580,8 @@ class TranscriptsManager {
         }
     }
     
-    // Main transcript generation method
+    // ==================== TRANSCRIPT GENERATION ====================
+    
     async generateStudentTranscript(studentId, format = 'pdf', options = {}) {
         try {
             console.log(`📚 Generating transcript for student ID: ${studentId}`);
@@ -741,6 +770,8 @@ class TranscriptsManager {
         
         return results;
     }
+    
+    // ==================== FORMAT-SPECIFIC EXPORTS ====================
     
     async generateTranscriptPDF(data, options) {
         try {
@@ -963,6 +994,8 @@ class TranscriptsManager {
         }
     }
     
+    // ==================== UTILITY FUNCTIONS ====================
+    
     showToast(message, type = 'info') {
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
@@ -985,4 +1018,9 @@ class TranscriptsManager {
         container.appendChild(toast);
         setTimeout(() => { if (toast.parentElement) toast.remove(); }, 5000);
     }
+}
+
+// Make available globally
+if (typeof window !== 'undefined') {
+    window.TranscriptsManager = TranscriptsManager;
 }
