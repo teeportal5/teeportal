@@ -63,29 +63,61 @@ class TEEPortalApp {
         }
     }
     
-    async initialize() {
-        console.log('🚀 TEEPortal Application Starting...');
-        
-        try {
-            // Initialize database first
-            await this.db.init();
-            
-            // Load initial data
-            await this.loadInitialData();
-            
-            // Initialize UI
-            this.initializeUI();
-            
-            this.initialized = true;
-            console.log('✅ TEEPortal Ready');
-            this.showToast('System initialized successfully', 'success');
-            
-        } catch (error) {
-            console.error('❌ Initialization failed:', error);
-            this.showToast('Failed to connect to database', 'error');
-        }
+   async initialize() {
+    // Prevent multiple initializations
+    if (this._initializing) {
+        console.warn('App initialization already in progress');
+        return;
     }
     
+    if (this.initialized) {
+        console.warn('App already initialized');
+        return;
+    }
+    
+    this._initializing = true;
+    console.log('🚀 TEEPortal Application Starting...');
+    
+    try {
+        // Initialize database first
+        console.log('📦 Initializing database...');
+        await this.db.init();
+        
+        // Load initial data
+        console.log('📊 Loading initial data...');
+        await this.loadInitialData();
+        
+        // Initialize UI
+        console.log('🎨 Initializing UI...');
+        this.initializeUI();
+        
+        this.initialized = true;
+        console.log('✅ TEEPortal Ready');
+        this.showToast('System initialized successfully', 'success');
+        
+    } catch (error) {
+        console.error('❌ Initialization failed:', error);
+        
+        // More specific error messages
+        let errorMessage = 'Failed to initialize system';
+        if (error.message.includes('database') || error.message.includes('connection')) {
+            errorMessage = 'Database connection failed. Please check your internet connection.';
+        } else if (error.message.includes('auth') || error.message.includes('permission')) {
+            errorMessage = 'Authentication failed. Please check your credentials.';
+        }
+        
+        this.showToast(errorMessage, 'error');
+        
+        // Try to show error in UI
+        this.showErrorUI(error);
+        
+        // Don't set initialized to true on error
+        this.initialized = false;
+        
+    } finally {
+        this._initializing = false;
+    }
+}
     async loadInitialData() {
         try {
             console.log('📊 Loading initial data...');
@@ -243,13 +275,86 @@ let app = null;
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('📄 DOM Content Loaded');
     
+    // Prevent multiple initializations
+    if (window.app && window.app.initialized) {
+        console.log('App already initialized');
+        return;
+    }
+    
+    // Add loading indicator
+    const loadingIndicator = document.createElement('div');
+    loadingIndicator.id = 'app-loading';
+    loadingIndicator.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 999999;
+        color: white;
+        font-family: Arial, sans-serif;
+    `;
+    
+    loadingIndicator.innerHTML = `
+        <div class="spinner" style="
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        "></div>
+        <h2 style="margin: 0 0 10px 0;">TEEPortal</h2>
+        <p style="margin: 0; opacity: 0.8;">Initializing system...</p>
+        <style>
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+        </style>
+    `;
+    
+    document.body.appendChild(loadingIndicator);
+    
     try {
         // Create app instance
         app = new TEEPortalApp();
         window.app = app;
         
-        // Initialize
+        // Initialize with timeout
+        const initTimeout = setTimeout(() => {
+            loadingIndicator.innerHTML = `
+                <h2 style="margin: 0 0 10px 0;">Taking longer than expected...</h2>
+                <p style="margin: 0; opacity: 0.8;">Please wait while we initialize the system</p>
+                <button onclick="location.reload()" style="
+                    margin-top: 20px;
+                    padding: 10px 20px;
+                    background: white;
+                    color: #764ba2;
+                    border: none;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    font-weight: bold;
+                ">Reload Now</button>
+            `;
+        }, 5000);
+        
         await app.initialize();
+        clearTimeout(initTimeout);
+        
+        // Remove loading indicator with fade out
+        loadingIndicator.style.opacity = '0';
+        loadingIndicator.style.transition = 'opacity 0.5s ease';
+        setTimeout(() => {
+            if (loadingIndicator.parentElement) {
+                loadingIndicator.remove();
+            }
+        }, 500);
         
         console.log('🎉 TEEPortal System Ready');
         
@@ -257,57 +362,198 @@ document.addEventListener('DOMContentLoaded', async function() {
         setTimeout(() => {
             if (typeof showSection === 'function') {
                 showSection('dashboard');
+                
+                // Set dashboard nav as active
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    link.classList.remove('active');
+                });
+                const dashboardLink = document.querySelector('[onclick*="dashboard"]');
+                if (dashboardLink) {
+                    dashboardLink.classList.add('active');
+                }
             }
         }, 100);
         
+        // Run health check after initialization
+        setTimeout(() => {
+            if (app.healthCheck) {
+                app.healthCheck().then(health => {
+                    if (!health.healthy) {
+                        console.warn('App health check failed:', health);
+                        // Show warning if not critical
+                        if (health.error && !health.error.includes('database')) {
+                            app.showToast('Some features may not work properly', 'warning');
+                        }
+                    }
+                });
+            }
+        }, 2000);
+        
     } catch (error) {
         console.error('❌ Initialization failed:', error);
-        // Show error in UI
-        const errorDiv = document.createElement('div');
-        errorDiv.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: #e74c3c;
-            color: white;
-            padding: 15px;
-            text-align: center;
-            z-index: 9999;
-            font-family: Arial, sans-serif;
+        
+        // Update loading indicator to show error
+        loadingIndicator.innerHTML = `
+            <div style="text-align: center; padding: 20px;">
+                <div style="font-size: 48px; margin-bottom: 20px; color: #ff6b6b;">⚠️</div>
+                <h2 style="margin: 0 0 10px 0; color: white;">Initialization Failed</h2>
+                <p style="margin: 0 0 20px 0; opacity: 0.9; max-width: 400px;">
+                    The system could not start properly. Please try reloading the page.
+                </p>
+                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 20px 0; text-align: left;">
+                    <small style="display: block; margin-bottom: 5px; opacity: 0.8;">Error Details:</small>
+                    <code style="font-family: monospace; font-size: 12px; word-break: break-all;">
+                        ${error.message || 'Unknown error'}
+                    </code>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button onclick="location.reload()" style="
+                        padding: 12px 24px;
+                        background: #4CAF50;
+                        color: white;
+                        border: none;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        font-weight: bold;
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                    ">
+                        <i class="fas fa-redo"></i> Reload Application
+                    </button>
+                    <button onclick="document.getElementById('app-loading').remove()" style="
+                        padding: 12px 24px;
+                        background: rgba(255,255,255,0.1);
+                        color: white;
+                        border: 1px solid rgba(255,255,255,0.3);
+                        border-radius: 5px;
+                        cursor: pointer;
+                    ">
+                        Dismiss
+                    </button>
+                </div>
+                <p style="margin-top: 30px; font-size: 12px; opacity: 0.7;">
+                    If this persists, check your internet connection and try again.
+                </p>
+            </div>
         `;
-        errorDiv.innerHTML = `
-            <strong>System Initialization Failed:</strong> ${error.message}
-            <button onclick="location.reload()" style="
-                margin-left: 20px;
-                background: white;
-                color: #e74c3c;
-                border: none;
-                padding: 5px 15px;
-                border-radius: 4px;
-                cursor: pointer;
-            ">Retry</button>
-        `;
-        document.body.appendChild(errorDiv);
     }
 });
 
-// Global helper functions
+// Fixed Global helper functions
 if (typeof showSection === 'undefined') {
+    let currentSection = null;
+    let sectionSwitchInProgress = false;
+    
     window.showSection = function(sectionId) {
-        console.log('Showing section:', sectionId);
+        // Prevent concurrent section switches
+        if (sectionSwitchInProgress) {
+            console.warn('Section switch already in progress');
+            return;
+        }
         
-        // Hide all sections
-        document.querySelectorAll('.content-section').forEach(section => {
-            section.style.display = 'none';
-        });
+        // Prevent switching to same section
+        if (currentSection === sectionId) {
+            return;
+        }
         
-        // Show selected section
-        const targetSection = document.getElementById(sectionId);
-        if (targetSection) {
-            targetSection.style.display = 'block';
+        sectionSwitchInProgress = true;
+        console.log('🔄 Switching to section:', sectionId);
+        
+        try {
+            // Hide all sections
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.style.display = 'none';
+                section.classList.remove('active');
+            });
+            
+            // Show selected section
+            const targetSection = document.getElementById(sectionId);
+            if (targetSection) {
+                targetSection.style.display = 'block';
+                setTimeout(() => {
+                    targetSection.classList.add('active');
+                }, 10);
+                
+                currentSection = sectionId;
+                
+                // Lazy load section content if needed
+                lazyLoadSectionContent(sectionId);
+                
+                // Update active nav link
+                updateActiveNav(sectionId);
+            } else {
+                console.error('Section not found:', sectionId);
+            }
+            
+        } catch (error) {
+            console.error('Error switching section:', error);
+        } finally {
+            sectionSwitchInProgress = false;
         }
     };
+    
+    // Helper function for lazy loading
+    function lazyLoadSectionContent(sectionId) {
+        const app = window.app;
+        if (!app) return;
+        
+        switch(sectionId) {
+            case 'reports':
+                if (app.reports && typeof app.reports.initializeReportsUI === 'function') {
+                    // Check if already initialized
+                    const reportsSection = document.getElementById('reports');
+                    if (!reportsSection.dataset.initialized) {
+                        console.log('📊 Initializing reports UI...');
+                        app.reports.initializeReportsUI().then(() => {
+                            reportsSection.dataset.initialized = 'true';
+                            console.log('✅ Reports UI initialized');
+                        }).catch(error => {
+                            console.error('Failed to initialize reports:', error);
+                        });
+                    }
+                }
+                break;
+                
+            case 'dashboard':
+                if (app.dashboard && typeof app.dashboard.updateDashboard === 'function') {
+                    // Refresh dashboard data after a short delay
+                    setTimeout(() => {
+                        app.dashboard.updateDashboard().catch(error => {
+                            console.warn('Dashboard update failed:', error);
+                        });
+                    }, 100);
+                }
+                break;
+                
+            case 'transcripts':
+                if (app.transcripts && typeof app.transcripts.initialize === 'function') {
+                    const transcriptsSection = document.getElementById('transcripts');
+                    if (!transcriptsSection.dataset.initialized) {
+                        console.log('📄 Initializing transcripts...');
+                        app.transcripts.initialize().then(() => {
+                            transcriptsSection.dataset.initialized = 'true';
+                        }).catch(error => {
+                            console.error('Failed to initialize transcripts:', error);
+                        });
+                    }
+                }
+                break;
+        }
+    }
+    
+    // Update active navigation
+    function updateActiveNav(sectionId) {
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('active');
+        });
+        
+        // Find the nav link that corresponds to this section
+        const navLink = document.querySelector(`[onclick*="${sectionId}"]`);
+        if (navLink) {
+            navLink.classList.add('active');
+        }
+    }
 }
 // Add to the end of app.js, before the closing </script> tag
 const style = document.createElement('style');
