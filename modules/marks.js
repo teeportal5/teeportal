@@ -226,31 +226,45 @@ class MarksManager {
     }
     
     setupMarksModalListeners() {
-        const scoreInput = document.getElementById('marksScore');
-        const maxScoreInput = document.getElementById('maxScore');
-        
-        if (scoreInput) {
-            scoreInput.addEventListener('input', () => this.updateMarksGradeDisplay());
-            scoreInput.addEventListener('blur', () => {
-                const value = parseFloat(scoreInput.value);
-                if (value < 0) {
-                    scoreInput.value = 0;
-                    this.updateMarksGradeDisplay();
-                }
-            });
-        }
-        
-        if (maxScoreInput) {
-            maxScoreInput.addEventListener('input', () => this.updateMarksGradeDisplay());
-            maxScoreInput.addEventListener('blur', () => {
-                const value = parseFloat(maxScoreInput.value);
-                if (value <= 0) {
-                    maxScoreInput.value = 100;
-                    this.updateMarksGradeDisplay();
-                }
-            });
-        }
+    const scoreInput = document.getElementById('marksScore');
+    const maxScoreInput = document.getElementById('maxScore');
+    
+    if (scoreInput) {
+        scoreInput.addEventListener('input', () => this.updateMarksGradeDisplay());
+        scoreInput.addEventListener('blur', () => {
+            const value = parseFloat(scoreInput.value);
+            if (value < 0) {
+                scoreInput.value = 0;
+                this.updateMarksGradeDisplay();
+            }
+        });
     }
+    
+    if (maxScoreInput) {
+        maxScoreInput.addEventListener('input', () => {
+            // When max score changes, validate current score
+            const scoreInput = document.getElementById('marksScore');
+            if (scoreInput) {
+                const score = parseFloat(scoreInput.value);
+                const maxScore = parseFloat(maxScoreInput.value);
+                
+                if (!isNaN(score) && !isNaN(maxScore) && score > maxScore) {
+                    scoreInput.value = maxScore;
+                    this.showToast(`Score cannot exceed maximum score! Auto-adjusted to ${maxScore}`, 'warning');
+                }
+            }
+            this.updateMarksGradeDisplay();
+        });
+        
+        maxScoreInput.addEventListener('blur', () => {
+            const value = parseFloat(maxScoreInput.value);
+            if (value <= 0) {
+                maxScoreInput.value = 100;
+                this.updateMarksGradeDisplay();
+            }
+        });
+    }
+}
     updateMarksGradeDisplay() {
     try {
         const scoreInput = document.getElementById('marksScore');
@@ -259,18 +273,32 @@ class MarksManager {
         const percentageDisplay = document.getElementById('percentageDisplay');
         const gradeDescriptionDisplay = document.getElementById('marksGradeDescription');
         
-        if (!scoreInput || !gradeDisplay) return;
+        if (!scoreInput || !gradeDisplay || !maxScoreInput) return;
         
         const score = parseFloat(scoreInput.value);
-        const maxScore = parseFloat(maxScoreInput?.value) || 100;
+        const maxScore = parseFloat(maxScoreInput.value);
         
-        if (isNaN(score) || maxScore <= 0) {
+        if (isNaN(score) || isNaN(maxScore) || maxScore <= 0) {
             this.resetMarksGradeDisplay(gradeDisplay, percentageDisplay, gradeDescriptionDisplay);
             return;
         }
         
-        const percentage = (score / maxScore) * 100;
-        const grade = this.calculateGrade(percentage);
+        // FIX: CAP SCORE AT MAX SCORE
+        const cappedScore = Math.min(score, maxScore);
+        
+        // FIX: If score exceeds max, auto-correct it
+        if (score > maxScore) {
+            scoreInput.value = cappedScore;
+            this.showToast(`Score cannot exceed maximum score! Auto-adjusted to ${cappedScore}`, 'warning');
+        }
+        
+        // Calculate percentage
+        const percentage = (cappedScore / maxScore) * 100;
+        
+        // FIX: CAP PERCENTAGE AT 100%
+        const cappedPercentage = Math.min(percentage, 100);
+        
+        const grade = this.calculateGrade(cappedPercentage);
         const gradeDescription = this.getGradeDescription(grade);
         const gradeCSSClass = this.getGradeCSSClass(grade);
         
@@ -280,7 +308,7 @@ class MarksManager {
         gradeDisplay.title = gradeDescription;
         
         if (percentageDisplay) {
-            percentageDisplay.textContent = `${percentage.toFixed(2)}%`;
+            percentageDisplay.textContent = `${cappedPercentage.toFixed(2)}%`;
         }
         
         if (gradeDescriptionDisplay) {
@@ -319,7 +347,11 @@ class MarksManager {
             const assessmentType = document.getElementById('assessmentType')?.value || 'final';
             const assessmentName = document.getElementById('assessmentName')?.value || '';
             const remarks = document.getElementById('marksRemarks')?.value || '';
-            
+             // FIX: ADD VALIDATION FOR SCORE > MAX SCORE
+        if (score > maxScore) {
+            this.showToast(`Score cannot exceed maximum score of ${maxScore}!`, 'error');
+            return;
+        }
             // Validation
             if (!studentId || !courseId || isNaN(score)) {
                 this.showToast('Please select student, course, and enter score', 'error');
