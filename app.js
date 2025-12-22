@@ -21,14 +21,93 @@ class TEEPortalApp {
     }
     
     initializeModules() {
-        // Initialize all modules
-        this.students = new StudentManager(this.db, this);
-        this.courses = new CourseManager(this.db, this);
-        this.marks = new MarksManager(this.db, this);
-        this.settings = new SettingsManager(this.db, this);
-        this.dashboard = new DashboardManager(this.db, this);
-        this.reports = new ReportsManager(this.db, this);
-        this.transcripts = new TranscriptManager(this.db, this);
+        try {
+            console.log('🔄 Initializing modules...');
+            
+            // Check if modules are loaded
+            if (typeof StudentManager === 'undefined') {
+                console.error('❌ StudentManager not loaded');
+                // Create a minimal version if module not loaded
+                this.students = {
+                    loadStudentsTable: async () => {
+                        console.warn('StudentManager module not loaded');
+                        const tbody = document.getElementById('studentsTableBody');
+                        if (tbody) {
+                            tbody.innerHTML = `
+                                <tr>
+                                    <td colspan="8" class="empty-state">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        <p>Student module not loaded</p>
+                                    </td>
+                                </tr>
+                            `;
+                        }
+                    }
+                };
+            } else {
+                this.students = new StudentManager(this.db, this);
+            }
+            
+            if (typeof CourseManager === 'undefined') {
+                console.error('❌ CourseManager not loaded');
+                this.courses = {
+                    loadCourses: async () => {
+                        console.warn('CourseManager module not loaded');
+                        const grid = document.getElementById('coursesGrid');
+                        if (grid) {
+                            grid.innerHTML = `
+                                <div class="empty-state">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <p>Course module not loaded</p>
+                                </div>
+                            `;
+                        }
+                    },
+                    populateCourseDropdown: async () => {}
+                };
+            } else {
+                this.courses = new CourseManager(this.db, this);
+            }
+            
+            if (typeof MarksManager === 'undefined') {
+                console.error('❌ MarksManager not loaded');
+                this.marks = {
+                    loadMarksTable: async () => {
+                        console.warn('MarksManager module not loaded');
+                        const tbody = document.querySelector('#marksTableBody');
+                        if (tbody) {
+                            tbody.innerHTML = `
+                                <tr>
+                                    <td colspan="11" class="empty-state">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        <p>Marks module not loaded</p>
+                                    </td>
+                                </tr>
+                            `;
+                        }
+                    },
+                    populateStudentDropdown: async () => {},
+                    populateCourseDropdown: async () => {}
+                };
+            } else {
+                this.marks = new MarksManager(this.db, this);
+            }
+            
+            // Initialize other modules with fallbacks
+            this.settings = new (typeof SettingsManager !== 'undefined' ? SettingsManager : function() {
+                this.openSettingsTab = () => {};
+                this.initializeSettingsTabs = () => {};
+            })(this.db, this);
+            
+            this.dashboard = new (typeof DashboardManager !== 'undefined' ? DashboardManager : function() {
+                this.updateDashboard = async () => {};
+                this.loadRecentActivities = async () => {};
+            })(this.db, this);
+            
+            console.log('✅ Modules initialized');
+        } catch (error) {
+            console.error('Error initializing modules:', error);
+        }
     }
     
     async initialize() {
@@ -54,140 +133,217 @@ class TEEPortalApp {
         }
     }
     
-    setupEventListeners() {
-        // Setup form submissions
-        const studentForm = document.getElementById('studentForm');
-        if (studentForm) {
-            studentForm.addEventListener('submit', (e) => this.students.saveStudent(e));
+    async loadInitialData() {
+        try {
+            console.log('📊 Loading initial data...');
+            
+            // Load students table
+            if (this.students && this.students.loadStudentsTable) {
+                await this.students.loadStudentsTable();
+            }
+            
+            // Load courses
+            if (this.courses && this.courses.loadCourses) {
+                await this.courses.loadCourses();
+            }
+            
+            // Load marks table
+            if (this.marks && this.marks.loadMarksTable) {
+                await this.marks.loadMarksTable();
+            }
+            
+            // Update dashboard
+            if (this.dashboard && this.dashboard.updateDashboard) {
+                await this.dashboard.updateDashboard();
+            }
+            
+            // Load recent activities
+            if (this.dashboard && this.dashboard.loadRecentActivities) {
+                await this.dashboard.loadRecentActivities();
+            }
+            
+            console.log('✅ Initial data loaded');
+            
+        } catch (error) {
+            console.error('Error loading initial data:', error);
+            this.showToast('Error loading data: ' + error.message, 'error');
         }
-        
-        const marksForm = document.getElementById('marksForm');
-        if (marksForm) {
-            marksForm.addEventListener('submit', (e) => this.marks.saveMarks(e));
-        }
-        
-        const courseForm = document.getElementById('courseForm');
-        if (courseForm) {
-            courseForm.addEventListener('submit', (e) => this.courses.saveCourse(e));
-        }
-        
-        const settingsForm = document.getElementById('settingsForm');
-        if (settingsForm) {
-            settingsForm.addEventListener('submit', (e) => this.settings.saveSettings(e));
-        }
-        
-        const editMarksForm = document.getElementById('editMarksForm');
-        if (editMarksForm) {
-            editMarksForm.addEventListener('submit', (e) => this.marks.updateMark(e));
-        }
-        
-        // Setup real-time grade calculation
-        const marksScoreInput = document.getElementById('marksScore');
-        if (marksScoreInput) {
-            marksScoreInput.addEventListener('input', () => updateGradeDisplay());
-        }
-        
-        const maxScoreInput = document.getElementById('maxScore');
-        if (maxScoreInput) {
-            maxScoreInput.addEventListener('input', () => updateGradeDisplay());
-        }
-        
-        // Setup edit marks form grade calculation
-        const editScoreInput = document.getElementById('editScore');
-        if (editScoreInput) {
-            editScoreInput.addEventListener('input', () => this.updateEditGradeDisplay());
-        }
-        
-        const editMaxScoreInput = document.getElementById('editMaxScore');
-        if (editMaxScoreInput) {
-            editMaxScoreInput.addEventListener('input', () => this.updateEditGradeDisplay());
-        }
-        
-        // Settings page buttons
-        const addGradeRowBtn = document.getElementById('addGradeRowBtn');
-        if (addGradeRowBtn) {
-            addGradeRowBtn.addEventListener('click', () => this.settings.addGradingScaleRow());
-        }
-        
-        const addProgramBtn = document.getElementById('addProgramBtn');
-        if (addProgramBtn) {
-            addProgramBtn.addEventListener('click', () => this.settings.addProgramSetting());
-        }
-        
-        // Settings tab navigation
-        const settingsTabBtns = document.querySelectorAll('.settings-tab-btn');
-        settingsTabBtns.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const tabName = e.target.dataset.tab;
-                if (tabName) {
-                    this.settings.openSettingsTab(tabName);
-                }
-            });
+    }
+    
+    initializeUI() {
+        // Initialize date pickers
+        const dateInputs = document.querySelectorAll('input[type="date"]');
+        const today = new Date().toISOString().split('T')[0];
+        dateInputs.forEach(input => {
+            if (input) input.max = today;
         });
         
-        // Report generation
-        const generateReportBtn = document.getElementById('generateReportBtn');
-        if (generateReportBtn) {
-            generateReportBtn.addEventListener('click', () => this.reports.generateReport());
-        }
+        this.populateDropdowns();
         
-        const previewReportBtn = document.getElementById('previewReportBtn');
-        if (previewReportBtn) {
-            previewReportBtn.addEventListener('click', () => this.reports.previewReport());
+        // Initialize settings tabs
+        if (document.querySelector('.settings-tab-btn')) {
+            try {
+                this.settings.initializeSettingsTabs();
+            } catch (error) {
+                console.warn('Settings tabs initialization failed:', error);
+            }
         }
+    }
+    
+    async populateDropdowns() {
+        if (this.marks && this.marks.populateStudentDropdown) {
+            await this.marks.populateStudentDropdown();
+        }
+        if (this.marks && this.marks.populateCourseDropdown) {
+            await this.marks.populateCourseDropdown();
+        }
+    }
+    
+    setupEventListeners() {
+        console.log('🔧 Setting up event listeners...');
         
-        // Transcript generation
-        const generateTranscriptBtn = document.getElementById('generateTranscriptBtn');
-        if (generateTranscriptBtn) {
-            generateTranscriptBtn.addEventListener('click', () => this.transcripts.generateStudentTranscriptPrompt());
-        }
-        
-        // Search functionality
-        const studentSearch = document.getElementById('studentSearch');
-        if (studentSearch) {
-            studentSearch.addEventListener('input', () => this.students.searchStudents());
-        }
-        
-        // Filter functionality
-        const filterProgram = document.getElementById('filterProgram');
-        const filterIntake = document.getElementById('filterIntake');
-        const filterStatus = document.getElementById('filterStatus');
-        
-        if (filterProgram) {
-            filterProgram.addEventListener('change', () => this.students.filterStudents());
-        }
-        if (filterIntake) {
-            filterIntake.addEventListener('change', () => this.students.filterStudents());
-        }
-        if (filterStatus) {
-            filterStatus.addEventListener('change', () => this.students.filterStudents());
-        }
-        
-        // Export functionality
-        const exportStudentsBtn = document.getElementById('exportStudentsBtn');
-        if (exportStudentsBtn) {
-            exportStudentsBtn.addEventListener('click', () => this.students.exportStudents());
-        }
-        
-        const exportMarksBtn = document.getElementById('exportMarksBtn');
-        if (exportMarksBtn) {
-            exportMarksBtn.addEventListener('click', () => this.marks.exportMarks());
-        }
-        
-        // Import functionality
-        const importStudentsBtn = document.getElementById('importStudentsBtn');
-        if (importStudentsBtn) {
-            importStudentsBtn.addEventListener('click', () => {
-                const fileInput = document.getElementById('importFile');
-                if (fileInput) {
-                    fileInput.click();
-                    fileInput.onchange = (e) => {
-                        if (e.target.files[0]) {
-                            this.students.importStudents(e.target.files[0]);
-                        }
-                    };
-                }
+        // Setup form submissions with error handling
+        try {
+            const studentForm = document.getElementById('studentForm');
+            if (studentForm) {
+                studentForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    if (this.students && this.students.saveStudent) {
+                        this.students.saveStudent(e);
+                    } else {
+                        this.showToast('Student module not available', 'error');
+                    }
+                });
+            }
+            
+            const marksForm = document.getElementById('marksForm');
+            if (marksForm) {
+                marksForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    if (this.marks && this.marks.saveMarks) {
+                        this.marks.saveMarks(e);
+                    } else {
+                        this.showToast('Marks module not available', 'error');
+                    }
+                });
+            }
+            
+            const courseForm = document.getElementById('courseForm');
+            if (courseForm) {
+                courseForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    if (this.courses && this.courses.saveCourse) {
+                        this.courses.saveCourse(e);
+                    } else {
+                        this.showToast('Course module not available', 'error');
+                    }
+                });
+            }
+            
+            const settingsForm = document.getElementById('settingsForm');
+            if (settingsForm) {
+                settingsForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    if (this.settings && this.settings.saveSettings) {
+                        this.settings.saveSettings(e);
+                    } else {
+                        this.showToast('Settings module not available', 'error');
+                    }
+                });
+            }
+            
+            const editMarksForm = document.getElementById('editMarksForm');
+            if (editMarksForm) {
+                editMarksForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    if (this.marks && this.marks.updateMark) {
+                        this.marks.updateMark(e);
+                    } else {
+                        this.showToast('Marks module not available', 'error');
+                    }
+                });
+            }
+            
+            // Setup real-time grade calculation
+            const marksScoreInput = document.getElementById('marksScore');
+            if (marksScoreInput) {
+                marksScoreInput.addEventListener('input', () => {
+                    if (typeof updateGradeDisplay === 'function') {
+                        updateGradeDisplay();
+                    }
+                });
+            }
+            
+            const maxScoreInput = document.getElementById('maxScore');
+            if (maxScoreInput) {
+                maxScoreInput.addEventListener('input', () => {
+                    if (typeof updateGradeDisplay === 'function') {
+                        updateGradeDisplay();
+                    }
+                });
+            }
+            
+            // Setup edit marks form grade calculation
+            const editScoreInput = document.getElementById('editScore');
+            if (editScoreInput) {
+                editScoreInput.addEventListener('input', () => {
+                    if (typeof updateEditGradeDisplay === 'function') {
+                        updateEditGradeDisplay();
+                    } else if (this.updateEditGradeDisplay) {
+                        this.updateEditGradeDisplay();
+                    }
+                });
+            }
+            
+            const editMaxScoreInput = document.getElementById('editMaxScore');
+            if (editMaxScoreInput) {
+                editMaxScoreInput.addEventListener('input', () => {
+                    if (typeof updateEditGradeDisplay === 'function') {
+                        updateEditGradeDisplay();
+                    } else if (this.updateEditGradeDisplay) {
+                        this.updateEditGradeDisplay();
+                    }
+                });
+            }
+            
+            // Navigation event listeners
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const sectionId = e.target.getAttribute('href').replace('#', '');
+                    showSection(sectionId);
+                });
             });
+            
+            // Modal open buttons
+            const openStudentModalBtn = document.querySelector('[onclick*="openStudentModal"]');
+            if (openStudentModalBtn) {
+                openStudentModalBtn.onclick = (e) => {
+                    e.preventDefault();
+                    openStudentModal();
+                };
+            }
+            
+            const openCourseModalBtn = document.querySelector('[onclick*="openCourseModal"]');
+            if (openCourseModalBtn) {
+                openCourseModalBtn.onclick = (e) => {
+                    e.preventDefault();
+                    openCourseModal();
+                };
+            }
+            
+            const openMarksModalBtn = document.querySelector('[onclick*="openMarksModal"]');
+            if (openMarksModalBtn) {
+                openMarksModalBtn.onclick = (e) => {
+                    e.preventDefault();
+                    openMarksModal();
+                };
+            }
+            
+            console.log('✅ Event listeners setup complete');
+            
+        } catch (error) {
+            console.error('Error setting up event listeners:', error);
         }
     }
     
@@ -225,70 +381,64 @@ class TEEPortalApp {
         }
     }
     
-    async loadInitialData() {
-        try {
-            console.log('📊 Loading initial data...');
-            
-            await this.students.loadStudentsTable();
-            await this.courses.loadCourses();
-            await this.marks.loadMarksTable();
-            await this.dashboard.updateDashboard();
-            await this.dashboard.loadRecentActivities();
-            
-            console.log('✅ Initial data loaded');
-            
-        } catch (error) {
-            console.error('Error loading initial data:', error);
-        }
-    }
-    
-    initializeUI() {
-        // Initialize date pickers
-        const dateInputs = document.querySelectorAll('input[type="date"]');
-        const today = new Date().toISOString().split('T')[0];
-        dateInputs.forEach(input => {
-            if (input) input.max = today;
-        });
-        
-        this.populateDropdowns();
-        
-        // Initialize settings tabs
-        if (document.querySelector('.settings-tab-btn')) {
-            this.settings.initializeSettingsTabs();
-        }
-    }
-    
-    async populateDropdowns() {
-        await this.marks.populateStudentDropdown();
-        await this.marks.populateCourseDropdown();
-    }
-    
     openMarksModal() {
-        this.marks.openMarksModal();
+        if (this.marks && this.marks.openMarksModal) {
+            this.marks.openMarksModal();
+        } else {
+            openModal('marksModal');
+        }
     }
     
     enterMarksForStudent(studentId) {
-        this.marks.enterMarksForStudent(studentId);
+        if (this.marks && this.marks.enterMarksForStudent) {
+            this.marks.enterMarksForStudent(studentId);
+        } else {
+            openModal('marksModal');
+            if (studentId) {
+                const marksStudent = document.getElementById('marksStudent');
+                if (marksStudent) marksStudent.value = studentId;
+            }
+        }
     }
     
     viewStudent(studentId) {
-        this.students.viewStudent(studentId);
+        if (this.students && this.students.viewStudent) {
+            this.students.viewStudent(studentId);
+        } else {
+            this.showToast('Student details not available', 'info');
+        }
     }
     
     editMark(markId) {
-        this.marks.editMark(markId);
+        if (this.marks && this.marks.editMark) {
+            this.marks.editMark(markId);
+        } else {
+            this.showToast('Edit marks not available', 'info');
+        }
     }
     
     deleteMark(markId) {
-        this.marks.deleteMark(markId);
+        if (this.marks && this.marks.deleteMark) {
+            this.marks.deleteMark(markId);
+        } else {
+            this.showToast('Delete marks not available', 'info');
+        }
     }
     
     editCourse(courseId) {
-        this.courses.editCourse(courseId);
+        if (this.courses && this.courses.editCourse) {
+            this.courses.editCourse(courseId);
+        } else {
+            this.showToast('Edit course not available', 'info');
+        }
     }
     
     deleteCoursePrompt(courseId, courseCode) {
-        this.courses.deleteCoursePrompt(courseId, courseCode);
+        if (this.courses && this.courses.deleteCoursePrompt) {
+            this.courses.deleteCoursePrompt(courseId, courseCode);
+        } else {
+            this.showToast('Delete course not available', 'info');
+        }
     }
     
     // ==============================
@@ -330,90 +480,54 @@ class TEEPortalApp {
     async refreshDashboard() {
         try {
             this.showToast('Refreshing dashboard...', 'info');
-            await this.dashboard.updateDashboard();
+            if (this.dashboard && this.dashboard.updateDashboard) {
+                await this.dashboard.updateDashboard();
+            }
             this.showToast('Dashboard refreshed', 'success');
         } catch (error) {
             console.error('Error refreshing dashboard:', error);
             this.showToast('Refresh failed', 'error');
         }
     }
-    
-    // ==============================
-    // GLOBAL METHODS
-    // ==============================
-    
-    openModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.style.display = 'block';
-            modal.classList.add('show');
-            setTimeout(() => {
-                const firstInput = modal.querySelector('input, select, textarea');
-                if (firstInput) firstInput.focus();
-            }, 100);
-        } else {
-            console.warn(`Modal #${modalId} not found`);
-        }
-    }
 }
 
 // ==============================
-// GLOBAL INITIALIZATION
+// GLOBAL FUNCTIONS - MUST BE DEFINED BEFORE DOMContentLoaded
 // ==============================
 
-let app = null;
-
-document.addEventListener('DOMContentLoaded', async function() {
-    console.log('📄 DOM Content Loaded');
+// Global helper function to show sections
+window.showSection = function(sectionId) {
+    console.log('Showing section:', sectionId);
     
-    try {
-        // Create app instance
-        app = new TEEPortalApp();
-        window.app = app;
-        
-        // Initialize
-        await app.initialize();
-        
-        console.log('🎉 TEEPortal System Ready');
-        
-        // Show dashboard by default
-        setTimeout(() => {
-            if (typeof showSection === 'function') {
-                showSection('dashboard');
-            }
-        }, 100);
-        
-    } catch (error) {
-        console.error('❌ Initialization failed:', error);
-        alert('Failed to initialize: ' + error.message);
-    }
-});
-
-// Global helper functions
-function showSection(sectionId) {
+    // Hide all sections
     document.querySelectorAll('.content-section').forEach(section => {
+        section.style.display = 'none';
         section.classList.remove('active');
     });
     
+    // Remove active class from all nav links
     document.querySelectorAll('.nav-link').forEach(link => {
         link.classList.remove('active');
     });
     
+    // Show selected section
     const targetSection = document.getElementById(sectionId);
     if (targetSection) {
+        targetSection.style.display = 'block';
         targetSection.classList.add('active');
         
+        // Set active nav link
         const activeLink = document.querySelector(`a[href="#${sectionId}"]`);
         if (activeLink) {
             activeLink.classList.add('active');
         }
         
+        // Update section title
         const titleMap = {
             'dashboard': 'Dashboard Overview',
             'students': 'Student Management',
             'courses': 'Course Management',
             'marks': 'Academic Records',
-            'intake': 'Intake Management',
             'reports': 'Reports & Analytics',
             'settings': 'System Settings'
         };
@@ -422,11 +536,46 @@ function showSection(sectionId) {
         if (sectionTitle) {
             sectionTitle.textContent = titleMap[sectionId] || 'TeePortal';
         }
+        
+        // Load data for the section if needed
+        if (window.app && window.app.initialized) {
+            setTimeout(() => {
+                switch(sectionId) {
+                    case 'students':
+                        if (window.app.students && window.app.students.loadStudentsTable) {
+                            window.app.students.loadStudentsTable();
+                        }
+                        break;
+                    case 'courses':
+                        if (window.app.courses && window.app.courses.loadCourses) {
+                            window.app.courses.loadCourses();
+                        }
+                        break;
+                    case 'marks':
+                        if (window.app.marks && window.app.marks.loadMarksTable) {
+                            window.app.marks.loadMarksTable();
+                        }
+                        break;
+                    case 'dashboard':
+                        if (window.app.dashboard && window.app.dashboard.updateDashboard) {
+                            window.app.dashboard.updateDashboard();
+                        }
+                        break;
+                    case 'settings':
+                        if (window.app.settings && window.app.settings.loadSettings) {
+                            window.app.settings.loadSettings();
+                        }
+                        break;
+                }
+            }, 100);
+        }
+    } else {
+        console.error('Section not found:', sectionId);
     }
-}
+};
 
 // GLOBAL MODAL FUNCTIONS
-function openModal(modalId) {
+window.openModal = function(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.style.display = 'flex';
@@ -437,10 +586,12 @@ function openModal(modalId) {
             const focusable = modal.querySelector('input, select, button, textarea, [tabindex]:not([tabindex="-1"])');
             if (focusable) focusable.focus();
         }, 100);
+    } else {
+        console.warn(`Modal #${modalId} not found`);
     }
-}
+};
 
-function closeModal(modalId) {
+window.closeModal = function(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.classList.remove('active');
@@ -463,25 +614,25 @@ function closeModal(modalId) {
             }
         }, 300);
     }
-}
+};
 
-function openStudentModal() {
+window.openStudentModal = function() {
     openModal('studentModal');
-}
+};
 
-function openCourseModal() {
+window.openCourseModal = function() {
     openModal('courseModal');
-}
+};
 
-function openMarksModal() {
+window.openMarksModal = function() {
     if (window.app && window.app.openMarksModal) {
         window.app.openMarksModal();
     } else {
         openModal('marksModal');
     }
-}
+};
 
-function updateGradeDisplay() {
+window.updateGradeDisplay = function() {
     try {
         const scoreInput = document.getElementById('marksScore');
         const maxScoreInput = document.getElementById('maxScore');
@@ -533,16 +684,69 @@ function updateGradeDisplay() {
     } catch (error) {
         console.error('Error updating grade display:', error);
     }
-}
+};
 
-// Make functions globally available
-window.showSection = showSection;
-window.openModal = openModal;
-window.closeModal = closeModal;
-window.openStudentModal = openStudentModal;
-window.openCourseModal = openCourseModal;
-window.openMarksModal = openMarksModal;
-window.updateGradeDisplay = updateGradeDisplay;
+window.updateEditGradeDisplay = function() {
+    if (window.app && window.app.updateEditGradeDisplay) {
+        window.app.updateEditGradeDisplay();
+    }
+};
+
+// ==============================
+// GLOBAL INITIALIZATION
+// ==============================
+
+let app = null;
+
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('📄 DOM Content Loaded');
+    
+    try {
+        // Create app instance
+        app = new TEEPortalApp();
+        window.app = app;
+        
+        // Initialize
+        await app.initialize();
+        
+        console.log('🎉 TEEPortal System Ready');
+        
+        // Show dashboard by default
+        setTimeout(() => {
+            showSection('dashboard');
+        }, 100);
+        
+    } catch (error) {
+        console.error('❌ Initialization failed:', error);
+        // Try to show error in UI
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #e74c3c;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            z-index: 9999;
+            font-family: Arial, sans-serif;
+        `;
+        errorDiv.innerHTML = `
+            <strong>System Initialization Failed:</strong> ${error.message}
+            <button onclick="location.reload()" style="
+                margin-left: 20px;
+                background: white;
+                color: #e74c3c;
+                border: none;
+                padding: 5px 15px;
+                border-radius: 4px;
+                cursor: pointer;
+            ">Retry</button>
+        `;
+        document.body.appendChild(errorDiv);
+    }
+});
 
 // Add CSS styles
 const style = document.createElement('style');
@@ -598,6 +802,18 @@ style.textContent = `
         opacity: 0.5;
     }
     
+    .error-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #e74c3c;
+    }
+    
+    .error-state i {
+        font-size: 48px;
+        margin-bottom: 15px;
+        color: #e74c3c;
+    }
+    
     .toast {
         position: fixed;
         top: 20px;
@@ -650,7 +866,14 @@ style.textContent = `
         font-weight: bold;
         min-width: 40px;
         text-align: center;
+        background: #3498db;
     }
+    
+    .percentage-badge.grade-A { background: #27ae60; }
+    .percentage-badge.grade-B { background: #2ecc71; }
+    .percentage-badge.grade-C { background: #f1c40f; }
+    .percentage-badge.grade-D { background: #e67e22; }
+    .percentage-badge.grade-F { background: #e74c3c; }
     
     .btn-action {
         background: none;
@@ -660,6 +883,7 @@ style.textContent = `
         cursor: pointer;
         color: #555;
         transition: all 0.2s;
+        margin: 2px;
     }
     
     .btn-action:hover {
@@ -702,6 +926,7 @@ style.textContent = `
         border-radius: 6px;
         cursor: pointer;
         font-weight: 500;
+        transition: background 0.3s;
     }
     
     .btn-primary:hover {
@@ -720,6 +945,127 @@ style.textContent = `
     
     .btn-update:hover {
         background: #219653;
+    }
+    
+    /* Modal styles */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .modal.active {
+        display: flex;
+    }
+    
+    .modal-content {
+        background: white;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow: hidden;
+    }
+    
+    .modal-header {
+        padding: 20px;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .modal-body {
+        padding: 20px;
+        overflow-y: auto;
+        max-height: 70vh;
+    }
+    
+    .modal-footer {
+        padding: 20px;
+        border-top: 1px solid #eee;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+    
+    .close {
+        font-size: 28px;
+        font-weight: bold;
+        color: #aaa;
+        cursor: pointer;
+    }
+    
+    .close:hover {
+        color: #333;
+    }
+    
+    /* Section styles */
+    .content-section {
+        display: none;
+        padding: 20px;
+    }
+    
+    .content-section.active {
+        display: block;
+    }
+    
+    /* Table styles */
+    .table-responsive {
+        overflow-x: auto;
+    }
+    
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    table th, table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+    
+    table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    /* Navigation styles */
+    .nav-link {
+        display: block;
+        padding: 10px 15px;
+        color: #2c3e50;
+        text-decoration: none;
+        border-radius: 4px;
+        margin: 2px 0;
+        transition: all 0.3s;
+    }
+    
+    .nav-link:hover {
+        background: #f8f9fa;
+        color: #3498db;
+    }
+    
+    .nav-link.active {
+        background: #3498db;
+        color: white;
+    }
+    
+    .nav-link.active:hover {
+        background: #2980b9;
     }
 `;
 document.head.appendChild(style);
