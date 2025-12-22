@@ -1454,101 +1454,128 @@
                     </div>
                 </div>
                 
-             <!-- Grade Section - Balanced Wide -->
-<div class="grade-section-balanced">
-    <h4><i class="fas fa-award"></i> FINAL GRADE</h4>
+        <!-- Grade Section - Professional -->
+<div class="grade-section-professional">
+    <div class="grade-header">
+        <i class="fas fa-award grade-icon"></i>
+        <h4>ACADEMIC ASSESSMENT</h4>
+    </div>
     
-    <div class="grade-display-balanced">
+    <div class="grade-display-professional">
         <!-- Main Grade Display -->
-        <div class="grade-main-balanced">
-            <div id="gradeDisplay" class="grade-badge-balanced grade-credit" title="Good - Above average achievement (70% - 84%)">
-                CREDIT
-            </div>
-            <div class="grade-details-balanced">
-                <div class="grade-percentage-balanced">
-                    <i class="fas fa-percentage"></i> 
-                   <span id="percentageDisplay" class="percentage-value">0.00%</span>  <!-- CHANGED ID -->
+        <div class="grade-main-professional">
+            <div class="grade-badge-container">
+                <div id="gradeDisplay" class="grade-badge-professional" title="Enter score to calculate grade">
+                    --
                 </div>
-                <div class="grade-desc-balanced">
-                    <i class="fas fa-info-circle"></i>
-                    <span id="marksGradeDescription">--</span>  <!-- CHANGED ID -->
+                <div class="grade-status">
+                    <span class="grade-label">Grade</span>
                 </div>
             </div>
-        </div>
-        
-        <!-- Grade Scale - Compact -->
-        <div class="grade-scale-balanced">
-            <div class="scale-title-balanced">
-                <i class="fas fa-ruler"></i> GRADING SCALE
-            </div>
-            <div class="scale-list-balanced">
-                <div class="scale-item-balanced grade-distinction">
-                    <span class="scale-grade">DISTINCTION</span>
-                    <span class="scale-range">85% - 100%</span>
+            
+            <div class="grade-details-professional">
+                <div class="grade-percentage-professional">
+                    <div class="percentage-header">
+                        <i class="fas fa-chart-line percentage-icon"></i>
+                        <span class="percentage-label">Score Percentage</span>
+                    </div>
+                    <div id="percentageDisplay" class="percentage-value-professional">
+                        0.00%
+                    </div>
                 </div>
-                <div class="scale-item-balanced grade-credit active">
-                    <span class="scale-grade">CREDIT</span>
-                    <span class="scale-range">70% - 84%</span>
-                    <span class="current-indicator">✓ Current</span>
-                </div>
-                <div class="scale-item-balanced grade-pass">
-                    <span class="scale-grade">PASS</span>
-                    <span class="scale-range">50% - 69%</span>
-                </div>
-                <div class="scale-item-balanced grade-fail">
-                    <span class="scale-grade">FAIL</span>
-                    <span class="scale-range">0% - 49%</span>
+                
+                <div class="grade-description-professional">
+                    <div class="description-header">
+                        <i class="fas fa-info-circle description-icon"></i>
+                        <span class="description-label">Performance Level</span>
+                    </div>
+                    <div id="marksGradeDescription" class="description-text">
+                        Enter student score above
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Additional Information Section -->
-<div class="additional-info-balanced">
-    <h4><i class="fas fa-info-circle"></i> ADDITIONAL INFORMATION</h4>
-    
-    <div class="form-group-balanced">
-        <label class="large-label">
-            <i class="fas fa-comment"></i> REMARKS
-            <small class="text-muted">(Optional)</small>
-        </label>
-        <textarea id="marksRemarks" class="form-control-textarea-balanced" rows="3" 
-                  placeholder="Enter any additional remarks or comments..."></textarea>
+<!-- Additional Information Section - Professional -->
+<div class="additional-info-professional">
+    <div class="info-header">
+        <i class="fas fa-file-alt info-icon"></i>
+        <h4>ADDITIONAL DETAILS</h4>
     </div>
     
-    <div class="bottom-options-balanced">
-        <div class="visibility-balanced">
-            <input type="checkbox" id="visibleToStudent" class="visibility-checkbox-balanced" checked>
-            <label for="visibleToStudent" class="visibility-label-balanced">
-                <i class="fas fa-eye"></i> Visible to student
-            </label>
-            <small class="visibility-hint-balanced">
-                Student can view this mark in their student portal
-            </small>
+    <div class="form-section-professional">
+        <div class="form-group-professional">
+            <div class="form-label-group">
+                <i class="fas fa-comment-alt label-icon"></i>
+                <label class="form-label-professional">
+                    Assessment Remarks
+                    <span class="optional-badge">Optional</span>
+                </label>
+            </div>
+            <textarea id="marksRemarks" class="form-textarea-professional" rows="3" 
+                      placeholder="Add any additional notes or comments about this assessment..."></textarea>
+            <div class="form-hint">
+                <i class="fas fa-info-circle hint-icon"></i>
+                These remarks are for internal reference
+            </div>
         </div>
         
-        <div class="quick-tips-balanced">
-            <div class="tips-title">
-                <i class="fas fa-lightbulb"></i> Quick Tips:
-            </div>
-            <div class="tips-list">
-                <span class="tip-item">• All * fields are required</span>
-                <span class="tip-item">• Grade auto-calculated</span>
-                <span class="tip-item">• Adjust max score as needed</span>
+        <div class="visibility-section-professional">
+            <div class="visibility-toggle">
+                <div class="toggle-container">
+                    <input type="checkbox" id="visibleToStudent" class="toggle-input" checked>
+                    <label for="visibleToStudent" class="toggle-label">
+                        <span class="toggle-track"></span>
+                        <span class="toggle-thumb"></span>
+                    </label>
+                </div>
+                <div class="visibility-details">
+                    <div class="visibility-header">
+                        <i class="fas fa-eye visibility-icon"></i>
+                        <span class="visibility-label">Student Visibility</span>
+                        <span class="visibility-status" id="visibilityStatus">ON</span>
+                    </div>
+                    <div class="visibility-description">
+                        Student can view this assessment result in their portal
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal Footer -->
-<div class="modal-footer-balanced">
-    <button type="button" class="btn btn-secondary-balanced" onclick="app.marks.closeModal('marksModal')">
-        <i class="fas fa-times"></i> Cancel
-    </button>
-    <button type="submit" class="btn btn-primary-balanced">
-        <i class="fas fa-save"></i> Save Marks
-    </button>
+<!-- Modal Footer - Professional -->
+<div class="modal-footer-professional">
+    <div class="footer-actions">
+        <button type="button" class="btn-action btn-cancel-professional" onclick="app.marks.closeModal('marksModal')">
+            <div class="btn-content">
+                <i class="fas fa-times btn-icon"></i>
+                <span class="btn-text">Cancel</span>
+            </div>
+            <div class="btn-hint">Discard changes and close</div>
+        </button>
+        
+        <button type="submit" class="btn-action btn-save-professional">
+            <div class="btn-content">
+                <i class="fas fa-check-circle btn-icon"></i>
+                <span class="btn-text">Save Assessment</span>
+            </div>
+            <div class="btn-hint">Save changes to student record</div>
+        </button>
+    </div>
+    
+    <div class="footer-info">
+        <div class="info-item">
+            <i class="fas fa-asterisk required-icon"></i>
+            <span>Required fields marked with *</span>
+        </div>
+        <div class="info-item">
+            <i class="fas fa-sync-alt auto-icon"></i>
+            <span>Grades calculated automatically</span>
+        </div>
+    </div>
 </div>
     
  <!-- Edit Marks Modal -->
