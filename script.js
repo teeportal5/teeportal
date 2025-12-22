@@ -1993,33 +1993,46 @@ initializeSettingsTabs() {
         });
     }
 
-    validateGradingScale(gradingScale) {
-        const grades = Object.keys(gradingScale).sort();
+  validateGradingScale(gradingScale) {
+    const grades = Object.keys(gradingScale).sort();
+    
+    if (grades.length === 0) {
+        throw new Error('Grading scale must have at least one grade');
+    }
+    
+    // **REMOVE the strict gap/overlap check - academic scales can have gaps!**
+    // Replace with a warning system instead
+    for (let i = 0; i < grades.length - 1; i++) {
+        const currentGrade = gradingScale[grades[i]];
+        const nextGrade = gradingScale[grades[i + 1]];
         
-        if (grades.length === 0) {
-            throw new Error('Grading scale must have at least one grade');
+        // Check for overlaps (bad) but allow gaps (okay)
+        if (currentGrade.max >= nextGrade.min) {
+            throw new Error(`Overlap detected: ${grades[i]} (${currentGrade.max}%) overlaps with ${grades[i + 1]} (${nextGrade.min}%)`);
         }
         
-        // Check for gaps or overlaps
-        for (let i = 0; i < grades.length - 1; i++) {
-            const currentGrade = gradingScale[grades[i]];
-            const nextGrade = gradingScale[grades[i + 1]];
-            
-            if (currentGrade.max !== nextGrade.min - 1) {
-                throw new Error(`Gap or overlap between ${grades[i]} (${currentGrade.max}%) and ${grades[i + 1]} (${nextGrade.min}%)`);
-            }
-        }
-        
-        // Ensure F grade covers 0-49%
-        if (!gradingScale['F'] || gradingScale['F'].min !== 0 || gradingScale['F'].max < 49) {
-            throw new Error('F grade must cover 0-49% range');
-        }
-        
-        // Ensure A grade covers up to 100%
-        if (!gradingScale['A'] || gradingScale['A'].max !== 100) {
-            throw new Error('A grade must cover up to 100%');
+        // Just warn about gaps, don't throw error
+        if (currentGrade.max < nextGrade.min - 1) {
+            console.warn(`Note: ${nextGrade.min - currentGrade.max - 1}% gap between ${grades[i]} and ${grades[i + 1]}`);
         }
     }
+    
+    // Make F grade requirement optional or just a warning
+    if (!gradingScale['F']) {
+        console.warn('Warning: F grade (Fail) is recommended for complete grading scale');
+    } else if (gradingScale['F'].min > 0) {
+        console.warn(`Note: F grade starts at ${gradingScale['F'].min}% (typically starts at 0%)`);
+    }
+    
+    // Make A grade requirement optional
+    if (!gradingScale['A']) {
+        console.warn('Warning: A grade (Excellent) is recommended');
+    } else if (gradingScale['A'].max !== 100) {
+        console.warn(`Note: A grade ends at ${gradingScale['A'].max}% (typically ends at 100%)`);
+    }
+    
+    return true; // Always return true if we get here
+}
     
     removeGradingScaleRow(grade) {
         if (!confirm(`Remove grade ${grade} from the grading scale?`)) {
