@@ -2,41 +2,293 @@
 class ReportsManager {
     constructor(db) {
         this.db = db;
+        this.currentFilters = {
+            year: 'all',
+            program: 'all',
+            course: 'all',
+            semester: 'all',
+            status: 'all',
+            intake: 'all',
+            dateFrom: null,
+            dateTo: null
+        };
+        this.charts = {};
     }
     
-    // ==================== MAIN REPORT GENERATION ====================
+    // ==================== INITIALIZATION ====================
     
-    async generateReport() {
+    async initializeReportsUI() {
         try {
-            const reportType = document.getElementById('reportType').value;
-            const program = document.getElementById('reportProgram').value;
-            const intakeYear = document.getElementById('reportIntake').value;
-            const format = document.getElementById('reportFormat').value;
+            console.log('📊 Initializing Reports UI...');
             
-            if (!reportType) {
-                this.showToast('Please select a report type', 'warning');
-                return;
+            // Populate all dropdowns
+            await this.populateFilters();
+            await this.populateReportSelectors();
+            
+            // Set up event listeners
+            this.setupEventListeners();
+            
+            // Load initial statistics
+            await this.updateStatistics();
+            
+            // Set default dates
+            this.setDefaultDates();
+            
+            console.log('✅ Reports UI initialized');
+        } catch (error) {
+            console.error('Error initializing reports UI:', error);
+        }
+    }
+    
+    async populateFilters() {
+        try {
+            // Populate Year filter
+            const yearSelect = document.getElementById('filterYear');
+            if (yearSelect) {
+                const currentYear = new Date().getFullYear();
+                for (let year = currentYear; year >= currentYear - 10; year--) {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = `${year}-${year + 1}`;
+                    yearSelect.appendChild(option);
+                }
             }
             
-            console.log(`📊 Generating ${reportType} report...`);
+            // Populate Program filter
+            const programSelect = document.getElementById('filterProgram');
+            if (programSelect) {
+                const programs = await this.db.getPrograms();
+                programs.forEach(program => {
+                    const option = document.createElement('option');
+                    option.value = program;
+                    option.textContent = program;
+                    programSelect.appendChild(option);
+                });
+            }
+            
+            // Populate Course filter
+            const courseSelect = document.getElementById('filterCourse');
+            if (courseSelect) {
+                const courses = await this.db.getCourses();
+                courses.forEach(course => {
+                    const option = document.createElement('option');
+                    option.value = course.id;
+                    option.textContent = `${course.course_code} - ${course.course_name}`;
+                    courseSelect.appendChild(option);
+                });
+            }
+            
+            // Populate Intake filter
+            const intakeSelect = document.getElementById('filterIntake');
+            if (intakeSelect) {
+                const students = await this.db.getStudents();
+                const intakeYears = [...new Set(students.map(s => s.intake_year))]
+                    .sort((a, b) => b - a);
+                
+                intakeYears.forEach(year => {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year;
+                    intakeSelect.appendChild(option);
+                });
+            }
+            
+            // Populate Transcript Student selector
+            const transcriptStudent = document.getElementById('transcriptStudent');
+            if (transcriptStudent) {
+                const students = await this.db.getStudents();
+                students.forEach(student => {
+                    const option = document.createElement('option');
+                    option.value = student.id;
+                    option.textContent = `${student.reg_number} - ${student.full_name}`;
+                    transcriptStudent.appendChild(option);
+                });
+            }
+            
+        } catch (error) {
+            console.error('Error populating filters:', error);
+        }
+    }
+    
+    async populateReportSelectors() {
+        // Populate Student Report Type options
+        const studentReportType = document.getElementById('studentReportType');
+        if (studentReportType) {
+            // Already has options in HTML
+        }
+        
+        // Populate Academic Report Type options
+        const academicReportType = document.getElementById('academicReportType');
+        if (academicReportType) {
+            // Already has options in HTML
+        }
+    }
+    
+    setDefaultDates() {
+        const dateFrom = document.getElementById('filterDateFrom');
+        const dateTo = document.getElementById('filterDateTo');
+        
+        if (dateFrom) {
+            // Set to 1 year ago
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+            dateFrom.valueAsDate = oneYearAgo;
+        }
+        
+        if (dateTo) {
+            // Set to today
+            dateTo.valueAsDate = new Date();
+        }
+    }
+    
+    setupEventListeners() {
+        // Apply Filters button
+        const applyBtn = document.querySelector('[onclick="app.reports.applyFilters()"]');
+        if (applyBtn) {
+            applyBtn.onclick = () => this.applyFilters();
+        }
+        
+        // Clear Filters button
+        const clearBtn = document.querySelector('[onclick="app.reports.clearFilters()"]');
+        if (clearBtn) {
+            clearBtn.onclick = () => this.clearFilters();
+        }
+        
+        // Refresh button
+        const refreshBtn = document.querySelector('[onclick="app.reports.refreshReports()"]');
+        if (refreshBtn) {
+            refreshBtn.onclick = () => this.refreshReports();
+        }
+        
+        // Update Statistics button
+        const updateStatsBtn = document.querySelector('[onclick="app.reports.updateStatistics()"]');
+        if (updateStatsBtn) {
+            updateStatsBtn.onclick = () => this.updateStatistics();
+        }
+        
+        // Clear Preview button
+        const clearPreviewBtn = document.querySelector('[onclick="app.reports.clearPreview()"]');
+        if (clearPreviewBtn) {
+            clearPreviewBtn.onclick = () => this.clearPreview();
+        }
+        
+        // Load Sample Transcript button
+        const sampleTranscriptBtn = document.querySelector('[onclick="app.reports.loadSampleTranscript()"]');
+        if (sampleTranscriptBtn) {
+            sampleTranscriptBtn.onclick = () => this.loadSampleTranscript();
+        }
+        
+        // Report buttons
+        const studentReportBtn = document.querySelector('[onclick="app.reports.quickStudentReport()"]');
+        if (studentReportBtn) studentReportBtn.onclick = () => this.quickStudentReport();
+        
+        const academicReportBtn = document.querySelector('[onclick="app.reports.quickAcademicReport()"]');
+        if (academicReportBtn) academicReportBtn.onclick = () => this.quickAcademicReport();
+        
+        const transcriptBtn = document.querySelector('[onclick="app.reports.generateTranscript()"]');
+        if (transcriptBtn) transcriptBtn.onclick = () => this.generateTranscript();
+        
+        const bulkExportBtn = document.querySelector('[onclick="app.reports.bulkExport()"]');
+        if (bulkExportBtn) bulkExportBtn.onclick = () => this.bulkExport();
+        
+        const previewStudentBtn = document.querySelector('[onclick="app.reports.previewStudentReport()"]');
+        if (previewStudentBtn) previewStudentBtn.onclick = () => this.previewStudentReport();
+        
+        const previewAcademicBtn = document.querySelector('[onclick="app.reports.previewAcademicReport()"]');
+        if (previewAcademicBtn) previewAcademicBtn.onclick = () => this.previewAcademicReport();
+        
+        const previewTranscriptBtn = document.querySelector('[onclick="app.reports.previewTranscript()"]');
+        if (previewTranscriptBtn) previewTranscriptBtn.onclick = () => this.previewTranscript();
+    }
+    
+    // ==================== FILTER FUNCTIONS ====================
+    
+    async applyFilters() {
+        try {
+            console.log('🔍 Applying filters...');
+            
+            // Get filter values
+            this.currentFilters = {
+                year: this.getSafeElementValue('filterYear', 'all'),
+                program: this.getSafeElementValue('filterProgram', 'all'),
+                course: this.getSafeElementValue('filterCourse', 'all'),
+                semester: this.getSafeElementValue('filterSemester', 'all'),
+                status: this.getSafeElementValue('filterStatus', 'all'),
+                intake: this.getSafeElementValue('filterIntake', 'all'),
+                dateFrom: document.getElementById('filterDateFrom')?.value || null,
+                dateTo: document.getElementById('filterDateTo')?.value || null
+            };
+            
+            console.log('Current filters:', this.currentFilters);
+            
+            // Update statistics with filters
+            await this.updateStatistics();
+            
+            this.showToast('Filters applied successfully', 'success');
+            
+        } catch (error) {
+            console.error('Error applying filters:', error);
+            this.showToast('Error applying filters', 'error');
+        }
+    }
+    
+    clearFilters() {
+        try {
+            // Reset all filters to "all"
+            document.getElementById('filterYear').value = 'all';
+            document.getElementById('filterProgram').value = 'all';
+            document.getElementById('filterCourse').value = 'all';
+            document.getElementById('filterSemester').value = 'all';
+            document.getElementById('filterStatus').value = 'all';
+            document.getElementById('filterIntake').value = 'all';
+            
+            // Reset dates
+            this.setDefaultDates();
+            
+            // Clear current filters
+            this.currentFilters = {
+                year: 'all',
+                program: 'all',
+                course: 'all',
+                semester: 'all',
+                status: 'all',
+                intake: 'all',
+                dateFrom: null,
+                dateTo: null
+            };
+            
+            // Update statistics
+            this.updateStatistics();
+            
+            this.showToast('Filters cleared', 'info');
+            
+        } catch (error) {
+            console.error('Error clearing filters:', error);
+            this.showToast('Error clearing filters', 'error');
+        }
+    }
+    
+    // ==================== REPORT GENERATION ====================
+    
+    async quickStudentReport() {
+        try {
+            const reportType = this.getSafeElementValue('studentReportType', 'list');
+            const format = this.getSafeElementValue('studentReportFormat', 'csv');
+            
+            console.log(`📊 Generating ${reportType} student report...`);
             
             let data;
             let fileName;
             
             switch(reportType) {
-                case 'student':
-                    data = await this.generateStudentListReport(program, intakeYear);
+                case 'list':
+                    data = await this.generateStudentListReport();
                     fileName = `student-list-${new Date().toISOString().split('T')[0]}`;
-                    break;
-                    
-                case 'marks':
-                    data = await this.generateMarksReport(program, intakeYear);
-                    fileName = `academic-marks-${new Date().toISOString().split('T')[0]}`;
                     break;
                     
                 case 'enrollment':
                     data = await this.generateEnrollmentReport();
-                    fileName = `enrollment-report-${new Date().toISOString().split('T')[0]}`;
+                    fileName = `enrollment-stats-${new Date().toISOString().split('T')[0]}`;
                     break;
                     
                 case 'graduation':
@@ -44,140 +296,280 @@ class ReportsManager {
                     fileName = `graduation-report-${new Date().toISOString().split('T')[0]}`;
                     break;
                     
-                case 'transcript':
-                    await this.generateTranscriptReport();
-                    return;
+                case 'demographics':
+                    data = await this.generateDemographicsReport();
+                    fileName = `demographics-report-${new Date().toISOString().split('T')[0]}`;
+                    break;
                     
                 default:
-                    this.showToast('Invalid report type selected', 'error');
-                    return;
+                    throw new Error('Invalid report type');
             }
             
-            if (format === 'excel') {
-                await this.exportToExcel(data, fileName);
-            } else if (format === 'pdf') {
-                await this.exportToPDF(data, fileName, reportType);
-            } else {
-                await this.exportToCSV(data, fileName);
-            }
+            // Export based on format
+            await this.exportData(data, fileName, format);
             
             this.showToast(`${reportType} report generated successfully`, 'success');
-            await this.db.logActivity('report_generated', `Generated ${reportType} report`);
+            await this.db.logActivity('report_generated', `Generated ${reportType} student report`);
             
-        } catch (error) {
-            console.error('Error generating report:', error);
-            this.showToast('Error generating report', 'error');
-        }
-    }
-    
-    // ==================== BACKWARD COMPATIBILITY METHODS ====================
-    
-    async generateStudentReport() {
-        try {
-            console.log('📊 Generating student report...');
-            
-            // Set report type to student
-            const reportType = document.getElementById('reportType');
-            if (reportType) reportType.value = 'student';
-            
-            // Call the main generateReport method
-            return await this.generateReport();
         } catch (error) {
             console.error('Error generating student report:', error);
             this.showToast('Error generating student report', 'error');
         }
     }
     
-    async generateAcademicReport() {
+    async quickAcademicReport() {
         try {
-            console.log('📊 Generating academic report...');
+            const reportType = this.getSafeElementValue('academicReportType', 'marks');
+            const format = this.getSafeElementValue('academicReportFormat', 'csv');
             
-            // Set report type to marks
-            const reportType = document.getElementById('reportType');
-            if (reportType) reportType.value = 'marks';
+            console.log(`📊 Generating ${reportType} academic report...`);
             
-            // Call the main generateReport method
-            return await this.generateReport();
+            let data;
+            let fileName;
+            
+            switch(reportType) {
+                case 'marks':
+                    data = await this.generateMarksReport();
+                    fileName = `academic-marks-${new Date().toISOString().split('T')[0]}`;
+                    break;
+                    
+                case 'performance':
+                    data = await this.generatePerformanceReport();
+                    fileName = `performance-analysis-${new Date().toISOString().split('T')[0]}`;
+                    break;
+                    
+                case 'grades':
+                    data = await this.generateGradeDistributionReport();
+                    fileName = `grade-distribution-${new Date().toISOString().split('T')[0]}`;
+                    break;
+                    
+                case 'coursewise':
+                    data = await this.generateCoursewiseReport();
+                    fileName = `coursewise-results-${new Date().toISOString().split('T')[0]}`;
+                    break;
+                    
+                default:
+                    throw new Error('Invalid report type');
+            }
+            
+            // Export based on format
+            await this.exportData(data, fileName, format);
+            
+            this.showToast(`${reportType} report generated successfully`, 'success');
+            await this.db.logActivity('report_generated', `Generated ${reportType} academic report`);
+            
         } catch (error) {
             console.error('Error generating academic report:', error);
             this.showToast('Error generating academic report', 'error');
         }
     }
     
-    async exportAllData() {
+    async generateTranscript() {
         try {
-            console.log('📊 Exporting all data...');
+            const studentId = this.getSafeElementValue('transcriptStudent');
+            const format = this.getSafeElementValue('transcriptFormat', 'pdf');
             
-            // Get all data
-            const students = await this.db.getStudents();
-            const courses = await this.db.getCourses();
-            const marks = await this.db.getMarksTableData();
-            const settings = this.db.getDefaultSettings();
+            if (!studentId) {
+                this.showToast('Please select a student', 'warning');
+                return;
+            }
             
-            const data = {
-                students: students,
-                courses: courses,
-                marks: marks,
-                settings: settings,
-                exportDate: new Date().toISOString(),
-                version: '1.0',
-                recordCounts: {
-                    students: students.length,
-                    courses: courses.length,
-                    marks: marks.length
-                }
-            };
+            console.log(`📄 Generating transcript for student ID: ${studentId}`);
             
-            // Convert to JSON string
-            const jsonStr = JSON.stringify(data, null, 2);
+            const data = await this.generateTranscriptData(studentId);
             
-            // Create download
-            const blob = new Blob([jsonStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
+            if (format === 'pdf') {
+                await this.exportTranscriptToPDF(data);
+            } else {
+                await this.exportData(data.courses, `transcript-${data.student.regNumber}`, format);
+            }
             
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `teeportal-backup-${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            
-            // Clean up
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-            
-            this.showToast('All data exported successfully', 'success');
-            await this.db.logActivity('data_exported', 'Exported all data as JSON backup');
+            this.showToast('Transcript generated successfully', 'success');
+            await this.db.logActivity('transcript_generated', `Generated transcript for ${data.student.regNumber}`);
             
         } catch (error) {
-            console.error('Error exporting all data:', error);
-            this.showToast('Error exporting data', 'error');
+            console.error('Error generating transcript:', error);
+            this.showToast('Error generating transcript', 'error');
         }
     }
     
-    // ==================== REPORT TYPES ====================
-    
-    async generateStudentListReport(program = 'all', intakeYear = 'all') {
+    async bulkExport() {
         try {
-            const supabase = await this.db.ensureConnected();
-            let query = supabase
-                .from('students')
-                .select('*')
-                .order('reg_number', { ascending: true });
+            const exportType = this.getSafeElementValue('bulkExportType', 'json');
             
-            if (program !== 'all') {
-                query = query.eq('program', program);
+            console.log(`📦 Starting bulk export (${exportType})...`);
+            
+            switch(exportType) {
+                case 'json':
+                    await this.exportAllData();
+                    break;
+                    
+                case 'excel':
+                    await this.exportAllToExcel();
+                    break;
+                    
+                case 'csv_all':
+                    await this.exportAllToCSV();
+                    break;
+                    
+                case 'pdf_all':
+                    await this.exportAllToPDF();
+                    break;
+                    
+                default:
+                    throw new Error('Invalid export type');
             }
             
-            if (intakeYear !== 'all') {
-                query = query.eq('intake_year', parseInt(intakeYear));
+        } catch (error) {
+            console.error('Error in bulk export:', error);
+            this.showToast('Error in bulk export', 'error');
+        }
+    }
+    
+    // ==================== PREVIEW FUNCTIONS ====================
+    
+    async previewStudentReport() {
+        try {
+            const reportType = this.getSafeElementValue('studentReportType', 'list');
+            
+            let data;
+            let title;
+            
+            switch(reportType) {
+                case 'list':
+                    data = await this.generateStudentListReport();
+                    title = 'Student List Preview';
+                    break;
+                    
+                case 'enrollment':
+                    data = await this.generateEnrollmentReport();
+                    title = 'Enrollment Statistics Preview';
+                    break;
+                    
+                case 'graduation':
+                    data = await this.generateGraduationReport();
+                    title = 'Graduation Report Preview';
+                    break;
+                    
+                case 'demographics':
+                    data = await this.generateDemographicsReport();
+                    title = 'Demographics Report Preview';
+                    break;
+                    
+                default:
+                    this.showToast('Invalid report type', 'error');
+                    return;
             }
             
-            const { data, error } = await query;
+            this.previewReportData(data, title);
             
-            if (error) throw error;
+        } catch (error) {
+            console.error('Error previewing student report:', error);
+            this.showToast('Error previewing report', 'error');
+        }
+    }
+    
+    async previewAcademicReport() {
+        try {
+            const reportType = this.getSafeElementValue('academicReportType', 'marks');
             
-            return data.map(student => ({
-                'Reg Number': student.reg_number,
+            let data;
+            let title;
+            
+            switch(reportType) {
+                case 'marks':
+                    data = await this.generateMarksReport();
+                    title = 'Academic Marks Preview';
+                    break;
+                    
+                case 'performance':
+                    data = await this.generatePerformanceReport();
+                    title = 'Performance Analysis Preview';
+                    break;
+                    
+                case 'grades':
+                    data = await this.generateGradeDistributionReport();
+                    title = 'Grade Distribution Preview';
+                    break;
+                    
+                case 'coursewise':
+                    data = await this.generateCoursewiseReport();
+                    title = 'Course-wise Results Preview';
+                    break;
+                    
+                default:
+                    this.showToast('Invalid report type', 'error');
+                    return;
+            }
+            
+            this.previewReportData(data, title);
+            
+        } catch (error) {
+            console.error('Error previewing academic report:', error);
+            this.showToast('Error previewing report', 'error');
+        }
+    }
+    
+    async previewTranscript() {
+        try {
+            const studentId = this.getSafeElementValue('transcriptStudent');
+            
+            if (!studentId) {
+                this.showToast('Please select a student', 'warning');
+                return;
+            }
+            
+            const data = await this.generateTranscriptData(studentId);
+            this.previewTranscriptData(data);
+            
+        } catch (error) {
+            console.error('Error previewing transcript:', error);
+            this.showToast('Error previewing transcript', 'error');
+        }
+    }
+    
+    async loadSampleTranscript() {
+        try {
+            // Get first student as sample
+            const students = await this.db.getStudents();
+            if (students.length > 0) {
+                const sampleStudent = students[0];
+                document.getElementById('transcriptStudent').value = sampleStudent.id;
+                await this.previewTranscript();
+                this.showToast('Loaded sample transcript', 'info');
+            } else {
+                this.showToast('No students found', 'warning');
+            }
+        } catch (error) {
+            console.error('Error loading sample transcript:', error);
+            this.showToast('Error loading sample', 'error');
+        }
+    }
+    
+    clearPreview() {
+        const previewDiv = document.getElementById('reportPreview');
+        if (previewDiv) {
+            previewDiv.innerHTML = `
+                <div class="text-center text-muted p-4">
+                    <i class="fas fa-chart-line fa-3x mb-3"></i>
+                    <p>Select a report type and click "Preview" to see a sample here</p>
+                    <small>Preview shows first 10 records only</small>
+                </div>
+            `;
+        }
+    }
+    
+    // ==================== DATA GENERATION FUNCTIONS ====================
+    
+    async generateStudentListReport() {
+        try {
+            const students = await this.db.getStudents();
+            
+            // Apply filters
+            let filteredStudents = this.applyStudentFilters(students);
+            
+            return filteredStudents.map(student => ({
+                'Registration Number': student.reg_number,
                 'Full Name': student.full_name,
                 'Email': student.email,
                 'Phone': student.phone,
@@ -186,6 +578,7 @@ class ReportsManager {
                 'Status': student.status,
                 'Date of Birth': student.dob ? new Date(student.dob).toLocaleDateString() : '',
                 'Gender': student.gender,
+                'Address': student.address || '',
                 'Created Date': student.created_at ? new Date(student.created_at).toLocaleDateString() : ''
             }));
             
@@ -195,64 +588,24 @@ class ReportsManager {
         }
     }
     
-    async generateMarksReport(program = 'all', intakeYear = 'all') {
-        try {
-            const marks = await this.db.getMarksTableData();
-            
-            let filteredMarks = marks;
-            
-            if (program !== 'all') {
-                filteredMarks = filteredMarks.filter(mark => 
-                    mark.students?.program === program
-                );
-            }
-            
-            if (intakeYear !== 'all') {
-                filteredMarks = filteredMarks.filter(mark => 
-                    mark.students?.intake_year === parseInt(intakeYear)
-                );
-            }
-            
-            return filteredMarks.map(mark => {
-                const student = mark.students || {};
-                const course = mark.courses || {};
-                
-                return {
-                    'Reg Number': student.reg_number,
-                    'Student Name': student.full_name,
-                    'Course Code': course.course_code,
-                    'Course Name': course.course_name,
-                    'Assessment Type': mark.assessment_type,
-                    'Assessment Name': mark.assessment_name,
-                    'Score': mark.score,
-                    'Max Score': mark.max_score,
-                    'Percentage': mark.percentage,
-                    'Grade': mark.grade,
-                    'Grade Points': mark.grade_points,
-                    'Remarks': mark.remarks,
-                    'Date Entered': mark.created_at ? new Date(mark.created_at).toLocaleDateString() : ''
-                };
-            });
-            
-        } catch (error) {
-            console.error('Error generating marks report:', error);
-            throw error;
-        }
-    }
-    
     async generateEnrollmentReport() {
         try {
             const students = await this.db.getStudents();
             
+            // Apply filters
+            let filteredStudents = this.applyStudentFilters(students);
+            
             const enrollmentStats = {};
             
-            students.forEach(student => {
+            filteredStudents.forEach(student => {
                 const key = `${student.program}-${student.intake_year}`;
                 if (!enrollmentStats[key]) {
                     enrollmentStats[key] = {
                         program: student.program,
                         intakeYear: student.intake_year,
                         totalStudents: 0,
+                        male: 0,
+                        female: 0,
                         active: 0,
                         graduated: 0,
                         withdrawn: 0
@@ -261,6 +614,8 @@ class ReportsManager {
                 
                 enrollmentStats[key].totalStudents++;
                 
+                if (student.gender === 'Male') enrollmentStats[key].male++;
+                if (student.gender === 'Female') enrollmentStats[key].female++;
                 if (student.status === 'active') enrollmentStats[key].active++;
                 if (student.status === 'graduated') enrollmentStats[key].graduated++;
                 if (student.status === 'withdrawn') enrollmentStats[key].withdrawn++;
@@ -270,6 +625,8 @@ class ReportsManager {
                 'Program': stat.program,
                 'Intake Year': stat.intakeYear,
                 'Total Students': stat.totalStudents,
+                'Male': stat.male,
+                'Female': stat.female,
                 'Active': stat.active,
                 'Graduated': stat.graduated,
                 'Withdrawn': stat.withdrawn,
@@ -286,7 +643,11 @@ class ReportsManager {
     async generateGraduationReport() {
         try {
             const students = await this.db.getStudents();
-            const graduatedStudents = students.filter(s => s.status === 'graduated');
+            
+            // Apply filters
+            let filteredStudents = this.applyStudentFilters(students);
+            
+            const graduatedStudents = filteredStudents.filter(s => s.status === 'graduated');
             
             const graduationByProgram = {};
             const graduationByYear = {};
@@ -318,13 +679,20 @@ class ReportsManager {
                 'Graduates': count
             }));
             
-            return {
-                programReport,
-                yearReport,
-                totalGraduates: graduatedStudents.length,
-                graduationRate: students.length > 0 ? 
-                    Math.round((graduatedStudents.length / students.length) * 100) + '%' : '0%'
-            };
+            // Return as single array for preview
+            return [
+                ...programReport,
+                ...yearReport,
+                {
+                    'Metric': 'Total Graduates',
+                    'Value': graduatedStudents.length
+                },
+                {
+                    'Metric': 'Graduation Rate',
+                    'Value': filteredStudents.length > 0 ? 
+                        Math.round((graduatedStudents.length / filteredStudents.length) * 100) + '%' : '0%'
+                }
+            ];
             
         } catch (error) {
             console.error('Error generating graduation report:', error);
@@ -332,37 +700,337 @@ class ReportsManager {
         }
     }
     
-    // ==================== TRANSCRIPT REPORT ====================
-    
-    async generateTranscriptReport(studentId = null) {
+    async generateDemographicsReport() {
         try {
-            console.log('📄 Generating transcript report...');
+            const students = await this.db.getStudents();
             
-            // If no student ID provided, show selection modal
-            if (!studentId) {
-                const studentSelect = document.getElementById('transcriptStudent');
-                if (studentSelect && studentSelect.value) {
-                    studentId = studentSelect.value;
-                } else {
-                    this.showToast('Please select a student', 'warning');
-                    return;
+            // Apply filters
+            let filteredStudents = this.applyStudentFilters(students);
+            
+            const demographics = {
+                byGender: {},
+                byProgram: {},
+                byStatus: {},
+                byIntakeYear: {},
+                ageGroups: {
+                    'Under 18': 0,
+                    '18-22': 0,
+                    '23-25': 0,
+                    '26-30': 0,
+                    'Over 30': 0
                 }
-            }
+            };
             
-            // Get student data
+            filteredStudents.forEach(student => {
+                // Gender
+                demographics.byGender[student.gender] = (demographics.byGender[student.gender] || 0) + 1;
+                
+                // Program
+                demographics.byProgram[student.program] = (demographics.byProgram[student.program] || 0) + 1;
+                
+                // Status
+                demographics.byStatus[student.status] = (demographics.byStatus[student.status] || 0) + 1;
+                
+                // Intake Year
+                demographics.byIntakeYear[student.intake_year] = (demographics.byIntakeYear[student.intake_year] || 0) + 1;
+                
+                // Age Group (if DOB is available)
+                if (student.dob) {
+                    const dob = new Date(student.dob);
+                    const age = new Date().getFullYear() - dob.getFullYear();
+                    
+                    if (age < 18) demographics.ageGroups['Under 18']++;
+                    else if (age <= 22) demographics.ageGroups['18-22']++;
+                    else if (age <= 25) demographics.ageGroups['23-25']++;
+                    else if (age <= 30) demographics.ageGroups['26-30']++;
+                    else demographics.ageGroups['Over 30']++;
+                }
+            });
+            
+            // Convert to array format for export
+            const result = [];
+            
+            // Gender breakdown
+            Object.entries(demographics.byGender).forEach(([gender, count]) => {
+                result.push({
+                    'Category': 'Gender',
+                    'Subcategory': gender,
+                    'Count': count,
+                    'Percentage': Math.round((count / filteredStudents.length) * 100) + '%'
+                });
+            });
+            
+            // Program breakdown
+            Object.entries(demographics.byProgram).forEach(([program, count]) => {
+                result.push({
+                    'Category': 'Program',
+                    'Subcategory': program,
+                    'Count': count,
+                    'Percentage': Math.round((count / filteredStudents.length) * 100) + '%'
+                });
+            });
+            
+            return result;
+            
+        } catch (error) {
+            console.error('Error generating demographics report:', error);
+            throw error;
+        }
+    }
+    
+    async generateMarksReport() {
+        try {
+            const marks = await this.db.getMarksTableData();
+            
+            // Apply filters
+            let filteredMarks = this.applyMarksFilters(marks);
+            
+            return filteredMarks.map(mark => {
+                const student = mark.students || {};
+                const course = mark.courses || {};
+                
+                return {
+                    'Registration Number': student.reg_number,
+                    'Student Name': student.full_name,
+                    'Program': student.program,
+                    'Course Code': course.course_code,
+                    'Course Name': course.course_name,
+                    'Assessment Type': mark.assessment_type,
+                    'Assessment Name': mark.assessment_name,
+                    'Score': mark.score,
+                    'Max Score': mark.max_score,
+                    'Percentage': mark.percentage,
+                    'Grade': mark.grade,
+                    'Grade Points': mark.grade_points,
+                    'Remarks': mark.remarks,
+                    'Date Entered': mark.created_at ? new Date(mark.created_at).toLocaleDateString() : '',
+                    'Academic Year': student.intake_year || ''
+                };
+            });
+            
+        } catch (error) {
+            console.error('Error generating marks report:', error);
+            throw error;
+        }
+    }
+    
+    async generatePerformanceReport() {
+        try {
+            const marks = await this.db.getMarksTableData();
+            
+            // Apply filters
+            let filteredMarks = this.applyMarksFilters(marks);
+            
+            // Group by student
+            const studentPerformance = {};
+            
+            filteredMarks.forEach(mark => {
+                const student = mark.students || {};
+                const studentId = student.id;
+                
+                if (!studentId) return;
+                
+                if (!studentPerformance[studentId]) {
+                    studentPerformance[studentId] = {
+                        regNumber: student.reg_number,
+                        name: student.full_name,
+                        program: student.program,
+                        totalMarks: 0,
+                        totalMaxScore: 0,
+                        courses: {},
+                        gradeCounts: {}
+                    };
+                }
+                
+                // Add to totals
+                studentPerformance[studentId].totalMarks += mark.score || 0;
+                studentPerformance[studentId].totalMaxScore += mark.max_score || 0;
+                
+                // Track courses
+                const courseId = mark.course_id;
+                if (!studentPerformance[studentId].courses[courseId]) {
+                    studentPerformance[studentId].courses[courseId] = {
+                        courseCode: mark.courses?.course_code,
+                        totalScore: 0,
+                        totalMax: 0,
+                        count: 0
+                    };
+                }
+                
+                studentPerformance[studentId].courses[courseId].totalScore += mark.score || 0;
+                studentPerformance[studentId].courses[courseId].totalMax += mark.max_score || 0;
+                studentPerformance[studentId].courses[courseId].count++;
+                
+                // Track grades
+                const grade = mark.grade;
+                if (grade) {
+                    studentPerformance[studentId].gradeCounts[grade] = 
+                        (studentPerformance[studentId].gradeCounts[grade] || 0) + 1;
+                }
+            });
+            
+            // Convert to array
+            return Object.values(studentPerformance).map(student => {
+                const totalPercentage = student.totalMaxScore > 0 ? 
+                    (student.totalMarks / student.totalMaxScore) * 100 : 0;
+                
+                // Calculate average per course
+                const courseAverages = Object.values(student.courses).map(course => 
+                    course.totalMax > 0 ? (course.totalScore / course.totalMax) * 100 : 0
+                );
+                
+                const averageCourseScore = courseAverages.length > 0 ?
+                    courseAverages.reduce((a, b) => a + b, 0) / courseAverages.length : 0;
+                
+                // Get most common grade
+                const grades = Object.entries(student.gradeCounts);
+                const mostCommonGrade = grades.length > 0 ?
+                    grades.sort((a, b) => b[1] - a[1])[0][0] : 'N/A';
+                
+                return {
+                    'Registration Number': student.regNumber,
+                    'Student Name': student.name,
+                    'Program': student.program,
+                    'Total Score': student.totalMarks.toFixed(2),
+                    'Total Max Score': student.totalMaxScore.toFixed(2),
+                    'Overall Percentage': totalPercentage.toFixed(2) + '%',
+                    'Average Course Score': averageCourseScore.toFixed(2) + '%',
+                    'Courses Taken': Object.keys(student.courses).length,
+                    'Most Common Grade': mostCommonGrade,
+                    'Performance Level': this.getPerformanceLevel(totalPercentage)
+                };
+            });
+            
+        } catch (error) {
+            console.error('Error generating performance report:', error);
+            throw error;
+        }
+    }
+    
+    async generateGradeDistributionReport() {
+        try {
+            const marks = await this.db.getMarksTableData();
+            
+            // Apply filters
+            let filteredMarks = this.applyMarksFilters(marks);
+            
+            const gradeDistribution = {
+                'A': 0, 'B': 0, 'C': 0, 'D': 0, 'F': 0,
+                'A+': 0, 'A-': 0, 'B+': 0, 'B-': 0,
+                'C+': 0, 'C-': 0, 'D+': 0, 'D-': 0
+            };
+            
+            filteredMarks.forEach(mark => {
+                if (mark.grade && gradeDistribution.hasOwnProperty(mark.grade)) {
+                    gradeDistribution[mark.grade]++;
+                }
+            });
+            
+            const total = Object.values(gradeDistribution).reduce((a, b) => a + b, 0);
+            
+            return Object.entries(gradeDistribution)
+                .filter(([grade, count]) => count > 0)
+                .map(([grade, count]) => ({
+                    'Grade': grade,
+                    'Count': count,
+                    'Percentage': total > 0 ? ((count / total) * 100).toFixed(2) + '%' : '0%'
+                }));
+            
+        } catch (error) {
+            console.error('Error generating grade distribution:', error);
+            throw error;
+        }
+    }
+    
+    async generateCoursewiseReport() {
+        try {
+            const marks = await this.db.getMarksTableData();
+            
+            // Apply filters
+            let filteredMarks = this.applyMarksFilters(marks);
+            
+            // Group by course
+            const courseStats = {};
+            
+            filteredMarks.forEach(mark => {
+                const course = mark.courses || {};
+                const courseId = course.id;
+                
+                if (!courseId) return;
+                
+                if (!courseStats[courseId]) {
+                    courseStats[courseId] = {
+                        courseCode: course.course_code,
+                        courseName: course.course_name,
+                        credits: course.credits || 3,
+                        totalStudents: 0,
+                        totalScore: 0,
+                        totalMaxScore: 0,
+                        grades: {},
+                        assessments: {}
+                    };
+                }
+                
+                courseStats[courseId].totalStudents++;
+                courseStats[courseId].totalScore += mark.score || 0;
+                courseStats[courseId].totalMaxScore += mark.max_score || 0;
+                
+                // Track grades
+                if (mark.grade) {
+                    courseStats[courseId].grades[mark.grade] = 
+                        (courseStats[courseId].grades[mark.grade] || 0) + 1;
+                }
+                
+                // Track assessment types
+                if (mark.assessment_type) {
+                    courseStats[courseId].assessments[mark.assessment_type] = 
+                        (courseStats[courseId].assessments[mark.assessment_type] || 0) + 1;
+                }
+            });
+            
+            // Convert to array
+            return Object.values(courseStats).map(course => {
+                const averageScore = course.totalMaxScore > 0 ?
+                    (course.totalScore / course.totalMaxScore) * 100 : 0;
+                
+                // Find most common grade
+                const gradeEntries = Object.entries(course.grades);
+                const mostCommonGrade = gradeEntries.length > 0 ?
+                    gradeEntries.sort((a, b) => b[1] - a[1])[0][0] : 'N/A';
+                
+                // Calculate pass rate (assuming D and above is pass)
+                const passingGrades = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-'];
+                const passingCount = gradeEntries
+                    .filter(([grade]) => passingGrades.includes(grade))
+                    .reduce((sum, [, count]) => sum + count, 0);
+                
+                const passRate = course.totalStudents > 0 ?
+                    (passingCount / course.totalStudents) * 100 : 0;
+                
+                return {
+                    'Course Code': course.courseCode,
+                    'Course Name': course.courseName,
+                    'Credits': course.credits,
+                    'Total Students': course.totalStudents,
+                    'Average Score': averageScore.toFixed(2) + '%',
+                    'Most Common Grade': mostCommonGrade,
+                    'Pass Rate': passRate.toFixed(2) + '%',
+                    'Assessment Types': Object.keys(course.assessments).join(', ')
+                };
+            });
+            
+        } catch (error) {
+            console.error('Error generating coursewise report:', error);
+            throw error;
+        }
+    }
+    
+    async generateTranscriptData(studentId) {
+        try {
             const student = await this.db.getStudentById(studentId);
-            if (!student) {
-                this.showToast('Student not found', 'error');
-                return;
-            }
+            if (!student) throw new Error('Student not found');
             
-            // Get student's marks
             const marks = await this.db.getMarksByStudent(studentId);
-            
-            if (marks.length === 0) {
-                this.showToast('No marks found for this student', 'warning');
-                return;
-            }
             
             // Group marks by course
             const courses = {};
@@ -370,15 +1038,18 @@ class ReportsManager {
             let totalGradePoints = 0;
             
             marks.forEach(mark => {
-                const courseId = mark.course_id;
+                const course = mark.courses || {};
+                const courseId = course.id;
+                
                 if (!courses[courseId]) {
                     courses[courseId] = {
-                        course_code: mark.courses?.course_code || 'N/A',
-                        course_name: mark.courses?.course_name || 'Unknown Course',
-                        credits: mark.courses?.credits || 3,
+                        courseCode: course.course_code,
+                        courseName: course.course_name,
+                        credits: course.credits || 3,
+                        semester: course.semester || 1,
                         marks: [],
-                        average: 0,
-                        grade: 'N/A'
+                        totalScore: 0,
+                        totalMaxScore: 0
                     };
                 }
                 
@@ -386,184 +1057,314 @@ class ReportsManager {
                     assessment: mark.assessment_name,
                     type: mark.assessment_type,
                     score: mark.score,
-                    max_score: mark.max_score,
+                    maxScore: mark.max_score,
                     percentage: mark.percentage,
                     grade: mark.grade,
                     date: mark.created_at
                 });
+                
+                courses[courseId].totalScore += mark.score || 0;
+                courses[courseId].totalMaxScore += mark.max_score || 0;
             });
             
             // Calculate course averages and GPA
-            Object.values(courses).forEach(course => {
-                if (course.marks.length > 0) {
-                    const totalPercentage = course.marks.reduce((sum, mark) => sum + (mark.percentage || 0), 0);
-                    course.average = totalPercentage / course.marks.length;
-                    course.grade = this.calculateGrade(course.average);
-                    
-                    totalCredits += course.credits;
-                    totalGradePoints += this.getGradePoints(course.grade) * course.credits;
-                }
+            const courseList = Object.values(courses).map(course => {
+                const average = course.totalMaxScore > 0 ?
+                    (course.totalScore / course.totalMaxScore) * 100 : 0;
+                const grade = this.calculateGrade(average);
+                const gradePoints = this.getGradePoints(grade);
+                
+                totalCredits += course.credits;
+                totalGradePoints += gradePoints * course.credits;
+                
+                return {
+                    ...course,
+                    average: average,
+                    grade: grade,
+                    gradePoints: gradePoints
+                };
             });
+            
+            // Sort courses by semester
+            courseList.sort((a, b) => a.semester - b.semester);
             
             const gpa = totalCredits > 0 ? (totalGradePoints / totalCredits).toFixed(2) : 0.00;
             
-            // Generate transcript data
-            const transcriptData = {
+            return {
                 student: {
-                    name: student.full_name,
+                    id: student.id,
                     regNumber: student.reg_number,
+                    name: student.full_name,
                     program: student.program,
                     intakeYear: student.intake_year,
                     status: student.status,
-                    dob: student.dob ? new Date(student.dob).toLocaleDateString() : 'N/A'
+                    dob: student.dob ? new Date(student.dob).toLocaleDateString() : 'N/A',
+                    gender: student.gender,
+                    email: student.email
                 },
-                courses: Object.values(courses),
+                courses: courseList,
                 summary: {
-                    totalCourses: Object.keys(courses).length,
+                    totalCourses: courseList.length,
                     totalCredits: totalCredits,
-                    gpa: gpa,
-                    cgpa: gpa,
+                    gpa: parseFloat(gpa),
+                    cgpa: parseFloat(gpa),
                     dateGenerated: new Date().toLocaleDateString()
                 }
             };
             
-            // Export as PDF
-            await this.exportTranscriptToPDF(transcriptData);
-            
-            this.showToast('Transcript generated successfully', 'success');
-            await this.db.logActivity('transcript_generated', `Generated transcript for ${student.reg_number}`);
-            
         } catch (error) {
-            console.error('Error generating transcript:', error);
-            this.showToast('Error generating transcript', 'error');
+            console.error('Error generating transcript data:', error);
+            throw error;
         }
     }
     
+    // ==================== UTILITY FUNCTIONS ====================
+    
+    getSafeElementValue(elementId, defaultValue = '') {
+        const element = document.getElementById(elementId);
+        return element ? element.value : defaultValue;
+    }
+    
+    applyStudentFilters(students) {
+        let filtered = [...students];
+        
+        // Apply program filter
+        if (this.currentFilters.program !== 'all') {
+            filtered = filtered.filter(s => s.program === this.currentFilters.program);
+        }
+        
+        // Apply intake year filter
+        if (this.currentFilters.intake !== 'all') {
+            filtered = filtered.filter(s => s.intake_year === parseInt(this.currentFilters.intake));
+        }
+        
+        // Apply status filter
+        if (this.currentFilters.status !== 'all') {
+            filtered = filtered.filter(s => s.status === this.currentFilters.status);
+        }
+        
+        return filtered;
+    }
+    
+    applyMarksFilters(marks) {
+        let filtered = [...marks];
+        
+        // Apply program filter via student
+        if (this.currentFilters.program !== 'all') {
+            filtered = filtered.filter(mark => 
+                mark.students?.program === this.currentFilters.program
+            );
+        }
+        
+        // Apply course filter
+        if (this.currentFilters.course !== 'all') {
+            filtered = filtered.filter(mark => 
+                mark.course_id === this.currentFilters.course
+            );
+        }
+        
+        // Apply intake year filter via student
+        if (this.currentFilters.intake !== 'all') {
+            filtered = filtered.filter(mark => 
+                mark.students?.intake_year === parseInt(this.currentFilters.intake)
+            );
+        }
+        
+        // Apply date filters
+        if (this.currentFilters.dateFrom) {
+            const fromDate = new Date(this.currentFilters.dateFrom);
+            filtered = filtered.filter(mark => 
+                !mark.created_at || new Date(mark.created_at) >= fromDate
+            );
+        }
+        
+        if (this.currentFilters.dateTo) {
+            const toDate = new Date(this.currentFilters.dateTo);
+            toDate.setHours(23, 59, 59, 999); // End of day
+            filtered = filtered.filter(mark => 
+                !mark.created_at || new Date(mark.created_at) <= toDate
+            );
+        }
+        
+        return filtered;
+    }
+    
     calculateGrade(percentage) {
-        if (percentage >= 80) return 'A';
+        if (percentage >= 90) return 'A+';
+        if (percentage >= 85) return 'A';
+        if (percentage >= 80) return 'A-';
+        if (percentage >= 75) return 'B+';
         if (percentage >= 70) return 'B';
-        if (percentage >= 60) return 'C';
-        if (percentage >= 50) return 'D';
+        if (percentage >= 65) return 'B-';
+        if (percentage >= 60) return 'C+';
+        if (percentage >= 55) return 'C';
+        if (percentage >= 50) return 'C-';
+        if (percentage >= 45) return 'D+';
+        if (percentage >= 40) return 'D';
+        if (percentage >= 35) return 'D-';
         return 'F';
     }
     
     getGradePoints(grade) {
         const gradePoints = {
-            'A': 4.0,
-            'B': 3.0,
-            'C': 2.0,
-            'D': 1.0,
+            'A+': 4.0, 'A': 4.0, 'A-': 3.7,
+            'B+': 3.3, 'B': 3.0, 'B-': 2.7,
+            'C+': 2.3, 'C': 2.0, 'C-': 1.7,
+            'D+': 1.3, 'D': 1.0, 'D-': 0.7,
             'F': 0.0
         };
         return gradePoints[grade] || 0.0;
     }
     
-    async exportTranscriptToPDF(transcriptData) {
-        if (typeof jspdf === 'undefined') {
-            this.showToast('PDF export requires jsPDF library', 'warning');
-            return;
-        }
-        
-        const { jsPDF } = window.jspdf || {};
-        if (!jsPDF) {
-            this.showToast('jsPDF not loaded', 'error');
-            return;
-        }
-        
-        const doc = new jsPDF();
-        
-        // Header
-        doc.setFontSize(20);
-        doc.text('OFFICIAL TRANSCRIPT', 105, 20, { align: 'center' });
-        
-        doc.setFontSize(10);
-        doc.text('TEEPortal University', 105, 30, { align: 'center' });
-        doc.text('Academic Records Office', 105, 35, { align: 'center' });
-        
-        // Student Info
-        doc.setFontSize(12);
-        doc.text('STUDENT INFORMATION', 20, 50);
-        
-        doc.setFontSize(10);
-        doc.text(`Name: ${transcriptData.student.name}`, 20, 60);
-        doc.text(`Registration Number: ${transcriptData.student.regNumber}`, 20, 65);
-        doc.text(`Program: ${transcriptData.student.program}`, 20, 70);
-        doc.text(`Intake Year: ${transcriptData.student.intakeYear}`, 20, 75);
-        doc.text(`Status: ${transcriptData.student.status}`, 20, 80);
-        
-        // Academic Performance
-        doc.setFontSize(12);
-        doc.text('ACADEMIC PERFORMANCE', 20, 95);
-        
-        // Course table
-        const tableData = [];
-        transcriptData.courses.forEach((course, index) => {
-            tableData.push([
-                index + 1,
-                course.course_code,
-                course.course_name,
-                course.credits.toString(),
-                course.average.toFixed(2) + '%',
-                course.grade,
-                this.getGradePoints(course.grade).toFixed(1)
-            ]);
-        });
-        
-        if (typeof doc.autoTable !== 'undefined') {
-            doc.autoTable({
-                startY: 105,
-                head: [['#', 'Code', 'Course Name', 'Credits', 'Average', 'Grade', 'Grade Points']],
-                body: tableData,
-                theme: 'grid',
-                headStyles: { fillColor: [41, 128, 185] }
-            });
-        } else {
-            // Fallback if autoTable is not available
-            doc.setFontSize(10);
-            let y = 105;
-            transcriptData.courses.forEach((course, index) => {
-                if (index < 15) { // Limit to first 15 courses
-                    doc.text(`${index + 1}. ${course.course_code} - ${course.course_name} (${course.credits} credits) - Grade: ${course.grade}`, 20, y);
-                    y += 7;
-                }
-            });
-            if (transcriptData.courses.length > 15) {
-                doc.text(`... and ${transcriptData.courses.length - 15} more courses`, 20, y);
-            }
-        }
-        
-        // Summary
-        const finalY = (typeof doc.lastAutoTable !== 'undefined' && doc.lastAutoTable.finalY) ? 
-            doc.lastAutoTable.finalY + 20 : 105 + (Math.min(transcriptData.courses.length, 15) * 7) + 20;
-        
-        doc.setFontSize(12);
-        doc.text('SUMMARY', 20, finalY + 10);
-        
-        doc.setFontSize(10);
-        doc.text(`Total Courses: ${transcriptData.summary.totalCourses}`, 20, finalY + 20);
-        doc.text(`Total Credits: ${transcriptData.summary.totalCredits}`, 20, finalY + 25);
-        doc.text(`GPA: ${transcriptData.summary.gpa}`, 20, finalY + 30);
-        doc.text(`Date Generated: ${transcriptData.summary.dateGenerated}`, 20, finalY + 35);
-        
-        // Footer
-        doc.setFontSize(8);
-        const pageHeight = doc.internal.pageSize.height;
-        doc.text('This is an official document. For verification, contact the Academic Records Office.', 
-                 105, pageHeight - 20, { align: 'center' });
-        
-        // Save the PDF
-        const fileName = `transcript-${transcriptData.student.regNumber}-${new Date().toISOString().split('T')[0]}.pdf`;
-        doc.save(fileName);
+    getPerformanceLevel(percentage) {
+        if (percentage >= 80) return 'Excellent';
+        if (percentage >= 70) return 'Good';
+        if (percentage >= 60) return 'Satisfactory';
+        if (percentage >= 50) return 'Needs Improvement';
+        return 'Poor';
     }
     
-    // ==================== EXPORT FORMATS ====================
+    // ==================== PREVIEW RENDERING ====================
     
-    async exportToCSV(data, fileName) {
+    previewReportData(data, title) {
+        const previewDiv = document.getElementById('reportPreview');
+        if (!previewDiv) return;
+        
+        if (!data || data.length === 0) {
+            previewDiv.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> No data available for preview
+                </div>
+            `;
+            return;
+        }
+        
+        const headers = Object.keys(data[0]);
+        const previewData = data.slice(0, 10);
+        
+        let html = `
+            <h5>${title} (${data.length} records)</h5>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead class="table-light">
+                        <tr>
+                            ${headers.map(header => `<th>${header}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        previewData.forEach(row => {
+            html += `
+                <tr>
+                    ${headers.map(header => `
+                        <td>${row[header] || ''}</td>
+                    `).join('')}
+                </tr>
+            `;
+        });
+        
+        html += `
+                    </tbody>
+                </table>
+            </div>
+            <div class="alert alert-info mt-2">
+                <i class="fas fa-info-circle"></i> Showing first 10 of ${data.length} records
+            </div>
+        `;
+        
+        previewDiv.innerHTML = html;
+    }
+    
+    previewTranscriptData(transcriptData) {
+        try {
+            // Update preview elements
+            document.getElementById('previewStudentName').textContent = transcriptData.student.name;
+            document.getElementById('previewRegNumber').textContent = transcriptData.student.regNumber;
+            document.getElementById('previewProgram').textContent = transcriptData.student.program;
+            document.getElementById('previewIntake').textContent = transcriptData.student.intakeYear;
+            document.getElementById('previewStatus').textContent = transcriptData.student.status;
+            
+            // Update status badge color
+            const statusBadge = document.getElementById('previewStatus');
+            statusBadge.className = 'badge ' + (
+                transcriptData.student.status === 'active' ? 'bg-success' :
+                transcriptData.student.status === 'graduated' ? 'bg-primary' :
+                transcriptData.student.status === 'withdrawn' ? 'bg-danger' : 'bg-secondary'
+            );
+            
+            // Update courses table
+            const coursesTbody = document.getElementById('previewCourses');
+            if (transcriptData.courses.length > 0) {
+                coursesTbody.innerHTML = transcriptData.courses.slice(0, 5).map(course => `
+                    <tr>
+                        <td>${course.courseCode}<br><small class="text-muted">${course.courseName}</small></td>
+                        <td><span class="badge bg-info">${course.grade}</span></td>
+                        <td>${course.credits}</td>
+                    </tr>
+                `).join('');
+                
+                if (transcriptData.courses.length > 5) {
+                    coursesTbody.innerHTML += `
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">
+                                ... and ${transcriptData.courses.length - 5} more courses
+                            </td>
+                        </tr>
+                    `;
+                }
+            } else {
+                coursesTbody.innerHTML = `
+                    <tr>
+                        <td colspan="3" class="text-muted text-center">No courses available</td>
+                    </tr>
+                `;
+            }
+            
+            // Update summary
+            document.getElementById('previewGPA').textContent = transcriptData.summary.gpa;
+            document.getElementById('previewCredits').textContent = transcriptData.summary.totalCredits;
+            
+            // Calculate completion percentage (simplified)
+            const completionRate = transcriptData.courses.length > 8 ? '100%' : 
+                Math.round((transcriptData.courses.length / 8) * 100) + '%';
+            document.getElementById('previewCompletion').textContent = completionRate;
+            
+            // Update transcript status
+            document.getElementById('transcriptStatus').textContent = 'Ready';
+            
+        } catch (error) {
+            console.error('Error rendering transcript preview:', error);
+        }
+    }
+    
+    // ==================== EXPORT FUNCTIONS ====================
+    
+    async exportData(data, fileName, format) {
         if (!data || data.length === 0) {
             this.showToast('No data to export', 'warning');
             return;
         }
         
+        switch(format) {
+            case 'csv':
+                await this.exportToCSV(data, fileName);
+                break;
+                
+            case 'excel':
+                await this.exportToExcel(data, fileName);
+                break;
+                
+            case 'pdf':
+                await this.exportToPDF(data, fileName);
+                break;
+                
+            default:
+                await this.exportToCSV(data, fileName);
+        }
+    }
+    
+    async exportToCSV(data, fileName) {
         const headers = Object.keys(data[0]);
         const csvRows = [headers.join(',')];
         
@@ -576,7 +1377,7 @@ class ReportsManager {
             csvRows.push(values.join(','));
         });
         
-        this.downloadCSV(csvRows.join('\n'), `${fileName}.csv`);
+        this.downloadFile(csvRows.join('\n'), `${fileName}.csv`, 'text/csv');
     }
     
     async exportToExcel(data, fileName) {
@@ -586,236 +1387,309 @@ class ReportsManager {
             return;
         }
         
-        const worksheet = XLSX.utils.json_to_sheet(data);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
-        XLSX.writeFile(workbook, `${fileName}.xlsx`);
+        try {
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
+            XLSX.writeFile(workbook, `${fileName}.xlsx`);
+        } catch (error) {
+            console.error('Excel export error:', error);
+            await this.exportToCSV(data, fileName);
+        }
     }
     
-    async exportToPDF(data, fileName, reportType) {
+    async exportToPDF(data, fileName) {
         if (typeof jspdf === 'undefined') {
             this.showToast('PDF export requires jsPDF library', 'warning');
             await this.exportToCSV(data, fileName);
             return;
         }
         
-        const { jsPDF } = window.jspdf || {};
-        if (!jsPDF) {
-            this.showToast('jsPDF not loaded', 'error');
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFontSize(16);
+            doc.text('REPORT', 105, 20, { align: 'center' });
+            doc.setFontSize(12);
+            doc.text(`Generated: ${new Date().toLocaleDateString()}`, 105, 30, { align: 'center' });
+            doc.text(`Records: ${data.length}`, 105, 35, { align: 'center' });
+            
+            if (data.length > 0) {
+                const headers = Object.keys(data[0]);
+                const tableData = data.map(row => headers.map(header => row[header] || ''));
+                
+                if (typeof doc.autoTable !== 'undefined') {
+                    doc.autoTable({
+                        startY: 45,
+                        head: [headers],
+                        body: tableData,
+                        theme: 'grid',
+                        headStyles: { fillColor: [41, 128, 185] }
+                    });
+                } else {
+                    doc.setFontSize(10);
+                    let y = 45;
+                    data.slice(0, 30).forEach((row, index) => {
+                        const rowText = headers.map(h => `${h}: ${row[h]}`).join(', ');
+                        doc.text(rowText, 10, y);
+                        y += 7;
+                    });
+                    if (data.length > 30) {
+                        doc.text(`... and ${data.length - 30} more records`, 10, y);
+                    }
+                }
+            } else {
+                doc.text('No data available', 105, 50, { align: 'center' });
+            }
+            
+            doc.save(`${fileName}.pdf`);
+        } catch (error) {
+            console.error('PDF export error:', error);
+            await this.exportToCSV(data, fileName);
+        }
+    }
+    
+    async exportTranscriptToPDF(transcriptData) {
+        if (typeof jspdf === 'undefined') {
+            this.showToast('PDF export requires jsPDF library', 'warning');
             return;
         }
         
-        const doc = new jsPDF();
-        
-        doc.setFontSize(16);
-        doc.text(`${reportType.toUpperCase()} REPORT`, 105, 20, { align: 'center' });
-        doc.setFontSize(12);
-        doc.text(`Generated: ${new Date().toLocaleDateString()}`, 105, 30, { align: 'center' });
-        
-        if (data.length === 0) {
-            doc.text('No data available', 105, 50, { align: 'center' });
-        } else {
-            const headers = Object.keys(data[0]);
-            const tableData = data.map(row => headers.map(header => row[header] || ''));
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Header
+            doc.setFontSize(20);
+            doc.text('OFFICIAL TRANSCRIPT', 105, 20, { align: 'center' });
+            doc.setFontSize(10);
+            doc.text('TEEPortal University', 105, 30, { align: 'center' });
+            doc.text('Academic Records Office', 105, 35, { align: 'center' });
+            
+            // Student Information
+            doc.setFontSize(12);
+            doc.text('STUDENT INFORMATION', 20, 50);
+            
+            doc.setFontSize(10);
+            let studentY = 60;
+            doc.text(`Name: ${transcriptData.student.name}`, 20, studentY);
+            doc.text(`Registration Number: ${transcriptData.student.regNumber}`, 100, studentY);
+            studentY += 7;
+            doc.text(`Program: ${transcriptData.student.program}`, 20, studentY);
+            doc.text(`Intake Year: ${transcriptData.student.intakeYear}`, 100, studentY);
+            studentY += 7;
+            doc.text(`Status: ${transcriptData.student.status}`, 20, studentY);
+            doc.text(`Date Generated: ${transcriptData.summary.dateGenerated}`, 100, studentY);
+            
+            // Academic Performance
+            doc.setFontSize(12);
+            doc.text('ACADEMIC PERFORMANCE', 20, studentY + 15);
+            
+            // Course table
+            const tableStartY = studentY + 25;
+            const tableData = transcriptData.courses.map((course, index) => [
+                index + 1,
+                course.courseCode,
+                course.courseName,
+                course.credits.toString(),
+                course.average.toFixed(2) + '%',
+                course.grade,
+                course.gradePoints.toFixed(1)
+            ]);
             
             if (typeof doc.autoTable !== 'undefined') {
                 doc.autoTable({
-                    startY: 40,
-                    head: [headers],
+                    startY: tableStartY,
+                    head: [['#', 'Code', 'Course Name', 'Credits', 'Average', 'Grade', 'Grade Points']],
                     body: tableData,
                     theme: 'grid',
                     headStyles: { fillColor: [41, 128, 185] }
                 });
-            } else {
-                doc.setFontSize(10);
-                let y = 40;
-                data.forEach((row, index) => {
-                    if (index < 20) {
-                        const rowText = headers.map(h => `${h}: ${row[h]}`).join(', ');
-                        doc.text(rowText, 10, y);
-                        y += 7;
-                    }
-                });
-                if (data.length > 20) {
-                    doc.text(`... and ${data.length - 20} more records`, 10, y);
-                }
             }
+            
+            // Summary
+            const finalY = doc.lastAutoTable?.finalY || tableStartY + (transcriptData.courses.length * 10) + 20;
+            
+            doc.setFontSize(12);
+            doc.text('SUMMARY', 20, finalY + 10);
+            
+            doc.setFontSize(10);
+            doc.text(`Total Courses: ${transcriptData.summary.totalCourses}`, 20, finalY + 20);
+            doc.text(`Total Credits: ${transcriptData.summary.totalCredits}`, 20, finalY + 25);
+            doc.text(`GPA: ${transcriptData.summary.gpa}`, 20, finalY + 30);
+            doc.text(`CGPA: ${transcriptData.summary.cgpa}`, 20, finalY + 35);
+            
+            // Footer
+            doc.setFontSize(8);
+            doc.text('This is an official document. For verification, contact the Academic Records Office.', 
+                     105, doc.internal.pageSize.height - 20, { align: 'center' });
+            
+            // Save
+            doc.save(`transcript-${transcriptData.student.regNumber}-${new Date().toISOString().split('T')[0]}.pdf`);
+        } catch (error) {
+            console.error('Transcript PDF export error:', error);
+            this.showToast('Error generating transcript PDF', 'error');
         }
-        
-        doc.save(`${fileName}.pdf`);
     }
     
-    // ==================== PREVIEW FUNCTIONS ====================
-    
-    async previewReport() {
+    async exportAllData() {
         try {
-            const reportType = document.getElementById('reportType').value;
-            const program = document.getElementById('reportProgram').value;
-            const intakeYear = document.getElementById('reportIntake').value;
+            console.log('📦 Exporting all data as JSON...');
             
-            if (!reportType) {
-                this.showToast('Please select a report type', 'warning');
-                return;
-            }
+            const data = {
+                students: await this.db.getStudents(),
+                courses: await this.db.getCourses(),
+                marks: await this.db.getMarksTableData(),
+                settings: this.db.getDefaultSettings(),
+                exportDate: new Date().toISOString(),
+                version: '1.0'
+            };
             
-            let data;
-            let title;
+            const jsonStr = JSON.stringify(data, null, 2);
+            this.downloadFile(jsonStr, `teeportal-backup-${new Date().toISOString().split('T')[0]}.json`, 'application/json');
             
-            switch(reportType) {
-                case 'student':
-                    data = await this.generateStudentListReport(program, intakeYear);
-                    title = 'Student List Preview';
-                    break;
-                    
-                case 'marks':
-                    data = await this.generateMarksReport(program, intakeYear);
-                    title = 'Academic Marks Preview';
-                    break;
-                    
-                case 'enrollment':
-                    data = await this.generateEnrollmentReport();
-                    title = 'Enrollment Statistics Preview';
-                    break;
-                    
-                case 'graduation':
-                    const graduationData = await this.generateGraduationReport();
-                    this.previewGraduationReport(graduationData);
-                    return;
-                    
-                case 'transcript':
-                    this.showToast('Transcript preview not available. Generate full transcript instead.', 'info');
-                    return;
-                    
-                default:
-                    this.showToast('Invalid report type', 'error');
-                    return;
-            }
-            
-            this.previewReportData(data, title);
+            this.showToast('All data exported successfully', 'success');
+            await this.db.logActivity('data_exported', 'Exported all data as JSON backup');
             
         } catch (error) {
-            console.error('Error previewing report:', error);
-            this.showToast('Error previewing report', 'error');
+            console.error('Error exporting all data:', error);
+            this.showToast('Error exporting data', 'error');
         }
     }
     
-    previewReportData(data, title) {
-        const previewDiv = document.getElementById('reportPreview');
-        if (!previewDiv) return;
-        
-        if (!data || data.length === 0) {
-            previewDiv.innerHTML = `<p class="no-data">No data available for preview</p>`;
-            return;
-        }
-        
-        const headers = Object.keys(data[0]);
-        
-        let html = `
-            <h4>${title} (${data.length} records)</h4>
-            <div class="table-responsive">
-                <table class="preview-table">
-                    <thead>
-                        <tr>
-                            ${headers.map(header => `<th>${header}</th>`).join('')}
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-        
-        data.slice(0, 10).forEach(row => {
-            html += `<tr>${headers.map(header => `<td>${row[header] || ''}</td>`).join('')}</tr>`;
-        });
-        
-        html += `
-                    </tbody>
-                </table>
-            </div>
-            <p class="preview-info">Showing first 10 of ${data.length} records</p>
-        `;
-        
-        previewDiv.innerHTML = html;
+    async exportAllToExcel() {
+        // Similar to exportAllData but create Excel workbook with multiple sheets
+        this.showToast('Excel workbook export coming soon', 'info');
     }
     
-    previewGraduationReport(data) {
-        const previewDiv = document.getElementById('reportPreview');
-        if (!previewDiv) return;
-        
-        let html = `
-            <h4>Graduation Report Preview</h4>
-            <div class="report-summary">
-                <p><strong>Total Graduates:</strong> ${data.totalGraduates}</p>
-                <p><strong>Graduation Rate:</strong> ${data.graduationRate}</p>
-            </div>
-        `;
-        
-        if (data.programReport.length > 0) {
-            html += `
-                <h5>Graduates by Program</h5>
-                <div class="table-responsive">
-                    <table class="preview-table">
-                        <thead>
-                            <tr>
-                                <th>Program</th>
-                                <th>Graduates</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${data.programReport.map(row => `
-                                <tr>
-                                    <td>${row.Program}</td>
-                                    <td>${row.Graduates}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-        }
-        
-        if (data.yearReport.length > 0) {
-            html += `
-                <h5>Graduates by Year</h5>
-                <div class="table-responsive">
-                    <table class="preview-table">
-                        <thead>
-                            <tr>
-                                <th>Year</th>
-                                <th>Graduates</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${data.yearReport.map(row => `
-                                <tr>
-                                    <td>${row.Year}</td>
-                                    <td>${row.Graduates}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-        }
-        
-        previewDiv.innerHTML = html;
+    async exportAllToCSV() {
+        // Export each dataset as separate CSV and zip them
+        this.showToast('CSV archive export coming soon', 'info');
     }
     
-    // ==================== UTILITY FUNCTIONS ====================
+    async exportAllToPDF() {
+        // Generate multiple PDF reports
+        this.showToast('PDF reports export coming soon', 'info');
+    }
     
-    downloadCSV(csvContent, fileName) {
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
+    downloadFile(content, fileName, mimeType) {
+        const blob = new Blob([content], { type: mimeType });
         const url = URL.createObjectURL(blob);
-        
-        link.setAttribute('href', url);
-        link.setAttribute('download', fileName);
-        link.style.visibility = 'hidden';
-        
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
+    
+    // ==================== STATISTICS ====================
+    
+    async updateStatistics() {
+        try {
+            const students = await this.db.getStudents();
+            const courses = await this.db.getCourses();
+            const marks = await this.db.getMarksTableData();
+            
+            // Apply filters
+            const filteredStudents = this.applyStudentFilters(students);
+            const filteredMarks = this.applyMarksFilters(marks);
+            
+            // Calculate statistics
+            const totalStudents = filteredStudents.length;
+            const activeStudents = filteredStudents.filter(s => s.status === 'active').length;
+            const graduatedStudents = filteredStudents.filter(s => s.status === 'graduated').length;
+            const totalCourses = courses.length;
+            const marksEntries = filteredMarks.length;
+            
+            // Calculate graduation rate
+            const graduationRate = totalStudents > 0 ? 
+                Math.round((graduatedStudents / totalStudents) * 100) : 0;
+            
+            // Calculate average GPA (simplified)
+            let totalGPA = 0;
+            let studentCount = 0;
+            
+            // Group marks by student and calculate GPA
+            const studentMarks = {};
+            filteredMarks.forEach(mark => {
+                const studentId = mark.student_id;
+                if (!studentId) return;
+                
+                if (!studentMarks[studentId]) {
+                    studentMarks[studentId] = {
+                        totalGradePoints: 0,
+                        totalCredits: 0
+                    };
+                }
+                
+                // Simplified GPA calculation
+                const gradePoints = this.getGradePoints(mark.grade);
+                const credits = mark.courses?.credits || 3;
+                
+                studentMarks[studentId].totalGradePoints += gradePoints * credits;
+                studentMarks[studentId].totalCredits += credits;
+            });
+            
+            // Calculate average of all student GPAs
+            Object.values(studentMarks).forEach(student => {
+                if (student.totalCredits > 0) {
+                    totalGPA += student.totalGradePoints / student.totalCredits;
+                    studentCount++;
+                }
+            });
+            
+            const averageGPA = studentCount > 0 ? (totalGPA / studentCount).toFixed(2) : 0.00;
+            
+            // Update UI
+            document.getElementById('statTotalStudents').textContent = totalStudents;
+            document.getElementById('statActiveStudents').textContent = activeStudents;
+            document.getElementById('statTotalCourses').textContent = totalCourses;
+            document.getElementById('statMarksEntries').textContent = marksEntries;
+            document.getElementById('statGraduationRate').textContent = graduationRate + '%';
+            document.getElementById('statAverageGPA').textContent = averageGPA;
+            
+        } catch (error) {
+            console.error('Error updating statistics:', error);
+        }
+    }
+    
+    // ==================== REFRESH ====================
+    
+    async refreshReports() {
+        try {
+            console.log('🔄 Refreshing reports...');
+            
+            // Clear dropdowns
+            const dropdowns = ['filterProgram', 'filterCourse', 'filterIntake', 'transcriptStudent'];
+            dropdowns.forEach(id => {
+                const select = document.getElementById(id);
+                if (select) {
+                    // Keep first option
+                    while (select.options.length > 1) {
+                        select.remove(1);
+                    }
+                }
+            });
+            
+            // Repopulate
+            await this.populateFilters();
+            await this.updateStatistics();
+            
+            // Clear previews
+            this.clearPreview();
+            
+            this.showToast('Reports data refreshed', 'success');
+            
+        } catch (error) {
+            console.error('Error refreshing reports:', error);
+            this.showToast('Error refreshing reports', 'error');
+        }
+    }
+    
+    // ==================== TOAST NOTIFICATIONS ====================
     
     showToast(message, type = 'info') {
         const toast = document.createElement('div');
@@ -839,175 +1713,9 @@ class ReportsManager {
         container.appendChild(toast);
         setTimeout(() => { if (toast.parentElement) toast.remove(); }, 5000);
     }
-    
-    // ==================== INITIALIZATION ====================
-    
-    initializeReportsUI() {
-        try {
-            console.log('📊 Initializing Reports UI...');
-            
-            // Initialize report filters
-            this.populateReportFilters();
-            
-            // Set up event listeners
-            this.setupReportEventListeners();
-            
-            console.log('✅ Reports UI initialized');
-        } catch (error) {
-            console.error('Error initializing reports UI:', error);
-        }
-    }
-    
-    async populateReportFilters() {
-        try {
-            // Populate program filter
-            const programSelect = document.getElementById('reportProgram');
-            if (programSelect) {
-                programSelect.innerHTML = '<option value="all">All Programs</option>';
-                const programs = await this.db.getPrograms();
-                programs.forEach(program => {
-                    const option = document.createElement('option');
-                    option.value = program;
-                    option.textContent = program;
-                    programSelect.appendChild(option);
-                });
-            }
-            
-            // Populate intake year filter
-            const intakeSelect = document.getElementById('reportIntake');
-            if (intakeSelect) {
-                intakeSelect.innerHTML = '<option value="all">All Intakes</option>';
-                const students = await this.db.getStudents();
-                const intakeYears = [...new Set(students.map(s => s.intake_year))].sort((a, b) => b - a);
-                
-                intakeYears.forEach(year => {
-                    const option = document.createElement('option');
-                    option.value = year;
-                    option.textContent = year;
-                    intakeSelect.appendChild(option);
-                });
-            }
-            
-            // Populate transcript student selector
-            const transcriptStudentSelect = document.getElementById('transcriptStudent');
-            if (transcriptStudentSelect) {
-                transcriptStudentSelect.innerHTML = '<option value="">Select Student...</option>';
-                const students = await this.db.getStudents();
-                students.forEach(student => {
-                    const option = document.createElement('option');
-                    option.value = student.id;
-                    option.textContent = `${student.reg_number} - ${student.full_name} (${student.program})`;
-                    transcriptStudentSelect.appendChild(option);
-                });
-            }
-            
-        } catch (error) {
-            console.error('Error populating report filters:', error);
-        }
-    }
-    
-    setupReportEventListeners() {
-        // Preview button
-        const previewBtn = document.getElementById('previewReportBtn');
-        if (previewBtn) {
-            previewBtn.addEventListener('click', () => this.previewReport());
-        }
-        
-        // Generate button
-        const generateBtn = document.getElementById('generateReportBtn');
-        if (generateBtn) {
-            generateBtn.addEventListener('click', () => this.generateReport());
-        }
-        
-        // Transcript button
-        const transcriptBtn = document.getElementById('generateTranscriptBtn');
-        if (transcriptBtn) {
-            transcriptBtn.addEventListener('click', () => this.generateTranscriptReport());
-        }
-        
-        // Export all data button
-        const exportAllBtn = document.getElementById('exportAllDataBtn');
-        if (exportAllBtn) {
-            exportAllBtn.addEventListener('click', () => this.exportAllData());
-        }
-        
-        // Refresh button
-        const refreshBtn = document.getElementById('refreshReportsBtn');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => this.refreshReports());
-        }
-    }
-    
-    async refreshReports() {
-        try {
-            console.log('🔄 Refreshing reports data...');
-            
-            // Clear existing filters
-            const programSelect = document.getElementById('reportProgram');
-            const intakeSelect = document.getElementById('reportIntake');
-            const transcriptSelect = document.getElementById('transcriptStudent');
-            
-            if (programSelect) programSelect.innerHTML = '<option value="all">All Programs</option>';
-            if (intakeSelect) intakeSelect.innerHTML = '<option value="all">All Intakes</option>';
-            if (transcriptSelect) transcriptSelect.innerHTML = '<option value="">Select Student...</option>';
-            
-            // Repopulate
-            await this.populateReportFilters();
-            
-            // Clear preview
-            const previewDiv = document.getElementById('reportPreview');
-            if (previewDiv) previewDiv.innerHTML = '';
-            
-            this.showToast('Reports data refreshed', 'success');
-        } catch (error) {
-            console.error('Error refreshing reports:', error);
-            this.showToast('Error refreshing reports', 'error');
-        }
-    }
-    
-    // ==================== HELPER METHODS ====================
-    
-    async quickExport(type) {
-        switch(type) {
-            case 'students':
-                const studentData = await this.generateStudentListReport();
-                await this.exportToCSV(studentData, `quick-export-students-${new Date().toISOString().split('T')[0]}`);
-                break;
-                
-            case 'marks':
-                const marksData = await this.generateMarksReport();
-                await this.exportToCSV(marksData, `quick-export-marks-${new Date().toISOString().split('T')[0]}`);
-                break;
-                
-            case 'enrollment':
-                const enrollmentData = await this.generateEnrollmentReport();
-                await this.exportToCSV(enrollmentData, `quick-export-enrollment-${new Date().toISOString().split('T')[0]}`);
-                break;
-        }
-    }
-    
-    async getReportStatistics() {
-        try {
-            const students = await this.db.getStudents();
-            const courses = await this.db.getCourses();
-            const marks = await this.db.getMarksTableData();
-            
-            return {
-                totalStudents: students.length,
-                totalCourses: courses.length,
-                totalMarksEntries: marks.length,
-                activeStudents: students.filter(s => s.status === 'active').length,
-                graduatedStudents: students.filter(s => s.status === 'graduated').length,
-                averageMarksPerStudent: students.length > 0 ? (marks.length / students.length).toFixed(1) : 0
-            };
-        } catch (error) {
-            console.error('Error getting report statistics:', error);
-            return null;
-        }
-    }
 }
 
-// Make it available globally
+// Make available globally
 if (typeof window !== 'undefined') {
     window.ReportsManager = ReportsManager;
 }
