@@ -450,91 +450,120 @@ class MarksManager {
     }
     
     setupEditFormListeners() {
+    const scoreInput = document.getElementById('editScore');
+    const maxScoreInput = document.getElementById('editMaxScore');
+    
+    if (scoreInput) {
+        scoreInput.addEventListener('input', () => this.updateEditGradeDisplay());
+        scoreInput.addEventListener('blur', () => {
+            const value = parseFloat(scoreInput.value);
+            if (value < 0) {
+                scoreInput.value = 0;
+                this.updateEditGradeDisplay();
+            }
+        });
+    }
+    
+    if (maxScoreInput) {
+        maxScoreInput.addEventListener('input', () => this.updateEditGradeDisplay());
+        maxScoreInput.addEventListener('blur', () => {
+            const value = parseFloat(maxScoreInput.value);
+            
+            // FIX: Handle invalid values
+            if (value <= 0) {
+                maxScoreInput.value = 100;
+                this.updateEditGradeDisplay();
+            }
+            
+            // FIX: Handle "00" input
+            if (maxScoreInput.value === "00") {
+                maxScoreInput.value = "100";
+                this.updateEditGradeDisplay();
+            }
+        });
+    }
+}
+    
+   updateEditGradeDisplay() {
+    try {
         const scoreInput = document.getElementById('editScore');
         const maxScoreInput = document.getElementById('editMaxScore');
+        const gradeDisplay = document.getElementById('editGradeDisplay');
+        const percentageDisplay = document.getElementById('editPercentage');
+        const gradeDescriptionDisplay = document.getElementById('editGradeDescription');
         
-        if (scoreInput) {
-            scoreInput.addEventListener('input', () => this.updateEditGradeDisplay());
-            scoreInput.addEventListener('blur', () => {
-                const value = parseFloat(scoreInput.value);
-                if (value < 0) {
-                    scoreInput.value = 0;
-                    this.updateEditGradeDisplay();
-                }
-            });
+        if (!scoreInput || !gradeDisplay || !maxScoreInput) {
+            console.warn('Edit grade display elements not found');
+            return;
         }
         
-        if (maxScoreInput) {
-            maxScoreInput.addEventListener('input', () => this.updateEditGradeDisplay());
-            maxScoreInput.addEventListener('blur', () => {
-                const value = parseFloat(maxScoreInput.value);
-                if (value <= 0) {
-                    maxScoreInput.value = 100;
-                    this.updateEditGradeDisplay();
-                }
-            });
+        const score = parseFloat(scoreInput.value);
+        const maxScore = parseFloat(maxScoreInput.value);
+        
+        // FIX: Handle invalid or zero max score
+        if (isNaN(score) || isNaN(maxScore) || maxScore <= 0) {
+            this.resetEditGradeDisplay(gradeDisplay, percentageDisplay, gradeDescriptionDisplay);
+            
+            // Auto-correct zero max score
+            if (maxScoreInput.value === "00" || maxScoreInput.value === "0") {
+                maxScoreInput.value = "100";
+                // Recalculate with corrected value
+                setTimeout(() => this.updateEditGradeDisplay(), 100);
+            }
+            return;
         }
-    }
-    
-    updateEditGradeDisplay() {
-        try {
-            const scoreInput = document.getElementById('editScore');
-            const maxScoreInput = document.getElementById('editMaxScore');
-            const gradeDisplay = document.getElementById('editGradeDisplay');
-            const percentageDisplay = document.getElementById('editPercentage');
-            const gradeDescriptionDisplay = document.getElementById('editGradeDescription');
-            
-            if (!scoreInput || !gradeDisplay) {
-                console.warn('Grade display elements not found');
-                return;
-            }
-            
-            const score = parseFloat(scoreInput.value);
-            const maxScore = parseFloat(maxScoreInput?.value) || 100;
-            
-            if (isNaN(score)) {
-                this.resetEditGradeDisplay(gradeDisplay, percentageDisplay, gradeDescriptionDisplay);
-                return;
-            }
-            
-            const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
-            const grade = this.calculateGrade(percentage);
-            const gradeDescription = this.getGradeDescription(grade);
-            const gradeCSSClass = this.getGradeCSSClass(grade);
-            
-            // Update display
-            gradeDisplay.textContent = grade;
-            gradeDisplay.className = `grade-badge-lg ${gradeCSSClass}`;
-            gradeDisplay.title = gradeDescription;
-            
-            if (percentageDisplay) {
-                percentageDisplay.textContent = `${percentage.toFixed(2)}%`;
-            }
-            
-            if (gradeDescriptionDisplay) {
-                gradeDescriptionDisplay.textContent = gradeDescription;
-            }
-            
-        } catch (error) {
-            console.error('Error updating edit grade display:', error);
+        
+        // FIX: Cap score at max score
+        const cappedScore = Math.min(score, maxScore);
+        if (score > maxScore) {
+            scoreInput.value = cappedScore;
+            // Show warning
+            this.showToast('Score cannot exceed maximum score! Auto-adjusted.', 'warning');
         }
-    }
-    
-    resetEditGradeDisplay(gradeDisplay, percentageDisplay, gradeDescriptionDisplay) {
-        if (gradeDisplay) {
-            gradeDisplay.textContent = '--';
-            gradeDisplay.className = 'grade-badge-lg';
-            gradeDisplay.title = '';
-        }
+        
+        // Calculate percentage
+        const percentage = (cappedScore / maxScore) * 100;
+        
+        // FIX: Cap percentage at 100%
+        const cappedPercentage = Math.min(percentage, 100);
+        
+        const grade = this.calculateGrade(cappedPercentage);
+        const gradeDescription = this.getGradeDescription(grade);
+        const gradeCSSClass = this.getGradeCSSClass(grade);
+        
+        // Update display
+        gradeDisplay.textContent = grade;
+        gradeDisplay.className = `grade-badge-lg ${gradeCSSClass}`;
+        gradeDisplay.title = gradeDescription;
         
         if (percentageDisplay) {
-            percentageDisplay.textContent = '0.00%';
+            percentageDisplay.textContent = `${cappedPercentage.toFixed(2)}%`;
         }
         
         if (gradeDescriptionDisplay) {
-            gradeDescriptionDisplay.textContent = '--';
+            gradeDescriptionDisplay.textContent = gradeDescription;
         }
+        
+    } catch (error) {
+        console.error('Error updating edit grade display:', error);
     }
+}
+    
+    resetEditGradeDisplay(gradeDisplay, percentageDisplay, gradeDescriptionDisplay) {
+    if (gradeDisplay) {
+        gradeDisplay.textContent = '--';
+        gradeDisplay.className = 'grade-badge-lg';
+        gradeDisplay.title = '';
+    }
+    
+    if (percentageDisplay) {
+        percentageDisplay.textContent = '0.00%';
+    }
+    
+    if (gradeDescriptionDisplay) {
+        gradeDescriptionDisplay.textContent = '--';
+    }
+}
     
     async updateMark(event) {
         event.preventDefault();
