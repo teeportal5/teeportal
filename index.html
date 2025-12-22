@@ -3,48 +3,250 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TeePortal - TEE College Management</title>
+    <title>TEE Portal - Student Management System</title>
     
-    <!-- External Libraries -->
+    <!-- CSS Libraries -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="stylesheet" href="css/style.css">
     
-    <!-- Local CSS -->
-    <link rel="stylesheet" href="styles.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Supabase -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    
+    <!-- PDF Library -->
+    <script src="https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    
+    <!-- Excel Library -->
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 </head>
 <body>
-    <div class="app-wrapper">
-        <!-- Sidebar -->
-        <aside class="sidebar">...</aside>
+    <div class="app-container">
+        <!-- Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fas fa-graduation-cap"></i> TEE Portal</h2>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="#dashboard" onclick="showSection('dashboard')" class="nav-link active"><i class="fas fa-home"></i> Dashboard</a></li>
+                <li><a href="#students" onclick="showSection('students')" class="nav-link"><i class="fas fa-user-graduate"></i> Students</a></li>
+                <li><a href="#courses" onclick="showSection('courses')" class="nav-link"><i class="fas fa-book"></i> Courses</a></li>
+                <li><a href="#marks" onclick="showSection('marks')" class="nav-link"><i class="fas fa-chart-bar"></i> Marks</a></li>
+                <li><a href="#reports" onclick="showSection('reports')" class="nav-link"><i class="fas fa-chart-line"></i> Reports</a></li>
+                <li><a href="#settings" onclick="showSection('settings')" class="nav-link"><i class="fas fa-cog"></i> Settings</a></li>
+            </ul>
+        </nav>
         
         <!-- Main Content -->
         <main class="main-content">
-            <header class="top-header">...</header>
-            <div class="scroll-container">
-                <!-- Sections will be loaded dynamically -->
+            <header class="main-header">
+                <h1 id="section-title">Dashboard Overview</h1>
+                <div class="header-actions">
+                    <button class="btn-primary" onclick="app.refreshDashboard()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </header>
+            
+            <!-- Sections -->
+            <div id="dashboard" class="content-section active">
+                <!-- Dashboard content -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Total Students</h3>
+                        <p id="totalStudents" class="stat-number">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Active Programs</h3>
+                        <p id="activePrograms" class="stat-number">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Current Intake</h3>
+                        <p id="currentIntake" class="stat-number">2024</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Courses</h3>
+                        <p id="totalCourses" class="stat-number">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Marks</h3>
+                        <p id="totalMarks" class="stat-number">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Average Grade</h3>
+                        <p id="avgGrade" class="stat-number">N/A</p>
+                    </div>
+                </div>
+                
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>Program Distribution</h3>
+                        <canvas id="programChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Enrollment Trend</h3>
+                        <canvas id="enrollmentChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Grade Distribution</h3>
+                        <canvas id="gradeChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="recent-activities">
+                    <h3>Recent Activities</h3>
+                    <div class="activity-list"></div>
+                </div>
             </div>
+            
+            <!-- Other sections (students, courses, marks, reports, settings) -->
+            <!-- These should be in separate HTML files or included -->
         </main>
     </div>
     
     <!-- Modals -->
-    <div id="studentModal" class="modal">...</div>
-    <div id="courseModal" class="modal">...</div>
-    <div id="marksModal" class="modal">...</div>
-    <div id="settingsModal" class="modal">...</div>
+    <!-- Student Modal -->
+    <div id="studentModal" class="modal">
+        <div class="modal-content">
+            <!-- Modal content -->
+        </div>
+    </div>
     
-    <!-- Script Modules -->
+    <!-- Course Modal -->
+    <div id="courseModal" class="modal">
+        <div class="modal-content">
+            <!-- Modal content -->
+        </div>
+    </div>
+    
+    <!-- Marks Modal -->
+    <div id="marksModal" class="modal">
+        <div class="modal-content">
+            <!-- Modal content -->
+        </div>
+    </div>
+    
+    <!-- Edit Marks Modal -->
+    <div id="editMarksModal" class="modal">
+        <div class="modal-content">
+            <!-- Modal content -->
+        </div>
+    </div>
+    
+    <!-- JavaScript Modules -->
     <script src="modules/database.js"></script>
     <script src="modules/students.js"></script>
     <script src="modules/courses.js"></script>
     <script src="modules/marks.js"></script>
     <script src="modules/settings.js"></script>
+    <script src="modules/dashboard.js"></script>
     <script src="modules/reports.js"></script>
     <script src="modules/transcripts.js"></script>
-    <script src="modules/ui.js"></script>
-    <script src="modules/utils.js"></script>
     <script src="app.js"></script>
+    
+    <!-- Global functions -->
+    <script>
+        let app = null;
+        
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('📄 DOM Content Loaded');
+            
+            try {
+                app = new TEEPortalApp();
+                window.app = app;
+                
+                await app.initialize();
+                
+                console.log('🎉 TEEPortal System Ready');
+                
+                setTimeout(() => {
+                    if (typeof showSection === 'function') {
+                        showSection('dashboard');
+                    }
+                }, 100);
+                
+            } catch (error) {
+                console.error('❌ Initialization failed:', error);
+                alert('Failed to initialize: ' + error.message);
+            }
+        });
+        
+        // Global helper functions
+        function showSection(sectionId) {
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            const targetSection = document.getElementById(sectionId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+                
+                const activeLink = document.querySelector(`a[href="#${sectionId}"]`);
+                if (activeLink) {
+                    activeLink.classList.add('active');
+                }
+            }
+        }
+        
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+                
+                setTimeout(() => {
+                    const focusable = modal.querySelector('input, select, button, textarea, [tabindex]:not([tabindex="-1"])');
+                    if (focusable) focusable.focus();
+                }, 100);
+            }
+        }
+        
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('active');
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                    document.body.style.overflow = '';
+                    
+                    const form = modal.querySelector('form');
+                    if (form) {
+                        form.reset();
+                    }
+                }, 300);
+            }
+        }
+        
+        function openStudentModal() {
+            openModal('studentModal');
+        }
+        
+        function openCourseModal() {
+            openModal('courseModal');
+        }
+        
+        function openMarksModal() {
+            if (window.app && window.app.marks.openMarksModal) {
+                window.app.marks.openMarksModal();
+            } else {
+                openModal('marksModal');
+            }
+        }
+        
+        // Make functions globally available
+        window.showSection = showSection;
+        window.openModal = openModal;
+        window.closeModal = closeModal;
+        window.openStudentModal = openStudentModal;
+        window.openCourseModal = openCourseModal;
+        window.openMarksModal = openMarksModal;
+    </script>
 </body>
 </html>
