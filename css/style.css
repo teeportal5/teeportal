@@ -2483,7 +2483,7 @@ body {
     background: #f8f9fa;
 }
 /* ==================== */
-/* ENHANCED GRADE BADGES */
+/* ENHANCED GRADE BADGES - SIMPLIFIED SYSTEM */
 /* ==================== */
 
 .grade-badge {
@@ -2493,7 +2493,7 @@ body {
     font-weight: bold;
     font-size: 13px;
     text-align: center;
-    min-width: 45px;
+    min-width: 80px;
     position: relative;
     cursor: help;
     transition: all 0.2s ease;
@@ -2510,13 +2510,13 @@ body {
 .grade-badge-sm {
     padding: 3px 8px;
     font-size: 11px;
-    min-width: 35px;
+    min-width: 60px;
 }
 
 .grade-badge-lg {
     padding: 10px 24px;
     font-size: 1.2rem;
-    min-width: 70px;
+    min-width: 100px;
     border-radius: 12px;
 }
 
@@ -2535,7 +2535,7 @@ body {
 /* Grade Tooltip */
 .grade-tooltip {
     visibility: hidden;
-    width: 220px;
+    width: 250px;
     background-color: #2c3e50;
     color: white;
     text-align: center;
@@ -2570,402 +2570,556 @@ body {
     font-weight: 600;
 }
 
-/* Grade Colors - Enhanced */
-.grade-A { 
-    background: linear-gradient(135deg, #28a745, #2ecc71);
+/* Simplified Grade Colors - DISTINCTION/CREDIT/PASS/FAIL */
+.grade-distinction { 
+    background: linear-gradient(135deg, #28a745, #218838);
     color: white; 
     border-color: #1e7e34;
 }
 
-.grade-B { 
-    background: linear-gradient(135deg, #17a2b8, #3498db);
+.grade-credit { 
+    background: linear-gradient(135deg, #17a2b8, #138496);
     color: white; 
     border-color: #117a8b;
 }
 
-.grade-C { 
-    background: linear-gradient(135deg, #ffc107, #f39c12);
+.grade-pass { 
+    background: linear-gradient(135deg, #ffc107, #e0a800);
     color: #212529; 
-    border-color: #e0a800;
+    border-color: #d39e00;
 }
 
-.grade-D { 
-    background: linear-gradient(135deg, #fd7e14, #e67e22);
-    color: white; 
-    border-color: #d35400;
-}
-
-.grade-F { 
-    background: linear-gradient(135deg, #dc3545, #e74c3c);
+.grade-fail { 
+    background: linear-gradient(135deg, #dc3545, #c82333);
     color: white; 
     border-color: #bd2130;
 }
 
-/* Special plus/minus variations */
-.grade-A-plus { background: linear-gradient(135deg, #218838, #28a745); }
-.grade-A-minus { background: linear-gradient(135deg, #1e7e34, #218838); }
-.grade-B-plus { background: linear-gradient(135deg, #138496, #17a2b8); }
-.grade-B-minus { background: linear-gradient(135deg, #117a8b, #138496); }
-.grade-C-plus { background: linear-gradient(135deg, #e0a800, #ffc107); }
-.grade-C-minus { background: linear-gradient(135deg, #d39e00, #e0a800); }
-.grade-D-plus { background: linear-gradient(135deg, #e67e22, #fd7e14); }
-.grade-D-minus { background: linear-gradient(135deg, #d35400, #e67e22); }
-
-/* ==================== */
-/* COMPACT EDIT MARKS MODAL */
-/* ==================== */
-
-#editMarksModal {
-    z-index: 1050;
+/* Hover effects for each grade */
+.grade-distinction:hover { 
+    background: linear-gradient(135deg, #218838, #1e7e34);
+    border-color: #155724;
 }
 
-#editMarksModal .modal-content {
-    max-width: 480px;
+.grade-credit:hover { 
+    background: linear-gradient(135deg, #138496, #117a8b);
+    border-color: #0c5460;
+}
+
+.grade-pass:hover { 
+    background: linear-gradient(135deg, #e0a800, #d39e00);
+    border-color: #b58900;
+}
+
+.grade-fail:hover { 
+    background: linear-gradient(135deg, #c82333, #bd2130);
+    border-color: #a71d2a;
+}
+
+/* ==================== */
+/* MARKS ENTRY FORM - LARGE VISIBLE VERSION */
+/* ==================== */
+
+#marksModal {
+    z-index: 9999;
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+#marksModal .large-modal {
+    max-width: 700px;
     margin: 20px auto;
     border-radius: 12px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.2);
-    border: none;
-    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    background: white;
+    animation: modalSlideIn 0.3s ease-out;
 }
 
-#editMarksModal .modal-header {
-    background: linear-gradient(135deg, #3498db, #2c3e50);
+#marksModal .modal-header {
+    background: linear-gradient(135deg, #2c3e50, #3498db);
     color: white;
-    padding: 15px 20px;
-    border-bottom: none;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    padding: 20px 30px;
+    border-radius: 12px 12px 0 0;
+    border-bottom: 4px solid #2980b9;
 }
 
-#editMarksModal .modal-header h3 {
+#marksModal .modal-header h3 {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: 1.4rem;
     font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
 }
 
-#editMarksModal .close {
-    font-size: 1.5rem;
-    opacity: 0.8;
-    transition: opacity 0.2s;
-    background: none;
-    border: none;
-    color: white;
+#marksModal .close-large {
+    font-size: 2rem;
+    font-weight: 300;
+    opacity: 0.9;
     cursor: pointer;
-    padding: 0;
-    width: 30px;
-    height: 30px;
+    transition: all 0.2s;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-}
-
-#editMarksModal .close:hover {
-    opacity: 1;
     background: rgba(255,255,255,0.1);
 }
 
-#editMarksModal .modal-body {
-    padding: 20px;
-    max-height: 65vh;
-    overflow-y: auto;
+#marksModal .close-large:hover {
+    opacity: 1;
+    background: rgba(255,255,255,0.2);
+    transform: rotate(90deg);
 }
 
-/* Compact Info Grid */
-.compact-info-grid {
+#marksModal .modal-body-large {
+    padding: 30px;
+    max-height: 80vh;
+    overflow-y: auto;
+    background: #f8fafc;
+    font-size: 14px;
+}
+
+/* Main Selection Row - LARGE */
+.main-selection-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin-bottom: 20px;
-    padding: 15px;
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    border-radius: 8px;
-    border: 1px solid #dee2e6;
+    gap: 25px;
+    margin-bottom: 30px;
 }
 
-.info-item label {
+.form-group-large {
+    margin-bottom: 25px;
+}
+
+.large-label {
     display: block;
-    font-size: 11px;
-    text-transform: uppercase;
-    color: #6c757d;
-    margin-bottom: 5px;
+    font-size: 14px;
     font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 10px;
+    text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
-.info-value {
-    font-size: 14px;
+.large-label i {
+    color: #3498db;
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+.form-control-large {
+    width: 100%;
+    padding: 15px 20px;
+    font-size: 16px;
     font-weight: 500;
     color: #2c3e50;
-    word-break: break-word;
-    line-height: 1.4;
-    padding: 8px;
     background: white;
-    border-radius: 4px;
-    border: 1px solid #e9ecef;
+    border: 2px solid #e0e6ed;
+    border-radius: 8px;
+    transition: all 0.3s;
+    height: 55px;
 }
 
-/* Collapsible Sections */
-.collapsible-section {
-    margin-bottom: 12px;
+.form-control-large:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    outline: none;
 }
 
-.collapsible-btn {
-    width: 100%;
-    padding: 10px 15px;
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    text-align: left;
-    font-size: 13px;
-    font-weight: 500;
-    color: #495057;
-    cursor: pointer;
-    transition: all 0.2s;
+/* Assessment Section - ALWAYS VISIBLE */
+.assessment-section {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    margin-bottom: 30px;
+    border: 1px solid #e0e6ed;
+}
+
+.assessment-section h4 {
+    font-size: 1.1rem;
+    margin: 0 0 20px 0;
+    color: #2c3e50;
+    font-weight: 600;
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 10px;
 }
 
-.collapsible-btn:hover {
-    background: #e9ecef;
-    border-color: #ced4da;
+.form-row-large {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 25px;
 }
 
-.collapsible-btn i {
-    transition: transform 0.3s ease;
-    font-size: 12px;
+/* Scores Section - EXTRA LARGE */
+.scores-section-large {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    margin-bottom: 30px;
+    border: 1px solid #e0e6ed;
 }
 
-.collapsible-btn.active i {
-    transform: rotate(180deg);
-}
-
-.collapsible-content {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease-out;
-    padding: 0;
-}
-
-.collapsible-content.expanded {
-    max-height: 300px;
-    padding: 15px 0;
-}
-
-/* Score Section */
-.score-section {
-    margin: 20px 0;
-    padding: 15px;
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    border-radius: 8px;
-    border: 1px solid #dee2e6;
-}
-
-.score-section h4 {
-    font-size: 14px;
-    margin: 0 0 15px 0;
+.scores-section-large h4 {
+    font-size: 1.1rem;
+    margin: 0 0 20px 0;
     color: #2c3e50;
     font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
-.score-inputs {
+.scores-container-large {
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    gap: 15px;
-    align-items: end;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    align-items: center;
+    gap: 20px;
 }
 
-.score-item {
+.score-input-large {
     text-align: center;
 }
 
-.score-item label {
-    display: block;
-    font-size: 11px;
-    color: #6c757d;
-    margin-bottom: 6px;
+.score-label {
+    font-size: 13px;
+    margin-bottom: 8px;
+    color: #5d6d7e;
     font-weight: 600;
+}
+
+.score-input-wrapper {
+    position: relative;
+}
+
+.score-input-number-large {
+    width: 100%;
+    padding: 18px 20px;
+    font-size: 20px;
+    font-weight: 600;
+    text-align: center;
+    color: #2c3e50;
+    background: #f8f9fa;
+    border: 2px solid #e0e6ed;
+    border-radius: 8px;
+    transition: all 0.3s;
+    height: 65px;
+}
+
+.score-input-number-large:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    background: white;
+}
+
+.score-input-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #95a5a6;
+    font-size: 18px;
+}
+
+.input-hint {
+    display: block;
+    font-size: 12px;
+    color: #7f8c8d;
+    margin-top: 6px;
+    font-style: italic;
+}
+
+/* Score Divider */
+.score-divider {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.divider-line {
+    width: 1px;
+    height: 30px;
+    background: #e0e6ed;
+}
+
+.divider-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #7f8c8d;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Score Equals */
+.score-equals {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.equals-sign {
+    font-size: 30px;
+    font-weight: 700;
+    color: #3498db;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e3f2fd;
+    border-radius: 50%;
+}
+
+/* Percentage Display */
+.score-result-large {
+    text-align: center;
+}
+
+.percentage-display-large {
+    padding: 18px 20px;
+    font-size: 24px;
+    font-weight: 700;
+    color: #2c3e50;
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    border: 2px solid #3498db;
+    border-radius: 8px;
+    height: 65px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(52, 152, 219, 0.2);
+}
+
+/* Grade Section - PROMINENT */
+.grade-section-large {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    margin-bottom: 30px;
+    border: 1px solid #e0e6ed;
+    text-align: center;
+}
+
+.grade-section-large h4 {
+    font-size: 1.1rem;
+    margin: 0 0 20px 0;
+    color: #2c3e50;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.grade-badge-xxl {
+    display: inline-block;
+    padding: 20px 40px;
+    border-radius: 15px;
+    font-size: 2rem;
+    font-weight: 800;
+    min-width: 150px;
+    margin-bottom: 15px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    transition: all 0.3s;
+    border: 3px solid transparent;
+}
+
+/* Grade scale reference */
+.grade-scale-reference {
+    background: #f8f9fa;
+    border: 1px solid #e0e6ed;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 15px;
+    text-align: center;
+}
+
+.grade-scale-reference .scale-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6c757d;
+    margin-bottom: 10px;
     text-transform: uppercase;
 }
 
-.score-item input {
-    text-align: center;
-    padding: 10px;
-    font-size: 14px;
+.grade-scale-reference .scale-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+
+.grade-scale-reference .scale-item {
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
     font-weight: 500;
 }
 
-.score-item input:focus {
-    border-color: #3498db;
-    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
-}
-
-.percentage-display {
+/* Additional Information */
+.additional-info-section {
     background: white;
-    border: 2px solid #3498db;
-    border-radius: 6px;
-    padding: 10px;
-    font-size: 16px;
-    font-weight: 700;
-    color: #2c3e50;
-    height: 46px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    margin-bottom: 30px;
+    border: 1px solid #e0e6ed;
 }
 
-/* Grade Section */
-.grade-section {
-    margin: 20px 0;
-    padding: 15px;
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    border-radius: 8px;
-    border: 1px solid #dee2e6;
-    text-align: center;
-}
-
-.grade-section h4 {
-    font-size: 14px;
-    margin: 0 0 15px 0;
+.additional-info-section h4 {
+    font-size: 1.1rem;
+    margin: 0 0 20px 0;
     color: #2c3e50;
     font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.form-control-large-textarea {
+    width: 100%;
+    padding: 15px 20px;
+    font-size: 16px;
+    font-weight: 500;
+    color: #2c3e50;
+    background: white;
+    border: 2px solid #e0e6ed;
+    border-radius: 8px;
+    transition: all 0.3s;
+    min-height: 100px;
+    resize: vertical;
+}
+
+.form-control-large-textarea:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    outline: none;
+}
+
+/* Visibility Option */
+.visibility-option {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e0e6ed;
+}
+
+.visibility-checkbox-large {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+    vertical-align: middle;
+}
+
+.visibility-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2c3e50;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+.visibility-label i {
+    color: #3498db;
+    margin-right: 8px;
+}
+
+.visibility-hint {
+    display: block;
+    font-size: 12px;
+    color: #7f8c8d;
+    margin-top: 5px;
+    margin-left: 30px;
+}
+
+/* Quick Tips */
+.quick-tips-large {
+    background: #e8f5e9;
+    border: 1px solid #c8e6c9;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.tip-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #2e7d32;
+}
+
+.tip-item:last-child {
+    margin-bottom: 0;
+}
+
+.tip-icon {
+    color: #4caf50;
+    font-size: 16px;
+    margin-top: 2px;
+}
+
+.tip-text {
+    line-height: 1.5;
+}
+
+/* Modal Footer - LARGE */
+#marksModal .modal-footer-large {
+    padding: 20px 30px;
+    border-top: 1px solid #e0e6ed;
+    background: #f8f9fa;
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    border-radius: 0 0 12px 12px;
+}
+
+.btn-lg {
+    padding: 12px 30px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.2s;
+    min-width: 140px;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
 }
 
-.grade-badge-container {
-    position: relative;
-    display: inline-block;
-    margin-bottom: 10px;
-}
-
-.grade-details-popover {
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%) translateY(-10px);
-    background: white;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    padding: 15px;
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-    min-width: 250px;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    z-index: 1000;
-    text-align: left;
-}
-
-.grade-badge-container:hover .grade-details-popover {
-    opacity: 1;
-    visibility: visible;
-    transform: translateX(-50%) translateY(0);
-}
-
-.grade-details-popover::after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border-width: 10px;
-    border-style: solid;
-    border-color: white transparent transparent transparent;
-}
-
-.grade-points, .grade-desc {
-    font-size: 13px;
-    margin-bottom: 8px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #f1f1f1;
-}
-
-.grade-points strong, .grade-desc strong {
-    color: #3498db;
-    min-width: 80px;
-    display: inline-block;
-}
-
-.grade-scale {
-    font-size: 11px;
-    color: #6c757d;
-    margin-top: 10px;
-    line-height: 1.4;
-}
-
-.grade-auto-info {
-    font-size: 12px;
-    color: #6c757d;
-    margin-top: 8px;
-}
-
-/* Modal Footer */
-#editMarksModal .modal-footer {
-    padding: 15px 20px;
-    border-top: 1px solid #dee2e6;
-    background: #f8f9fa;
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-}
-
-#editMarksModal .btn {
-    padding: 8px 20px;
-    font-size: 13px;
-    font-weight: 500;
-    border-radius: 6px;
-    transition: all 0.2s;
-}
-
-#editMarksModal .btn-outline-secondary:hover {
-    background-color: #6c757d;
-    border-color: #6c757d;
-}
-
-#editMarksModal .btn-primary {
-    background: linear-gradient(135deg, #3498db, #2c3e50);
+.btn-secondary-large {
+    background: #6c757d;
+    color: white;
     border: none;
 }
 
-#editMarksModal .btn-primary:hover {
+.btn-secondary-large:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+}
+
+.btn-primary-large {
+    background: linear-gradient(135deg, #3498db, #2c3e50);
+    color: white;
+    border: none;
+}
+
+.btn-primary-large:hover {
+    background: linear-gradient(135deg, #2980b9, #1a252f);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
 }
 
-/* Form Controls */
-#editMarksModal .form-control {
-    border: 1px solid #ced4da;
-    border-radius: 6px;
-    padding: 8px 12px;
-    font-size: 13px;
-    transition: all 0.2s;
-}
-
-#editMarksModal .form-control:focus {
-    border-color: #3498db;
-    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
-}
-
-#editMarksModal .form-check-input:checked {
-    background-color: #3498db;
-    border-color: #3498db;
-}
-
 /* Animation */
-@keyframes modalFadeIn {
+@keyframes modalSlideIn {
     from {
         opacity: 0;
         transform: translateY(-30px) scale(0.95);
@@ -2976,242 +3130,76 @@ body {
     }
 }
 
-#editMarksModal.modal.show {
-    animation: modalFadeIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
 /* Responsive Design */
-@media (max-width: 576px) {
-    #editMarksModal .modal-content {
+@media (max-width: 768px) {
+    #marksModal .large-modal {
         margin: 10px;
         max-width: calc(100% - 20px);
     }
     
-    .compact-info-grid {
+    .main-selection-row {
         grid-template-columns: 1fr;
-        gap: 12px;
-        padding: 12px;
+        gap: 20px;
     }
     
-    .score-inputs {
+    .scores-container-large {
         grid-template-columns: 1fr;
-        gap: 12px;
+        gap: 20px;
     }
     
-    .collapsible-content .form-row {
+    .score-divider, .score-equals {
+        display: none;
+    }
+    
+    .form-row-large {
         grid-template-columns: 1fr;
-        gap: 12px;
+        gap: 20px;
     }
     
-    #editMarksModal .modal-body {
-        padding: 15px;
-    }
-    
-    #editMarksModal .modal-footer {
-        padding: 12px 15px;
-    }
-    
-    .grade-details-popover {
-        min-width: 200px;
-        left: 0;
-        transform: translateX(0) translateY(-10px);
-    }
-    
-    .grade-badge-container:hover .grade-details-popover {
-        transform: translateX(0) translateY(0);
-    }
-    
-    .grade-details-popover::after {
-        left: 20px;
-        transform: translateX(0);
+    .btn-lg {
+        padding: 10px 20px;
+        min-width: 120px;
+        font-size: 14px;
     }
 }
 
-/* Smooth scroll for modal body */
-#editMarksModal .modal-body {
+/* Smooth scroll */
+#marksModal .modal-body-large {
     scrollbar-width: thin;
     scrollbar-color: #c1c1c1 #f1f1f1;
 }
 
-#editMarksModal .modal-body::-webkit-scrollbar {
-    width: 6px;
+#marksModal .modal-body-large::-webkit-scrollbar {
+    width: 8px;
 }
 
-#editMarksModal .modal-body::-webkit-scrollbar-track {
+#marksModal .modal-body-large::-webkit-scrollbar-track {
     background: #f1f1f1;
-    border-radius: 3px;
+    border-radius: 4px;
 }
 
-#editMarksModal .modal-body::-webkit-scrollbar-thumb {
+#marksModal .modal-body-large::-webkit-scrollbar-thumb {
     background: #c1c1c1;
-    border-radius: 3px;
+    border-radius: 4px;
 }
 
-#editMarksModal .modal-body::-webkit-scrollbar-thumb:hover {
+#marksModal .modal-body-large::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
 }
-/* Enter Marks Modal Specific Styles */
-#marksModal .compact-modal {
-    max-width: 480px;
-}
 
-/* Selection Section */
-.selection-section {
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    border-radius: 8px;
-    padding: 15px;
-    margin-bottom: 15px;
-    border: 1px solid #dee2e6;
-}
-
-.selection-section .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-}
-
-.selection-section label {
-    font-size: 12px;
-    font-weight: 600;
-    color: #495057;
-    margin-bottom: 6px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.selection-section select {
-    font-size: 13px;
-    padding: 8px 12px;
-    height: 40px;
-    border-radius: 6px;
-    border: 1px solid #ced4da;
-    background-color: white;
-    transition: all 0.2s;
-}
-
-.selection-section select:focus {
-    border-color: #3498db;
-    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
-}
-
-/* Tips Section */
-.tips-section {
-    background: #e8f5e9;
-    border: 1px solid #c8e6c9;
-    border-radius: 8px;
-    padding: 12px 15px;
-    margin-top: 15px;
-}
-
-.tip {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    margin-bottom: 8px;
-    font-size: 12px;
-    color: #2e7d32;
-}
-
-.tip:last-child {
-    margin-bottom: 0;
-}
-
-.tip i {
-    color: #4caf50;
-    margin-top: 2px;
-    font-size: 14px;
-}
-
-/* Quick Actions */
-.quick-actions {
-    display: flex;
-    gap: 10px;
-    margin-top: 15px;
-}
-
-.quick-action-btn {
-    flex: 1;
-    padding: 8px 12px;
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    font-size: 12px;
-    color: #495057;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-}
-
-.quick-action-btn:hover {
-    background: #e9ecef;
-    border-color: #ced4da;
-}
-
-/* Loading States */
-.loading-option {
-    color: #6c757d;
-    font-style: italic;
-}
-
-/* Validation States */
-input:invalid, select:invalid {
-    border-color: #dc3545 !important;
-}
-
-input:valid, select:valid {
-    border-color: #28a745 !important;
-}
-
-/* Placeholder Styling */
-::placeholder {
-    color: #adb5bd !important;
-    font-size: 13px;
-}
-
-/* Required Field Indicator */
+/* Required field indicator */
 .required-field::after {
     content: " *";
     color: #dc3545;
 }
 
-/* Compact Form Controls */
-.compact-form-group {
-    margin-bottom: 12px;
+/* Validation styling */
+.form-control-large:invalid,
+.score-input-number-large:invalid {
+    border-color: #dc3545;
 }
 
-.compact-form-group label {
-    font-size: 12px;
-    font-weight: 600;
-    margin-bottom: 4px;
-    display: block;
-}
-
-.compact-form-group .form-control-sm {
-    font-size: 13px;
-    padding: 6px 10px;
-    height: 34px;
-}
-
-/* Responsive Adjustments for Enter Marks */
-@media (max-width: 576px) {
-    .selection-section .form-row {
-        grid-template-columns: 1fr;
-        gap: 12px;
-    }
-    
-    .quick-actions {
-        flex-direction: column;
-    }
-    
-    #marksModal .modal-body {
-        padding: 15px;
-    }
-    
-    .tips-section {
-        padding: 10px;
-    }
+.form-control-large:valid,
+.score-input-number-large:valid {
+    border-color: #28a745;
 }
