@@ -1348,158 +1348,174 @@
         </div>
     </div>
     
-    <!-- Enter Marks Modal -->
+    <!-- Enter Marks Modal - Updated for simple grading system -->
 <div id="marksModal" class="modal">
-    <div class="modal-content compact-modal">
+    <div class="modal-content large-modal">
         <div class="modal-header">
-            <h3><i class="fas fa-plus-circle"></i> Enter Marks</h3>
-            <span class="close" onclick="app.marks.closeModal('marksModal')">&times;</span>
+            <h3><i class="fas fa-plus-circle"></i> ENTER MARKS</h3>
+            <span class="close-large" onclick="app.marks.closeModal('marksModal')">&times;</span>
         </div>
         <form id="marksForm" onsubmit="app.marks.saveMarks(event)">
-            <div class="modal-body">
+            <div class="modal-body-large">
                 
                 <!-- Student & Course Selection -->
-                <div class="selection-section">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label><i class="fas fa-user-graduate"></i> Student *</label>
-                            <select id="marksStudent" class="form-control" required>
-                                <option value="">Select Student</option>
+                <div class="main-selection-row">
+                    <div class="form-group-large">
+                        <label class="large-label required-field">
+                            <i class="fas fa-user-graduate"></i> STUDENT
+                        </label>
+                        <select id="marksStudent" class="form-control-large" required>
+                            <option value="">Select Student</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group-large">
+                        <label class="large-label required-field">
+                            <i class="fas fa-book"></i> COURSE
+                        </label>
+                        <select id="marksCourse" class="form-control-large" required>
+                            <option value="">Select Course</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Assessment Details -->
+                <div class="assessment-section">
+                    <h4><i class="fas fa-tasks"></i> ASSESSMENT DETAILS</h4>
+                    <div class="form-row-large">
+                        <div class="form-group-large">
+                            <label class="large-label required-field">ASSESSMENT TYPE</label>
+                            <select id="assessmentType" class="form-control-large" required>
+                                <option value="final" selected>Final Exam</option>
+                                <option value="midterm">Midterm Exam</option>
+                                <option value="test">Test</option>
+                                <option value="quiz">Quiz</option>
+                                <option value="assignment">Assignment</option>
+                                <option value="project">Project</option>
+                                <option value="practical">Practical</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label><i class="fas fa-book"></i> Course *</label>
-                            <select id="marksCourse" class="form-control" required>
-                                <option value="">Select Course</option>
-                            </select>
+                        
+                        <div class="form-group-large">
+                            <label class="large-label">ASSESSMENT NAME</label>
+                            <input type="text" id="assessmentName" class="form-control-large" 
+                                   placeholder="e.g., Final 2024, Assignment 1">
                         </div>
                     </div>
                 </div>
                 
-                <!-- Assessment Details (Collapsible) -->
-                <div class="collapsible-section">
-                    <button type="button" class="collapsible-btn" onclick="toggleCollapsible(this)">
-                        <i class="fas fa-caret-down"></i> Assessment Details <small class="text-muted">(Optional)</small>
-                    </button>
-                    <div class="collapsible-content">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Assessment Type</label>
-                                <select id="assessmentType" class="form-control form-control-sm">
-                                    <option value="final" selected>Final Exam</option>
-                                    <option value="midterm">Midterm</option>
-                                    <option value="test">Test</option>
-                                    <option value="quiz">Quiz</option>
-                                    <option value="assignment">Assignment</option>
-                                    <option value="project">Project</option>
-                                    <option value="practical">Practical</option>
-                                    <option value="other">Other</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Assessment Name</label>
-                                <input type="text" id="assessmentName" class="form-control form-control-sm" 
-                                       placeholder="e.g., Final 2024, Assignment 1">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Scores -->
-                <div class="score-section">
-                    <h4><i class="fas fa-chart-line"></i> Scores</h4>
-                    <div class="score-inputs">
-                        <div class="score-item">
-                            <label>Score *</label>
-                            <input type="number" id="marksScore" class="form-control" 
-                                   required min="0" max="1000" step="0.01" placeholder="0.00" 
-                                   oninput="app.marks.updateMarksGradeDisplay()">
-                        </div>
-                        <div class="score-item">
-                            <label>Out of *</label>
-                            <input type="number" id="maxScore" class="form-control" 
-                                   value="100" min="1" max="1000" step="0.01" required
-                                   oninput="app.marks.updateMarksGradeDisplay()">
-                        </div>
-                        <div class="score-item">
-                            <label>=</label>
-                            <div class="percentage-display">
-                                <span id="percentageDisplay">0.00%</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Grade Preview -->
-                <div class="grade-section">
-                    <h4><i class="fas fa-award"></i> Grade Preview</h4>
-                    <div class="grade-display-compact">
-                        <div class="grade-badge-container">
-                            <div id="gradeDisplay" class="grade-badge-lg" title="Click for details">
-                                --
-                            </div>
-                            <div class="grade-details-popover">
-                                <div class="grade-points">
-                                    <strong>GPA:</strong> <span id="marksGradePoints">0.0</span>
-                                </div>
-                                <div class="grade-desc">
-                                    <strong>Description:</strong> <span id="marksGradeDescription">--</span>
-                                </div>
-                                <div class="grade-scale">
-                                    <small>A+ (97-100), A (93-96), B+ (87-89), B (83-86), C+ (77-79), C (73-76), D+ (67-69), D (63-66), F (0-59)</small>
+                <!-- Scores Section -->
+                <div class="scores-section-large">
+                    <h4><i class="fas fa-chart-line"></i> MARKS</h4>
+                    <div class="scores-container-large">
+                        <div class="score-input-large">
+                            <label class="score-label required-field">STUDENT'S SCORE</label>
+                            <div class="score-input-wrapper">
+                                <input type="number" id="marksScore" class="score-input-number-large" 
+                                       required min="0" max="1000" step="0.01" placeholder="0.00" 
+                                       oninput="app.marks.updateMarksGradeDisplay()">
+                                <div class="score-input-icon">
+                                    <i class="fas fa-star"></i>
                                 </div>
                             </div>
+                            <small class="input-hint">Enter the score obtained</small>
                         </div>
-                        <div class="grade-auto-info">
-                            <small class="text-muted">
-                                <i class="fas fa-sync-alt"></i> Auto-calculated from percentage
-                            </small>
+                        
+                        <div class="score-divider">
+                            <div class="divider-line"></div>
+                            <div class="divider-text">OUT OF</div>
+                            <div class="divider-line"></div>
+                        </div>
+                        
+                        <div class="score-input-large">
+                            <label class="score-label required-field">MAXIMUM SCORE</label>
+                            <div class="score-input-wrapper">
+                                <input type="number" id="maxScore" class="score-input-number-large" 
+                                       value="100" min="1" max="1000" step="0.01" required
+                                       oninput="app.marks.updateMarksGradeDisplay()">
+                                <div class="score-input-icon">
+                                    <i class="fas fa-chart-bar"></i>
+                                </div>
+                            </div>
+                            <small class="input-hint">Maximum possible score</small>
+                        </div>
+                        
+                        <div class="score-equals">
+                            <div class="equals-sign">=</div>
+                        </div>
+                        
+                        <div class="score-result-large">
+                            <label class="score-label">PERCENTAGE</label>
+                            <div class="percentage-display-large" id="percentageDisplay">
+                                0.00%
+                            </div>
+                            <small class="input-hint">Auto-calculated</small>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Additional Info (Collapsible) -->
-                <div class="collapsible-section">
-                    <button type="button" class="collapsible-btn" onclick="toggleCollapsible(this)">
-                        <i class="fas fa-caret-down"></i> Additional Information
-                    </button>
-                    <div class="collapsible-content">
-                        <div class="form-group">
-                            <label>Remarks <small class="text-muted">(Optional)</small></label>
-                            <textarea id="marksRemarks" class="form-control form-control-sm" rows="2" 
-                                      placeholder="Additional notes or comments..."></textarea>
+                <!-- Grade Section -->
+                <div class="grade-section-large">
+                    <h4><i class="fas fa-award"></i> FINAL GRADE</h4>
+                    <div id="gradeDisplay" class="grade-badge-xxl" title="Enter score to see grade">
+                        --
+                    </div>
+                    
+                    <div class="grade-scale-reference">
+                        <div class="scale-title">GRADING SCALE:</div>
+                        <div class="scale-items">
+                            <span class="scale-item grade-distinction">DISTINCTION (85% and above)</span>
+                            <span class="scale-item grade-credit">CREDIT (70% - 84%)</span>
+                            <span class="scale-item grade-pass">PASS (50% - 69%)</span>
+                            <span class="scale-item grade-fail">FAIL (Below 50%)</span>
                         </div>
-                        <div class="form-check">
-                            <input type="checkbox" id="visibleToStudent" class="form-check-input" checked>
-                            <label class="form-check-label" for="visibleToStudent">
-                                <i class="fas fa-eye"></i> Visible to student
-                            </label>
-                            <small class="form-text text-muted d-block mt-1">
-                                Student can view this mark in their portal
-                            </small>
-                        </div>
+                    </div>
+                </div>
+                
+                <!-- Additional Information -->
+                <div class="additional-info-section">
+                    <h4><i class="fas fa-info-circle"></i> ADDITIONAL INFORMATION</h4>
+                    
+                    <div class="form-group-large">
+                        <label class="large-label">REMARKS</label>
+                        <textarea id="marksRemarks" class="form-control-large-textarea" rows="3" 
+                                  placeholder="Enter any additional remarks or comments..."></textarea>
+                    </div>
+                    
+                    <div class="visibility-option">
+                        <input type="checkbox" id="visibleToStudent" class="visibility-checkbox-large" checked>
+                        <label for="visibleToStudent" class="visibility-label">
+                            <i class="fas fa-eye"></i> VISIBLE TO STUDENT
+                        </label>
+                        <small class="visibility-hint">
+                            Student can view this mark in their student portal
+                        </small>
                     </div>
                 </div>
                 
                 <!-- Quick Tips -->
-                <div class="tips-section">
-                    <div class="tip">
-                        <i class="fas fa-lightbulb"></i>
-                        <span>Enter scores between 0-100 or use custom max score</span>
+                <div class="quick-tips-large">
+                    <div class="tip-item">
+                        <i class="fas fa-lightbulb tip-icon"></i>
+                        <span class="tip-text">All fields marked with * are required</span>
                     </div>
-                    <div class="tip">
-                        <i class="fas fa-lightbulb"></i>
-                        <span>Grades are calculated automatically based on percentage</span>
+                    <div class="tip-item">
+                        <i class="fas fa-lightbulb tip-icon"></i>
+                        <span class="tip-text">Grade and percentage are calculated automatically</span>
+                    </div>
+                    <div class="tip-item">
+                        <i class="fas fa-lightbulb tip-icon"></i>
+                        <span class="tip-text">You can change the maximum score if different from 100</span>
                     </div>
                 </div>
                 
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="app.marks.closeModal('marksModal')">
-                    <i class="fas fa-times"></i> Cancel
+            <div class="modal-footer-large">
+                <button type="button" class="btn btn-lg btn-secondary-large" onclick="app.marks.closeModal('marksModal')">
+                    <i class="fas fa-times"></i> CANCEL
                 </button>
-                <button type="submit" class="btn btn-sm btn-primary">
-                    <i class="fas fa-save"></i> Save Marks
+                <button type="submit" class="btn btn-lg btn-primary-large">
+                    <i class="fas fa-save"></i> SAVE MARKS
                 </button>
             </div>
         </form>
@@ -1581,64 +1597,31 @@
                     </div>
                 </div>
                 
-                <!-- Grade (Compact) -->
-                <div class="grade-section">
-                    <h4>Grade</h4>
-                    <div class="grade-display-compact">
-                        <div class="grade-badge-container">
-                            <div id="editGradeDisplay" class="grade-badge-lg" title="Click for details">
-                                --
-                            </div>
-                            <div class="grade-details-popover">
-                                <div class="grade-points">
-                                    <strong>GPA:</strong> <span id="editGradePoints">0.0</span>
-                                </div>
-                                <div class="grade-desc">
-                                    <strong>Description:</strong> <span id="editGradeDescription">--</span>
-                                </div>
-                                <div class="grade-scale">
-                                    <small>A+ (97-100), A (93-96), B+ (87-89), B (83-86), C+ (77-79), C (73-76), D+ (67-69), D (63-66), F (0-59)</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="grade-auto-info">
-                            <small class="text-muted">
-                                <i class="fas fa-sync-alt"></i> Auto-calculated from percentage
-                            </small>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Remarks (Collapsible) -->
-                <div class="collapsible-section">
-                    <button type="button" class="collapsible-btn" onclick="toggleCollapsible(this)">
-                        <i class="fas fa-caret-down"></i> Remarks & Options
-                    </button>
-                    <div class="collapsible-content">
-                        <div class="form-group">
-                            <label>Remarks <small class="text-muted">(Optional)</small></label>
-                            <textarea id="editRemarks" class="form-control form-control-sm" rows="2" 
-                                      placeholder="Additional notes..."></textarea>
-                        </div>
-                        <div class="form-check">
-                            <input type="checkbox" id="editVisibleToStudent" class="form-check-input" checked>
-                            <label class="form-check-label" for="editVisibleToStudent">
-                                Visible to student
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                
+               <!-- Grade (Compact) -->
+<div class="grade-section">
+    <h4>Grade</h4>
+    <div class="grade-display-compact">
+        <div class="grade-badge-container">
+            <div id="editGradeDisplay" class="grade-badge-lg" title="Click for details">
+                --
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="app.marks.closeModal('editMarksModal')">
-                    Cancel
-                </button>
-                <button type="submit" class="btn btn-sm btn-primary">
-                    <i class="fas fa-save"></i> Update
-                </button>
+            <div class="grade-details-popover">
+                <div class="grade-points">
+                    <strong>Grade:</strong> <span id="editGradePoints">--</span>
+                </div>
+                <div class="grade-desc">
+                    <strong>Description:</strong> <span id="editGradeDescription">--</span>
+                </div>
+                <div class="grade-scale">
+                    <small>DISTINCTION (85-100%), CREDIT (70-84%), PASS (50-69%), FAIL (0-49%)</small>
+                </div>
             </div>
-        </form>
+        </div>
+        <div class="grade-auto-info">
+            <small class="text-muted">
+                <i class="fas fa-sync-alt"></i> Auto-calculated from percentage
+            </small>
+        </div>
     </div>
 </div>
     
