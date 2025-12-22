@@ -696,32 +696,100 @@
             </div>
 
             <!-- GRADING SCALE TAB -->
-            <div id="gradingSettings" class="settings-tab-content">
-                <div class="section-header">
-                    <h3>Grading Scale Configuration</h3>
-                    <button type="button" class="btn-secondary" onclick="app.addGradingScaleRow()">
-                        <i class="fas fa-plus"></i> Add Grade
-                    </button>
-                </div>
+<div id="gradingSettings" class="settings-tab-content">
+    <div class="section-header">
+        <h3>Grading Scale Configuration</h3>
+        <button type="button" class="btn-secondary" onclick="app.addGradingScaleRow()">
+            <i class="fas fa-plus"></i> Add Grade
+        </button>
+    </div>
+    
+    <div class="table-container">
+        <table class="data-table grading-scale-table">
+            <thead>
+                <tr>
+                    <th>Grade</th>
+                    <th>Min %</th>
+                    <th>Max %</th>
+                    <th>Points</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="grading-scale-body">
+                <!-- DELETE this comment line and PASTE the code below here -->
                 
-                <div class="table-container">
-                    <table class="data-table grading-scale-table">
-                        <thead>
-                            <tr>
-                                <th>Grade</th>
-                                <th>Min %</th>
-                                <th>Max %</th>
-                                <th>Points</th>
-                                <th>Description</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="grading-scale-body">
-                            <!-- Dynamic rows will be inserted here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                <!-- PASTE THIS CODE STARTING HERE -->
+                <tr>
+                    <td><input type="text" class="form-control form-control-sm grade-input" value="A" readonly style="font-weight: bold; background: #f8f9fa;"></td>
+                    <td><input type="number" class="form-control form-control-sm min-input" value="80" min="0" max="100" data-grade="A"></td>
+                    <td><input type="number" class="form-control form-control-sm max-input" value="100" min="0" max="100" data-grade="A"></td>
+                    <td><input type="number" class="form-control form-control-sm points-input" value="4.0" step="0.1" min="0" max="4" data-grade="A"></td>
+                    <td><input type="text" class="form-control description-input" value="Excellent" data-grade="A"></td>
+                    <td><button type="button" class="btn btn-sm btn-danger" disabled><i class="fas fa-trash"></i></button></td>
+                </tr>
+                <tr>
+                    <td><input type="text" class="form-control form-control-sm grade-input" value="B+" readonly style="font-weight: bold; background: #f8f9fa;"></td>
+                    <td><input type="number" class="form-control form-control-sm min-input" value="75" min="0" max="100" data-grade="B+"></td>
+                    <td><input type="number" class="form-control form-control-sm max-input" value="79" min="0" max="100" data-grade="B+"></td>
+                    <td><input type="number" class="form-control form-control-sm points-input" value="3.5" step="0.1" min="0" max="4" data-grade="B+"></td>
+                    <td><input type="text" class="form-control description-input" value="Very Good" data-grade="B+"></td>
+                    <td><button type="button" class="btn btn-sm btn-danger" onclick="app.removeGradingScaleRow('B+')"><i class="fas fa-trash"></i></button></td>
+                </tr>
+                <tr>
+                    <td><input type="text" class="form-control form-control-sm grade-input" value="B" readonly style="font-weight: bold; background: #f8f9fa;"></td>
+                    <td><input type="number" class="form-control form-control-sm min-input" value="70" min="0" max="100" data-grade="B"></td>
+                    <td><input type="number" class="form-control form-control-sm max-input" value="74" min="0" max="100" data-grade="B"></td>
+                    <td><input type="number" class="form-control form-control-sm points-input" value="3.0" step="0.1" min="0" max="4" data-grade="B"></td>
+                    <td><input type="text" class="form-control description-input" value="Good" data-grade="B"></td>
+                    <td><button type="button" class="btn btn-sm btn-danger" onclick="app.removeGradingScaleRow('B')"><i class="fas fa-trash"></i></button></td>
+                </tr>
+                <tr>
+                    <td><input type="text" class="form-control form-control-sm grade-input" value="C+" readonly style="font-weight: bold; background: #f8f9fa;"></td>
+                    <td><input type="number" class="form-control form-control-sm min-input" value="65" min="0" max="100" data-grade="C+"></td>
+                    <td><input type="number" class="form-control form-control-sm max-input" value="69" min="0" max="100" data-grade="C+"></td>
+                    <td><input type="number" class="form-control form-control-sm points-input" value="2.5" step="0.1" min="0" max="4" data-grade="C+"></td>
+                    <td><input type="text" class="form-control description-input" value="Above Average" data-grade="C+"></td>
+                    <td><button type="button" class="btn btn-sm btn-danger" onclick="app.removeGradingScaleRow('C+')"><i class="fas fa-trash"></i></button></td>
+                </tr>
+                <tr>
+                    <td><input type="text" class="form-control form-control-sm grade-input" value="C" readonly style="font-weight: bold; background: #f8f9fa;"></td>
+                    <td><input type="number" class="form-control form-control-sm min-input" value="60" min="0" max="100" data-grade="C"></td>
+                    <td><input type="number" class="form-control form-control-sm max-input" value="64" min="0" max="100" data-grade="C"></td>
+                    <td><input type="number" class="form-control form-control-sm points-input" value="2.0" step="0.1" min="0" max="4" data-grade="C"></td>
+                    <td><input type="text" class="form-control description-input" value="Average" data-grade="C"></td>
+                    <td><button type="button" class="btn btn-sm btn-danger" onclick="app.removeGradingScaleRow('C')"><i class="fas fa-trash"></i></button></td>
+                </tr>
+                <tr>
+                    <td><input type="text" class="form-control form-control-sm grade-input" value="D+" readonly style="font-weight: bold; background: #f8f9fa;"></td>
+                    <td><input type="number" class="form-control form-control-sm min-input" value="55" min="0" max="100" data-grade="D+"></td>
+                    <td><input type="number" class="form-control form-control-sm max-input" value="59" min="0" max="100" data-grade="D+"></td>
+                    <td><input type="number" class="form-control form-control-sm points-input" value="1.5" step="0.1" min="0" max="4" data-grade="D+"></td>
+                    <td><input type="text" class="form-control description-input" value="Below Average" data-grade="D+"></td>
+                    <td><button type="button" class="btn btn-sm btn-danger" onclick="app.removeGradingScaleRow('D+')"><i class="fas fa-trash"></i></button></td>
+                </tr>
+                <tr>
+                    <td><input type="text" class="form-control form-control-sm grade-input" value="D" readonly style="font-weight: bold; background: #f8f9fa;"></td>
+                    <td><input type="number" class="form-control form-control-sm min-input" value="50" min="0" max="100" data-grade="D"></td>
+                    <td><input type="number" class="form-control form-control-sm max-input" value="54" min="0" max="100" data-grade="D"></td>
+                    <td><input type="number" class="form-control form-control-sm points-input" value="1.0" step="0.1" min="0" max="4" data-grade="D"></td>
+                    <td><input type="text" class="form-control description-input" value="Pass" data-grade="D"></td>
+                    <td><button type="button" class="btn btn-sm btn-danger" onclick="app.removeGradingScaleRow('D')"><i class="fas fa-trash"></i></button></td>
+                </tr>
+                <tr>
+                    <td><input type="text" class="form-control form-control-sm grade-input" value="F" readonly style="font-weight: bold; background: #f8f9fa;"></td>
+                    <td><input type="number" class="form-control form-control-sm min-input" value="0" min="0" max="100" data-grade="F"></td>
+                    <td><input type="number" class="form-control form-control-sm max-input" value="49" min="0" max="100" data-grade="F"></td>
+                    <td><input type="number" class="form-control form-control-sm points-input" value="0.0" step="0.1" min="0" max="4" data-grade="F"></td>
+                    <td><input type="text" class="form-control description-input" value="Fail" data-grade="F"></td>
+                    <td><button type="button" class="btn btn-sm btn-danger" disabled><i class="fas fa-trash"></i></button></td>
+                </tr>
+                <!-- PASTE THIS CODE ENDING HERE -->
+                
+            </tbody>
+        </table>
+    </div>
+</div>
 
             <!-- PROGRAMS TAB -->
             <div id="programsSettings" class="settings-tab-content">
