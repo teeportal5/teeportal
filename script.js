@@ -194,7 +194,6 @@ class TEEPortalSupabaseDB {
     async getSettings() {
         try {
             const supabase = await this.ensureConnected();
-            
             const { data, error } = await supabase
                 .from('settings')
                 .select('*')
@@ -205,31 +204,82 @@ class TEEPortalSupabaseDB {
             if (error) {
                 // If no settings exist, return default settings
                 if (error.code === 'PGRST116') {
-                    console.log('📋 No settings found in database, using defaults');
                     const defaults = this.getDefaultSettings();
+                    this.settings = defaults;
                     return defaults;
                 }
-                console.warn('⚠️ Error fetching settings:', error.message);
                 throw error;
             }
             
             // Merge with default settings to ensure all fields exist
             const defaultSettings = this.getDefaultSettings();
-            const mergedSettings = { 
-                ...defaultSettings, 
-                ...(data.settings_data || {}) 
-            };
-            
-            console.log('📋 Settings loaded from database');
+            const mergedSettings = { ...defaultSettings, ...(data.settings_data || {}) };
+            this.settings = mergedSettings;
             return mergedSettings;
             
         } catch (error) {
-            console.error('❌ Error fetching settings:', error);
-            // Return defaults on any error
-            return this.getDefaultSettings();
+            console.error('Error fetching settings:', error);
+            const defaults = this.getDefaultSettings();
+            this.settings = defaults;
+            return defaults;
         }
-    };
-}
+    }
+
+    async saveSettings(settingsData) {
+        try {
+            const supabase = await this.ensureConnected();
+            
+            // Get existing settings to update or create new
+            const { data: existingSettings, error: fetchError } = await supabase
+                .from('settings')
+                .select('*')
+                .limit(1)
+                .maybeSingle();
+                
+            let result;
+            
+            if (existingSettings) {
+                // Update existing settings
+                const { data, error } = await supabase
+                    .from('settings')
+                    .update({
+                        settings_data: settingsData,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', existingSettings.id)
+                    .select()
+                    .single();
+                    
+                if (error) throw error;
+                result = data;
+            } else {
+                // Create new settings
+                const { data, error } = await supabase
+                    .from('settings')
+                    .insert([{
+                        settings_data: settingsData,
+                        setting_type: 'system',
+                        created_at: new Date().toISOString()
+                    }])
+                    .select()
+                    .single();
+                    
+                if (error) throw error;
+                result = data;
+            }
+            
+            // Update cached settings
+            this.settings = settingsData;
+            
+            // Log the activity
+            await this.logActivity('settings_updated', 'System settings updated');
+            return result;
+            
+        } catch (error) {
+            console.error('Error saving settings:', error);
+            throw error;
+        }
+    }
     
     // ========== STUDENTS ==========
     async getStudents() {
@@ -331,7 +381,7 @@ class TEEPortalSupabaseDB {
         }
     }
     
-   // ========== COURSES ==========
+    // ========== COURSES ==========
     async getCourses() {
         try {
             const supabase = await this.ensureConnected();
@@ -809,97 +859,6 @@ class TEEPortalSupabaseDB {
         }
     }
     
-   // ========== SETTINGS MANAGEMENT ==========
-    async getSettings() {
-        try {
-            const supabase = await this.ensureConnected();
-            const { data, error } = await supabase
-                .from('settings')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .single();
-                
-            if (error) {
-                // If no settings exist, return default settings
-                if (error.code === 'PGRST116') {
-                    const defaults = this.getDefaultSettings();
-                    this.settings = defaults;
-                    return defaults;
-                }
-                throw error;
-            }
-            
-            // Merge with default settings to ensure all fields exist
-            const defaultSettings = this.getDefaultSettings();
-            const mergedSettings = { ...defaultSettings, ...(data.settings_data || {}) };
-            this.settings = mergedSettings;
-            return mergedSettings;
-            
-        } catch (error) {
-            console.error('Error fetching settings:', error);
-            const defaults = this.getDefaultSettings();
-            this.settings = defaults;
-            return defaults;
-        }
-    }
-
-    async saveSettings(settingsData) {
-        try {
-            const supabase = await this.ensureConnected();
-            
-            // Get existing settings to update or create new
-            const { data: existingSettings, error: fetchError } = await supabase
-                .from('settings')
-                .select('*')
-                .limit(1)
-                .maybeSingle();
-                
-            let result;
-            
-            if (existingSettings) {
-                // Update existing settings
-                const { data, error } = await supabase
-                    .from('settings')
-                    .update({
-                        settings_data: settingsData,
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('id', existingSettings.id)
-                    .select()
-                    .single();
-                    
-                if (error) throw error;
-                result = data;
-            } else {
-                // Create new settings
-                const { data, error } = await supabase
-                    .from('settings')
-                    .insert([{
-                        settings_data: settingsData,
-                        setting_type: 'system',
-                        created_at: new Date().toISOString()
-                    }])
-                    .select()
-                    .single();
-                    
-                if (error) throw error;
-                result = data;
-            }
-            
-            // Update cached settings
-            this.settings = settingsData;
-            
-            // Log the activity
-            await this.logActivity('settings_updated', 'System settings updated');
-            return result;
-            
-        } catch (error) {
-            console.error('Error saving settings:', error);
-            throw error;
-        }
-    }
-    
     async logActivity(type, description) {
         try {
             const supabase = await this.ensureConnected();
@@ -980,7 +939,7 @@ class TEEPortalApp {
         }
     }
     
-   setupEventListeners() {
+    setupEventListeners() {
         // Setup form submissions
         const studentForm = document.getElementById('studentForm');
         if (studentForm) {
@@ -3936,136 +3895,136 @@ class TEEPortalApp {
         };
     }
     
-   async generateTranscriptPDF(data, options) {
-    try {
-        console.log('📄 Generating PDF transcript for:', data.student.full_name);
-        
-        // Check if jsPDF is loaded
-        if (typeof jspdf === 'undefined') {
-            this.showToast('Error: jsPDF library not loaded. Please add it to your HTML.', 'error');
-            throw new Error('jsPDF not loaded');
-        }
-        
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        
-        // Document properties
-        doc.setProperties({
-            title: `Transcript - ${data.student.full_name}`,
-            subject: 'Academic Transcript',
-            author: 'TEE Portal',
-            creator: 'TEE Portal System'
-        });
-        
-        // Page setup
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const margin = 20;
-        
-        // Watermark if enabled
-        if (options.watermark) {
-            doc.setFontSize(60);
-            doc.setTextColor(230, 230, 230);
-            doc.text('UNOFFICIAL', pageWidth / 2, 150, { align: 'center', angle: 45 });
-            doc.setTextColor(0, 0, 0);
-        }
-        
-        // Header - Institution
-        doc.setFontSize(18);
-        doc.setFont(undefined, 'bold');
-        doc.text('THEOLOGICAL EDUCATION BY EXTENSION COLLEGE', pageWidth / 2, 25, { align: 'center' });
-        
-        // Title
-        doc.setFontSize(16);
-        doc.text('ACADEMIC TRANSCRIPT', pageWidth / 2, 35, { align: 'center' });
-        
-        // Student Information Section
-        doc.setFontSize(12);
-        doc.setFont(undefined, 'normal');
-        doc.text(`Student Name: ${data.student.full_name}`, margin, 50);
-        doc.text(`Registration No.: ${data.student.reg_number}`, margin, 58);
-        doc.text(`Program: ${data.student.program}`, margin, 66);
-        doc.text(`Intake Year: ${data.student.intake_year}`, margin, 74);
-        
-        if (data.gpa !== null) {
-            doc.text(`Cumulative GPA: ${data.gpa.toFixed(2)}`, margin, 82);
-        }
-        
-        doc.text(`Date Generated: ${data.generatedDate}`, margin, 90);
-        
-        // Course Table Header
-        doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
-        doc.text('COURSE PERFORMANCE', margin, 105);
-        
-        // Create course table data
-        const tableData = data.courses.map(course => [
-            course.courseCode,
-            course.courseName,
-            course.credits || 3,
-            course.finalGrade || 'N/A'
-        ]);
-        
-        // Generate table using autoTable if available
-        if (typeof doc.autoTable !== 'undefined') {
-            doc.autoTable({
-                startY: 110,
-                head: [['Course Code', 'Course Name', 'Credits', 'Grade']],
-                body: tableData,
-                theme: 'grid',
-                headStyles: {
-                    fillColor: [41, 128, 185],
-                    textColor: [255, 255, 255],
-                    fontStyle: 'bold'
-                },
-                margin: { left: margin, right: margin },
-                styles: { fontSize: 10 },
-                columnStyles: {
-                    0: { cellWidth: 25 },
-                    1: { cellWidth: 100 },
-                    2: { cellWidth: 20, halign: 'center' },
-                    3: { cellWidth: 20, halign: 'center' }
-                }
+    async generateTranscriptPDF(data, options) {
+        try {
+            console.log('📄 Generating PDF transcript for:', data.student.full_name);
+            
+            // Check if jsPDF is loaded
+            if (typeof jspdf === 'undefined') {
+                this.showToast('Error: jsPDF library not loaded. Please add it to your HTML.', 'error');
+                throw new Error('jsPDF not loaded');
+            }
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Document properties
+            doc.setProperties({
+                title: `Transcript - ${data.student.full_name}`,
+                subject: 'Academic Transcript',
+                author: 'TEE Portal',
+                creator: 'TEE Portal System'
             });
-        } else {
-            // Simple table if autoTable not available
-            doc.setFontSize(10);
-            let y = 115;
-            tableData.forEach(row => {
-                doc.text(row[0], margin, y);
-                doc.text(row[1], margin + 30, y);
-                doc.text(row[2], margin + 130, y);
-                doc.text(row[3], margin + 150, y);
-                y += 7;
-            });
+            
+            // Page setup
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 20;
+            
+            // Watermark if enabled
+            if (options.watermark) {
+                doc.setFontSize(60);
+                doc.setTextColor(230, 230, 230);
+                doc.text('UNOFFICIAL', pageWidth / 2, 150, { align: 'center', angle: 45 });
+                doc.setTextColor(0, 0, 0);
+            }
+            
+            // Header - Institution
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.text('THEOLOGICAL EDUCATION BY EXTENSION COLLEGE', pageWidth / 2, 25, { align: 'center' });
+            
+            // Title
+            doc.setFontSize(16);
+            doc.text('ACADEMIC TRANSCRIPT', pageWidth / 2, 35, { align: 'center' });
+            
+            // Student Information Section
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'normal');
+            doc.text(`Student Name: ${data.student.full_name}`, margin, 50);
+            doc.text(`Registration No.: ${data.student.reg_number}`, margin, 58);
+            doc.text(`Program: ${data.student.program}`, margin, 66);
+            doc.text(`Intake Year: ${data.student.intake_year}`, margin, 74);
+            
+            if (data.gpa !== null) {
+                doc.text(`Cumulative GPA: ${data.gpa.toFixed(2)}`, margin, 82);
+            }
+            
+            doc.text(`Date Generated: ${data.generatedDate}`, margin, 90);
+            
+            // Course Table Header
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text('COURSE PERFORMANCE', margin, 105);
+            
+            // Create course table data
+            const tableData = data.courses.map(course => [
+                course.courseCode,
+                course.courseName,
+                course.credits || 3,
+                course.finalGrade || 'N/A'
+            ]);
+            
+            // Generate table using autoTable if available
+            if (typeof doc.autoTable !== 'undefined') {
+                doc.autoTable({
+                    startY: 110,
+                    head: [['Course Code', 'Course Name', 'Credits', 'Grade']],
+                    body: tableData,
+                    theme: 'grid',
+                    headStyles: {
+                        fillColor: [41, 128, 185],
+                        textColor: [255, 255, 255],
+                        fontStyle: 'bold'
+                    },
+                    margin: { left: margin, right: margin },
+                    styles: { fontSize: 10 },
+                    columnStyles: {
+                        0: { cellWidth: 25 },
+                        1: { cellWidth: 100 },
+                        2: { cellWidth: 20, halign: 'center' },
+                        3: { cellWidth: 20, halign: 'center' }
+                    }
+                });
+            } else {
+                // Simple table if autoTable not available
+                doc.setFontSize(10);
+                let y = 115;
+                tableData.forEach(row => {
+                    doc.text(row[0], margin, y);
+                    doc.text(row[1], margin + 30, y);
+                    doc.text(row[2], margin + 130, y);
+                    doc.text(row[3], margin + 150, y);
+                    y += 7;
+                });
+            }
+            
+            // Footer
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(10);
+                doc.setTextColor(100, 100, 100);
+                doc.text(
+                    'Generated by TEE Portal System | Unofficial Transcript',
+                    pageWidth / 2,
+                    doc.internal.pageSize.getHeight() - 10,
+                    { align: 'center' }
+                );
+            }
+            
+            // Save the PDF
+            const fileName = `Transcript_${data.student.reg_number}_${new Date().toISOString().split('T')[0]}.pdf`;
+            doc.save(fileName);
+            
+            console.log('✅ PDF generated:', fileName);
+            return fileName;
+            
+        } catch (error) {
+            console.error('❌ Error generating PDF:', error);
+            this.showToast('Error generating PDF: ' + error.message, 'error');
+            throw error;
         }
-        
-        // Footer
-        const pageCount = doc.internal.getNumberOfPages();
-        for (let i = 1; i <= pageCount; i++) {
-            doc.setPage(i);
-            doc.setFontSize(10);
-            doc.setTextColor(100, 100, 100);
-            doc.text(
-                'Generated by TEE Portal System | Unofficial Transcript',
-                pageWidth / 2,
-                doc.internal.pageSize.getHeight() - 10,
-                { align: 'center' }
-            );
-        }
-        
-        // Save the PDF
-        const fileName = `Transcript_${data.student.reg_number}_${new Date().toISOString().split('T')[0]}.pdf`;
-        doc.save(fileName);
-        
-        console.log('✅ PDF generated:', fileName);
-        return fileName;
-        
-    } catch (error) {
-        console.error('❌ Error generating PDF:', error);
-        this.showToast('Error generating PDF: ' + error.message, 'error');
-        throw error;
     }
-}
     
     async generateTranscriptExcel(data, options) {
         // Implement using ExcelJS or similar
@@ -4095,94 +4054,94 @@ class TEEPortalApp {
     }
     
     // Test method
-   async testTranscriptGeneration() {
-    try {
-        const testData = {
-            student: {
-                id: 'test-001',
-                reg_number: 'TEST001',
-                full_name: 'Test Student',
-                program: 'basic',
-                intake_year: '2024',
-                status: 'active',
-                email: 'test@example.com',
-                phone: '123-456-7890'
-            },
-            courses: [{
-                courseCode: 'CS101',
-                courseName: 'Introduction to Computer Science',
-                finalGrade: 'A',
-                credits: 3,
-                assessments: [
-                    { 
-                        name: 'Midterm Exam', 
-                        type: 'Exam', 
-                        score: 85, 
-                        maxScore: 100, 
-                        percentage: 85, 
-                        grade: 'A',
-                        remarks: 'Excellent performance'
-                    },
-                    { 
-                        name: 'Final Project', 
-                        type: 'Project', 
-                        score: 95, 
-                        maxScore: 100, 
-                        percentage: 95, 
-                        grade: 'A+',
-                        remarks: 'Outstanding work'
-                    }
-                ]
-            }, {
-                courseCode: 'MATH101',
-                courseName: 'Mathematics Fundamentals',
-                finalGrade: 'B+',
-                credits: 3,
-                assessments: [
-                    { 
-                        name: 'Quiz 1', 
-                        type: 'Quiz', 
-                        score: 78, 
-                        maxScore: 100, 
-                        percentage: 78, 
-                        grade: 'B+',
-                        remarks: 'Good effort'
-                    }
-                ]
-            }],
-            gpa: 3.75,
-            totalCredits: 6,
-            generatedDate: new Date().toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            })
-        };
-        
-        // Test PDF generation
-        await this.generateTranscriptPDF(testData, {
-            includeAllAssessments: true,
-            includeGPA: true,
-            includeRemarks: true,
-            includeSensitiveData: true,
-            watermark: true
-        });
-        
-        // Test CSV generation
-        await this.generateTranscriptCSV(testData, {
-            includeAllAssessments: true,
-            includeGPA: true,
-            includeRemarks: true,
-            includeSensitiveData: false
-        });
-        
-        this.showToast('✅ Test transcript generation successful! Check your downloads folder.', 'success');
-        
-    } catch (error) {
-        console.error('❌ Test failed:', error);
-        this.showToast('Test failed: ' + error.message, 'error');
+    async testTranscriptGeneration() {
+        try {
+            const testData = {
+                student: {
+                    id: 'test-001',
+                    reg_number: 'TEST001',
+                    full_name: 'Test Student',
+                    program: 'basic',
+                    intake_year: '2024',
+                    status: 'active',
+                    email: 'test@example.com',
+                    phone: '123-456-7890'
+                },
+                courses: [{
+                    courseCode: 'CS101',
+                    courseName: 'Introduction to Computer Science',
+                    finalGrade: 'A',
+                    credits: 3,
+                    assessments: [
+                        { 
+                            name: 'Midterm Exam', 
+                            type: 'Exam', 
+                            score: 85, 
+                            maxScore: 100, 
+                            percentage: 85, 
+                            grade: 'A',
+                            remarks: 'Excellent performance'
+                        },
+                        { 
+                            name: 'Final Project', 
+                            type: 'Project', 
+                            score: 95, 
+                            maxScore: 100, 
+                            percentage: 95, 
+                            grade: 'A+',
+                            remarks: 'Outstanding work'
+                        }
+                    ]
+                }, {
+                    courseCode: 'MATH101',
+                    courseName: 'Mathematics Fundamentals',
+                    finalGrade: 'B+',
+                    credits: 3,
+                    assessments: [
+                        { 
+                            name: 'Quiz 1', 
+                            type: 'Quiz', 
+                            score: 78, 
+                            maxScore: 100, 
+                            percentage: 78, 
+                            grade: 'B+',
+                            remarks: 'Good effort'
+                        }
+                    ]
+                }],
+                gpa: 3.75,
+                totalCredits: 6,
+                generatedDate: new Date().toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                })
+            };
+            
+            // Test PDF generation
+            await this.generateTranscriptPDF(testData, {
+                includeAllAssessments: true,
+                includeGPA: true,
+                includeRemarks: true,
+                includeSensitiveData: true,
+                watermark: true
+            });
+            
+            // Test CSV generation
+            await this.generateTranscriptCSV(testData, {
+                includeAllAssessments: true,
+                includeGPA: true,
+                includeRemarks: true,
+                includeSensitiveData: false
+            });
+            
+            this.showToast('✅ Test transcript generation successful! Check your downloads folder.', 'success');
+            
+        } catch (error) {
+            console.error('❌ Test failed:', error);
+            this.showToast('Test failed: ' + error.message, 'error');
+        }
     }
-}
     
     // ==============================
     // REPORT METHODS
