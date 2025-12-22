@@ -251,63 +251,61 @@ class MarksManager {
             });
         }
     }
-    
     updateMarksGradeDisplay() {
-        try {
-            const scoreInput = document.getElementById('marksScore');
-            const maxScoreInput = document.getElementById('maxScore');
-            const gradeDisplay = document.getElementById('gradeDisplay');
-            const percentageDisplay = document.getElementById('percentageDisplay');
-            const gradeDescriptionDisplay = document.getElementById('marksGradeDescription');
-            
-            if (!scoreInput || !gradeDisplay) return;
-            
-            const score = parseFloat(scoreInput.value);
-            const maxScore = parseFloat(maxScoreInput?.value) || 100;
-            
-            if (isNaN(score) || maxScore <= 0) {
-                this.resetMarksGradeDisplay(gradeDisplay, percentageDisplay, gradeDescriptionDisplay);
-                return;
-            }
-            
-            const percentage = (score / maxScore) * 100;
-            const grade = this.calculateGrade(percentage);
-            const gradeDescription = this.getGradeDescription(grade);
-            const gradeCSSClass = this.getGradeCSSClass(grade);
-            
-            // Update display
-            gradeDisplay.textContent = grade;
-            gradeDisplay.className = `grade-badge-lg ${gradeCSSClass}`;
-            gradeDisplay.title = gradeDescription;
-            
-            if (percentageDisplay) {
-                percentageDisplay.textContent = `${percentage.toFixed(2)}%`;
-            }
-            
-            if (gradeDescriptionDisplay) {
-                gradeDescriptionDisplay.textContent = gradeDescription;
-            }
-            
-        } catch (error) {
-            console.error('Error updating marks grade display:', error);
-        }
-    }
-    
-    resetMarksGradeDisplay(gradeDisplay, percentageDisplay, gradeDescriptionDisplay) {
-        if (gradeDisplay) {
-            gradeDisplay.textContent = '--';
-            gradeDisplay.className = 'grade-badge-lg';
-            gradeDisplay.title = 'Enter score to see grade';
+    try {
+        const scoreInput = document.getElementById('marksScore');
+        const maxScoreInput = document.getElementById('maxScore');
+        const gradeDisplay = document.getElementById('gradeDisplay');
+        const percentageDisplay = document.getElementById('percentageDisplay');
+        const gradeDescriptionDisplay = document.getElementById('marksGradeDescription');
+        
+        if (!scoreInput || !gradeDisplay) return;
+        
+        const score = parseFloat(scoreInput.value);
+        const maxScore = parseFloat(maxScoreInput?.value) || 100;
+        
+        if (isNaN(score) || maxScore <= 0) {
+            this.resetMarksGradeDisplay(gradeDisplay, percentageDisplay, gradeDescriptionDisplay);
+            return;
         }
         
+        const percentage = (score / maxScore) * 100;
+        const grade = this.calculateGrade(percentage);
+        const gradeDescription = this.getGradeDescription(grade);
+        const gradeCSSClass = this.getGradeCSSClass(grade);
+        
+        // Update display
+        gradeDisplay.textContent = grade;
+        gradeDisplay.className = `grade-badge-balanced ${gradeCSSClass}`;
+        gradeDisplay.title = gradeDescription;
+        
         if (percentageDisplay) {
-            percentageDisplay.textContent = '0.00%';
+            percentageDisplay.textContent = `${percentage.toFixed(2)}%`;
         }
         
         if (gradeDescriptionDisplay) {
-            gradeDescriptionDisplay.textContent = '--';
+            gradeDescriptionDisplay.textContent = gradeDescription;
         }
+        
+    } catch (error) {
+        console.error('Error updating marks grade display:', error);
     }
+}
+   resetMarksGradeDisplay(gradeDisplay, percentageDisplay, gradeDescriptionDisplay) {
+    if (gradeDisplay) {
+        gradeDisplay.textContent = '--';
+        gradeDisplay.className = 'grade-badge-balanced';
+        gradeDisplay.title = 'Enter score to see grade';
+    }
+    
+    if (percentageDisplay) {
+        percentageDisplay.textContent = '0.00%';
+    }
+    
+    if (gradeDescriptionDisplay) {
+        gradeDescriptionDisplay.textContent = '--';
+    }
+}
     
     async saveMarks(event) {
         event.preventDefault();
