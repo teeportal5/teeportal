@@ -1454,72 +1454,101 @@
                     </div>
                 </div>
                 
-                <!-- Grade Section -->
-                <div class="grade-section-large">
-                    <h4><i class="fas fa-award"></i> FINAL GRADE</h4>
-                    <div id="gradeDisplay" class="grade-badge-xxl" title="Enter score to see grade">
-                        --
-                    </div>
-                    
-                    <div class="grade-scale-reference">
-                        <div class="scale-title">GRADING SCALE:</div>
-                        <div class="scale-items">
-                            <span class="scale-item grade-distinction">DISTINCTION (85% and above)</span>
-                            <span class="scale-item grade-credit">CREDIT (70% - 84%)</span>
-                            <span class="scale-item grade-pass">PASS (50% - 69%)</span>
-                            <span class="scale-item grade-fail">FAIL (Below 50%)</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Additional Information -->
-                <div class="additional-info-section">
-                    <h4><i class="fas fa-info-circle"></i> ADDITIONAL INFORMATION</h4>
-                    
-                    <div class="form-group-large">
-                        <label class="large-label">REMARKS</label>
-                        <textarea id="marksRemarks" class="form-control-large-textarea" rows="3" 
-                                  placeholder="Enter any additional remarks or comments..."></textarea>
-                    </div>
-                    
-                    <div class="visibility-option">
-                        <input type="checkbox" id="visibleToStudent" class="visibility-checkbox-large" checked>
-                        <label for="visibleToStudent" class="visibility-label">
-                            <i class="fas fa-eye"></i> VISIBLE TO STUDENT
-                        </label>
-                        <small class="visibility-hint">
-                            Student can view this mark in their student portal
-                        </small>
-                    </div>
-                </div>
-                
-                <!-- Quick Tips -->
-                <div class="quick-tips-large">
-                    <div class="tip-item">
-                        <i class="fas fa-lightbulb tip-icon"></i>
-                        <span class="tip-text">All fields marked with * are required</span>
-                    </div>
-                    <div class="tip-item">
-                        <i class="fas fa-lightbulb tip-icon"></i>
-                        <span class="tip-text">Grade and percentage are calculated automatically</span>
-                    </div>
-                    <div class="tip-item">
-                        <i class="fas fa-lightbulb tip-icon"></i>
-                        <span class="tip-text">You can change the maximum score if different from 100</span>
-                    </div>
-                </div>
-                
+             <!-- Grade Section - Balanced Wide -->
+<div class="grade-section-balanced">
+    <h4><i class="fas fa-award"></i> FINAL GRADE</h4>
+    
+    <div class="grade-display-balanced">
+        <!-- Main Grade Display -->
+        <div class="grade-main-balanced">
+            <div id="gradeDisplay" class="grade-badge-balanced grade-credit" title="Good - Above average achievement (70% - 84%)">
+                CREDIT
             </div>
-            <div class="modal-footer-large">
-                <button type="button" class="btn btn-lg btn-secondary-large" onclick="app.marks.closeModal('marksModal')">
-                    <i class="fas fa-times"></i> CANCEL
-                </button>
-                <button type="submit" class="btn btn-lg btn-primary-large">
-                    <i class="fas fa-save"></i> SAVE MARKS
-                </button>
+            <div class="grade-details-balanced">
+                <div class="grade-percentage-balanced">
+                    <i class="fas fa-percentage"></i> 
+                    <span id="gradePercentageDisplay" class="percentage-value">78.00%</span>
+                </div>
+                <div class="grade-desc-balanced">
+                    <i class="fas fa-info-circle"></i>
+                    <span id="gradeDescriptionDisplay">Good - Above average achievement</span>
+                </div>
             </div>
-        </form>
+        </div>
+        
+        <!-- Grade Scale - Compact -->
+        <div class="grade-scale-balanced">
+            <div class="scale-title-balanced">
+                <i class="fas fa-ruler"></i> GRADING SCALE
+            </div>
+            <div class="scale-list-balanced">
+                <div class="scale-item-balanced grade-distinction">
+                    <span class="scale-grade">DISTINCTION</span>
+                    <span class="scale-range">85% - 100%</span>
+                </div>
+                <div class="scale-item-balanced grade-credit active">
+                    <span class="scale-grade">CREDIT</span>
+                    <span class="scale-range">70% - 84%</span>
+                    <span class="current-indicator">✓ Current</span>
+                </div>
+                <div class="scale-item-balanced grade-pass">
+                    <span class="scale-grade">PASS</span>
+                    <span class="scale-range">50% - 69%</span>
+                </div>
+                <div class="scale-item-balanced grade-fail">
+                    <span class="scale-grade">FAIL</span>
+                    <span class="scale-range">0% - 49%</span>
+                </div>
+            </div>
+        </div>
     </div>
+</div>
+
+<!-- Additional Information Section -->
+<div class="additional-info-balanced">
+    <h4><i class="fas fa-info-circle"></i> ADDITIONAL INFORMATION</h4>
+    
+    <div class="form-group-balanced">
+        <label class="large-label">
+            <i class="fas fa-comment"></i> REMARKS
+            <small class="text-muted">(Optional)</small>
+        </label>
+        <textarea id="marksRemarks" class="form-control-textarea-balanced" rows="3" 
+                  placeholder="Enter any additional remarks or comments..."></textarea>
+    </div>
+    
+    <div class="bottom-options-balanced">
+        <div class="visibility-balanced">
+            <input type="checkbox" id="visibleToStudent" class="visibility-checkbox-balanced" checked>
+            <label for="visibleToStudent" class="visibility-label-balanced">
+                <i class="fas fa-eye"></i> Visible to student
+            </label>
+            <small class="visibility-hint-balanced">
+                Student can view this mark in their student portal
+            </small>
+        </div>
+        
+        <div class="quick-tips-balanced">
+            <div class="tips-title">
+                <i class="fas fa-lightbulb"></i> Quick Tips:
+            </div>
+            <div class="tips-list">
+                <span class="tip-item">• All * fields are required</span>
+                <span class="tip-item">• Grade auto-calculated</span>
+                <span class="tip-item">• Adjust max score as needed</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Footer -->
+<div class="modal-footer-balanced">
+    <button type="button" class="btn btn-secondary-balanced" onclick="app.marks.closeModal('marksModal')">
+        <i class="fas fa-times"></i> Cancel
+    </button>
+    <button type="submit" class="btn btn-primary-balanced">
+        <i class="fas fa-save"></i> Save Marks
+    </button>
 </div>
     
  <!-- Edit Marks Modal -->
