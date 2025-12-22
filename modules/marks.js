@@ -374,7 +374,92 @@ class MarksManager {
             console.warn(`Modal #${modalId} not found`);
         }
     }
+    async exportMarks() {
+    try {
+        console.log('📊 Exporting marks...');
+        
+        if (!this.app.initialized) {
+            this.ui.showToast('Please wait for system to initialize', 'warning');
+            return;
+        }
+        
+        const marks = await this.db.getMarksTableData();
+        
+        if (!marks || marks.length === 0) {
+            this.ui.showToast('No marks data to export', 'warning');
+            return;
+        }
+        
+        // Convert to CSV format
+        const csv = this.convertMarksToCSV(marks);
+        
+        // Create and download CSV file
+        this.downloadCSV(csv, `teeportal-marks-${new Date().toISOString().split('T')[0]}.csv`);
+        
+        this.ui.showToast(`Exported ${marks.length} marks records`, 'success');
+        
+    } catch (error) {
+        console.error('Error exporting marks:', error);
+        this.ui.showToast('Error exporting marks', 'error');
+    }
+}
+
+convertMarksToCSV(marks) {
+    const headers = [
+        'Student Reg No',
+        'Student Name', 
+        'Course Code',
+        'Course Name',
+        'Assessment Type',
+        'Assessment Name',
+        'Score',
+        'Max Score',
+        'Percentage',
+        'Grade',
+        'Grade Points',
+        'Remarks',
+        'Date Entered'
+    ];
     
+    const rows = marks.map(mark => {
+        const student = mark.students || {};
+        const course = mark.courses || {};
+        
+        return [
+            `"${student.reg_number || ''}"`,
+            `"${student.full_name || ''}"`,
+            `"${course.course_code || ''}"`,
+            `"${course.course_name || ''}"`,
+            `"${mark.assessment_type || ''}"`,
+            `"${mark.assessment_name || ''}"`,
+            mark.score || 0,
+            mark.max_score || 100,
+            mark.percentage || 0,
+            `"${mark.grade || ''}"`,
+            mark.grade_points || 0,
+            `"${mark.remarks || ''}"`,
+            `"${mark.created_at ? new Date(mark.created_at).toLocaleDateString() : ''}"`
+        ].join(',');
+    });
+    
+    return [headers.join(','), ...rows].join('\n');
+}
+
+downloadCSV(csvContent, fileName) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', fileName);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
     showToast(message, type = 'info') {
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
