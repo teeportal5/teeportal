@@ -479,52 +479,460 @@
                 </div>
             </div>
             
-            <!-- Reports Section -->
-            <div id="reports" class="content-section">
-                <div class="section-header">
-                    <h2>Reports & Analytics</h2>
+           <!-- Reports Section -->
+<div id="reports" class="content-section">
+    <div class="section-header">
+        <h2><i class="fas fa-chart-bar"></i> Reports & Analytics</h2>
+        <button class="btn-secondary" onclick="app.reports.refreshReports()">
+            <i class="fas fa-sync"></i> Refresh
+        </button>
+    </div>
+    
+    <!-- Filters Row -->
+    <div class="filters-card mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-filter"></i> Report Filters</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="filterYear" class="form-label">Academic Year</label>
+                            <select id="filterYear" class="form-control">
+                                <option value="all">All Years</option>
+                                <!-- Will be populated -->
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="filterProgram" class="form-label">Program</label>
+                            <select id="filterProgram" class="form-control">
+                                <option value="all">All Programs</option>
+                                <!-- Will be populated -->
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="filterCourse" class="form-label">Course</label>
+                            <select id="filterCourse" class="form-control">
+                                <option value="all">All Courses</option>
+                                <!-- Will be populated -->
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="filterSemester" class="form-label">Semester</label>
+                            <select id="filterSemester" class="form-control">
+                                <option value="all">All Semesters</option>
+                                <option value="1">Semester 1</option>
+                                <option value="2">Semester 2</option>
+                                <option value="3">Semester 3</option>
+                                <option value="4">Semester 4</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="reports-grid">
-                    <div class="report-card">
-                        <h3><i class="fas fa-users"></i> Student Reports</h3>
-                        <p>Generate student lists and enrollment reports</p>
-                        <button class="btn-primary" onclick="app.reports.generateStudentReport()">
-                            Generate Report
-                        </button>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="filterStatus" class="form-label">Student Status</label>
+                            <select id="filterStatus" class="form-control">
+                                <option value="all">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="graduated">Graduated</option>
+                                <option value="withdrawn">Withdrawn</option>
+                            </select>
+                        </div>
                     </div>
-                    
-                    <div class="report-card">
-                        <h3><i class="fas fa-chart-bar"></i> Academic Reports</h3>
-                        <p>Generate marks and performance reports</p>
-                        <button class="btn-primary" onclick="app.reports.generateAcademicReport()">
-                            Generate Report
-                        </button>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="filterIntake" class="form-label">Intake Year</label>
+                            <select id="filterIntake" class="form-control">
+                                <option value="all">All Intakes</option>
+                                <!-- Will be populated -->
+                            </select>
+                        </div>
                     </div>
-                    
-                    <div class="report-card">
-                        <h3><i class="fas fa-graduation-cap"></i> Transcripts</h3>
-                        <p>Generate student academic transcripts</p>
-                        <button class="btn-primary" onclick="app.transcripts.generateStudentTranscriptPrompt()">
-                            Generate Transcripts
-                        </button>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="filterDateFrom" class="form-label">Date From</label>
+                            <input type="date" id="filterDateFrom" class="form-control">
+                        </div>
                     </div>
-                    
-                    <div class="report-card">
-                        <h3><i class="fas fa-download"></i> Bulk Export</h3>
-                        <p>Export all data in various formats</p>
-                        <select id="exportFormat" class="filter-select">
-                            <option value="excel">Excel</option>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="filterDateTo" class="form-label">Date To</label>
+                            <input type="date" id="filterDateTo" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end gap-2">
+                    <button class="btn btn-secondary" onclick="app.reports.clearFilters()">
+                        <i class="fas fa-times"></i> Clear Filters
+                    </button>
+                    <button class="btn btn-primary" onclick="app.reports.applyFilters()">
+                        <i class="fas fa-check"></i> Apply Filters
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Left Column - Report Cards -->
+        <div class="col-md-8">
+            <div class="reports-grid">
+                <!-- Student Reports Card -->
+                <div class="report-card">
+                    <div class="report-card-header">
+                        <i class="fas fa-users fa-2x text-primary"></i>
+                        <h3>Student Reports</h3>
+                    </div>
+                    <p>Generate student lists and enrollment reports</p>
+                    <div class="report-options">
+                        <select id="studentReportType" class="filter-select mb-2">
+                            <option value="list">Student List</option>
+                            <option value="enrollment">Enrollment Stats</option>
+                            <option value="graduation">Graduation Report</option>
+                            <option value="demographics">Demographics</option>
+                        </select>
+                        <select id="studentReportFormat" class="filter-select mb-2">
                             <option value="csv">CSV</option>
+                            <option value="excel">Excel</option>
                             <option value="pdf">PDF</option>
                         </select>
-                        <button class="btn-primary" onclick="app.reports.exportAllData()">
-                            Export All
+                        <button class="btn-primary w-100" onclick="app.reports.quickStudentReport()">
+                            <i class="fas fa-download"></i> Generate Report
+                        </button>
+                        <button class="btn-outline-primary w-100 mt-2" onclick="app.reports.previewStudentReport()">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Academic Reports Card -->
+                <div class="report-card">
+                    <div class="report-card-header">
+                        <i class="fas fa-chart-bar fa-2x text-success"></i>
+                        <h3>Academic Reports</h3>
+                    </div>
+                    <p>Generate marks and performance reports</p>
+                    <div class="report-options">
+                        <select id="academicReportType" class="filter-select mb-2">
+                            <option value="marks">All Marks</option>
+                            <option value="performance">Performance Analysis</option>
+                            <option value="grades">Grade Distribution</option>
+                            <option value="coursewise">Course-wise Results</option>
+                        </select>
+                        <select id="academicReportFormat" class="filter-select mb-2">
+                            <option value="csv">CSV</option>
+                            <option value="excel">Excel</option>
+                            <option value="pdf">PDF</option>
+                        </select>
+                        <button class="btn-primary w-100" onclick="app.reports.quickAcademicReport()">
+                            <i class="fas fa-download"></i> Generate Report
+                        </button>
+                        <button class="btn-outline-primary w-100 mt-2" onclick="app.reports.previewAcademicReport()">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Transcripts Card -->
+                <div class="report-card">
+                    <div class="report-card-header">
+                        <i class="fas fa-graduation-cap fa-2x text-warning"></i>
+                        <h3>Student Transcripts</h3>
+                    </div>
+                    <p>Generate student academic transcripts</p>
+                    <div class="report-options">
+                        <select id="transcriptStudent" class="filter-select mb-2">
+                            <option value="">Select Student...</option>
+                        </select>
+                        <select id="transcriptFormat" class="filter-select mb-2">
+                            <option value="pdf">PDF (Official)</option>
+                            <option value="excel">Excel (Detailed)</option>
+                            <option value="csv">CSV (Raw Data)</option>
+                        </select>
+                        <button class="btn-primary w-100" onclick="app.reports.generateTranscript()">
+                            <i class="fas fa-file-pdf"></i> Generate Transcript
+                        </button>
+                        <button class="btn-outline-primary w-100 mt-2" onclick="app.reports.previewTranscript()">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Bulk Export Card -->
+                <div class="report-card">
+                    <div class="report-card-header">
+                        <i class="fas fa-database fa-2x text-info"></i>
+                        <h3>Bulk Export</h3>
+                    </div>
+                    <p>Export all data in various formats</p>
+                    <div class="report-options">
+                        <select id="bulkExportType" class="filter-select mb-2">
+                            <option value="json">JSON Backup</option>
+                            <option value="excel">Excel Workbook</option>
+                            <option value="csv_all">All CSV Files (ZIP)</option>
+                            <option value="pdf_all">All PDF Reports</option>
+                        </select>
+                        <button class="btn-warning w-100" onclick="app.reports.bulkExport()">
+                            <i class="fas fa-download"></i> Export All Data
                         </button>
                     </div>
                 </div>
             </div>
             
+            <!-- Report Preview Section -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4><i class="fas fa-eye"></i> Report Preview</h4>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="app.reports.clearPreview()">
+                            <i class="fas fa-times"></i> Clear Preview
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="reportPreview">
+                        <div class="text-center text-muted p-4">
+                            <i class="fas fa-chart-line fa-3x mb-3"></i>
+                            <p>Select a report type and click "Preview" to see a sample here</p>
+                            <small>Preview shows first 10 records only</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column - Transcript Preview & Statistics -->
+        <div class="col-md-4">
+            <!-- Transcript Preview Card -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4><i class="fas fa-file-contract"></i> Transcript Preview</h4>
+                        <small id="transcriptStatus" class="badge bg-light text-dark">Select Student</small>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="transcriptPreview">
+                        <div class="transcript-sample text-center">
+                            <div class="transcript-header mb-3">
+                                <h5 class="text-primary">OFFICIAL TRANSCRIPT</h5>
+                                <p class="text-muted mb-0">TEEPortal University</p>
+                                <p class="text-muted small">Academic Records Office</p>
+                            </div>
+                            
+                            <div class="student-info text-start p-3 bg-light rounded mb-3">
+                                <p class="mb-1"><strong>Name:</strong> <span id="previewStudentName">[Student Name]</span></p>
+                                <p class="mb-1"><strong>Reg No:</strong> <span id="previewRegNumber">[Registration Number]</span></p>
+                                <p class="mb-1"><strong>Program:</strong> <span id="previewProgram">[Program Name]</span></p>
+                                <p class="mb-1"><strong>Intake Year:</strong> <span id="previewIntake">[YYYY]</span></p>
+                                <p class="mb-0"><strong>Status:</strong> <span id="previewStatus" class="badge bg-success">Active</span></p>
+                            </div>
+                            
+                            <div class="academic-performance">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Course</th>
+                                            <th>Grade</th>
+                                            <th>Credits</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="previewCourses">
+                                        <tr><td colspan="3" class="text-muted text-center">No courses selected</td></tr>
+                                    </tbody>
+                                </table>
+                                
+                                <div class="gpa-summary mt-3 p-2 bg-light rounded">
+                                    <p class="mb-1"><strong>GPA:</strong> <span id="previewGPA">0.00</span></p>
+                                    <p class="mb-1"><strong>Total Credits:</strong> <span id="previewCredits">0</span></p>
+                                    <p class="mb-0"><strong>Completion:</strong> <span id="previewCompletion">0%</span></p>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <button class="btn btn-sm btn-outline-primary w-100" onclick="app.reports.loadSampleTranscript()">
+                                    <i class="fas fa-eye"></i> Load Sample Transcript
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Statistics Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-chart-pie"></i> Quick Statistics</h4>
+                </div>
+                <div class="card-body">
+                    <div id="reportStats">
+                        <div class="stat-item d-flex justify-content-between mb-2">
+                            <span>Total Students:</span>
+                            <strong id="statTotalStudents">0</strong>
+                        </div>
+                        <div class="stat-item d-flex justify-content-between mb-2">
+                            <span>Active Students:</span>
+                            <strong id="statActiveStudents">0</strong>
+                        </div>
+                        <div class="stat-item d-flex justify-content-between mb-2">
+                            <span>Total Courses:</span>
+                            <strong id="statTotalCourses">0</strong>
+                        </div>
+                        <div class="stat-item d-flex justify-content-between mb-2">
+                            <span>Marks Entries:</span>
+                            <strong id="statMarksEntries">0</strong>
+                        </div>
+                        <div class="stat-item d-flex justify-content-between mb-2">
+                            <span>Graduation Rate:</span>
+                            <strong id="statGraduationRate">0%</strong>
+                        </div>
+                        <div class="stat-item d-flex justify-content-between">
+                            <span>Average GPA:</span>
+                            <strong id="statAverageGPA">0.00</strong>
+                        </div>
+                        <hr>
+                        <div class="text-center mt-3">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="app.reports.updateStatistics()">
+                                <i class="fas fa-sync"></i> Update Statistics
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Custom Report Builder (Hidden by default) -->
+    <div class="card mt-4" id="customReportBuilder" style="display: none;">
+        <div class="card-header">
+            <h4><i class="fas fa-cogs"></i> Custom Report Builder</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Select Data Fields</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="fieldRegNumber" checked>
+                            <label class="form-check-label" for="fieldRegNumber">Registration Number</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="fieldName" checked>
+                            <label class="form-check-label" for="fieldName">Student Name</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="fieldProgram">
+                            <label class="form-check-label" for="fieldProgram">Program</label>
+                        </div>
+                        <!-- Add more fields as needed -->
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Sort By</label>
+                        <select class="form-control" id="sortField">
+                            <option value="reg_number">Registration Number</option>
+                            <option value="full_name">Student Name</option>
+                            <option value="program">Program</option>
+                            <option value="intake_year">Intake Year</option>
+                        </select>
+                        <select class="form-control mt-2" id="sortOrder">
+                            <option value="asc">Ascending (A-Z)</option>
+                            <option value="desc">Descending (Z-A)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Report Options</label>
+                        <select class="form-control" id="customReportFormat">
+                            <option value="csv">CSV</option>
+                            <option value="excel">Excel</option>
+                            <option value="pdf">PDF</option>
+                        </select>
+                        <button class="btn btn-primary w-100 mt-3" onclick="app.reports.generateCustomReport()">
+                            <i class="fas fa-magic"></i> Generate Custom Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.reports-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.report-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.3s;
+}
+
+.report-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.report-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.report-card-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #333;
+}
+
+.report-options {
+    margin-top: 15px;
+}
+
+.filters-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.transcript-sample {
+    font-size: 0.9rem;
+}
+
+.transcript-header {
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+.stat-item {
+    padding: 5px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.stat-item:last-child {
+    border-bottom: none;
+}
+</style>
             <!-- Settings Section -->
             <div id="settings" class="content-section">
                 <div class="section-header">
