@@ -104,7 +104,11 @@ class TEEPortalApp {
             if (this.marks && this.marks.loadMarksTable) {
                 await this.marks.loadMarksTable();
             }
-            
+              // Initialize reports UI
+        if (this.reports && this.reports.initializeReportsUI) {
+            await this.reports.initializeReportsUI();
+        }
+        
             // Update dashboard
             if (this.dashboard && this.dashboard.updateDashboard) {
                 await this.dashboard.updateDashboard();
