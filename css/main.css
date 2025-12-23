@@ -148,3 +148,72 @@
         grid-template-columns: 1fr;
     }
 }
+/* ==================== */
+/* CRITICAL FIXES FOR SECTION SWITCHING */
+/* ==================== */
+
+/* Hide ALL sections by default */
+.content-section {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    position: absolute !important;
+    width: 100% !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    transition: opacity 0.3s ease !important;
+}
+
+/* Show ONLY the active section */
+.content-section.active {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    position: relative !important;
+    height: auto !important;
+    overflow: visible !important;
+    animation: fadeIn 0.5s ease forwards !important;
+}
+
+/* Dashboard specific styles */
+#dashboard.content-section {
+    padding: 0 !important;
+}
+
+#dashboard.content-section.active {
+    padding: 0 !important;
+}
+
+/* Force all active sections to be visible */
+.content-section.active {
+    background: white !important;
+    border-radius: var(--border-radius) !important;
+    box-shadow: var(--shadow) !important;
+    margin: 20px !important;
+    padding: 20px !important;
+    min-height: calc(100vh - 120px) !important;
+}
+
+/* Ensure main content shows the active section */
+.main-content {
+    position: relative !important;
+    min-height: 100vh !important;
+}
+
+/* Make sure sidebar doesn't hide content */
+.sidebar {
+    position: fixed !important;
+    z-index: 100 !important;
+}
+
+/* Animation for section transition */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
