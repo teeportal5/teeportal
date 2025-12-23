@@ -99,59 +99,138 @@ class StudentManager {
         }
     }
     
-    /**
-     * Save or update student
-     */
-    async saveStudent(event) {
-        event.preventDefault();
+   /**
+ * Save or update student - UPDATED VERSION
+ */
+async saveStudent(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    if (!form || form.id !== 'studentForm') {
+        console.error('Invalid form element');
+        return;
+    }
+    
+    try {
+        // Get all form data
+        const formData = new FormData(form);
+        const studentData = {};
         
-        const form = event.target;
-        if (!form || form.id !== 'studentForm') {
-            console.error('Invalid form element');
+        // Convert FormData to object
+        for (let [key, value] of formData.entries()) {
+            studentData[key] = value;
+        }
+        
+        // Additional manual fields (for fields not in formData)
+        const additionalFields = [
+            'studentDOB', 'studentIdNumber', 'studentGender',
+            'studentCounty', 'studentSubCounty', 'studentWard', 'studentVillage',
+            'studentProgram', 'studentIntake', 'studentCentre', 'studentStudyMode',
+            'studentEmployment', 'studentEmployer', 'studentJobTitle', 'studentExperience'
+        ];
+        
+        additionalFields.forEach(fieldId => {
+            const element = document.getElementById(fieldId);
+            if (element) {
+                const key = fieldId.replace('student', '').replace(/^\w/, c => c.toLowerCase());
+                studentData[key] = element.value;
+            }
+        });
+        
+        // Map form data to database fields
+        const mappedData = {
+            full_name: studentData.Name || studentData.studentName || '',
+            email: studentData.Email || studentData.studentEmail || '',
+            phone: studentData.Phone || studentData.studentPhone || '',
+            date_of_birth: studentData.DOB || studentData.studentDOB || '',
+            id_number: studentData.studentIdNumber || '',
+            gender: studentData.Gender || studentData.studentGender || '',
+            
+            // Location fields
+            county: studentData.County || studentData.studentCounty || '',
+            sub_county: studentData.studentSubCounty || '',
+            ward: studentData.studentWard || '',
+            village: studentData.studentVillage || '',
+            
+            // Academic fields
+            program: studentData.Program || studentData.studentProgram || '',
+            intake_year: studentData.Intake || studentData.studentIntake || new Date().getFullYear().toString(),
+            centre_id: studentData.Centre || studentData.studentCentre || '',
+            study_mode: studentData.studentStudyMode || 'fulltime',
+            
+            // Employment fields
+            employment_status: studentData.studentEmployment || '',
+            employer: studentData.studentEmployer || '',
+            job_title: studentData.studentJobTitle || '',
+            years_experience: parseInt(studentData.studentExperience) || 0,
+            
+            // Status
+            status: 'active'
+        };
+        
+        // Validate required fields
+        const requiredFields = ['full_name', 'email', 'program', 'intake_year'];
+        const missingFields = requiredFields.filter(field => !mappedData[field] || mappedData[field].toString().trim() === '');
+        
+        if (missingFields.length > 0) {
+            this.ui.showToast(`Missing required fields: ${missingFields.join(', ')}`, 'error');
             return;
         }
         
-        try {
-            const studentData = this._extractFormData(form);
+        // Validate email
+        if (!this._validateEmail(mappedData.email)) {
+            this.ui.showToast('Please enter a valid email address', 'error');
+            return;
+        }
+        
+        // Show loading state
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        submitBtn.disabled = true;
+        
+        let result;
+        if (this.currentEditId) {
+            // Update existing student
+            result = await this.db.updateStudent(this.currentEditId, mappedData);
+            this.ui.showToast(`Student updated successfully!`, 'success');
             
-            if (!this._validateStudentData(studentData)) {
-                this.ui.showToast('Please fill in all required fields', 'error');
-                return;
-            }
+            // Reset edit mode
+            this.currentEditId = null;
             
-            if (!this._validateEmail(studentData.email)) {
-                this.ui.showToast('Please enter a valid email address', 'error');
-                return;
-            }
-            
-            let student;
-            if (this.currentEditId) {
-                // Update existing student
-                student = await this.db.updateStudent(this.currentEditId, studentData);
-                this.ui.showToast(`Student updated successfully!`, 'success');
-                this.currentEditId = null;
-                
-                // Change button text back to "Add Student"
-                const submitBtn = form.querySelector('button[type="submit"]');
-                if (submitBtn) {
-                    submitBtn.innerHTML = '<i class="fas fa-plus"></i> Add Student';
-                }
-            } else {
-                // Add new student
-                student = await this.db.addStudent(studentData);
-                this.ui.showToast(`Student registered successfully! Registration Number: ${student.reg_number}`, 'success');
-            }
-            
-            this.ui.closeModal('studentModal');
-            form.reset();
-            
-            await this.loadStudentsTable();
-            
-        } catch (error) {
-            console.error('Error saving student:', error);
-            this.ui.showToast(error.message || 'Error saving student data', 'error');
+            // Reset submit button
+            submitBtn.innerHTML = '<i class="fas fa-plus"></i> Register Student';
+            submitBtn.removeAttribute('data-editing');
+        } else {
+            // Add new student
+            result = await this.db.addStudent(mappedData);
+            const regNumber = result.reg_number || result.id;
+            this.ui.showToast(`Student registered successfully! Registration Number: ${regNumber}`, 'success');
+        }
+        
+        // Reset form
+        form.reset();
+        
+        // Close modal
+        this.ui.closeModal('studentModal');
+        
+        // Refresh students table
+        await this.loadStudentsTable();
+        
+    } catch (error) {
+        console.error('Error saving student:', error);
+        this.ui.showToast(error.message || 'Error saving student data', 'error');
+        
+        // Reset button if error
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = this.currentEditId 
+                ? '<i class="fas fa-save"></i> Update Student'
+                : '<i class="fas fa-plus"></i> Register Student';
+            submitBtn.disabled = false;
         }
     }
+}
     
     /**
      * Extract form data
@@ -459,10 +538,10 @@ class StudentManager {
         }
     }
     
-    /**
-     * Edit student
-     */
-   async editStudent(studentId) {
+   /**
+ * Edit student - UPDATED VERSION
+ */
+async editStudent(studentId) {
     try {
         const student = await this.db.getStudent(studentId);
         if (!student) {
@@ -472,67 +551,81 @@ class StudentManager {
         
         this.currentEditId = studentId;
         
-        console.log('🔍 Editing student:', student.full_name);
+        console.log('🔍 Editing student:', student);
         
-        // Safe way to set form values
-        const setFormValue = (id, value) => {
-            const element = document.getElementById(id);
-            if (element) {
-                element.value = value || '';
-                return true;
-            }
-            return false;
+        // Map database fields to form field IDs
+        const fieldMap = {
+            // Personal Information
+            'studentName': student.full_name || '',
+            'studentEmail': student.email || '',
+            'studentPhone': student.phone || '',
+            'studentDOB': student.date_of_birth ? new Date(student.date_of_birth).toISOString().split('T')[0] : '',
+            'studentIdNumber': student.id_number || '',
+            'studentGender': student.gender || '',
+            
+            // Location Information (from your HTML modal)
+            'studentCounty': student.county || '',
+            'studentSubCounty': student.sub_county || '',
+            'studentWard': student.ward || '',
+            'studentVillage': student.village || '',
+            
+            // Academic Information
+            'studentProgram': student.program || '',
+            'studentIntake': student.intake_year || new Date().getFullYear().toString(),
+            'studentCentre': student.centre_id || student.centre || '',
+            'studentStudyMode': student.study_mode || 'fulltime',
+            
+            // Employment Information (for TEE students)
+            'studentEmployment': student.employment_status || '',
+            'studentEmployer': student.employer || '',
+            'studentJobTitle': student.job_title || '',
+            'studentExperience': student.years_experience || 0,
+            
+            // Additional fields that might exist
+            'studentAddress': student.address || '',
+            'emergencyContact': student.emergency_contact || '',
+            'studentNotes': student.notes || ''
         };
         
-        // List of fields to try (in order of priority)
-        const fields = [
-            // Personal info
-            { id: 'studentName', value: student.full_name },
-            { id: 'studentEmail', value: student.email },
-            { id: 'studentPhone', value: student.phone },
-            { id: 'studentDOB', value: student.dob ? new Date(student.dob).toISOString().split('T')[0] : '' },
-            { id: 'studentGender', value: student.gender },
-            { id: 'studentIdNumber', value: student.id_number },
-            
-            // Academic info
-            { id: 'studentProgram', value: student.program },
-            { id: 'studentIntake', value: student.intake_year },
-            { id: 'studentCentre', value: student.centre_id || student.centre },
-            { id: 'studentStudyMode', value: student.study_mode },
-            
-            // Location info
-            { id: 'studentCounty', value: student.county },
-            { id: 'studentSubCounty', value: student.sub_county },
-            { id: 'studentWard', value: student.ward },
-            { id: 'studentVillage', value: student.village },
-            
-            // Other fields
-            { id: 'studentAddress', value: student.address },
-            { id: 'emergencyContact', value: student.emergency_contact },
-            { id: 'studentNotes', value: student.notes }
-        ];
-        
-        let successCount = 0;
-        fields.forEach(field => {
-            if (setFormValue(field.id, field.value)) {
-                successCount++;
+        // Populate form fields
+        Object.entries(fieldMap).forEach(([fieldId, value]) => {
+            const element = document.getElementById(fieldId);
+            if (element) {
+                if (element.tagName === 'SELECT') {
+                    element.value = value;
+                } else {
+                    element.value = value;
+                }
+                console.log(`✅ Set ${fieldId}: ${value}`);
+            } else {
+                console.warn(`⚠️ Field not found: ${fieldId}`);
             }
         });
         
-        console.log(`✅ Set ${successCount}/${fields.length} form fields`);
-        
-        // Update submit button
+        // Update submit button text
         const submitBtn = document.querySelector('#studentForm button[type="submit"]');
         if (submitBtn) {
             submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Student';
+            submitBtn.setAttribute('data-editing', 'true');
         }
         
         // Open modal
         this.ui.openModal('studentModal');
         
+        // Scroll to top of modal
+        const modalBody = document.querySelector('#studentModal .modal-body');
+        if (modalBody) {
+            modalBody.scrollTop = 0;
+        }
+        
+        // Focus on first field
+        setTimeout(() => {
+            document.getElementById('studentName')?.focus();
+        }, 100);
+        
     } catch (error) {
         console.error('Error editing student:', error);
-        this.ui.showToast('Error loading student data', 'error');
+        this.ui.showToast('Error loading student data: ' + error.message, 'error');
     }
 }
     
@@ -1630,7 +1723,31 @@ class StudentManager {
         return encodeURI(safeText);
     }
 }
-
+/**
+ * Reset student form
+ */
+_resetStudentForm() {
+    const form = document.getElementById('studentForm');
+    if (form) {
+        form.reset();
+        
+        // Reset submit button
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-plus"></i> Register Student';
+            submitBtn.removeAttribute('data-editing');
+        }
+        
+        // Clear edit ID
+        this.currentEditId = null;
+        
+        // Clear any error messages
+        document.querySelectorAll('.error-message').forEach(el => el.remove());
+        document.querySelectorAll('.form-control.error').forEach(el => {
+            el.classList.remove('error');
+        });
+    }
+}
 // Export for Node.js/CommonJS
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = StudentManager;
