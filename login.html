@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEE Portal - Login</title>
+    
+    <!-- CSS Libraries -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .auth-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .auth-header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            padding: 40px 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .auth-header h1 {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .auth-header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .auth-body {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #495057;
+            border: 2px solid #e9ecef;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .auth-footer {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .auth-footer a {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .remember-forgot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .remember-forgot label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .remember-forgot a {
+            color: #3498db;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .remember-forgot a:hover {
+            text-decoration: underline;
+        }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 10000;
+            animation: slideIn 0.3s ease;
+            min-width: 300px;
+        }
+
+        .toast.success {
+            border-left: 4px solid #27ae60;
+        }
+
+        .toast.error {
+            border-left: 4px solid #e74c3c;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .auth-card {
+                border-radius: 8px;
+            }
+            
+            .auth-header {
+                padding: 30px 20px;
+            }
+            
+            .auth-body {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>
+                    <i class="fas fa-graduation-cap"></i>
+                    TEE Portal
+                </h1>
+                <p>Welcome Back! Please sign in</p>
+            </div>
+            
+            <div class="auth-body">
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="email">
+                            <i class="fas fa-envelope"></i> Email Address
+                        </label>
+                        <input type="email" id="email" class="form-control" placeholder="admin@teeportal.edu" required>
+                        <div class="error-message" id="emailError"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">
+                            <i class="fas fa-lock"></i> Password
+                        </label>
+                        <input type="password" id="password" class="form-control" placeholder="Enter your password" required>
+                        <div class="error-message" id="passwordError"></div>
+                    </div>
+                    
+                    <div class="remember-forgot">
+                        <label>
+                            <input type="checkbox" id="remember">
+                            Remember me
+                        </label>
+                        <a href="#" id="forgotPassword">Forgot password?</a>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <span id="btnText">Sign In</span>
+                        <div class="loading-spinner" id="loadingSpinner"></div>
+                    </button>
+                </form>
+                
+                <div class="auth-footer">
+                    <p>Don't have an account? <a href="signup.html">Create Account</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        // Supabase Configuration
+        const SUPABASE_URL = 'https://kmkjsessuzdfadlmndyr.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtta2pzZXNzdXpkZmFkbG1uZHlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYyNTA1MzUsImV4cCI6MjA4MTgyNjUzNX0.16m_thmf2Td8uB5lan8vZDLkGkWIlftaxSOroqvDkU4';
+        
+        let supabaseClient = null;
+        
+        // Initialize Supabase
+        async function initSupabase() {
+            try {
+                supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                console.log('✅ Supabase initialized');
+                return true;
+            } catch (error) {
+                console.error('❌ Supabase initialization failed:', error);
+                return false;
+            }
+        }
+        
+        // Show error message
+        function showError(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.style.display = 'block';
+        }
+        
+        // Hide error message
+        function hideError(elementId) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'none';
+        }
+        
+        // Show toast notification
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+                <span>${message}</span>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Remove after 5 seconds
+            setTimeout(() => {
+                toast.remove();
+            }, 5000);
+        }
+        
+        // Validate login credentials
+        async function validateLogin(email, password) {
+            try {
+                // Initialize Supabase
+                const supabaseConnected = await initSupabase();
+                if (!supabaseConnected) {
+                    throw new Error('Could not connect to database');
+                }
+                
+                // Find user by email
+                const { data: user, error } = await supabaseClient
+                    .from('users')
+                    .select('*')
+                    .eq('email', email)
+                    .single();
+                    
+                if (error) {
+                    if (error.code === 'PGRST116') {
+                        throw new Error('User not found. Please create an account first.');
+                    }
+                    throw new Error('Invalid credentials');
+                }
+                
+                // Check if account is active
+                if (user.status !== 'active') {
+                    throw new Error('Account is inactive. Please contact administrator.');
+                }
+                
+                // Verify password (demo - use proper auth in production)
+                const hashedPassword = btoa(password);
+                if (user.passwordHash !== hashedPassword) {
+                    throw new Error('Invalid email or password');
+                }
+                
+                return user;
+            } catch (error) {
+                console.error('Login validation error:', error);
+                throw error;
+            }
+        }
+        
+        // Handle login
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            
+            // Basic validation
+            if (!email || !password) {
+                showError('emailError', 'Please fill in all fields');
+                return;
+            }
+            
+            // Show loading state
+            const submitBtn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btnText');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            
+            submitBtn.disabled = true;
+            btnText.textContent = 'Signing In...';
+            loadingSpinner.style.display = 'block';
+            
+            try {
+                // Validate credentials
+                const user = await validateLogin(email, password);
+                
+                // Store session
+                localStorage.setItem('teeportal_user_session', JSON.stringify({
+                    userId: user.id,
+                    email: user.email,
+                    name: user.name,
+                    centre: user.centre,
+                    role: user.role,
+                    loggedInAt: new Date().toISOString()
+                }));
+                
+                // Store remember me preference
+                if (document.getElementById('remember').checked) {
+                    localStorage.setItem('teeportal_remember_email', email);
+                } else {
+                    localStorage.removeItem('teeportal_remember_email');
+                }
+                
+                // Show success
+                showToast('Login successful! Redirecting...', 'success');
+                
+                // Redirect to dashboard
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1500);
+                
+            } catch (error) {
+                // Show error
+                showToast(error.message, 'error');
+                
+                if (error.message.includes('User not found') || error.message.includes('Invalid credentials')) {
+                    showError('emailError', error.message);
+                }
+                
+                // Reset button
+                submitBtn.disabled = false;
+                btnText.textContent = 'Sign In';
+                loadingSpinner.style.display = 'none';
+            }
+        }
+        
+        // Load remembered email
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load remembered email if exists
+            const rememberedEmail = localStorage.getItem('teeportal_remember_email');
+            if (rememberedEmail) {
+                document.getElementById('email').value = rememberedEmail;
+                document.getElementById('remember').checked = true;
+            }
+            
+            // Form submission
+            document.getElementById('loginForm').addEventListener('submit', handleLogin);
+            
+            // Forgot password
+            document.getElementById('forgotPassword').addEventListener('click', function(e) {
+                e.preventDefault();
+                showToast('Please contact administrator for password reset.', 'error');
+            });
+        });
+    </script>
+</body>
+</html>
