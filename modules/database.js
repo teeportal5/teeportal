@@ -308,7 +308,182 @@ class TEEPortalSupabaseDB {
             return `TEMP${timestamp}`;
         }
     }
-    
+    // ========== STUDENT METHODS (ADD THESE) ==========
+
+async getStudentCourses(studentId) {
+    try {
+        const supabase = await this.ensureConnected();
+        const { data, error } = await supabase
+            .from('marks')
+            .select(`
+                course_id,
+                courses (
+                    id,
+                    course_code,
+                    course_name,
+                    program,
+                    credits
+                )
+            `)
+            .eq('student_id', studentId)
+            .not('course_id', 'is', null);
+        
+        if (error) throw error;
+        
+        // Extract unique courses
+        const uniqueCourses = [];
+        const seenCourseIds = new Set();
+        
+        data.forEach(mark => {
+            if (mark.course_id && mark.courses && !seenCourseIds.has(mark.course_id)) {
+                seenCourseIds.add(mark.course_id);
+                uniqueCourses.push(mark.courses);
+            }
+        });
+        
+        return uniqueCourses;
+    } catch (error) {
+        console.error('Error getting student courses:', error);
+        return [];
+    }
+}
+
+async deleteStudent(studentId) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        // First, get the student details for logging
+        const { data: student, error: getError } = await supabase
+            .from('students')
+            .select('reg_number, full_name')
+            .eq('id', studentId)
+            .single();
+            
+        if (getError && getError.code !== 'PGRST116') {
+            console.warn('Student not found:', getError);
+        }
+        
+        // Delete related marks first
+        const { error: marksError } = await supabase
+            .from('marks')
+            .delete()
+            .eq('student_id', studentId);
+            
+        if (marksError) console.error('Error deleting marks:', marksError);
+        
+        // Then delete the student
+        const { error: studentError } = await supabase
+            .from('students')
+            .delete()
+            .eq('id', studentId);
+            
+        if (studentError) throw studentError;
+        
+        // Log activity
+        const studentName = student ? `${student.full_name} (${student.reg_number})` : `ID: ${studentId}`;
+        await this.logActivity('student_deleted', `Deleted student: ${studentName}`);
+        
+        return { success: true, message: 'Student deleted successfully' };
+    } catch (error) {
+        console.error('Error deleting student:', error);
+        throw error;
+    }
+}
+
+async updateStudent(studentId, updates) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        const updateObj = {
+            full_name: updates.name || updates.full_name,
+            email: updates.email,
+            phone: updates.phone,
+            dob: updates.dob,
+            gender: updates.gender,
+            program: updates.program,
+            intake_year: updates.intake,
+            status: updates.status,
+            address: updates.address,
+            emergency_contact: updates.emergency_contact,
+            notes: updates.notes,
+            updated_at: new Date().toISOString()
+        };
+        
+        // Remove undefined values
+        Object.keys(updateObj).forEach(key => {
+            if (updateObj[key] === undefined) {
+                delete updateObj[key];
+            }
+        });
+        
+        const { data, error } = await supabase
+            .from('students')
+            .update(updateObj)
+            .eq('id', studentId)
+            .select()
+            .single();
+            
+        if (error) throw error;
+        
+        await this.logActivity('student_updated', `Updated student: ${data.full_name} (${data.reg_number})`);
+        return data;
+    } catch (error) {
+        console.error('Error updating student:', error);
+        throw error;
+    }
+}
+
+// ========== OTHER POTENTIALLY MISSING METHODS ==========
+
+async getStudentMarks(studentId) {
+    try {
+        const supabase = await this.ensureConnected();
+        const { data, error } = await supabase
+            .from('marks')
+            .select(`
+                *,
+                courses!inner(course_code, course_name, credits)
+            `)
+            .eq('student_id', studentId)
+            .order('created_at', { ascending: false });
+            
+        if (error) throw error;
+        return data || [];
+    } catch (error) {
+        console.error('Error fetching student marks:', error);
+        throw error;
+    }
+}
+
+async calculateStudentGPA(studentId) {
+    try {
+        const marks = await this.getStudentMarks(studentId);
+        if (marks.length === 0) return 0;
+        
+        // Filter out failed grades
+        const validMarks = marks.filter(mark => mark.grade !== 'FAIL');
+        if (validMarks.length === 0) return 0;
+        
+        // Calculate weighted GPA based on credits
+        let totalWeightedPoints = 0;
+        let totalCredits = 0;
+        
+        for (const mark of validMarks) {
+            const credits = mark.courses?.credits || 3; // Default 3 credits
+            const gradePoints = mark.grade_points || 0;
+            
+            totalWeightedPoints += gradePoints * credits;
+            totalCredits += credits;
+        }
+        
+        if (totalCredits === 0) return 0;
+        
+        return parseFloat((totalWeightedPoints / totalCredits).toFixed(2));
+    } catch (error) {
+        console.error('Error calculating GPA:', error);
+        return 0;
+    }
+}
     // ========== COURSES ==========
     async getCourses() {
         try {
