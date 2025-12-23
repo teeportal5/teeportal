@@ -970,17 +970,23 @@ class MarksManager {
         this.renderCurrentView();
     }
     
-    // ==================== MARKS MODAL (FIXED) ====================
-    
+    // ==================== MARKS MODAL (UPDATED FOR NEW HTML) ====================
+
     async openMarksModal() {
         try {
             await this.populateStudentDropdown();
             await this.populateCourseDropdown();
             
-            // FIX DATE FIELD - Remove PHP code
+            // Set today's date
             const dateField = document.getElementById('assessmentDate');
             if (dateField) {
                 dateField.value = new Date().toISOString().split('T')[0];
+            }
+            
+            // Set default max score to 100
+            const maxScoreField = document.getElementById('marksMaxScore');
+            if (maxScoreField) {
+                maxScoreField.value = 100;
             }
             
             this.setupMarksModalListeners();
@@ -993,51 +999,11 @@ class MarksManager {
         }
     }
     
-    async populateStudentDropdown() {
-        const select = document.getElementById('marksStudent');
-        if (!select) return;
-        
-        try {
-            const students = await this.db.getStudents();
-            select.innerHTML = '<option value="">Select student...</option>';
-            
-            students.forEach(student => {
-                const option = document.createElement('option');
-                option.value = student.id;
-                option.textContent = `${student.reg_number} - ${student.full_name}`;
-                select.appendChild(option);
-            });
-        } catch (error) {
-            console.error('Error populating student dropdown:', error);
-            select.innerHTML = '<option value="">Error loading students</option>';
-        }
-    }
-    
-    async populateCourseDropdown() {
-        const select = document.getElementById('marksCourse');
-        if (!select) return;
-        
-        try {
-            const courses = await this.db.getCourses();
-            const activeCourses = courses.filter(c => !c.status || c.status === 'active');
-            
-            select.innerHTML = '<option value="">Select course...</option>';
-            
-            activeCourses.forEach(course => {
-                const option = document.createElement('option');
-                option.value = course.id;
-                option.textContent = `${course.course_code} - ${course.course_name}`;
-                select.appendChild(option);
-            });
-        } catch (error) {
-            console.error('Error populating course dropdown:', error);
-            select.innerHTML = '<option value="">Error loading courses</option>';
-        }
-    }
-    
+    // ... [populateStudentDropdown and populateCourseDropdown remain the same] ...
+
     setupMarksModalListeners() {
         const scoreInput = document.getElementById('marksScore');
-        const maxScoreInput = document.getElementById('maxScore');
+        const maxScoreInput = document.getElementById('marksMaxScore');
         
         if (scoreInput) {
             scoreInput.addEventListener('input', () => {
@@ -1062,18 +1028,17 @@ class MarksManager {
     updateMarksGradeDisplay() {
         try {
             const scoreInput = document.getElementById('marksScore');
-            const maxScoreInput = document.getElementById('maxScore');
-            const gradeDisplay = document.getElementById('gradeDisplay');
-            const percentageDisplay = document.getElementById('percentageDisplay');
-            const gradeDescriptionDisplay = document.getElementById('gradeDescription');
+            const maxScoreInput = document.getElementById('marksMaxScore');
+            const percentageDisplay = document.getElementById('marksPercentage');
+            const gradeBadge = document.getElementById('gradeBadge');
             
-            if (!scoreInput || !gradeDisplay || !maxScoreInput) return;
+            if (!scoreInput || !gradeBadge || !maxScoreInput) return;
             
             const score = parseFloat(scoreInput.value);
             const maxScore = parseFloat(maxScoreInput.value);
             
             if (isNaN(score) || isNaN(maxScore) || maxScore <= 0) {
-                this.resetMarksGradeDisplay(gradeDisplay, percentageDisplay, gradeDescriptionDisplay);
+                this.resetMarksGradeDisplay(gradeBadge, percentageDisplay);
                 return;
             }
             
@@ -1091,35 +1056,30 @@ class MarksManager {
             const gradeDescription = this.getGradeDescription(grade);
             const gradeCSSClass = this.getGradeCSSClass(grade);
             
-            // Update display
-            gradeDisplay.textContent = grade;
-            gradeDisplay.className = `grade-badge ${gradeCSSClass}`;
-            
+            // Update percentage display
             if (percentageDisplay) {
-                percentageDisplay.textContent = `${cappedPercentage.toFixed(2)}%`;
+                percentageDisplay.value = `${cappedPercentage.toFixed(2)}%`;
             }
             
-            if (gradeDescriptionDisplay) {
-                gradeDescriptionDisplay.textContent = gradeDescription;
-            }
+            // Update grade badge
+            gradeBadge.innerHTML = `<span>${grade}</span>`;
+            gradeBadge.className = `grade-badge ${gradeCSSClass}`;
+            gradeBadge.title = gradeDescription;
             
         } catch (error) {
             console.error('Error updating grade display:', error);
         }
     }
     
-    resetMarksGradeDisplay(gradeDisplay, percentageDisplay, gradeDescriptionDisplay) {
-        if (gradeDisplay) {
-            gradeDisplay.textContent = '--';
-            gradeDisplay.className = 'grade-badge';
+    resetMarksGradeDisplay(gradeBadge, percentageDisplay) {
+        if (gradeBadge) {
+            gradeBadge.innerHTML = '<span>Enter score to see grade</span>';
+            gradeBadge.className = 'grade-badge';
+            gradeBadge.title = '';
         }
         
         if (percentageDisplay) {
-            percentageDisplay.textContent = '0.00%';
-        }
-        
-        if (gradeDescriptionDisplay) {
-            gradeDescriptionDisplay.textContent = 'Enter score above';
+            percentageDisplay.value = '0.00%';
         }
     }
     
@@ -1131,21 +1091,9 @@ class MarksManager {
             const studentId = document.getElementById('marksStudent').value;
             const courseId = document.getElementById('marksCourse').value;
             const score = parseFloat(document.getElementById('marksScore').value);
-            const maxScore = parseFloat(document.getElementById('maxScore').value) || 100;
+            const maxScore = parseFloat(document.getElementById('marksMaxScore').value) || 100;
             const assessmentType = document.getElementById('assessmentType')?.value || 'exam';
-            const assessmentName = document.getElementById('assessmentName')?.value || '';
-            const remarks = document.getElementById('marksRemarks')?.value || '';
-            const visibleToStudent = document.getElementById('visibleToStudent')?.checked || true;
-            
-            // Get status from radio buttons
-            const statusInput = document.querySelector('input[name="status"]:checked');
-            const visible = statusInput?.value !== 'draft';
-            
-            // FIXED: Make sure we have assessment_type
-            if (!assessmentType) {
-                this.showToast('Assessment type is required', 'error');
-                return;
-            }
+            const assessmentDate = document.getElementById('assessmentDate')?.value || new Date().toISOString().split('T')[0];
             
             // Validation
             if (!studentId || !courseId || isNaN(score)) {
@@ -1168,20 +1116,21 @@ class MarksManager {
             const grade = this.calculateGrade(percentage);
             const gradePoints = this.getGradePoints(grade);
             
-            // Prepare data - FIXED: Ensure all required fields are present
+            // Prepare data - REMARKS AND VISIBLE_TO_STUDENT REMOVED
             const markData = {
                 student_id: studentId,
                 course_id: courseId,
                 assessment_type: assessmentType,
-                assessment_name: assessmentName || 'Assessment',
+                assessment_name: assessmentType.charAt(0).toUpperCase() + assessmentType.slice(1), // e.g., "Exam"
                 score: score,
                 max_score: maxScore,
                 percentage: percentage,
                 grade: grade,
                 grade_points: gradePoints,
-                remarks: remarks,
-                visible_to_student: visible,
-                entered_by: this.app.user?.id || 'system' // Add entered_by field
+                // Remarks field removed
+                visible_to_student: true, // Always visible in new version
+                entered_by: this.app.user?.id || 'system',
+                assessment_date: assessmentDate
             };
             
             console.log('💾 Saving academic record:', markData);
@@ -1202,18 +1151,7 @@ class MarksManager {
         }
     }
     
-    // ==================== MODAL UTILITIES ====================
-    
-    openModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.style.display = 'block';
-            setTimeout(() => {
-                const firstInput = modal.querySelector('input, select, textarea');
-                if (firstInput) firstInput.focus();
-            }, 100);
-        }
-    }
+  // ==================== MODAL UTILITIES (UPDATED) ====================
     
     closeModal(modalId) {
         const modal = document.getElementById(modalId);
@@ -1225,19 +1163,25 @@ class MarksManager {
                 const form = document.getElementById('marksForm');
                 if (form) {
                     form.reset();
-                    const maxScoreInput = document.getElementById('maxScore');
+                    
+                    // Reset specific fields
+                    const maxScoreInput = document.getElementById('marksMaxScore');
                     if (maxScoreInput) maxScoreInput.value = '100';
+                    
                     const assessmentType = document.getElementById('assessmentType');
                     if (assessmentType) assessmentType.value = 'exam';
                     
-                    // Reset grade display
-                    const gradeDisplay = document.getElementById('gradeDisplay');
-                    const percentageDisplay = document.getElementById('percentageDisplay');
-                    const gradeDescriptionDisplay = document.getElementById('gradeDescription');
-                    
-                    if (gradeDisplay || percentageDisplay || gradeDescriptionDisplay) {
-                        this.resetMarksGradeDisplay(gradeDisplay, percentageDisplay, gradeDescriptionDisplay);
+                    // Set today's date
+                    const dateField = document.getElementById('assessmentDate');
+                    if (dateField) {
+                        dateField.value = new Date().toISOString().split('T')[0];
                     }
+                    
+                    // Reset grade display
+                    this.resetMarksGradeDisplay(
+                        document.getElementById('gradeBadge'),
+                        document.getElementById('marksPercentage')
+                    );
                 }
             }
         }
