@@ -1211,82 +1211,62 @@ class MarksManager {
         }
     }
     
-  async saveMarks(event) {
+ async saveMarks(event) {
     event.preventDefault();
     
+    console.log('=== DEBUG: Starting saveMarks ===');
+    
     try {
-        // Get form values
-        const studentId = document.getElementById('marksStudent').value;
-        const courseId = document.getElementById('marksCourse').value;
-        const scoreInput = document.getElementById('marksScore').value;
-        const maxScoreInput = document.getElementById('marksMaxScore').value;
-        
-        // Parse scores
-        const score = parseFloat(scoreInput);
-        const maxScore = parseFloat(maxScoreInput) || 100;
-        
-        // Get assessment type
+        // Get form elements
+        const studentSelect = document.getElementById('marksStudent');
+        const courseSelect = document.getElementById('marksCourse');
+        const scoreInput = document.getElementById('marksScore');
+        const maxScoreInput = document.getElementById('marksMaxScore');
         const assessmentTypeSelect = document.getElementById('assessmentType');
-        const assessmentType = assessmentTypeSelect?.value || 'exam';
-        
-        // Get assessment date or use today
         const assessmentDateInput = document.getElementById('assessmentDate');
-        let assessmentDate = assessmentDateInput?.value;
-        if (!assessmentDate) {
-            // Set default to today if empty
-            const today = new Date();
-            assessmentDate = today.toISOString().split('T')[0];
-            if (assessmentDateInput) {
-                assessmentDateInput.value = assessmentDate;
+        
+        // Get values
+        const studentId = studentSelect?.value;
+        const courseId = courseSelect?.value;
+        const scoreText = scoreInput?.value;
+        const maxScoreText = maxScoreInput?.value;
+        
+        console.log('Form values:', {
+            studentId,
+            courseId,
+            scoreText,
+            maxScoreText
+        });
+        
+        // Parse scores - with validation
+        let score, maxScore;
+        
+        if (!scoreText || scoreText.trim() === '') {
+            this.showToast('Please enter a score', 'error');
+            return;
+        }
+        
+        score = parseFloat(scoreText);
+        if (isNaN(score)) {
+            this.showToast('Please enter a valid number for score', 'error');
+            return;
+        }
+        
+        if (!maxScoreText || maxScoreText.trim() === '') {
+            maxScore = 100;
+        } else {
+            maxScore = parseFloat(maxScoreText);
+            if (isNaN(maxScore)) {
+                maxScore = 100;
             }
         }
         
-        // Debug logging
-        console.log('Form values:', {
-            studentId, courseId, score, maxScore, 
-            assessmentType, assessmentDate, scoreInput, maxScoreInput
-        });
+        console.log('Parsed scores:', { score, maxScore });
         
-        // Validation
-        if (!studentId || studentId === '') {
-            this.showToast('Please select a student', 'error');
-            return;
-        }
+        // Get assessment type
+        const assessmentType = assessmentTypeSelect?.value || 'exam';
         
-        if (!courseId || courseId === '') {
-            this.showToast('Please select a course', 'error');
-            return;
-        }
-        
-        if (!scoreInput || isNaN(score)) {
-            this.showToast('Please enter a valid score', 'error');
-            return;
-        }
-        
-        if (score < 0) {
-            this.showToast('Score cannot be negative', 'error');
-            return;
-        }
-        
-        if (maxScore <= 0) {
-            this.showToast('Maximum score must be greater than 0', 'error');
-            return;
-        }
-        
-        if (score > maxScore) {
-            this.showToast(`Score cannot exceed maximum score of ${maxScore}`, 'error');
-            return;
-        }
-        
-        // Calculate percentage - FIX: Ensure it's a number
-        const percentage = (score / maxScore) * 100;
-        const percentageValue = parseFloat(percentage.toFixed(2)); // Ensure it's a number
-        
-        // Calculate grade
-        const grade = this.calculateGrade(percentageValue);
-        const gradePoints = this.getGradePoints(grade);
-        
-        // Create assessment_name properly
+        // Create assessment_name from assessment_type
         let assessmentName;
         switch(assessmentType) {
             case 'exam':
@@ -1308,15 +1288,74 @@ class MarksManager {
                 assessmentName = 'Assessment';
         }
         
+        // Get or set assessment date
+        let assessmentDate = assessmentDateInput?.value;
+        if (!assessmentDate) {
+            const today = new Date();
+            assessmentDate = today.toISOString().split('T')[0];
+            if (assessmentDateInput) {
+                assessmentDateInput.value = assessmentDate;
+            }
+        }
+        
+        // Validation
+        if (!studentId || studentId === '') {
+            this.showToast('Please select a student', 'error');
+            return;
+        }
+        
+        if (!courseId || courseId === '') {
+            this.showToast('Please select a course', 'error');
+            return;
+        }
+        
+        if (score < 0) {
+            this.showToast('Score cannot be negative', 'error');
+            return;
+        }
+        
+        if (maxScore <= 0) {
+            this.showToast('Maximum score must be greater than 0', 'error');
+            return;
+        }
+        
+        if (score > maxScore) {
+            this.showToast(`Score cannot exceed maximum score of ${maxScore}`, 'error');
+            return;
+        }
+        
+        // FIX: Calculate percentage - ensure it's a valid number
+        let percentage;
+        if (maxScore > 0) {
+            percentage = (score / maxScore) * 100;
+        } else {
+            percentage = 0; // Prevent division by zero
+        }
+        
+        // Ensure percentage is a valid number
+        if (isNaN(percentage) || !isFinite(percentage)) {
+            console.error('Invalid percentage calculation:', { score, maxScore, percentage });
+            percentage = 0;
+        }
+        
+        // Round to 2 decimal places
+        percentage = parseFloat(percentage.toFixed(2));
+        
+        console.log('Calculated percentage:', percentage);
+        
+        // Calculate grade
+        const grade = this.calculateGrade(percentage);
+        const gradePoints = this.getGradePoints(grade);
+        
         // Prepare data
         const markData = {
             student_id: studentId,
             course_id: courseId,
             assessment_type: assessmentType,
-            assessment_name: assessmentName,
+            assessment_name: assessmentName, // Make sure this is included
             score: score,
             max_score: maxScore,
-            percentage: percentageValue, // Ensure this is a number, not null
+            percentage: percentage, // This should now be a valid number
             grade: grade,
             grade_points: gradePoints,
             visible_to_student: true,
@@ -1324,7 +1363,7 @@ class MarksManager {
             assessment_date: assessmentDate
         };
         
-        console.log('💾 Saving academic record:', markData);
+        console.log('💾 Saving academic record:', JSON.stringify(markData, null, 2));
         
         // Save to database
         await this.db.addMark(markData);
@@ -1339,11 +1378,15 @@ class MarksManager {
     } catch (error) {
         console.error('❌ Error saving academic record:', error);
         
-        // Specific error messages
+        // Check what the actual error is
+        console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            details: error.details
+        });
+        
         if (error.message && error.message.includes('percentage') && error.message.includes('null')) {
-            this.showToast('Error: Percentage calculation failed. Please check your score values.', 'error');
-        } else if (error.message && error.message.includes('assessment_name') && error.message.includes('null')) {
-            this.showToast('Error: Assessment name is required. Please select an assessment type.', 'error');
+            this.showToast('Error: Percentage calculation failed. Check if max score is valid.', 'error');
         } else {
             this.showToast(`Error: ${error.message || 'Failed to save'}`, 'error');
         }
