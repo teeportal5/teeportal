@@ -1581,233 +1581,109 @@
         </div>
     </div>
     
-    <!-- Enter Marks Modal - Updated for simple grading system -->
+   <!-- Enter Marks Modal - SIMPLE 7 FIELDS -->
 <div id="marksModal" class="modal">
-    <div class="modal-content large-modal">
+    <div class="modal-content simple-modal">
         <div class="modal-header">
-            <h3><i class="fas fa-plus-circle"></i> ENTER MARKS</h3>
-            <span class="close-large" onclick="app.marks.closeModal('marksModal')">&times;</span>
+            <h3><i class="fas fa-plus-circle"></i> Add Marks</h3>
+            <span class="close" onclick="app.marks.closeModal('marksModal')">&times;</span>
         </div>
+        
         <form id="marksForm" onsubmit="app.marks.saveMarks(event)">
-            <div class="modal-body-large">
+            <div class="modal-body">
                 
-                <!-- Student & Course Selection -->
-                <div class="main-selection-row">
-                    <div class="form-group-large">
-                        <label class="large-label required-field">
-                            <i class="fas fa-user-graduate"></i> STUDENT
-                        </label>
-                        <select id="marksStudent" class="form-control-large" required>
-                            <option value="">Select Student</option>
+                <!-- Row 1: Student & Course -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-user"></i> Student *</label>
+                        <select id="marksStudent" class="form-control" required>
+                            <option value="">Select student...</option>
                         </select>
                     </div>
                     
-                    <div class="form-group-large">
-                        <label class="large-label required-field">
-                            <i class="fas fa-book"></i> COURSE
-                        </label>
-                        <select id="marksCourse" class="form-control-large" required>
-                            <option value="">Select Course</option>
+                    <div class="form-group">
+                        <label><i class="fas fa-book"></i> Course *</label>
+                        <select id="marksCourse" class="form-control" required>
+                            <option value="">Select course...</option>
                         </select>
                     </div>
                 </div>
                 
-                <!-- Assessment Details -->
-                <div class="assessment-section">
-                    <h4><i class="fas fa-tasks"></i> ASSESSMENT DETAILS</h4>
-                    <div class="form-row-large">
-                        <div class="form-group-large">
-                            <label class="large-label required-field">ASSESSMENT TYPE</label>
-                            <select id="assessmentType" class="form-control-large" required>
-                                <option value="final" selected>Final Exam</option>
-                                <option value="midterm">Midterm Exam</option>
-                                <option value="test">Test</option>
-                                <option value="quiz">Quiz</option>
-                                <option value="assignment">Assignment</option>
-                                <option value="project">Project</option>
-                                <option value="practical">Practical</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group-large">
-                            <label class="large-label">ASSESSMENT NAME</label>
-                            <input type="text" id="assessmentName" class="form-control-large" 
-                                   placeholder="e.g., Final 2024, Assignment 1">
-                        </div>
+                <!-- Row 2: Type & Date -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-tasks"></i> Type</label>
+                        <select id="assessmentType" class="form-control">
+                            <option value="exam">Exam</option>
+                            <option value="assignment">Assignment</option>
+                            <option value="test">Test</option>
+                            <option value="quiz">Quiz</option>
+                            <option value="project">Project</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-calendar"></i> Date</label>
+                        <input type="date" id="assessmentDate" class="form-control" 
+                               value="<?php echo date('Y-m-d'); ?>">
                     </div>
                 </div>
                 
-                <!-- Scores Section -->
-                <div class="scores-section-large">
-                    <h4><i class="fas fa-chart-line"></i> MARKS</h4>
-                    <div class="scores-container-large">
-                        <div class="score-input-large">
-                            <label class="score-label required-field">STUDENT'S SCORE</label>
-                            <div class="score-input-wrapper">
-                                <input type="number" id="marksScore" class="score-input-number-large" 
-                                       required min="0" max="1000" step="0.01" placeholder="0.00" 
-                                       oninput="app.marks.updateMarksGradeDisplay()">
-                                <div class="score-input-icon">
-                                    <i class="fas fa-star"></i>
-                                </div>
-                            </div>
-                            <small class="input-hint">Enter the score obtained</small>
-                        </div>
-                        
-                        <div class="score-divider">
-                            <div class="divider-line"></div>
-                            <div class="divider-text">OUT OF</div>
-                            <div class="divider-line"></div>
-                        </div>
-                        
-                        <div class="score-input-large">
-                            <label class="score-label required-field">MAXIMUM SCORE</label>
-                            <div class="score-input-wrapper">
-                                <input type="number" id="maxScore" class="score-input-number-large" 
-                                       value="100" min="1" max="1000" step="0.01" required
-                                       oninput="app.marks.updateMarksGradeDisplay()">
-                                <div class="score-input-icon">
-                                    <i class="fas fa-chart-bar"></i>
-                                </div>
-                            </div>
-                            <small class="input-hint">Maximum possible score</small>
-                        </div>
-                        
-                        <div class="score-equals">
-                            <div class="equals-sign">=</div>
-                        </div>
-                        
-                        <div class="score-result-large">
-                            <label class="score-label">PERCENTAGE</label>
-                            <div class="percentage-display-large" id="percentageDisplay">
-                                0.00%
-                            </div>
-                            <small class="input-hint">Auto-calculated</small>
-                        </div>
+                <!-- Score Input -->
+                <div class="score-box">
+                    <label><i class="fas fa-chart-line"></i> Score *</label>
+                    <div class="score-inputs">
+                        <input type="number" id="marksScore" class="score-input" 
+                               placeholder="Student's score" min="0" max="1000" step="0.01" required
+                               oninput="app.marks.calculateGrade()">
+                        <span class="score-slash">/</span>
+                        <input type="number" id="maxScore" class="max-input" 
+                               value="100" min="1" max="1000" step="0.01"
+                               oninput="app.marks.calculateGrade()">
+                    </div>
+                    <div class="score-result">
+                        = <span id="percentageDisplay">0.00%</span>
                     </div>
                 </div>
                 
-        <!-- Grade Section - Professional -->
-<div class="grade-section-professional">
-    <div class="grade-header">
-        <i class="fas fa-award grade-icon"></i>
-        <h4>ACADEMIC ASSESSMENT</h4>
-    </div>
-    
-    <div class="grade-display-professional">
-        <!-- Main Grade Display -->
-        <div class="grade-main-professional">
-            <div class="grade-badge-container">
-                <div id="gradeDisplay" class="grade-badge-professional" title="Enter score to calculate grade">
-                    --
+                <!-- Grade Display -->
+                <div class="grade-box">
+                    <label><i class="fas fa-award"></i> Grade</label>
+                    <div class="grade-display">
+                        <div class="grade-badge" id="gradeDisplay">--</div>
+                        <small class="grade-desc" id="gradeDescription">Enter score above</small>
+                    </div>
                 </div>
-                <div class="grade-status">
-                    <span class="grade-label">Grade</span>
+                
+                <!-- Status -->
+                <div class="status-box">
+                    <label><i class="fas fa-eye"></i> Status</label>
+                    <div class="status-options">
+                        <label class="status-option">
+                            <input type="radio" name="status" value="published" checked>
+                            <span class="status-dot published"></span>
+                            <span>Publish (Student sees)</span>
+                        </label>
+                        <label class="status-option">
+                            <input type="radio" name="status" value="draft">
+                            <span class="status-dot draft"></span>
+                            <span>Draft (Save only)</span>
+                        </label>
+                    </div>
                 </div>
+                
             </div>
             
-            <div class="grade-details-professional">
-                <div class="grade-percentage-professional">
-                    <div class="percentage-header">
-                        <i class="fas fa-chart-line percentage-icon"></i>
-                        <span class="percentage-label">Score Percentage</span>
-                    </div>
-                    <div id="percentageDisplay" class="percentage-value-professional">
-                        0.00%
-                    </div>
-                </div>
-                
-                <div class="grade-description-professional">
-                    <div class="description-header">
-                        <i class="fas fa-info-circle description-icon"></i>
-                        <span class="description-label">Performance Level</span>
-                    </div>
-                    <div id="marksGradeDescription" class="description-text">
-                        Enter student score above
-                    </div>
-                </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-cancel" 
+                        onclick="app.marks.closeModal('marksModal')">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-save">
+                    <i class="fas fa-save"></i> Save Marks
+                </button>
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- Additional Information Section - Professional -->
-<div class="additional-info-professional">
-    <div class="info-header">
-        <i class="fas fa-file-alt info-icon"></i>
-        <h4>ADDITIONAL DETAILS</h4>
-    </div>
-    
-    <div class="form-section-professional">
-        <div class="form-group-professional">
-            <div class="form-label-group">
-                <i class="fas fa-comment-alt label-icon"></i>
-                <label class="form-label-professional">
-                    Assessment Remarks
-                    <span class="optional-badge">Optional</span>
-                </label>
-            </div>
-            <textarea id="marksRemarks" class="form-textarea-professional" rows="3" 
-                      placeholder="Add any additional notes or comments about this assessment..."></textarea>
-            <div class="form-hint">
-                <i class="fas fa-info-circle hint-icon"></i>
-                These remarks are for internal reference
-            </div>
-        </div>
-        
-        <div class="visibility-section-professional">
-            <div class="visibility-toggle">
-                <div class="toggle-container">
-                    <input type="checkbox" id="visibleToStudent" class="toggle-input" checked>
-                    <label for="visibleToStudent" class="toggle-label">
-                        <span class="toggle-track"></span>
-                        <span class="toggle-thumb"></span>
-                    </label>
-                </div>
-                <div class="visibility-details">
-                    <div class="visibility-header">
-                        <i class="fas fa-eye visibility-icon"></i>
-                        <span class="visibility-label">Student Visibility</span>
-                        <span class="visibility-status" id="visibilityStatus">ON</span>
-                    </div>
-                    <div class="visibility-description">
-                        Student can view this assessment result in their portal
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Footer - Professional -->
-<div class="modal-footer-professional">
-    <div class="footer-actions">
-        <button type="button" class="btn-action btn-cancel-professional" onclick="app.marks.closeModal('marksModal')">
-            <div class="btn-content">
-                <i class="fas fa-times btn-icon"></i>
-                <span class="btn-text">Cancel</span>
-            </div>
-            <div class="btn-hint">Discard changes and close</div>
-        </button>
-        
-        <button type="submit" class="btn-action btn-save-professional">
-            <div class="btn-content">
-                <i class="fas fa-check-circle btn-icon"></i>
-                <span class="btn-text">Save Assessment</span>
-            </div>
-            <div class="btn-hint">Save changes to student record</div>
-        </button>
-    </div>
-    
-    <div class="footer-info">
-        <div class="info-item">
-            <i class="fas fa-asterisk required-icon"></i>
-            <span>Required fields marked with *</span>
-        </div>
-        <div class="info-item">
-            <i class="fas fa-sync-alt auto-icon"></i>
-            <span>Grades calculated automatically</span>
-        </div>
+        </form>
     </div>
 </div>
     
