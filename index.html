@@ -1160,25 +1160,49 @@
 <!-- This one should be from root: -->
 <script src="app.js"></script>
  <script>
-    // Global functions - FIXED VERSION
+    // Global functions - USE THIS VERSION (Option 2)
     window.showSection = function(sectionId) {
-        console.log('Switching to section:', sectionId);
+        console.log('🚀 Switching to section:', sectionId);
         
-        // Update URL hash without triggering page scroll
+        // Update URL hash
         history.replaceState(null, null, '#' + sectionId);
         
-        // Hide all sections
+        // 1. HIDE ALL SECTIONS (Force with inline styles)
         document.querySelectorAll('.content-section').forEach(section => {
             section.classList.remove('active');
+            // FORCE HIDE with inline styles
             section.style.display = 'none';
+            section.style.opacity = '0';
+            section.style.visibility = 'hidden';
+            section.style.position = 'absolute';
+            section.style.left = '-9999px';
+            section.style.height = '0';
+            section.style.overflow = 'hidden';
         });
         
-        // Show selected section
+        // 2. SHOW SELECTED SECTION (Force with inline styles)
         const targetSection = document.getElementById(sectionId);
         if (targetSection) {
-            console.log('Found section, showing:', sectionId);
+            console.log('✅ Found section, showing:', sectionId);
+            
+            // Add active class
             targetSection.classList.add('active');
+            
+            // FORCE SHOW with inline styles
             targetSection.style.display = 'block';
+            targetSection.style.opacity = '1';
+            targetSection.style.visibility = 'visible';
+            targetSection.style.position = 'relative';
+            targetSection.style.left = '0';
+            targetSection.style.height = 'auto';
+            targetSection.style.overflow = 'visible';
+            targetSection.style.background = 'white';
+            targetSection.style.borderRadius = '16px';
+            targetSection.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.1)';
+            targetSection.style.margin = '20px';
+            targetSection.style.padding = '20px';
+            targetSection.style.minHeight = '500px';
+            targetSection.style.animation = 'fadeIn 0.5s ease forwards';
             
             // Update page title
             const titleElement = document.getElementById('section-title');
@@ -1196,12 +1220,12 @@
                 titleElement.textContent = titleMap[sectionId] || sectionId;
             }
         } else {
-            console.error('Section not found:', sectionId);
+            console.error('❌ Section not found:', sectionId);
             // Fallback to dashboard
             showSection('dashboard');
         }
         
-        // Update active nav link
+        // 3. UPDATE NAVIGATION
         document.querySelectorAll('.nav-link').forEach(link => {
             link.classList.remove('active');
         });
@@ -1209,89 +1233,75 @@
         const navLink = document.querySelector(`a[href="#${sectionId}"]`);
         if (navLink) {
             navLink.classList.add('active');
-        } else {
-            console.warn('Nav link not found for:', sectionId);
         }
         
-        // Lazy load section data
-        lazyLoadSectionData(sectionId);
+        // 4. LOAD SECTION DATA
+        setTimeout(() => {
+            lazyLoadSectionData(sectionId);
+        }, 100);
     };
     
     function lazyLoadSectionData(sectionId) {
         const app = window.app;
-        if (!app) {
-            console.log('App not ready yet');
-            return;
-        }
+        if (!app) return;
         
         switch(sectionId) {
             case 'dashboard':
-                if (app.dashboard && typeof app.dashboard.updateDashboard === 'function') {
-                    setTimeout(() => {
-                        console.log('Loading dashboard data...');
-                        app.dashboard.updateDashboard().catch(error => {
-                            console.warn('Dashboard update failed:', error);
-                        });
-                    }, 100);
+                if (app.dashboard?.updateDashboard) {
+                    app.dashboard.updateDashboard();
                 }
                 break;
-                
             case 'students':
-                if (app.students && typeof app.students.loadStudentsTable === 'function') {
-                    setTimeout(() => {
-                        console.log('Loading students data...');
-                        app.students.loadStudentsTable().catch(console.error);
-                    }, 100);
+                if (app.students?.loadStudentsTable) {
+                    app.students.loadStudentsTable();
                 }
                 break;
-                
             case 'centres':
-                if (app.centres && typeof app.centres.loadCentres === 'function') {
-                    setTimeout(() => {
-                        console.log('Loading centres data...');
-                        app.centres.loadCentres().catch(console.error);
-                    }, 100);
+                if (app.centres?.loadCentres) {
+                    app.centres.loadCentres();
                 }
                 break;
         }
     }
     
-    // Handle hash changes (when user clicks back/forward or directly visits URL with hash)
+    // Add fadeIn animation
+    const fadeInStyle = document.createElement('style');
+    fadeInStyle.textContent = `
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    `;
+    document.head.appendChild(fadeInStyle);
+    
+    // Handle hash changes
     window.addEventListener('hashchange', function() {
-        const hash = window.location.hash.substring(1); // Remove the #
-        if (hash) {
-            console.log('Hash changed to:', hash);
+        const hash = window.location.hash.substring(1);
+        if (hash && document.getElementById(hash)) {
             showSection(hash);
         }
     });
     
-    // Initialize when DOM is loaded
+    // Initialize on load
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('DOM loaded, initializing app...');
-        
-        // Check initial hash on page load
         const initialHash = window.location.hash.substring(1);
-        console.log('Initial hash:', initialHash);
         
-        // Initialize the app
         if (window.app) {
             window.app.initialize().then(() => {
-                console.log('App initialized, showing section...');
-                
-                // Show section based on hash or default to dashboard
-                if (initialHash && document.getElementById(initialHash)) {
-                    showSection(initialHash);
-                } else {
-                    showSection('dashboard');
-                }
-                
+                // Show section after app loads
+                setTimeout(() => {
+                    if (initialHash && document.getElementById(initialHash)) {
+                        showSection(initialHash);
+                    } else {
+                        showSection('dashboard');
+                    }
+                }, 500);
             }).catch(error => {
-                console.error('App initialization failed:', error);
-                showSection('dashboard'); // Still try to show something
+                console.error('App init failed:', error);
+                showSection('dashboard');
             });
         } else {
-            console.error('App not found! Make sure app.js is loaded.');
-            // Still try to show a section
+            // If no app, still try to show something
             if (initialHash && document.getElementById(initialHash)) {
                 showSection(initialHash);
             } else {
@@ -1299,31 +1309,6 @@
             }
         }
     });
-    
-    // Other functions remain the same...
-    window.openModal = function(modalId) {
-        console.log('Opening modal:', modalId);
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
-    };
-    
-    window.closeModal = function(modalId) {
-        console.log('Closing modal:', modalId);
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.classList.remove('active');
-            document.body.style.overflow = 'auto';
-            
-            // Clear form if it exists
-            const form = modal.querySelector('form');
-            if (form) {
-                form.reset();
-            }
-        }
-    };
 </script>
 </body>
 </html>
