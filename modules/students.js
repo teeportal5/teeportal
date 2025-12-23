@@ -791,7 +791,164 @@ class StudentManager {
             this.ui.openModal('studentModal');
         });
     }
-    
+    /**
+ * View student details
+ */
+async viewStudent(studentId) {
+    try {
+        console.log(`👁️ Viewing student ${studentId}...`);
+        
+        const student = await this.db.getStudent(studentId);
+        if (!student) {
+            this.ui.showToast('Student not found', 'error');
+            return;
+        }
+        
+        // Create a modal for viewing student details
+        const modalContent = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Student Details</h3>
+                    <span class="close" data-modal-close>&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="student-profile">
+                        <div class="student-header">
+                            <div class="student-avatar-large">
+                                <div style="background-color: ${this._getAvatarColor(student.full_name)}; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-user fa-2x" style="color: white;"></i>
+                                </div>
+                            </div>
+                            <div class="student-info-header">
+                                <h2>${this._escapeHtml(student.full_name)}</h2>
+                                <p class="student-reg">${this._escapeHtml(student.reg_number)}</p>
+                                <span class="status-badge ${student.status}">
+                                    ${this._escapeHtml(student.status.toUpperCase())}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="student-details-grid">
+                            <div class="detail-section">
+                                <h4><i class="fas fa-user"></i> Personal Information</h4>
+                                <div class="detail-row">
+                                    <span class="detail-label">Email:</span>
+                                    <span class="detail-value">${this._escapeHtml(student.email)}</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Phone:</span>
+                                    <span class="detail-value">${this._escapeHtml(student.phone)}</span>
+                                </div>
+                                ${student.date_of_birth ? `
+                                <div class="detail-row">
+                                    <span class="detail-label">Date of Birth:</span>
+                                    <span class="detail-value">${new Date(student.date_of_birth).toLocaleDateString()}</span>
+                                </div>` : ''}
+                                ${student.gender ? `
+                                <div class="detail-row">
+                                    <span class="detail-label">Gender:</span>
+                                    <span class="detail-value">${this._escapeHtml(student.gender)}</span>
+                                </div>` : ''}
+                            </div>
+                            
+                            <div class="detail-section">
+                                <h4><i class="fas fa-graduation-cap"></i> Academic Information</h4>
+                                <div class="detail-row">
+                                    <span class="detail-label">Program:</span>
+                                    <span class="detail-value">${this._escapeHtml(student.program)}</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Centre:</span>
+                                    <span class="detail-value">${this._escapeHtml(student.centre)}</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Intake Year:</span>
+                                    <span class="detail-value">${this._escapeHtml(student.intake_year)}</span>
+                                </div>
+                                ${student.study_mode ? `
+                                <div class="detail-row">
+                                    <span class="detail-label">Study Mode:</span>
+                                    <span class="detail-value">${this._escapeHtml(student.study_mode)}</span>
+                                </div>` : ''}
+                            </div>
+                            
+                            <div class="detail-section">
+                                <h4><i class="fas fa-map-marker-alt"></i> Location Information</h4>
+                                <div class="detail-row">
+                                    <span class="detail-label">County:</span>
+                                    <span class="detail-value">${this._escapeHtml(student.county)}</span>
+                                </div>
+                                ${student.sub_county ? `
+                                <div class="detail-row">
+                                    <span class="detail-label">Sub-County:</span>
+                                    <span class="detail-value">${this._escapeHtml(student.sub_county)}</span>
+                                </div>` : ''}
+                                ${student.ward ? `
+                                <div class="detail-row">
+                                    <span class="detail-label">Ward:</span>
+                                    <span class="detail-value">${this._escapeHtml(student.ward)}</span>
+                                </div>` : ''}
+                                ${student.village ? `
+                                <div class="detail-row">
+                                    <span class="detail-label">Village/Estate:</span>
+                                    <span class="detail-value">${this._escapeHtml(student.village)}</span>
+                                </div>` : ''}
+                            </div>
+                            
+                            ${student.employment_status ? `
+                            <div class="detail-section">
+                                <h4><i class="fas fa-briefcase"></i> Employment Information</h4>
+                                <div class="detail-row">
+                                    <span class="detail-label">Employment Status:</span>
+                                    <span class="detail-value">${this._escapeHtml(student.employment_status)}</span>
+                                </div>
+                                ${student.employer ? `
+                                <div class="detail-row">
+                                    <span class="detail-label">Employer:</span>
+                                    <span class="detail-value">${this._escapeHtml(student.employer)}</span>
+                                </div>` : ''}
+                                ${student.job_title ? `
+                                <div class="detail-row">
+                                    <span class="detail-label">Job Title:</span>
+                                    <span class="detail-value">${this._escapeHtml(student.job_title)}</span>
+                                </div>` : ''}
+                                ${student.years_experience ? `
+                                <div class="detail-row">
+                                    <span class="detail-label">Experience:</span>
+                                    <span class="detail-value">${student.years_experience} years</span>
+                                </div>` : ''}
+                            </div>` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-modal-close>Close</button>
+                    <button type="button" class="btn btn-primary" onclick="app.students.editStudent('${studentId}')">
+                        <i class="fas fa-edit"></i> Edit Student
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // Create modal container
+        const modalId = 'viewStudentModal';
+        let modal = document.getElementById(modalId);
+        
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = 'modal';
+            document.body.appendChild(modal);
+        }
+        
+        modal.innerHTML = modalContent;
+        this.ui.openModal(modalId);
+        
+    } catch (error) {
+        console.error('Error viewing student:', error);
+        this.ui.showToast('Error loading student details', 'error');
+    }
+}
     /**
      * Render error state
      */
