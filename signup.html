@@ -514,164 +514,171 @@
         }
         
         // Create admin user in Supabase
-        async function createAdminUser(userData) {
-            try {
-                // Check if user already exists
-                const { data: existingUser, error: checkError } = await supabaseClient
-                    .from('users')
-                    .select('email')
-                    .eq('email', userData.email)
-                    .maybeSingle();
-                    
-                if (existingUser) {
-                    throw new Error('An account with this email already exists');
-                }
-                
-                // Hash password (in production, use proper hashing)
-                const hashedPassword = btoa(userData.password); // Simple demo hash
-                
-                // Create user record
-                const user = {
-                    name: userData.name,
-                    email: userData.email,
-                    phone: userData.phone,
-                    centre: userData.centre,
-                    role: 'administrator',
-                    passwordHash: hashedPassword,
-                    status: 'active',
-                    preferences: {
-                        emailNotifications: true,
-                        darkMode: false,
-                        autoSave: true
-                    },
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                };
-                
-                const { data, error } = await supabaseClient
-                    .from('users')
-                    .insert([user])
-                    .select()
-                    .single();
-                    
-                if (error) throw error;
-                
-                // Create default settings if they don't exist
-                await createDefaultSettings();
-                
-                // Create default centre if it doesn't exist
-                await createDefaultCentre(userData.centre);
-                
-                return data;
-            } catch (error) {
-                console.error('Error creating user:', error);
-                throw error;
-            }
+       async function createAdminUser(userData) {
+    try {
+        // Check if user already exists
+        const { data: existingUser, error: checkError } = await supabaseClient
+            .from('users')
+            .select('email')
+            .eq('email', userData.email)
+            .maybeSingle();
+            
+        if (existingUser) {
+            throw new Error('An account with this email already exists');
         }
+        
+        // Hash password
+        const hashedPassword = btoa(userData.password);
+        
+        // FIXED: Use SNAKE_CASE column names to match database
+        const user = {
+            name: userData.name,
+            email: userData.email,
+            phone: userData.phone,
+            centre: userData.centre,
+            role: 'administrator',
+            password_hash: hashedPassword,  // snake_case
+            status: 'active',
+            preferences: {
+                emailNotifications: true,
+                darkMode: false,
+                autoSave: true
+            },
+            created_at: new Date().toISOString(),  // snake_case
+            updated_at: new Date().toISOString()   // snake_case
+        };
+        
+        const { data, error } = await supabaseClient
+            .from('users')
+            .insert([user])
+            .select()
+            .single();
+            
+        if (error) throw error;
+        
+        // Create default settings if they don't exist
+        await createDefaultSettings();
+        
+        // Create default centre if it doesn't exist
+        await createDefaultCentre(userData.centre);
+        
+        return data;
+    } catch (error) {
+        console.error('Error creating user:', error);
+        throw error;
+    }
+}
         
         async function createDefaultSettings() {
-            try {
-                const defaultSettings = {
-                    instituteName: 'Theological Education by Extension College',
-                    instituteAbbreviation: 'TEE College',
-                    academicYear: new Date().getFullYear(),
-                    semester: 'Spring',
-                    timezone: 'Africa/Nairobi',
-                    currency: 'KES',
-                    language: 'en',
-                    gradingScale: {
-                        'DISTINCTION': { min: 85, max: 100, points: 4.0 },
-                        'CREDIT': { min: 70, max: 84, points: 3.0 },
-                        'PASS': { min: 50, max: 69, points: 2.0 },
-                        'FAIL': { min: 0, max: 49, points: 0.0 }
-                    },
-                    programs: {
-                        'basic': { name: 'Basic TEE', duration: '2 years', maxCredits: 60 },
-                        'hnc': { name: 'Higher National Certificate', duration: '3 years', maxCredits: 90 },
-                        'advanced': { name: 'Advanced TEE', duration: '4 years', maxCredits: 120 }
-                    },
-                    system: {
-                        autoGenerateRegNumbers: true,
-                        allowMarkOverwrite: false,
-                        showGPA: true,
-                        enableEmailNotifications: false,
-                        defaultPassword: 'Welcome123',
-                        sessionTimeout: 30,
-                        maxLoginAttempts: 5,
-                        enableTwoFactor: false,
-                        centreBasedAccess: true
-                    }
-                };
-                
-                const { error } = await supabaseClient
-                    .from('settings')
-                    .upsert([{
-                        setting_type: 'system',
-                        settings_data: defaultSettings,
-                        created_at: new Date().toISOString()
-                    }]);
-                    
-                if (error) console.warn('Could not create settings:', error.message);
-            } catch (error) {
-                console.warn('Settings creation failed:', error.message);
+    try {
+        const defaultSettings = {
+            instituteName: 'Theological Education by Extension College',
+            instituteAbbreviation: 'TEE College',
+            academicYear: new Date().getFullYear(),
+            semester: 'Spring',
+            timezone: 'Africa/Nairobi',
+            currency: 'KES',
+            language: 'en',
+            gradingScale: {
+                'DISTINCTION': { min: 85, max: 100, points: 4.0 },
+                'CREDIT': { min: 70, max: 84, points: 3.0 },
+                'PASS': { min: 50, max: 69, points: 2.0 },
+                'FAIL': { min: 0, max: 49, points: 0.0 }
+            },
+            programs: {
+                'basic': { name: 'Basic TEE', duration: '2 years', maxCredits: 60 },
+                'hnc': { name: 'Higher National Certificate', duration: '3 years', maxCredits: 90 },
+                'advanced': { name: 'Advanced TEE', duration: '4 years', maxCredits: 120 }
+            },
+            system: {
+                autoGenerateRegNumbers: true,
+                allowMarkOverwrite: false,
+                showGPA: true,
+                enableEmailNotifications: false,
+                defaultPassword: 'Welcome123',
+                sessionTimeout: 30,
+                maxLoginAttempts: 5,
+                enableTwoFactor: false,
+                centreBasedAccess: true
             }
-        }
+        };
+        
+        const { error } = await supabaseClient
+            .from('settings')
+            .upsert([{
+                setting_type: 'system',
+                settings_data: defaultSettings,
+                created_at: new Date().toISOString()
+            }], {
+                onConflict: 'setting_type'
+            });
+            
+        if (error) console.warn('Could not create settings:', error.message);
+    } catch (error) {
+        console.warn('Settings creation failed:', error.message);
+    }
+}
         
         async function createDefaultCentre(centreCode) {
-            try {
-                const centreMap = {
-                    'nairobi-hq': {
-                        name: 'Nairobi Headquarters',
-                        code: 'NBO-HQ',
-                        county: 'Nairobi',
-                        status: 'active'
-                    },
-                    'mombasa': {
-                        name: 'Mombasa Centre',
-                        code: 'MBA',
-                        county: 'Mombasa',
-                        status: 'active'
-                    },
-                    'kisumu': {
-                        name: 'Kisumu Centre',
-                        code: 'KSM',
-                        county: 'Kisumu',
-                        status: 'active'
-                    },
-                    'nakuru': {
-                        name: 'Nakuru Centre',
-                        code: 'NKR',
-                        county: 'Nakuru',
-                        status: 'active'
-                    },
-                    'eldoret': {
-                        name: 'Eldoret Centre',
-                        code: 'ELD',
-                        county: 'Uasin Gishu',
-                        status: 'active'
-                    }
-                };
-                
-                const centreData = centreMap[centreCode] || {
-                    name: 'Main Centre',
-                    code: centreCode.toUpperCase(),
-                    county: 'Nairobi',
-                    status: 'active'
-                };
-                
-                const { error } = await supabaseClient
-                    .from('centres')
-                    .upsert([{
-                        ...centreData,
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString()
-                    }]);
-                    
-                if (error) console.warn('Could not create centre:', error.message);
-            } catch (error) {
-                console.warn('Centre creation failed:', error.message);
+    try {
+        const centreMap = {
+            'nairobi-hq': {
+                name: 'Nairobi Headquarters',
+                code: 'NBO-HQ',
+                county: 'Nairobi',
+                status: 'active'
+            },
+            'mombasa': {
+                name: 'Mombasa Centre',
+                code: 'MBA',
+                county: 'Mombasa',
+                status: 'active'
+            },
+            'kisumu': {
+                name: 'Kisumu Centre',
+                code: 'KSM',
+                county: 'Kisumu',
+                status: 'active'
+            },
+            'nakuru': {
+                name: 'Nakuru Centre',
+                code: 'NKR',
+                county: 'Nakuru',
+                status: 'active'
+            },
+            'eldoret': {
+                name: 'Eldoret Centre',
+                code: 'ELD',
+                county: 'Uasin Gishu',
+                status: 'active'
             }
-        }
+        };
+        
+        const centreData = centreMap[centreCode] || {
+            name: 'Main Centre',
+            code: centreCode.toUpperCase(),
+            county: 'Nairobi',
+            status: 'active'
+        };
+        
+        const { error } = await supabaseClient
+            .from('centres')
+            .upsert([{
+                name: centreData.name,
+                code: centreData.code,
+                county: centreData.county,
+                status: centreData.status,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            }], {
+                onConflict: 'code'
+            });
+            
+        if (error) console.warn('Could not create centre:', error.message);
+    } catch (error) {
+        console.warn('Centre creation failed:', error.message);
+    }
+}
         
         // Main form submission handler
         async function handleSignup(event) {
