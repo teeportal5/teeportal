@@ -1297,7 +1297,7 @@
     </div>
 </div>
 
-<!-- Marks Modal -->
+<!-- Marks Modal - WITHOUT REMARKS -->
 <div id="marksModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -1323,13 +1323,35 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>Score *</label>
-                        <input type="number" id="marksScore" class="form-control" step="0.01" required>
+                        <input type="number" id="marksScore" class="form-control" step="0.01" required 
+                               oninput="updateGradeClassification()">
                     </div>
                     <div class="form-group">
                         <label>Out of</label>
-                        <input type="number" id="marksMaxScore" class="form-control" value="100">
+                        <input type="number" id="marksMaxScore" class="form-control" value="100" 
+                               oninput="updateGradeClassification()">
                     </div>
                 </div>
+                
+                <!-- Grade Classification Display -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Percentage</label>
+                        <div class="percentage-display">
+                            <input type="text" id="marksPercentage" class="form-control" readonly 
+                                   style="background-color: #f8f9fa; font-weight: bold;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Grade Classification</label>
+                        <div class="grade-classification">
+                            <div id="gradeBadge" class="grade-badge">
+                                <span>Enter score to see grade</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="form-row">
                     <div class="form-group">
                         <label>Assessment Type</label>
@@ -1338,17 +1360,16 @@
                             <option value="test">Test</option>
                             <option value="assignment">Assignment</option>
                             <option value="practical">Practical</option>
+                            <option value="cat">CAT</option>
                         </select>
                     </div>
                     <div class="form-group">
                         <label>Date</label>
-                        <input type="date" id="assessmentDate" class="form-control">
+                        <input type="date" id="assessmentDate" class="form-control" 
+                               value="<?php echo date('Y-m-d'); ?>">
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Remarks</label>
-                    <textarea id="marksRemarks" class="form-control" rows="2"></textarea>
-                </div>
+                <!-- REMARKS FIELD REMOVED -->
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
