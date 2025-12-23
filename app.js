@@ -1125,3 +1125,60 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+// In your app.js or HTML script
+window.showSection = function(sectionId) {
+    console.log('Switching to section:', sectionId);
+    
+    // If leaving dashboard, cleanup charts
+    if (window.app && window.app.dashboard && sectionId !== 'dashboard') {
+        if (window.app.dashboard.cleanup) {
+            window.app.dashboard.cleanup();
+        }
+    }
+    
+    // Hide all sections
+    document.querySelectorAll('.content-section').forEach(section => {
+        section.classList.remove('active');
+    });
+    
+    // Show selected section
+    const targetSection = document.getElementById(sectionId);
+    if (targetSection) {
+        targetSection.classList.add('active');
+        
+        // Update page title
+        const titleElement = document.getElementById('section-title');
+        if (titleElement) {
+            const titleMap = {
+                'dashboard': 'Dashboard Overview',
+                'students': 'Student Management',
+                'courses': 'Course Management',
+                'marks': 'Academic Records',
+                'reports': 'Reports & Analytics',
+                'centres': 'Centre Management',
+                'profile': 'User Profile',
+                'settings': 'System Settings'
+            };
+            titleElement.textContent = titleMap[sectionId] || sectionId;
+        }
+    }
+    
+    // Update active nav link
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+    });
+    
+    const navLink = document.querySelector(`a[href="#${sectionId}"]`);
+    if (navLink) {
+        navLink.classList.add('active');
+    }
+    
+    // Lazy load section data if it's dashboard
+    if (sectionId === 'dashboard' && window.app && window.app.dashboard) {
+        setTimeout(() => {
+            if (window.app.dashboard.updateDashboard) {
+                window.app.dashboard.updateDashboard();
+            }
+        }, 100);
+    }
+};
