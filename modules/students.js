@@ -450,67 +450,64 @@ class StudentManager {
         }
     }
     
-    /**
-     * Render student table row
-     */
-    _renderStudentRow(student, settings) {
-        const programName = settings.programs && settings.programs[student.program] 
-            ? this._escapeHtml(settings.programs[student.program].name) 
-            : this._escapeHtml(student.program || 'N/A');
-        
-        const studentName = this._escapeHtml(student.full_name || '');
-        const email = this._escapeHtml(student.email || '');
-        const phone = this._escapeHtml(student.phone || '');
-        const status = student.status || 'active';
-        const isSelected = this.selectedStudents.has(student.id);
-        const safeStudentId = this._escapeAttr(student.id);
-        const safeRegNumber = this._escapeAttr(student.reg_number);
-        
-        return `
-            <tr data-student-id="${safeStudentId}" data-student-reg="${safeRegNumber}">
-                <td>
-                    <input type="checkbox" class="student-checkbox" 
-                           data-student-id="${safeStudentId}" 
-                           ${isSelected ? 'checked' : ''}>
-                </td>
-                <td><strong>${this._escapeHtml(student.reg_number)}</strong></td>
-                <td>
-                    <div class="student-avatar">
-                        <div class="avatar-icon" style="background-color: ${this._getAvatarColor(student.full_name)}">
-                            <i class="fas fa-user"></i>
-                        </div>
-                        <div class="student-info">
-                            <strong>${studentName}</strong><br>
-                            <small>${email}</small>
-                        </div>
+   /**
+ * Render student table row - CORRECTED VERSION
+ */
+_renderStudentRow(student, settings) {
+    const programName = settings.programs && settings.programs[student.program] 
+        ? this._escapeHtml(settings.programs[student.program].name) 
+        : this._escapeHtml(student.program || 'N/A');
+    
+    const centreName = settings.centres && settings.centres[student.centre_id] 
+        ? this._escapeHtml(settings.centres[student.centre_id].name)
+        : this._escapeHtml(student.centre || 'N/A');
+    
+    const studentName = this._escapeHtml(student.full_name || '');
+    const email = this._escapeHtml(student.email || '');
+    const status = student.status || 'active';
+    const safeStudentId = this._escapeAttr(student.id);
+    const safeRegNumber = this._escapeAttr(student.reg_number);
+    
+    return `
+        <tr data-student-id="${safeStudentId}" data-student-reg="${safeRegNumber}">
+            <td><strong>${this._escapeHtml(student.reg_number)}</strong></td>
+            <td>
+                <div class="student-avatar">
+                    <div class="avatar-icon" style="background-color: ${this._getAvatarColor(student.full_name)}">
+                        <i class="fas fa-user"></i>
                     </div>
-                </td>
-                <td>${programName}</td>
-                <td>${this._escapeHtml(student.intake_year)}</td>
-                <td>${email}</td>
-                <td>${phone}</td>
-                <td>
-                    <span class="status-badge ${this._escapeAttr(status)}">
-                        ${this._escapeHtml(status.toUpperCase())}
-                    </span>
-                </td>
-                <td class="action-buttons">
-                    <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    <button class="btn-action edit-student" data-id="${safeStudentId}" title="Edit Student">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn-action enter-marks" data-id="${safeStudentId}" title="Enter Marks">
-                        <i class="fas fa-chart-bar"></i>
-                    </button>
-                    <button class="btn-action delete-student" data-id="${safeStudentId}" title="Delete Student">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
-    }
+                    <div class="student-info">
+                        <strong>${studentName}</strong><br>
+                        <small>${email}</small>
+                    </div>
+                </div>
+            </td>
+            <td>${programName}</td>
+            <td>${centreName}</td>
+            <td>${this._escapeHtml(student.county)}</td>
+            <td>${this._escapeHtml(student.intake_year)}</td>
+            <td>
+                <span class="status-badge ${this._escapeAttr(status)}">
+                    ${this._escapeHtml(status.toUpperCase())}
+                </span>
+            </td>
+            <td class="action-buttons">
+                <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn-action edit-student" data-id="${safeStudentId}" title="Edit Student">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn-action enter-marks" data-id="${safeStudentId}" title="Enter Marks">
+                    <i class="fas fa-chart-bar"></i>
+                </button>
+                <button class="btn-action delete-student" data-id="${safeStudentId}" title="Delete Student">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `;
+}
     
     /**
      * Attach event listeners to student row buttons
