@@ -9,1389 +9,517 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/main.css">
     
-    <!-- Chart.js -->
+    <!-- JavaScript Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- Supabase -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    
-    <!-- PDF Library -->
     <script src="https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    
-    <!-- Excel Library -->
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
-    
-    <!-- Add CSS for modules -->
-    <style>
-        .content-section {
-            display: none;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        
-        .content-section.active {
-            display: block;
-            opacity: 1;
-        }
-        
-        .nav-link {
-            cursor: pointer;
-        }
-        
-        .nav-link.active {
-            background: #3498db;
-            color: white;
-        }
-        
-        /* Modal styles */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .modal.active {
-            display: flex;
-        }
-        
-        .modal-content {
-            background: white;
-            border-radius: 10px;
-            width: 90%;
-            max-width: 600px;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        
-        .modal-header {
-            padding: 20px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .modal-body {
-            padding: 20px;
-        }
-        
-        .modal-footer {
-            padding: 20px;
-            border-top: 1px solid #eee;
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-        
-        .close {
-            font-size: 28px;
-            font-weight: bold;
-            color: #aaa;
-            cursor: pointer;
-        }
-        
-        .close:hover {
-            color: #333;
-        }
-        
-        /* Form styles */
-        .form-group {
-            margin-bottom: 15px;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-            color: #2c3e50;
-        }
-        
-        .form-control {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-        
-        .form-row {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-        
-        .form-row .form-group {
-            flex: 1;
-        }
-        
-        /* Button styles */
-        .btn-primary {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: background 0.3s;
-        }
-        
-        .btn-primary:hover {
-            background: #2980b9;
-        }
-        
-        .btn-secondary {
-            background: #95a5a6;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .btn-secondary:hover {
-            background: #7f8c8d;
-        }
-        
-        /* Table styles */
-        .table-container {
-            overflow-x: auto;
-            margin-top: 20px;
-        }
-        
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        .data-table th, .data-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .data-table th {
-            background: #f8f9fa;
-            font-weight: 600;
-            color: #2c3e50;
-        }
-        
-        .data-table tr:hover {
-            background: #f8f9fa;
-        }
-        
-        /* Status badges */
-        .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        
-        .status-badge.active {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .status-badge.graduated {
-            background: #cce5ff;
-            color: #004085;
-        }
-        
-        .status-badge.withdrawn {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        
-        /* Toast notifications */
-        .toast {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 15px 20px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            z-index: 10000;
-            animation: slideIn 0.3s ease;
-            min-width: 300px;
-            max-width: 400px;
-        }
-        
-        .toast.success {
-            border-left: 4px solid #27ae60;
-        }
-        
-        .toast.error {
-            border-left: 4px solid #e74c3c;
-        }
-        
-        .toast.info {
-            border-left: 4px solid #3498db;
-        }
-        
-        .toast.warning {
-            border-left: 4px solid #f39c12;
-        }
-        
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-    </style>
 </head>
 <body>
     <div class="app-container">
-        <!-- Navigation -->
+        <!-- Navigation Sidebar -->
         <nav class="sidebar">
             <div class="sidebar-header">
                 <h2><i class="fas fa-graduation-cap"></i> TEE Portal</h2>
+                <p class="sidebar-subtitle">Technical & Engineering Education</p>
             </div>
             <ul class="sidebar-menu">
-                <li><a href="#dashboard" onclick="showSection('dashboard')" class="nav-link active"><i class="fas fa-home"></i> Dashboard</a></li>
-                <li><a href="#students" onclick="showSection('students')" class="nav-link"><i class="fas fa-user-graduate"></i> Students</a></li>
-                <li><a href="#courses" onclick="showSection('courses')" class="nav-link"><i class="fas fa-book"></i> Courses</a></li>
-                <li><a href="#marks" onclick="showSection('marks')" class="nav-link"><i class="fas fa-chart-bar"></i> Marks</a></li>
-                <li><a href="#reports" onclick="showSection('reports')" class="nav-link"><i class="fas fa-chart-line"></i> Reports</a></li>
-                <li><a href="#settings" onclick="showSection('settings')" class="nav-link"><i class="fas fa-cog"></i> Settings</a></li>
+                <li><a href="#dashboard" onclick="showSection('dashboard')" class="nav-link active">
+                    <i class="fas fa-home"></i> Dashboard
+                </a></li>
+                <li><a href="#students" onclick="showSection('students')" class="nav-link">
+                    <i class="fas fa-user-graduate"></i> Students
+                </a></li>
+                <li><a href="#courses" onclick="showSection('courses')" class="nav-link">
+                    <i class="fas fa-book"></i> Courses
+                </a></li>
+                <li><a href="#marks" onclick="showSection('marks')" class="nav-link">
+                    <i class="fas fa-chart-bar"></i> Marks
+                </a></li>
+                <li><a href="#reports" onclick="showSection('reports')" class="nav-link">
+                    <i class="fas fa-chart-line"></i> Reports
+                </a></li>
+                <li><a href="#centres" onclick="showSection('centres')" class="nav-link">
+                    <i class="fas fa-map-marker-alt"></i> Centres
+                </a></li>
+                <li><a href="#profile" onclick="showSection('profile')" class="nav-link">
+                    <i class="fas fa-user"></i> Profile
+                </a></li>
+                <li><a href="#settings" onclick="showSection('settings')" class="nav-link">
+                    <i class="fas fa-cog"></i> Settings
+                </a></li>
             </ul>
+            
+            <!-- User Profile in Sidebar -->
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="user-avatar">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                    <div class="user-info">
+                        <span class="user-name" id="sidebarUserName">Admin User</span>
+                        <span class="user-role" id="sidebarUserRole">Administrator</span>
+                        <span class="user-centre" id="sidebarUserCentre">Nairobi HQ</span>
+                    </div>
+                </div>
+            </div>
         </nav>
         
-        <!-- Main Content -->
+        <!-- Main Content Area -->
         <main class="main-content">
-            <header class="main-header">
-                <h1 id="section-title">Dashboard Overview</h1>
-                <div class="header-actions">
-                    <button class="btn-primary" onclick="app.refreshDashboard()">
-                        <i class="fas fa-sync-alt"></i> Refresh
-                    </button>
-                    <button class="btn-primary" onclick="openStudentModal()">
-                        <i class="fas fa-user-plus"></i> Add Student
-                    </button>
-                </div>
-            </header>
-            
             <!-- Dashboard Section -->
-            <div id="dashboard" class="content-section active">
+            <section id="dashboard" class="content-section active">
+                <header class="main-header">
+                    <h1 id="section-title">Dashboard Overview</h1>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" onclick="app.refreshDashboard()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                        <button class="btn btn-primary" onclick="openStudentModal()">
+                            <i class="fas fa-user-plus"></i> Add Student
+                        </button>
+                    </div>
+                </header>
+                
+                <!-- Dashboard Stats -->
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <h3>Total Students</h3>
-                        <p id="totalStudents" class="stat-number">0</p>
+                        <div class="stat-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Total Students</h3>
+                            <p id="totalStudents" class="stat-number">0</p>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <h3>Active Programs</h3>
-                        <p id="activePrograms" class="stat-number">0</p>
+                        <div class="stat-icon">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Active Centres</h3>
+                            <p id="activeCentres" class="stat-number">0</p>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <h3>Current Intake</h3>
-                        <p id="currentIntake" class="stat-number">2024</p>
+                        <div class="stat-icon">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Counties Covered</h3>
+                            <p id="countiesCovered" class="stat-number">0</p>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <h3>Total Courses</h3>
-                        <p id="totalCourses" class="stat-number">0</p>
+                        <div class="stat-icon">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Total Courses</h3>
+                            <p id="totalCourses" class="stat-number">0</p>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <h3>Total Marks</h3>
-                        <p id="totalMarks" class="stat-number">0</p>
+                        <div class="stat-icon">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Total Marks</h3>
+                            <p id="totalMarks" class="stat-number">0</p>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <h3>Average Grade</h3>
-                        <p id="avgGrade" class="stat-number">N/A</p>
+                        <div class="stat-icon">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Average Grade</h3>
+                            <p id="avgGrade" class="stat-number">N/A</p>
+                        </div>
                     </div>
                 </div>
                 
+                <!-- Charts -->
                 <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>Students by County</h3>
+                        <canvas id="countyChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Enrollment by Centre</h3>
+                        <canvas id="centreChart"></canvas>
+                    </div>
                     <div class="chart-card">
                         <h3>Program Distribution</h3>
                         <canvas id="programChart"></canvas>
                     </div>
-                    <div class="chart-card">
-                        <h3>Enrollment Trend</h3>
-                        <canvas id="enrollmentChart"></canvas>
-                    </div>
-                    <div class="chart-card">
-                        <h3>Grade Distribution</h3>
-                        <canvas id="gradeChart"></canvas>
-                    </div>
                 </div>
                 
+                <!-- Recent Activities -->
                 <div class="recent-activities">
                     <h3>Recent Activities</h3>
-                    <div class="activity-list"></div>
+                    <div class="activity-list" id="activityList">
+                        <!-- Activities will be loaded here -->
+                    </div>
                 </div>
-            </div>
+            </section>
             
             <!-- Students Section -->
-            <div id="students" class="content-section">
+            <section id="students" class="content-section">
                 <div class="section-header">
                     <h2>Student Management</h2>
                     <div class="action-buttons">
-                        <button class="btn-primary" onclick="openStudentModal()">
+                        <button class="btn btn-primary" onclick="openStudentModal()">
                             <i class="fas fa-user-plus"></i> Add Student
                         </button>
-                        <button class="btn-secondary" onclick="app.students.exportStudents()">
+                        <button class="btn btn-secondary" onclick="app.students.exportStudents()">
                             <i class="fas fa-download"></i> Export
                         </button>
-                        <button class="btn-secondary" id="importStudentsBtn">
+                        <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">
                             <i class="fas fa-upload"></i> Import
                         </button>
                         <input type="file" id="importFile" accept=".csv" style="display: none;">
                     </div>
                 </div>
                 
+                <!-- Filter Bar -->
                 <div class="filter-bar">
                     <input type="text" id="studentSearch" placeholder="Search students..." class="search-input">
+                    <select id="filterCounty" class="filter-select">
+                        <option value="">All Counties</option>
+                        <!-- Counties will be loaded dynamically -->
+                    </select>
+                    <select id="filterCentre" class="filter-select">
+                        <option value="">All Centres</option>
+                        <!-- Centres will be loaded dynamically -->
+                    </select>
                     <select id="filterProgram" class="filter-select">
                         <option value="">All Programs</option>
-                        <option value="basic">Basic TEE</option>
-                        <option value="hnc">HNC</option>
-                        <option value="advanced">Advanced TEE</option>
-                    </select>
-                    <select id="filterIntake" class="filter-select">
-                        <option value="">All Intakes</option>
-                        <!-- Intakes from 2000 to 2030 -->
-                        <?php for($year = 2030; $year >= 2000; $year--): ?>
-                        <option value="<?php echo $year; ?>"><?php echo $year; ?></option>
-                        <?php endfor; ?>
+                        <!-- Programs will be loaded dynamically -->
                     </select>
                     <select id="filterStatus" class="filter-select">
-                        <option value="all">All Status</option>
+                        <option value="">All Status</option>
                         <option value="active">Active</option>
                         <option value="graduated">Graduated</option>
                         <option value="withdrawn">Withdrawn</option>
                     </select>
                 </div>
                 
+                <!-- Students Table -->
                 <div class="table-container">
-                    <table class="data-table">
+                    <table class="data-table" id="studentsTable">
                         <thead>
                             <tr>
                                 <th>Reg Number</th>
                                 <th>Student Name</th>
                                 <th>Program</th>
+                                <th>Centre</th>
+                                <th>County</th>
                                 <th>Intake</th>
-                                <th>Email</th>
-                                <th>Phone</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="studentsTableBody">
-                            <tr>
-                                <td colspan="8" class="empty-state">
-                                    <i class="fas fa-user-graduate fa-2x"></i>
-                                    <p>No students found</p>
-                                </td>
-                            </tr>
+                            <!-- Data will be loaded here -->
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </section>
             
             <!-- Courses Section -->
-            <div id="courses" class="content-section">
+            <section id="courses" class="content-section">
                 <div class="section-header">
                     <h2>Course Management</h2>
                     <div class="action-buttons">
-                        <button class="btn-primary" onclick="openCourseModal()">
+                        <button class="btn btn-primary" onclick="openCourseModal()">
                             <i class="fas fa-book-medical"></i> Add Course
                         </button>
-                    </div>
-                </div>
-                
-                <div id="coursesGrid" class="cards-grid">
-                    <div class="empty-state">
-                        <i class="fas fa-book-open fa-3x"></i>
-                        <h3>No Courses Found</h3>
-                        <p>Add your first course to get started</p>
-                        <button class="btn-primary" onclick="openCourseModal()">
-                            <i class="fas fa-plus"></i> Add Course
+                        <button class="btn btn-secondary" onclick="app.courses.exportCourses()">
+                            <i class="fas fa-download"></i> Export
                         </button>
                     </div>
                 </div>
-            </div>
-           <!-- Marks Section - Enhanced -->
-<div id="marks" class="content-section">
-    <div class="section-header">
-        <div class="header-left">
-            <h2>Academic Records</h2>
-            <p class="section-subtitle">Manage and track student academic performance</p>
-        </div>
-        <div class="header-actions">
-            <button class="btn-primary" onclick="app.marks.openMarksModal()">
-                <i class="fas fa-plus"></i> New Record
-            </button>
-            <div class="dropdown">
-                <button class="btn-secondary dropdown-toggle" data-bs-toggle="dropdown">
-                    <i class="fas fa-ellipsis-v"></i>
-                </button>
-                <div class="dropdown-menu">
-                    <a class="dropdown-item" href="#" onclick="app.marks.exportMarks()">
-                        <i class="fas fa-download"></i> Export All
-                    </a>
-                    <a class="dropdown-item" href="#" onclick="app.marks.exportSelected()">
-                        <i class="fas fa-file-export"></i> Export Selected
-                    </a>
-                    <div class="dropdown-divider"></div>
-                    <a class="dropdown-item" href="#" onclick="app.marks.bulkEdit()">
-                        <i class="fas fa-edit"></i> Bulk Edit
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Summary Stats -->
-    <div class="summary-stats">
-        <div class="stat-item">
-            <div class="stat-icon">
-                <i class="fas fa-chart-bar"></i>
-            </div>
-            <div class="stat-info">
-                <span class="stat-label">Total Records</span>
-                <span class="stat-value" id="totalRecords">0</span>
-            </div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-icon">
-                <i class="fas fa-user-graduate"></i>
-            </div>
-            <div class="stat-info">
-                <span class="stat-label">Distinct Students</span>
-                <span class="stat-value" id="distinctStudents">0</span>
-            </div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-icon">
-                <i class="fas fa-percentage"></i>
-            </div>
-            <div class="stat-info">
-                <span class="stat-label">Average Score</span>
-                <span class="stat-value" id="avgScore">0%</span>
-            </div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-icon">
-                <i class="fas fa-star"></i>
-            </div>
-            <div class="stat-info">
-                <span class="stat-label">Distinctions</span>
-                <span class="stat-value" id="distinctionCount">0</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Filter & Search Bar -->
-    <div class="filter-bar">
-        <div class="search-box">
-            <i class="fas fa-search"></i>
-            <input type="text" id="marksSearch" placeholder="Search by student, course, or grade..." 
-                   class="search-input" oninput="app.marks.filterTable()">
-        </div>
-        <div class="filter-controls">
-            <select id="gradeFilter" class="filter-select" onchange="app.marks.filterTable()">
-                <option value="">All Grades</option>
-                <option value="DISTINCTION">Distinction</option>
-                <option value="CREDIT">Credit</option>
-                <option value="PASS">Pass</option>
-                <option value="FAIL">Fail</option>
-            </select>
-            <select id="courseFilter" class="filter-select" onchange="app.marks.filterTable()">
-                <option value="">All Courses</option>
-            </select>
-            <select id="dateFilter" class="filter-select" onchange="app.marks.filterTable()">
-                <option value="">All Time</option>
-                <option value="today">Today</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-                <option value="term">This Term</option>
-            </select>
-            <button class="btn-sm btn-outline" onclick="app.marks.clearFilters()">
-                <i class="fas fa-times"></i> Clear
-            </button>
-        </div>
-    </div>
-
-    <!-- View Toggle -->
-    <div class="view-toggle">
-        <button class="view-btn active" onclick="setTableView('table')">
-            <i class="fas fa-table"></i> Table
-        </button>
-        <button class="view-btn" onclick="setTableView('cards')">
-            <i class="fas fa-th-large"></i> Cards
-        </button>
-        <button class="view-btn" onclick="setTableView('compact')">
-            <i class="fas fa-list"></i> Compact
-        </button>
-    </div>
-
-    <!-- Table View (Default) -->
-    <div class="table-container table-view" id="tableView">
-        <div class="table-responsive">
-            <table class="data-table enhanced-table">
-                <thead>
-                    <tr>
-                        <th class="select-col">
-                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
-                        </th>
-                        <th class="student-col">Student</th>
-                        <th class="course-col">Course</th>
-                        <th class="assessment-col">Assessment</th>
-                        <th class="score-col">Score</th>
-                        <th class="grade-col">Grade</th>
-                        <th class="date-col">Date</th>
-                        <th class="status-col">Status</th>
-                        <th class="actions-col">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="marksTableBody">
-                    <!-- Data will be populated here -->
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Cards View -->
-    <div class="cards-container cards-view" id="cardsView" style="display: none;">
-        <div class="cards-grid" id="marksCards">
-            <!-- Cards will be populated here -->
-        </div>
-    </div>
-
-    <!-- Pagination -->
-    <div class="pagination-bar">
-        <div class="pagination-info">
-            Showing <span id="startRow">0</span>-<span id="endRow">0</span> of <span id="totalRows">0</span> records
-        </div>
-        <div class="pagination-controls">
-            <button class="page-btn" id="prevPage" onclick="app.marks.prevPage()">
-                <i class="fas fa-chevron-left"></i>
-            </button>
-            <div class="page-numbers" id="pageNumbers">
-                <!-- Page numbers will be generated here -->
-            </div>
-            <button class="page-btn" id="nextPage" onclick="app.marks.nextPage()">
-                <i class="fas fa-chevron-right"></i>
-            </button>
-            <select class="page-size-select" id="pageSize" onchange="app.marks.changePageSize()">
-                <option value="10">10</option>
-                <option value="25" selected>25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-            </select>
-        </div>
-        <div class="selected-actions" id="selectedActions" style="display: none;">
-            <span id="selectedCount">0</span> selected
-            <button class="btn-sm btn-danger" onclick="app.marks.deleteSelected()">
-                <i class="fas fa-trash"></i> Delete
-            </button>
-            <button class="btn-sm btn-secondary" onclick="app.marks.exportSelected()">
-                <i class="fas fa-download"></i> Export
-            </button>
-        </div>
-    </div>
-
-    <!-- Quick Stats -->
-    <div class="quick-stats">
-        <div class="stats-grid">
-            <div class="stat-card small">
-                <div class="stat-header">
-                    <i class="fas fa-chart-pie"></i>
-                    <span>Grade Distribution</span>
-                </div>
-                <div class="grade-distribution" id="gradeDistribution">
-                    <!-- Distribution bars will be added here -->
-                </div>
-            </div>
-            <div class="stat-card small">
-                <div class="stat-header">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>Recent Activity</span>
-                </div>
-                <div class="recent-updates" id="recentUpdates">
-                    <!-- Recent updates will be added here -->
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Empty State Template -->
-<template id="emptyStateTemplate">
-    <tr class="empty-state-row">
-        <td colspan="9">
-            <div class="empty-state">
-                <i class="fas fa-chart-bar fa-3x"></i>
-                <h3>No Academic Records Found</h3>
-                <p>Get started by adding your first academic record</p>
-                <button class="btn-primary" onclick="app.marks.openMarksModal()">
-                    <i class="fas fa-plus"></i> Add First Record
-                </button>
-            </div>
-        </td>
-    </tr>
-</template>
-
-<!-- Card Template -->
-<template id="markCardTemplate">
-    <div class="mark-card" data-mark-id="{id}">
-        <div class="card-header">
-            <div class="student-avatar">
-                <i class="fas fa-user"></i>
-            </div>
-            <div class="student-info">
-                <h4>{studentName}</h4>
-                <p class="student-id">{studentId}</p>
-            </div>
-            <div class="card-actions">
-                <input type="checkbox" class="select-card" onchange="updateSelection()">
-                <button class="card-action-btn" onclick="app.marks.editMark('{id}')">
-                    <i class="fas fa-edit"></i>
-                </button>
-            </div>
-        </div>
-        <div class="card-body">
-            <div class="course-info">
-                <div class="course-code">{courseCode}</div>
-                <div class="course-name">{courseName}</div>
-            </div>
-            <div class="score-display">
-                <div class="score">
-                    <span class="label">Score:</span>
-                    <span class="value">{score}/{maxScore}</span>
-                </div>
-                <div class="percentage">
-                    <span class="label">Percentage:</span>
-                    <span class="value">{percentage}%</span>
-                </div>
-            </div>
-            <div class="grade-display">
-                <span class="grade-badge {gradeClass}">{grade}</span>
-                <span class="grade-points">{gradePoints} GP</span>
-            </div>
-            <div class="assessment-info">
-                <span class="type">{assessmentType}</span>
-                <span class="date">{date}</span>
-            </div>
-        </div>
-        <div class="card-footer">
-            <div class="footer-actions">
-                <button class="btn-sm" onclick="app.marks.viewDetails('{id}')">
-                    <i class="fas fa-eye"></i> View
-                </button>
-                <button class="btn-sm btn-danger" onclick="app.marks.deleteMark('{id}')">
-                    <i class="fas fa-trash"></i> Delete
-                </button>
-            </div>
-        </div>
-    </div>
-</template>
-            
-          <!-- Reports Section -->
-<div id="reports" class="content-section">
-    <div class="reports-header">
-        <div class="reports-title">
-            <i class="fas fa-chart-network"></i>
-            <h1>Reports & Analytics</h1>
-            <p class="subtitle">Generate comprehensive reports and analytics for your institution</p>
-        </div>
-        <div class="header-actions">
-            <button class="btn-refresh" onclick="app.reports.refreshReports()">
-                <i class="fas fa-sync-alt"></i> Refresh Data
-            </button>
-        </div>
-    </div>
-    
-    <!-- Smart Filters -->
-    <div class="smart-filters">
-        <div class="filter-header">
-            <i class="fas fa-sliders-h"></i>
-            <h3>Smart Filters</h3>
-            <div class="filter-actions">
-                <button class="btn-filter-clear" onclick="app.reports.clearFilters()">
-                    <i class="fas fa-broom"></i> Clear All
-                </button>
-                <button class="btn-filter-apply" onclick="app.reports.applyFilters()">
-                    <i class="fas fa-check"></i> Apply Filters
-                </button>
-            </div>
-        </div>
-        
-        <div class="filter-grid">
-            <!-- Row 1 -->
-            <div class="filter-group">
-                <label><i class="fas fa-calendar-alt"></i> Academic Year</label>
-                <div class="select-wrapper">
-                    <select id="filterYear" class="modern-select">
-                        <option value="all">All Years</option>
-                    </select>
-                    <i class="fas fa-chevron-down"></i>
-                </div>
-            </div>
-            
-            <div class="filter-group">
-                <label><i class="fas fa-graduation-cap"></i> Program</label>
-                <div class="select-wrapper">
-                    <select id="filterProgram" class="modern-select">
-                        <option value="all">All Programs</option>
-                    </select>
-                    <i class="fas fa-chevron-down"></i>
-                </div>
-            </div>
-            
-            <div class="filter-group">
-                <label><i class="fas fa-book"></i> Course</label>
-                <div class="select-wrapper">
-                    <select id="filterCourse" class="modern-select">
-                        <option value="all">All Courses</option>
-                    </select>
-                    <i class="fas fa-chevron-down"></i>
-                </div>
-            </div>
-            
-            <div class="filter-group">
-                <label><i class="fas fa-layer-group"></i> Semester</label>
-                <div class="select-wrapper">
-                    <select id="filterSemester" class="modern-select">
-                        <option value="all">All Semesters</option>
-                        <option value="1">Semester 1</option>
-                        <option value="2">Semester 2</option>
-                        <option value="3">Semester 3</option>
-                        <option value="4">Semester 4</option>
-                    </select>
-                    <i class="fas fa-chevron-down"></i>
-                </div>
-            </div>
-            
-            <!-- Row 2 -->
-            <div class="filter-group">
-                <label><i class="fas fa-user-tag"></i> Student Status</label>
-                <div class="select-wrapper">
-                    <select id="filterStatus" class="modern-select">
-                        <option value="all">All Status</option>
-                        <option value="active">Active</option>
-                        <option value="graduated">Graduated</option>
-                        <option value="withdrawn">Withdrawn</option>
-                    </select>
-                    <i class="fas fa-chevron-down"></i>
-                </div>
-            </div>
-            
-            <div class="filter-group">
-                <label><i class="fas fa-calendar-plus"></i> Intake Year</label>
-                <div class="select-wrapper">
-                    <select id="filterIntake" class="modern-select">
-                        <option value="all">All Intakes</option>
-                    </select>
-                    <i class="fas fa-chevron-down"></i>
-                </div>
-            </div>
-            
-            <div class="filter-group date-group">
-                <label><i class="fas fa-calendar-day"></i> Date Range</label>
-                <div class="date-range">
-                    <div class="date-input">
-                        <input type="date" id="filterDateFrom" class="modern-date">
-                        <span>From</span>
-                    </div>
-                    <div class="date-separator">
-                        <i class="fas fa-arrow-right"></i>
-                    </div>
-                    <div class="date-input">
-                        <input type="date" id="filterDateTo" class="modern-date">
-                        <span>To</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="filter-status" id="filterStatusDisplay">
-            <i class="fas fa-info-circle"></i>
-            <span>No filters applied</span>
-        </div>
-    </div>
-    
-    <!-- Report Cards Grid -->
-    <div class="reports-container">
-        <div class="main-reports">
-            <div class="section-title">
-                <h2><i class="fas fa-rocket"></i> Quick Reports</h2>
-                <p>Generate instant reports with one click</p>
-            </div>
-            
-            <div class="reports-grid">
-                <!-- Student Reports Card -->
-                <div class="report-card student-reports">
-                    <div class="card-icon">
-                        <i class="fas fa-users"></i>
-                    </div>
-                    <div class="card-content">
-                        <h3>Student Reports</h3>
-                        <p class="card-description">Generate comprehensive student lists, enrollment stats, and demographic reports</p>
-                        
-                        <div class="report-options">
-                            <div class="option-group">
-                                <label>Report Type</label>
-                                <div class="select-wrapper small">
-                                    <select id="studentReportType" class="modern-select">
-                                        <option value="list">Student List</option>
-                                        <option value="enrollment">Enrollment Stats</option>
-                                        <option value="graduation">Graduation Report</option>
-                                        <option value="demographics">Demographics</option>
-                                    </select>
-                                    <i class="fas fa-chevron-down"></i>
-                                </div>
-                            </div>
-                            
-                            <div class="option-group">
-                                <label>Export Format</label>
-                                <div class="format-buttons">
-                                    <button class="format-btn active" data-format="csv" onclick="this.parentNode.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');">
-                                        <i class="fas fa-file-csv"></i> CSV
-                                    </button>
-                                    <button class="format-btn" data-format="excel" onclick="this.parentNode.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');">
-                                        <i class="fas fa-file-excel"></i> Excel
-                                    </button>
-                                    <button class="format-btn" data-format="pdf" onclick="this.parentNode.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');">
-                                        <i class="fas fa-file-pdf"></i> PDF
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="action-buttons">
-                                <button class="btn-preview" onclick="app.reports.previewStudentReport()">
-                                    <i class="fas fa-eye"></i> Preview
-                                </button>
-                                <button class="btn-generate" onclick="app.reports.quickStudentReport()">
-                                    <i class="fas fa-download"></i> Generate
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
                 
-                <!-- Academic Reports Card -->
-                <div class="report-card academic-reports">
-                    <div class="card-icon">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                    <div class="card-content">
-                        <h3>Academic Reports</h3>
-                        <p class="card-description">Performance analysis, grade distribution, and course-wise results</p>
-                        
-                        <div class="report-options">
-                            <div class="option-group">
-                                <label>Report Type</label>
-                                <div class="select-wrapper small">
-                                    <select id="academicReportType" class="modern-select">
-                                        <option value="marks">All Marks</option>
-                                        <option value="performance">Performance Analysis</option>
-                                        <option value="grades">Grade Distribution</option>
-                                        <option value="coursewise">Course-wise Results</option>
-                                    </select>
-                                    <i class="fas fa-chevron-down"></i>
-                                </div>
-                            </div>
-                            
-                            <div class="option-group">
-                                <label>Export Format</label>
-                                <div class="format-buttons">
-                                    <button class="format-btn active" data-format="csv" onclick="this.parentNode.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');">
-                                        <i class="fas fa-file-csv"></i> CSV
-                                    </button>
-                                    <button class="format-btn" data-format="excel" onclick="this.parentNode.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');">
-                                        <i class="fas fa-file-excel"></i> Excel
-                                    </button>
-                                    <button class="format-btn" data-format="pdf" onclick="this.parentNode.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');">
-                                        <i class="fas fa-file-pdf"></i> PDF
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="action-buttons">
-                                <button class="btn-preview" onclick="app.reports.previewAcademicReport()">
-                                    <i class="fas fa-eye"></i> Preview
-                                </button>
-                                <button class="btn-generate" onclick="app.reports.quickAcademicReport()">
-                                    <i class="fas fa-download"></i> Generate
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                <!-- Courses Grid -->
+                <div class="cards-grid" id="coursesGrid">
+                    <!-- Courses will be loaded here -->
                 </div>
-                
-                <!-- Transcript Card -->
-                <div class="report-card transcript-reports">
-                    <div class="card-icon">
-                        <i class="fas fa-graduation-cap"></i>
-                    </div>
-                    <div class="card-content">
-                        <h3>Student Transcripts</h3>
-                        <p class="card-description">Generate official academic transcripts for individual students</p>
-                        
-                        <div class="report-options">
-                            <div class="option-group">
-                                <label>Select Student</label>
-                                <div class="select-wrapper small">
-                                    <select id="transcriptStudent" class="modern-select">
-                                        <option value="">Select Student...</option>
-                                    </select>
-                                    <i class="fas fa-chevron-down"></i>
-                                </div>
-                            </div>
-                            
-                            <div class="option-group">
-                                <label>Format</label>
-                                <div class="format-buttons">
-                                    <button class="format-btn active" data-format="pdf" onclick="this.parentNode.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');">
-                                        <i class="fas fa-file-pdf"></i> PDF
-                                    </button>
-                                    <button class="format-btn" data-format="excel" onclick="this.parentNode.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');">
-                                        <i class="fas fa-file-excel"></i> Excel
-                                    </button>
-                                    <button class="format-btn" data-format="csv" onclick="this.parentNode.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');">
-                                        <i class="fas fa-file-csv"></i> CSV
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="action-buttons">
-                                <button class="btn-preview" onclick="app.reports.previewTranscript()">
-                                    <i class="fas fa-eye"></i> Preview
-                                </button>
-                                <button class="btn-generate" onclick="app.transcripts.generateStudentTranscriptPrompt()">
-                                    <i class="fas fa-graduation-cap"></i> Generate Transcript
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Bulk Export Card -->
-                <div class="report-card bulk-reports">
-                    <div class="card-icon">
-                        <i class="fas fa-database"></i>
-                    </div>
-                    <div class="card-content">
-                        <h3>Bulk Export</h3>
-                        <p class="card-description">Export all institution data in various formats for backup</p>
-                        
-                        <div class="report-options">
-                            <div class="option-group">
-                                <label>Export Type</label>
-                                <div class="select-wrapper small">
-                                    <select id="bulkExportType" class="modern-select">
-                                        <option value="json">JSON Backup</option>
-                                        <option value="excel">Excel Workbook</option>
-                                        <option value="csv_all">All CSV Files (ZIP)</option>
-                                        <option value="pdf_all">All PDF Reports</option>
-                                    </select>
-                                    <i class="fas fa-chevron-down"></i>
-                                </div>
-                            </div>
-                            
-                            <div class="export-info">
-                                <div class="info-item">
-                                    <i class="fas fa-users"></i>
-                                    <span>Students: <strong id="exportStudentCount">0</strong></span>
-                                </div>
-                                <div class="info-item">
-                                    <i class="fas fa-book"></i>
-                                    <span>Courses: <strong id="exportCourseCount">0</strong></span>
-                                </div>
-                                <div class="info-item">
-                                    <i class="fas fa-chart-bar"></i>
-                                    <span>Marks: <strong id="exportMarksCount">0</strong></span>
-                                </div>
-                            </div>
-                            
-                            <div class="action-buttons">
-                                <button class="btn-generate warning" onclick="app.reports.bulkExport()">
-                                    <i class="fas fa-download"></i> Export All Data
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            </section>
             
-            <!-- Report Preview Section -->
-            <div class="preview-section">
-                <div class="preview-header">
+            <!-- Marks Section -->
+            <section id="marks" class="content-section">
+                <div class="section-header">
                     <div class="header-left">
-                        <i class="fas fa-eye"></i>
-                        <h3>Report Preview</h3>
-                        <span class="preview-info" id="previewInfo">No preview available</span>
+                        <h2>Academic Records</h2>
+                        <p class="section-subtitle">Manage and track student academic performance</p>
                     </div>
-                    <div class="header-right">
-                        <button class="btn-clear-preview" onclick="app.reports.clearPreview()">
+                    <div class="header-actions">
+                        <button class="btn btn-primary" onclick="app.marks.openMarksModal()">
+                            <i class="fas fa-plus"></i> New Record
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Filter Bar -->
+                <div class="filter-bar">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="marksSearch" placeholder="Search..." class="search-input">
+                    </div>
+                    <div class="filter-controls">
+                        <select id="filterCentreMarks" class="filter-select">
+                            <option value="">All Centres</option>
+                        </select>
+                        <select id="gradeFilter" class="filter-select">
+                            <option value="">All Grades</option>
+                        </select>
+                        <select id="courseFilter" class="filter-select">
+                            <option value="">All Courses</option>
+                        </select>
+                        <button class="btn btn-sm btn-outline" onclick="app.marks.clearFilters()">
                             <i class="fas fa-times"></i> Clear
                         </button>
-                        <button class="btn-export-preview" onclick="app.reports.exportPreview()">
-                            <i class="fas fa-download"></i> Export Preview
-                        </button>
                     </div>
                 </div>
                 
-                <div class="preview-content">
-                    <div id="reportPreview">
-                        <div class="empty-preview">
-                            <div class="empty-icon">
-                                <i class="fas fa-chart-line"></i>
-                            </div>
-                            <h4>No Preview Available</h4>
-                            <p>Select a report type and click "Preview" to see sample data</p>
-                            <small>Preview shows first 10 records only</small>
-                        </div>
-                    </div>
+                <!-- Marks Table -->
+                <div class="table-container">
+                    <table class="data-table" id="marksTable">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Reg No</th>
+                                <th>Course</th>
+                                <th>Centre</th>
+                                <th>Score</th>
+                                <th>Grade</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="marksTableBody">
+                            <!-- Data will be loaded here -->
+                        </tbody>
+                    </table>
                 </div>
-            </div>
-        </div>
-        
-        <!-- Sidebar -->
-        <div class="reports-sidebar">
-            <!-- Transcript Preview -->
-            <div class="sidebar-card transcript-preview">
-                <div class="card-header">
-                    <i class="fas fa-file-contract"></i>
-                    <h3>Transcript Preview</h3>
-                    <span class="status-badge" id="transcriptStatus">Sample</span>
-                </div>
-                
-                <div class="card-body">
-                    <div id="transcriptPreview">
-                        <div class="transcript-sample">
-                            <div class="sample-header">
-                                <div class="institution-logo">
-                                    <i class="fas fa-university"></i>
-                                </div>
-                                <div class="institution-info">
-                                    <h4>TEEPortal University</h4>
-                                    <p>Academic Records Office</p>
-                                </div>
-                            </div>
-                            
-                            <div class="student-preview">
-                                <h5>Student Information</h5>
-                                <div class="student-details">
-                                    <div class="detail-row">
-                                        <span class="detail-label">Name:</span>
-                                        <span class="detail-value" id="previewStudentName">[Student Name]</span>
-                                    </div>
-                                    <div class="detail-row">
-                                        <span class="detail-label">Reg No:</span>
-                                        <span class="detail-value" id="previewRegNumber">[Registration Number]</span>
-                                    </div>
-                                    <div class="detail-row">
-                                        <span class="detail-label">Program:</span>
-                                        <span class="detail-value" id="previewProgram">[Program Name]</span>
-                                    </div>
-                                    <div class="detail-row">
-                                        <span class="detail-label">Intake:</span>
-                                        <span class="detail-value" id="previewIntake">[YYYY]</span>
-                                    </div>
-                                    <div class="detail-row">
-                                        <span class="detail-label">Status:</span>
-                                        <span class="detail-value">
-                                            <span class="status-tag active" id="previewStatus">Active</span>
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="academic-preview">
-                                <h5>Academic Performance</h5>
-                                <div class="courses-table">
-                                    <table>
-                                        <thead>
-                                            <tr>
-                                                <th>Course</th>
-                                                <th>Grade</th>
-                                                <th>Credits</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="previewCourses">
-                                            <tr>
-                                                <td colspan="3" class="no-data">No courses selected</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                
-                                <div class="gpa-summary">
-                                    <div class="gpa-item">
-                                        <span class="gpa-label">GPA</span>
-                                        <span class="gpa-value" id="previewGPA">0.00</span>
-                                    </div>
-                                    <div class="gpa-item">
-                                        <span class="gpa-label">Credits</span>
-                                        <span class="gpa-value" id="previewCredits">0</span>
-                                    </div>
-                                    <div class="gpa-item">
-                                        <span class="gpa-label">Completion</span>
-                                        <span class="gpa-value" id="previewCompletion">0%</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="sample-actions">
-                                <button class="btn-load-sample" onclick="app.reports.loadSampleTranscript()">
-                                    <i class="fas fa-eye"></i> Load Sample
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            </section>
             
-            <!-- Statistics Card -->
-            <div class="sidebar-card statistics-card">
-                <div class="card-header">
-                    <i class="fas fa-chart-pie"></i>
-                    <h3>Quick Statistics</h3>
-                    <button class="btn-refresh-stats" onclick="app.reports.updateStatistics()">
-                        <i class="fas fa-sync"></i>
-                    </button>
-                </div>
-                
-                <div class="card-body">
-                    <div id="reportStats">
-                        <div class="stats-grid">
-                            <div class="stat-item">
-                                <div class="stat-icon">
-                                    <i class="fas fa-users"></i>
-                                </div>
-                                <div class="stat-info">
-                                    <span class="stat-label">Total Students</span>
-                                    <span class="stat-value" id="statTotalStudents">0</span>
-                                </div>
-                            </div>
-                            
-                            <div class="stat-item">
-                                <div class="stat-icon">
-                                    <i class="fas fa-user-check"></i>
-                                </div>
-                                <div class="stat-info">
-                                    <span class="stat-label">Active Students</span>
-                                    <span class="stat-value" id="statActiveStudents">0</span>
-                                </div>
-                            </div>
-                            
-                            <div class="stat-item">
-                                <div class="stat-icon">
-                                    <i class="fas fa-book"></i>
-                                </div>
-                                <div class="stat-info">
-                                    <span class="stat-label">Total Courses</span>
-                                    <span class="stat-value" id="statTotalCourses">0</span>
-                                </div>
-                            </div>
-                            
-                            <div class="stat-item">
-                                <div class="stat-icon">
-                                    <i class="fas fa-chart-bar"></i>
-                                </div>
-                                <div class="stat-info">
-                                    <span class="stat-label">Marks Entries</span>
-                                    <span class="stat-value" id="statMarksEntries">0</span>
-                                </div>
-                            </div>
-                            
-                            <div class="stat-item">
-                                <div class="stat-icon">
-                                    <i class="fas fa-graduation-cap"></i>
-                                </div>
-                                <div class="stat-info">
-                                    <span class="stat-label">Graduation Rate</span>
-                                    <span class="stat-value" id="statGraduationRate">0%</span>
-                                </div>
-                            </div>
-                            
-                            <div class="stat-item">
-                                <div class="stat-icon">
-                                    <i class="fas fa-star"></i>
-                                </div>
-                                <div class="stat-info">
-                                    <span class="stat-label">Average GPA</span>
-                                    <span class="stat-value" id="statAverageGPA">0.00</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Custom Report Builder -->
-    <div class="custom-report-builder" id="customReportBuilder" style="display: none;">
-        <div class="builder-header">
-            <i class="fas fa-cogs"></i>
-            <h2>Custom Report Builder</h2>
-            <p>Create custom reports with specific fields and sorting</p>
-        </div>
-        
-        <div class="builder-content">
-            <div class="builder-grid">
-                <div class="builder-section">
-                    <h4><i class="fas fa-check-square"></i> Select Data Fields</h4>
-                    <div class="field-selection">
-                        <div class="field-group">
-                            <label class="field-checkbox">
-                                <input type="checkbox" id="fieldRegNumber" checked>
-                                <span class="checkmark"></span>
-                                <span class="field-label">Registration Number</span>
-                            </label>
-                            <label class="field-checkbox">
-                                <input type="checkbox" id="fieldName" checked>
-                                <span class="checkmark"></span>
-                                <span class="field-label">Student Name</span>
-                            </label>
-                            <label class="field-checkbox">
-                                <input type="checkbox" id="fieldProgram">
-                                <span class="checkmark"></span>
-                                <span class="field-label">Program</span>
-                            </label>
-                            <label class="field-checkbox">
-                                <input type="checkbox" id="fieldEmail">
-                                <span class="checkmark"></span>
-                                <span class="field-label">Email Address</span>
-                            </label>
-                            <label class="field-checkbox">
-                                <input type="checkbox" id="fieldPhone">
-                                <span class="checkmark"></span>
-                                <span class="field-label">Phone Number</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="builder-section">
-                    <h4><i class="fas fa-sort"></i> Sort Options</h4>
-                    <div class="sort-options">
-                        <div class="option-group">
-                            <label>Sort By</label>
-                            <div class="select-wrapper">
-                                <select id="sortField" class="modern-select">
-                                    <option value="reg_number">Registration Number</option>
-                                    <option value="full_name">Student Name</option>
-                                    <option value="program">Program</option>
-                                    <option value="intake_year">Intake Year</option>
-                                    <option value="created_at">Date Added</option>
-                                </select>
-                                <i class="fas fa-chevron-down"></i>
-                            </div>
-                        </div>
-                        
-                        <div class="option-group">
-                            <label>Sort Order</label>
-                            <div class="sort-buttons">
-                                <button class="sort-btn active" data-order="asc" onclick="this.parentNode.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');">
-                                    <i class="fas fa-arrow-up"></i> Ascending
-                                </button>
-                                <button class="sort-btn" data-order="desc" onclick="this.parentNode.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');">
-                                    <i class="fas fa-arrow-down"></i> Descending
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="builder-section">
-                    <h4><i class="fas fa-cog"></i> Report Options</h4>
-                    <div class="report-options">
-                        <div class="option-group">
-                            <label>Export Format</label>
-                            <div class="format-buttons">
-                                <button class="format-btn active" data-format="csv" onclick="this.parentNode.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');">
-                                    <i class="fas fa-file-csv"></i> CSV
-                                </button>
-                                <button class="format-btn" data-format="excel" onclick="this.parentNode.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');">
-                                    <i class="fas fa-file-excel"></i> Excel
-                                </button>
-                                <button class="format-btn" data-format="pdf" onclick="this.parentNode.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');">
-                                    <i class="fas fa-file-pdf"></i> PDF
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <button class="btn-generate-custom" onclick="app.reports.generateCustomReport()">
-                            <i class="fas fa-magic"></i> Generate Custom Report
+            <!-- Reports Section -->
+            <section id="reports" class="content-section">
+                <div class="section-header">
+                    <h2>Reports & Analytics</h2>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="app.reports.generateSummaryReport()">
+                            <i class="fas fa-file-pdf"></i> Summary Report
+                        </button>
+                        <button class="btn btn-secondary" onclick="app.reports.generateCentreReport()">
+                            <i class="fas fa-map"></i> Centre Report
                         </button>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
+                
+                <!-- Reports Content -->
+                <div class="reports-grid">
+                    <div class="report-card">
+                        <div class="report-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h3>Student Reports</h3>
+                        <p>Generate student lists by county, centre, or program</p>
+                        <button class="btn btn-secondary" onclick="app.reports.studentReport()">
+                            Generate
+                        </button>
+                    </div>
+                    <div class="report-card">
+                        <div class="report-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <h3>Academic Reports</h3>
+                        <p>Performance analysis and grade distribution</p>
+                        <button class="btn btn-secondary" onclick="app.reports.academicReport()">
+                            Generate
+                        </button>
+                    </div>
+                    <div class="report-card">
+                        <div class="report-icon">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                        <h3>Transcripts</h3>
+                        <p>Generate official student transcripts</p>
+                        <button class="btn btn-secondary" onclick="app.transcripts.generateTranscript()">
+                            Generate
+                        </button>
+                    </div>
+                    <div class="report-card">
+                        <div class="report-icon">
+                            <i class="fas fa-map-marked-alt"></i>
+                        </div>
+                        <h3>Geographical Reports</h3>
+                        <p>Student distribution by county and centre</p>
+                        <button class="btn btn-secondary" onclick="app.reports.geographicalReport()">
+                            Generate
+                        </button>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Centres Section -->
+            <section id="centres" class="content-section">
+                <div class="section-header">
+                    <h2>Centre Management</h2>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="openCentreModal()">
+                            <i class="fas fa-map-marker-alt"></i> Add Centre
+                        </button>
+                        <button class="btn btn-secondary" onclick="app.centres.exportCentres()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Centres Grid -->
+                <div class="cards-grid" id="centresGrid">
+                    <!-- Centres will be loaded here -->
+                </div>
+                
+                <!-- Centres Stats -->
+                <div class="centre-stats">
+                    <div class="stat-row">
+                        <div class="stat-item">
+                            <span class="stat-label">Total Centres</span>
+                            <span class="stat-value" id="totalCentres">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Counties Covered</span>
+                            <span class="stat-value" id="totalCounties">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Active Students</span>
+                            <span class="stat-value" id="centreStudents">0</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Profile Section -->
+            <section id="profile" class="content-section">
+                <div class="profile-container">
+                    <div class="profile-header">
+                        <div class="profile-avatar">
+                            <i class="fas fa-user-circle"></i>
+                            <button class="btn-change-avatar" onclick="document.getElementById('avatarUpload').click()">
+                                <i class="fas fa-camera"></i>
+                            </button>
+                            <input type="file" id="avatarUpload" accept="image/*" style="display: none;">
+                        </div>
+                        <div class="profile-info">
+                            <h2 id="profileUserName">Admin User</h2>
+                            <p id="profileUserRole">Administrator</p>
+                            <p id="profileUserEmail">admin@teeportal.edu</p>
+                            <p id="profileUserCentre">Nairobi HQ</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Profile Tabs -->
+                    <div class="profile-tabs">
+                        <button class="profile-tab active" data-tab="personal">Personal Info</button>
+                        <button class="profile-tab" data-tab="security">Security</button>
+                        <button class="profile-tab" data-tab="preferences">Preferences</button>
+                        <button class="profile-tab" data-tab="activity">Activity Log</button>
+                    </div>
+                    
+                    <!-- Personal Info Tab -->
+                    <div id="personalTab" class="profile-tab-content active">
+                        <form id="profileForm">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Full Name</label>
+                                    <input type="text" id="profileName" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>Email</label>
+                                    <input type="email" id="profileEmail" class="form-control">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Phone Number</label>
+                                    <input type="tel" id="profilePhone" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>Assigned Centre</label>
+                                    <select id="profileCentre" class="form-control">
+                                        <option value="">Select Centre</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Changes
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <!-- Security Tab -->
+                    <div id="securityTab" class="profile-tab-content">
+                        <form id="securityForm">
+                            <div class="form-group">
+                                <label>Current Password</label>
+                                <input type="password" id="currentPassword" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>New Password</label>
+                                <input type="password" id="newPassword" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Confirm New Password</label>
+                                <input type="password" id="confirmPassword" class="form-control">
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-key"></i> Update Password
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+            
             <!-- Settings Section -->
-            <div id="settings" class="content-section">
+            <section id="settings" class="content-section">
                 <div class="section-header">
                     <h2>System Settings</h2>
                 </div>
                 
+                <!-- Settings Tabs -->
                 <div class="settings-tabs">
-                    <button class="settings-tab-btn active" data-tab="general">General</button>
-                    <button class="settings-tab-btn" data-tab="academic">Academic</button>
-                    <button class="settings-tab-btn" data-tab="system">System</button>
+                    <button class="settings-tab active" data-tab="general">General</button>
+                    <button class="settings-tab" data-tab="academic">Academic</button>
+                    <button class="settings-tab" data-tab="location">Location Settings</button>
+                    <button class="settings-tab" data-tab="system">System</button>
                 </div>
                 
+                <!-- General Settings -->
                 <div id="generalSettings" class="settings-tab-content active">
                     <form id="settingsForm">
                         <div class="form-group">
                             <label>Institute Name</label>
-                            <input type="text" id="instituteName" class="form-control" required>
+                            <input type="text" id="instituteName" class="form-control">
                         </div>
-                        
                         <div class="form-group">
                             <label>Institute Abbreviation</label>
                             <input type="text" id="instituteAbbreviation" class="form-control">
                         </div>
-                        
                         <div class="form-group">
                             <label>Academic Year</label>
-                            <input type="number" id="academicYear" class="form-control" min="2000" max="2030" required>
+                            <input type="number" id="academicYear" class="form-control">
                         </div>
-                        
-                        <div class="form-group">
-                            <label>Timezone</label>
-                            <select id="timezone" class="form-control">
-                                <option value="Africa/Nairobi">Africa/Nairobi</option>
-                                <option value="UTC">UTC</option>
-                            </select>
-                        </div>
-                        
-                        <button type="submit" class="btn-primary">
-                            <i class="fas fa-save"></i> Save Settings
+                        <button type="submit" class="btn btn-primary">
+                            Save Settings
                         </button>
                     </form>
                 </div>
                 
+                <!-- Academic Settings -->
                 <div id="academicSettings" class="settings-tab-content">
                     <h3>Grading Scale</h3>
                     <table class="data-table">
@@ -1401,63 +529,69 @@
                                 <th>Min %</th>
                                 <th>Max %</th>
                                 <th>Points</th>
-                                <th>Description</th>
-                                <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="grading-scale-body">
+                        <tbody id="gradingScaleBody">
+                            <!-- Grading scale will be loaded here -->
                         </tbody>
                     </table>
-                    <button type="button" class="btn-secondary" id="addGradeRowBtn">
-                        <i class="fas fa-plus"></i> Add Grade
-                    </button>
-                    
-                    <h3 style="margin-top: 30px;">Program Settings</h3>
-                    <div id="programs-settings">
-                    </div>
-                    <button type="button" class="btn-secondary" id="addProgramBtn">
-                        <i class="fas fa-plus"></i> Add Program
-                    </button>
                 </div>
                 
-                <div id="systemSettings" class="settings-tab-content">
-                    <h3>System Configuration</h3>
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="autoGenerateRegNumbers" checked>
-                            Auto-generate registration numbers
-                        </label>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="allowMarkOverwrite">
-                            Allow mark overwriting
-                        </label>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="showGPA" checked>
-                            Show GPA in reports
-                        </label>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Default Password</label>
-                        <input type="text" id="defaultPassword" class="form-control" value="Welcome123">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Session Timeout (minutes)</label>
-                        <input type="number" id="sessionTimeout" class="form-control" min="5" max="120" value="30">
+                <!-- Location Settings -->
+                <div id="locationSettings" class="settings-tab-content">
+                    <h3>Kenya Counties & Centres</h3>
+                    <div class="county-centre-management">
+                        <div class="manage-section">
+                            <h4>Manage Counties</h4>
+                            <div class="county-list" id="countyList">
+                                <!-- Counties will be loaded here -->
+                            </div>
+                            <button class="btn btn-sm btn-primary" onclick="addCounty()">
+                                <i class="fas fa-plus"></i> Add County
+                            </button>
+                        </div>
+                        <div class="manage-section">
+                            <h4>Manage Centres/Stations</h4>
+                            <div class="centre-list" id="centreList">
+                                <!-- Centres will be loaded here -->
+                            </div>
+                            <button class="btn btn-sm btn-primary" onclick="addCentre()">
+                                <i class="fas fa-plus"></i> Add Centre
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
+                
+                <!-- System Settings -->
+                <div id="systemSettings" class="settings-tab-content">
+                    <div class="system-settings-grid">
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="autoGenerateRegNumbers" checked>
+                                Auto-generate registration numbers
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="emailAlerts">
+                                Enable email alerts
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="centreBasedAccess">
+                                Centre-based access control
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
     
-    <!-- Student Modal -->
+    <!-- ============ MODALS ============ -->
+    
+    <!-- Student Modal with Location Fields -->
     <div id="studentModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -1466,67 +600,143 @@
             </div>
             <form id="studentForm">
                 <div class="modal-body">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Full Name *</label>
-                            <input type="text" id="studentName" class="form-control" required>
+                    <!-- Personal Information -->
+                    <div class="form-section">
+                        <h4><i class="fas fa-user"></i> Personal Information</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Full Name *</label>
+                                <input type="text" id="studentName" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Email Address *</label>
+                                <input type="email" id="studentEmail" class="form-control" required>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>Email Address *</label>
-                            <input type="email" id="studentEmail" class="form-control" required>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Phone Number *</label>
+                                <input type="tel" id="studentPhone" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Date of Birth</label>
+                                <input type="date" id="studentDOB" class="form-control">
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Phone Number</label>
-                            <input type="tel" id="studentPhone" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label>Date of Birth</label>
-                            <input type="date" id="studentDOB" class="form-control">
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Gender</label>
-                            <select id="studentGender" class="form-control">
-                                <option value="">Select Gender</option>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Program *</label>
-                            <select id="studentProgram" class="form-control" required>
-                                <option value="">Select Program</option>
-                                <option value="basic">Basic TEE</option>
-                                <option value="hnc">Higher National Certificate (HNC)</option>
-                                <option value="advanced">Advanced TEE</option>
-                            </select>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>ID/Passport Number</label>
+                                <input type="text" id="studentIdNumber" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Gender</label>
+                                <select id="studentGender" class="form-control">
+                                    <option value="">Select Gender</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Intake Year *</label>
-                            <select id="studentIntake" class="form-control" required>
-                                <option value="">Select Intake Year</option>
-                                <!-- Intakes from 2000 to 2030 -->
-                                <?php for($year = 2030; $year >= 2000; $year--): ?>
-                                <option value="<?php echo $year; ?>" <?php echo $year == date('Y') ? 'selected' : ''; ?>>
-                                    <?php echo $year; ?>
-                                </option>
-                                <?php endfor; ?>
-                            </select>
+                    <!-- Location Information -->
+                    <div class="form-section">
+                        <h4><i class="fas fa-map-marker-alt"></i> Location Information</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>County *</label>
+                                <select id="studentCounty" class="form-control" required>
+                                    <option value="">Select County</option>
+                                    <!-- Kenya counties will be loaded -->
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Sub-County/Constituency</label>
+                                <input type="text" id="studentSubCounty" class="form-control">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Ward/Location</label>
+                                <input type="text" id="studentWard" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Village/Estate</label>
+                                <input type="text" id="studentVillage" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Academic Information -->
+                    <div class="form-section">
+                        <h4><i class="fas fa-graduation-cap"></i> Academic Information</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Study Centre *</label>
+                                <select id="studentCentre" class="form-control" required>
+                                    <option value="">Select Centre</option>
+                                    <!-- Centres will be loaded -->
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Program *</label>
+                                <select id="studentProgram" class="form-control" required>
+                                    <option value="">Select Program</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Intake Year *</label>
+                                <select id="studentIntake" class="form-control" required>
+                                    <option value="">Select Intake Year</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Study Mode</label>
+                                <select id="studentStudyMode" class="form-control">
+                                    <option value="fulltime">Full-time</option>
+                                    <option value="parttime">Part-time</option>
+                                    <option value="distance">Distance Learning</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Employment Information (for TEE students) -->
+                    <div class="form-section">
+                        <h4><i class="fas fa-briefcase"></i> Employment Information</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Employment Status</label>
+                                <select id="studentEmployment" class="form-control">
+                                    <option value="">Select Status</option>
+                                    <option value="employed">Employed</option>
+                                    <option value="self-employed">Self-employed</option>
+                                    <option value="unemployed">Unemployed</option>
+                                    <option value="student">Student</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Employer Name</label>
+                                <input type="text" id="studentEmployer" class="form-control">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Job Title</label>
+                                <input type="text" id="studentJobTitle" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Years of Experience</label>
+                                <input type="number" id="studentExperience" class="form-control" min="0">
+                            </div>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-secondary" onclick="closeModal('studentModal')">Cancel</button>
-                    <button type="submit" class="btn-primary">Register Student</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('studentModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Register Student</button>
                 </div>
             </form>
         </div>
@@ -1544,452 +754,207 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Course Code *</label>
-                            <input type="text" id="courseCode" class="form-control" required placeholder="e.g., TEE101">
+                            <input type="text" id="courseCode" class="form-control" required>
                         </div>
                         <div class="form-group">
                             <label>Course Name *</label>
                             <input type="text" id="courseName" class="form-control" required>
                         </div>
                     </div>
-                    
                     <div class="form-row">
                         <div class="form-group">
                             <label>Program *</label>
                             <select id="courseProgram" class="form-control" required>
                                 <option value="">Select Program</option>
-                                <option value="basic">Basic TEE</option>
-                                <option value="hnc">HNC</option>
-                                <option value="advanced">Advanced TEE</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label>Credits</label>
-                            <input type="number" id="courseCredits" class="form-control" min="1" max="10" value="3">
+                            <input type="number" id="courseCredits" class="form-control" value="3">
                         </div>
                     </div>
-                    
                     <div class="form-group">
                         <label>Description</label>
                         <textarea id="courseDescription" class="form-control" rows="3"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-secondary" onclick="closeModal('courseModal')">Cancel</button>
-                    <button type="submit" class="btn-primary">Add Course</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('courseModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Course</button>
                 </div>
             </form>
         </div>
     </div>
     
-   <!-- Enter Marks Modal - SIMPLE 7 FIELDS -->
-<div id="marksModal" class="modal">
-    <div class="modal-content simple-modal">
-        <div class="modal-header">
-            <h3><i class="fas fa-plus-circle"></i> Add Marks</h3>
-            <span class="close" onclick="app.marks.closeModal('marksModal')">&times;</span>
+    <!-- Centre Modal -->
+    <div id="centreModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Centre</h3>
+                <span class="close" onclick="closeModal('centreModal')">&times;</span>
+            </div>
+            <form id="centreForm">
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Centre Name *</label>
+                            <input type="text" id="centreName" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Centre Code *</label>
+                            <input type="text" id="centreCode" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>County *</label>
+                            <select id="centreCounty" class="form-control" required>
+                                <option value="">Select County</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Sub-County</label>
+                            <input type="text" id="centreSubCounty" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Address</label>
+                            <input type="text" id="centreAddress" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Contact Person</label>
+                            <input type="text" id="centreContactPerson" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Phone Number</label>
+                            <input type="tel" id="centrePhone" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="centreEmail" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="centreStatus" class="form-control">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="pending">Pending</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('centreModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Centre</button>
+                </div>
+            </form>
         </div>
-        
-        <form id="marksForm" onsubmit="app.marks.saveMarks(event)">
-            <div class="modal-body">
-                
-                <!-- Row 1: Student & Course -->
-                <div class="form-row">
-                    <div class="form-group">
-                        <label><i class="fas fa-user"></i> Student *</label>
-                        <select id="marksStudent" class="form-control" required>
-                            <option value="">Select student...</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label><i class="fas fa-book"></i> Course *</label>
-                        <select id="marksCourse" class="form-control" required>
-                            <option value="">Select course...</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <!-- Row 2: Type & Date -->
-                <div class="form-row">
-                    <div class="form-group">
-                        <label><i class="fas fa-tasks"></i> Type</label>
-                        <select id="assessmentType" class="form-control">
-                            <option value="exam">Exam</option>
-                            <option value="assignment">Assignment</option>
-                            <option value="test">Test</option>
-                            <option value="quiz">Quiz</option>
-                            <option value="project">Project</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label><i class="fas fa-calendar"></i> Date</label>
-                       <input type="date" id="assessmentDate" class="form-control">
-                    </div>
-                </div>
-                
-                <!-- Score Input -->
-                <div class="score-box">
-                    <label><i class="fas fa-chart-line"></i> Score *</label>
-                    <div class="score-inputs">
-                        <input type="number" id="marksScore" class="score-input" 
-                               placeholder="Student's score" min="0" max="1000" step="0.01" required
-                               oninput="app.marks.calculateGrade()">
-                        <span class="score-slash">/</span>
-                        <input type="number" id="maxScore" class="max-input" 
-                               value="100" min="1" max="1000" step="0.01"
-                               oninput="app.marks.calculateGrade()">
-                    </div>
-                    <div class="score-result">
-                        = <span id="percentageDisplay">0.00%</span>
-                    </div>
-                </div>
-                
-                <!-- Grade Display -->
-                <div class="grade-box">
-                    <label><i class="fas fa-award"></i> Grade</label>
-                    <div class="grade-display">
-                        <div class="grade-badge" id="gradeDisplay">--</div>
-                        <small class="grade-desc" id="gradeDescription">Enter score above</small>
-                    </div>
-                </div>
-                
-                <!-- Status -->
-                <div class="status-box">
-                    <label><i class="fas fa-eye"></i> Status</label>
-                    <div class="status-options">
-                        <label class="status-option">
-                            <input type="radio" name="status" value="published" checked>
-                            <span class="status-dot published"></span>
-                            <span>Publish (Student sees)</span>
-                        </label>
-                        <label class="status-option">
-                            <input type="radio" name="status" value="draft">
-                            <span class="status-dot draft"></span>
-                            <span>Draft (Save only)</span>
-                        </label>
-                    </div>
-                </div>
-                
-            </div>
-            
-            <div class="modal-footer">
-                <button type="button" class="btn btn-cancel" 
-                        onclick="app.marks.closeModal('marksModal')">
-                    Cancel
-                </button>
-                <button type="submit" class="btn btn-save">
-                    <i class="fas fa-save"></i> Save Marks
-                </button>
-            </div>
-        </form>
     </div>
-</div>
     
- <!-- Edit Marks Modal -->
-<div id="editMarksModal" class="modal">
-    <div class="modal-content compact-modal">
-        <div class="modal-header">
-            <h3><i class="fas fa-edit"></i> Edit Marks</h3>
-            <span class="close" onclick="app.marks.closeModal('editMarksModal')">&times;</span>
-        </div>
-        
-        <!-- FORM WITH NOVALIDATE AND NAME ATTRIBUTES -->
-        <form id="editMarksForm" novalidate onsubmit="app.marks.updateMark(event)">
-            <input type="hidden" id="editMarkId" name="editMarkId">
-            
-            <div class="modal-body">
-                
-                <!-- Student & Course (Compact) -->
-                <div class="compact-info-grid">
-                    <div class="info-item">
-                        <label><i class="fas fa-user"></i> Student</label>
-                        <div id="editStudentDisplay" class="info-value">Loading...</div>
-                    </div>
-                    <div class="info-item">
-                        <label><i class="fas fa-book"></i> Course</label>
-                        <div id="editCourseDisplay" class="info-value">Loading...</div>
-                    </div>
-                </div>
-                
-                <!-- Score Input Section -->
-                <div class="score-input-section">
-                    <div class="score-input-grid">
-                        <div class="form-group">
-                            <label for="editScore">Score <span class="required">*</span></label>
-                            <input type="number" 
-                                   id="editScore" 
-                                   name="editScore"  <!-- ADD NAME ATTRIBUTE -->
-                                   class="form-control form-control-sm score-input"
-                                   min="0"
-                                   max="1000"
-                                   step="0.01"
-                                   placeholder="0.00"
-                                   required>
-                            <small class="form-text text-muted">Enter score (0-1000)</small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="editMaxScore">Out Of</label>
-                            <input type="number" 
-                                   id="editMaxScore" 
-                                   name="editMaxScore"  <!-- ADD NAME ATTRIBUTE -->
-                                   class="form-control form-control-sm max-score-input"
-                                   min="1"
-                                   max="10000"
-                                   step="0.01"
-                                   value="100">
-                        </div>
-                        
-                        <div class="grade-display-box">
-                            <div class="grade-label">Grade:</div>
-                            <div id="editGradeDisplay" class="grade-value">
-                                <span class="grade-badge">--</span>
-                            </div>
-                            <div id="editPercentage" class="percentage">0.00%</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Assessment (Collapsible) -->
-                <div class="collapsible-section">
-                    <button type="button" class="collapsible-btn" onclick="toggleCollapsible(this)">
-                        <i class="fas fa-caret-down"></i> Assessment Details
-                    </button>
-                    <div class="collapsible-content">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Assessment Type</label>
-                                <select id="editAssessmentType" 
-                                        name="editAssessmentType"  <!-- ADD NAME ATTRIBUTE -->
-                                        class="form-control form-control-sm">
-                                    <option value="final" selected>Final Exam</option>
-                                    <option value="midterm">Midterm</option>
-                                    <option value="test">Test</option>
-                                    <option value="quiz">Quiz</option>
-                                    <option value="assignment">Assignment</option>
-                                    <option value="project">Project</option>
-                                    <option value="practical">Practical</option>
-                                    <option value="other">Other</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Assessment Name <small class="text-muted">(Optional)</small></label>
-                                <input type="text" 
-                                       id="editAssessmentName" 
-                                       name="editAssessmentName"  <!-- ADD NAME ATTRIBUTE -->
-                                       class="form-control form-control-sm" 
-                                       placeholder="e.g., Final 2024">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Additional Details (Collapsible) -->
-                <div class="collapsible-section">
-                    <button type="button" class="collapsible-btn" onclick="toggleCollapsible(this)">
-                        <i class="fas fa-caret-down"></i> Additional Details
-                    </button>
-                    <div class="collapsible-content">
-                        <div class="form-group">
-                            <label for="editRemarks">Remarks</label>
-                            <textarea id="editRemarks" 
-                                      name="editRemarks"  <!-- ADD NAME ATTRIBUTE -->
-                                      class="form-control form-control-sm" 
-                                      rows="2" 
-                                      placeholder="Enter any remarks or comments..."></textarea>
-                        </div>
-                        
-                        <div class="form-check">
-                            <input type="checkbox" 
-                                   class="form-check-input" 
-                                   id="editVisibleToStudent" 
-                                   name="editVisibleToStudent"  <!-- ADD NAME ATTRIBUTE -->
-                                   checked>
-                            <label class="form-check-label" for="editVisibleToStudent">
-                                Visible to student
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Grade Description -->
-                <div class="grade-description-box">
-                    <small id="editGradeDescription" class="text-muted">
-                        Enter score above to see grade description
-                    </small>
-                </div>
+    <!-- Marks Modal -->
+    <div id="marksModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Enter Marks</h3>
+                <span class="close" onclick="closeModal('marksModal')">&times;</span>
             </div>
-            
-            <div class="modal-footer">
-                <button type="button" class="btn btn-sm btn-outline-secondary" 
-                        onclick="app.marks.closeModal('editMarksModal')">
-                    <i class="fas fa-times"></i> Cancel
-                </button>
-                <button type="submit" class="btn btn-sm btn-primary">
-                    <i class="fas fa-save"></i> Update Marks
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-                
-                <!-- Scores (Compact) -->
-                <div class="score-section">
-                    <h4>Scores</h4>
-                    <div class="score-inputs">
-                        <div class="score-item">
-                            <label>Score</label>
-                            <input type="number" id="editScore" class="form-control form-control-sm" 
-                                   required min="0" max="1000" step="0.01" placeholder="0.00">
+            <form id="marksForm">
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Student *</label>
+                            <select id="marksStudent" class="form-control" required>
+                                <option value="">Select Student</option>
+                            </select>
                         </div>
-                        <div class="score-item">
+                        <div class="form-group">
+                            <label>Course *</label>
+                            <select id="marksCourse" class="form-control" required>
+                                <option value="">Select Course</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Score *</label>
+                            <input type="number" id="marksScore" class="form-control" step="0.01" required>
+                        </div>
+                        <div class="form-group">
                             <label>Out of</label>
-                            <input type="number" id="editMaxScore" class="form-control form-control-sm" 
-                                   value="100" min="1" max="1000" step="0.01">
-                        </div>
-                        <div class="score-item">
-                            <label>=</label>
-                            <div class="percentage-display">
-                                <span id="editPercentage">0.00%</span>
-                            </div>
+                            <input type="number" id="marksMaxScore" class="form-control" value="100">
                         </div>
                     </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Assessment Type</label>
+                            <select id="assessmentType" class="form-control">
+                                <option value="exam">Final Exam</option>
+                                <option value="test">Test</option>
+                                <option value="assignment">Assignment</option>
+                                <option value="practical">Practical</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Date</label>
+                            <input type="date" id="assessmentDate" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Remarks</label>
+                        <textarea id="marksRemarks" class="form-control" rows="2"></textarea>
+                    </div>
                 </div>
-                
-               <!-- Grade (Compact) -->
-<div class="grade-section">
-    <h4>Grade</h4>
-    <div class="grade-display-compact">
-        <div class="grade-badge-container">
-            <div id="editGradeDisplay" class="grade-badge-lg" title="Click for details">
-                --
-            </div>
-            <div class="grade-details-popover">
-                <div class="grade-points">
-                    <strong>Grade:</strong> <span id="editGradePoints">--</span>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('marksModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Marks</button>
                 </div>
-                <div class="grade-desc">
-                    <strong>Description:</strong> <span id="editGradeDescription">--</span>
-                </div>
-                <div class="grade-scale">
-                    <small>DISTINCTION (85-100%), CREDIT (70-84%), PASS (50-69%), FAIL (0-49%)</small>
-                </div>
-            </div>
-        </div>
-        <div class="grade-auto-info">
-            <small class="text-muted">
-                <i class="fas fa-sync-alt"></i> Auto-calculated from percentage
-            </small>
+            </form>
         </div>
     </div>
-</div>
     
     <!-- JavaScript Modules -->
     <script src="modules/database.js"></script>
+    <script src="modules/app.js"></script>
     <script src="modules/students.js"></script>
     <script src="modules/courses.js"></script>
     <script src="modules/marks.js"></script>
+    <script src="modules/centres.js"></script>
     <script src="modules/settings.js"></script>
     <script src="modules/dashboard.js"></script>
     <script src="modules/reports.js"></script>
     <script src="modules/transcripts.js"></script>
-    <script src="app.js"></script>
+    <script src="modules/profile.js"></script>
     
     <script>
         // Global functions
         window.showSection = function(sectionId) {
-            console.log('Showing section:', sectionId);
-            
             // Hide all sections
             document.querySelectorAll('.content-section').forEach(section => {
                 section.classList.remove('active');
-            });
-            
-            // Remove active class from all nav links
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.classList.remove('active');
             });
             
             // Show selected section
             const targetSection = document.getElementById(sectionId);
             if (targetSection) {
                 targetSection.classList.add('active');
-                
-                // Set active nav link
-                const activeLink = document.querySelector(`a[href="#${sectionId}"]`);
-                if (activeLink) {
-                    activeLink.classList.add('active');
-                }
-                
-                // Update section title
-                const titleMap = {
-                    'dashboard': 'Dashboard Overview',
-                    'students': 'Student Management',
-                    'courses': 'Course Management',
-                    'marks': 'Academic Records',
-                    'reports': 'Reports & Analytics',
-                    'settings': 'System Settings'
-                };
-                
-                const sectionTitle = document.getElementById('section-title');
-                if (sectionTitle) {
-                    sectionTitle.textContent = titleMap[sectionId] || 'TeePortal';
-                }
-                
-                // Load data for the section
-                if (window.app && window.app.initialized) {
-                    setTimeout(() => {
-                        switch(sectionId) {
-                            case 'students':
-                                if (window.app.students && window.app.students.loadStudentsTable) {
-                                    window.app.students.loadStudentsTable();
-                                }
-                                break;
-                            case 'courses':
-                                if (window.app.courses && window.app.courses.loadCourses) {
-                                    window.app.courses.loadCourses();
-                                }
-                                break;
-                            case 'marks':
-                                if (window.app.marks && window.app.marks.loadMarksTable) {
-                                    window.app.marks.loadMarksTable();
-                                }
-                                break;
-                            case 'dashboard':
-                                if (window.app.dashboard && window.app.dashboard.updateDashboard) {
-                                    window.app.dashboard.updateDashboard();
-                                }
-                                break;
-                        }
-                    }, 100);
-                }
             }
+            
+            // Update active nav link
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            document.querySelector(`a[href="#${sectionId}"]`).classList.add('active');
         };
         
         window.openModal = function(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.style.display = 'flex';
-                modal.classList.add('active');
-                document.body.style.overflow = 'hidden';
-            }
+            document.getElementById(modalId).classList.add('active');
         };
         
         window.closeModal = function(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.classList.remove('active');
-                setTimeout(() => {
-                    modal.style.display = 'none';
-                    document.body.style.overflow = '';
-                    
-                    const form = modal.querySelector('form');
-                    if (form) {
-                        form.reset();
-                    }
-                }, 300);
-            }
+            document.getElementById(modalId).classList.remove('active');
         };
         
         window.openStudentModal = function() {
@@ -2000,108 +965,19 @@
             openModal('courseModal');
         };
         
-        window.openMarksModal = function() {
-            if (window.app && window.app.openMarksModal) {
-                window.app.openMarksModal();
-            } else {
-                openModal('marksModal');
-            }
-        };
-        
-        // Grade calculation
-        window.updateGradeDisplay = function() {
-            try {
-                const scoreInput = document.getElementById('marksScore');
-                const maxScoreInput = document.getElementById('maxScore');
-                const gradeDisplay = document.getElementById('gradeDisplay');
-                const percentageField = document.getElementById('percentage');
-                
-                if (!scoreInput || !gradeDisplay) return;
-                
-                const score = parseFloat(scoreInput.value);
-                const maxScore = parseFloat(maxScoreInput?.value) || 100;
-                
-                if (isNaN(score)) {
-                    gradeDisplay.textContent = '--';
-                    gradeDisplay.className = 'percentage-badge';
-                    if (percentageField) percentageField.value = '';
-                    return;
-                }
-                
-                const percentage = (score / maxScore) * 100;
-                const grade = window.app?.db?.calculateGrade(percentage) || { grade: '--' };
-                
-                gradeDisplay.textContent = grade.grade;
-                gradeDisplay.className = `percentage-badge`;
-                
-                if (percentageField) {
-                    percentageField.value = `${percentage.toFixed(2)}%`;
-                }
-                
-            } catch (error) {
-                console.error('Error updating grade display:', error);
-            }
+        window.openCentreModal = function() {
+            openModal('centreModal');
         };
         
         // Initialize when DOM is loaded
-        document.addEventListener('DOMContentLoaded', async function() {
-            console.log('📄 DOM Content Loaded');
-            
-            // Generate intake options with JavaScript (fallback for non-PHP)
-            const intakeSelects = document.querySelectorAll('select[id*="Intake"], select[id*="intake"]');
-            intakeSelects.forEach(select => {
-                const currentYear = new Date().getFullYear();
-                let options = '<option value="">Select Intake Year</option>';
-                for (let year = 2030; year >= 2000; year--) {
-                    options += `<option value="${year}" ${year === currentYear ? 'selected' : ''}>${year}</option>`;
-                }
-                select.innerHTML = options;
-            });
-            
-            try {
-                // Create app instance
-                const app = new TEEPortalApp();
-                window.app = app;
-                
-                // Initialize
-                await app.initialize();
-                
-                console.log('🎉 TEEPortal System Ready');
-                
-                // Show dashboard by default
-                setTimeout(() => {
-                    showSection('dashboard');
-                }, 100);
-                
-            } catch (error) {
-                console.error('❌ Initialization failed:', error);
-                const errorDiv = document.createElement('div');
-                errorDiv.style.cssText = `
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    background: #e74c3c;
-                    color: white;
-                    padding: 15px;
-                    text-align: center;
-                    z-index: 9999;
-                    font-family: Arial, sans-serif;
-                `;
-                errorDiv.innerHTML = `
-                    <strong>System Initialization Failed:</strong> ${error.message}
-                    <button onclick="location.reload()" style="
-                        margin-left: 20px;
-                        background: white;
-                        color: #e74c3c;
-                        border: none;
-                        padding: 5px 15px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                    ">Retry</button>
-                `;
-                document.body.appendChild(errorDiv);
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize the app
+            if (window.app) {
+                window.app.initialize();
             }
+            
+            // Show dashboard by default
+            showSection('dashboard');
         });
     </script>
 </body>
