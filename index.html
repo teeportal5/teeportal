@@ -435,140 +435,282 @@
                     </div>
                 </div>
             </div>
-           <!-- Marks Section -->
+           <!-- Marks Section - Enhanced -->
 <div id="marks" class="content-section">
     <div class="section-header">
-        <h2>Academic Records</h2>
-        <div class="action-buttons">
-            <button class="btn-primary" onclick="openMarksModal()">
+        <div class="header-left">
+            <h2>Academic Records</h2>
+            <p class="section-subtitle">Manage and track student academic performance</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn-primary" onclick="app.marks.openMarksModal()">
                 <i class="fas fa-plus"></i> New Record
             </button>
-            <button class="btn-secondary" onclick="app.marks.exportMarks()">
-                <i class="fas fa-download"></i> Export
-            </button>
-            <button class="btn-outline" onclick="toggleTableView()" id="viewToggle">
-                <i class="fas fa-table"></i> Detailed View
-            </button>
+            <div class="dropdown">
+                <button class="btn-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" href="#" onclick="app.marks.exportMarks()">
+                        <i class="fas fa-download"></i> Export All
+                    </a>
+                    <a class="dropdown-item" href="#" onclick="app.marks.exportSelected()">
+                        <i class="fas fa-file-export"></i> Export Selected
+                    </a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="#" onclick="app.marks.bulkEdit()">
+                        <i class="fas fa-edit"></i> Bulk Edit
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
-    
-    <!-- Summary Cards -->
-    <div class="summary-cards">
-        <div class="summary-card">
-            <div class="summary-icon" style="background: #4caf50;">
+
+    <!-- Summary Stats -->
+    <div class="summary-stats">
+        <div class="stat-item">
+            <div class="stat-icon">
+                <i class="fas fa-chart-bar"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Total Records</span>
+                <span class="stat-value" id="totalRecords">0</span>
+            </div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-icon">
                 <i class="fas fa-user-graduate"></i>
             </div>
-            <div class="summary-info">
-                <h3 id="totalMarks">0</h3>
-                <p>Total Records</p>
+            <div class="stat-info">
+                <span class="stat-label">Distinct Students</span>
+                <span class="stat-value" id="distinctStudents">0</span>
             </div>
         </div>
-        <div class="summary-card">
-            <div class="summary-icon" style="background: #2196f3;">
-                <i class="fas fa-chart-line"></i>
+        <div class="stat-item">
+            <div class="stat-icon">
+                <i class="fas fa-percentage"></i>
             </div>
-            <div class="summary-info">
-                <h3 id="avgGrade">0.0</h3>
-                <p>Average Grade</p>
+            <div class="stat-info">
+                <span class="stat-label">Average Score</span>
+                <span class="stat-value" id="avgScore">0%</span>
             </div>
         </div>
-        <div class="summary-card">
-            <div class="summary-icon" style="background: #ff9800;">
-                <i class="fas fa-users"></i>
+        <div class="stat-item">
+            <div class="stat-icon">
+                <i class="fas fa-star"></i>
             </div>
-            <div class="summary-info">
-                <h3 id="distinctStudents">0</h3>
-                <p>Students</p>
+            <div class="stat-info">
+                <span class="stat-label">Distinctions</span>
+                <span class="stat-value" id="distinctionCount">0</span>
             </div>
         </div>
     </div>
-    
-    <!-- Filters -->
-    <div class="filters-bar">
-        <div class="filter-group">
-            <input type="text" id="marksSearch" placeholder="Search records..." class="search-input">
+
+    <!-- Filter & Search Bar -->
+    <div class="filter-bar">
+        <div class="search-box">
             <i class="fas fa-search"></i>
+            <input type="text" id="marksSearch" placeholder="Search by student, course, or grade..." 
+                   class="search-input" oninput="app.marks.filterTable()">
         </div>
-        <div class="filter-group">
-            <select id="gradeFilter" class="filter-select">
+        <div class="filter-controls">
+            <select id="gradeFilter" class="filter-select" onchange="app.marks.filterTable()">
                 <option value="">All Grades</option>
                 <option value="DISTINCTION">Distinction</option>
                 <option value="CREDIT">Credit</option>
                 <option value="PASS">Pass</option>
                 <option value="FAIL">Fail</option>
             </select>
-        </div>
-        <div class="filter-group">
-            <select id="courseFilter" class="filter-select">
+            <select id="courseFilter" class="filter-select" onchange="app.marks.filterTable()">
                 <option value="">All Courses</option>
             </select>
+            <select id="dateFilter" class="filter-select" onchange="app.marks.filterTable()">
+                <option value="">All Time</option>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+                <option value="term">This Term</option>
+            </select>
+            <button class="btn-sm btn-outline" onclick="app.marks.clearFilters()">
+                <i class="fas fa-times"></i> Clear
+            </button>
         </div>
-        <div class="filter-group">
-            <button class="btn-sm" onclick="clearFilters()">Clear</button>
+    </div>
+
+    <!-- View Toggle -->
+    <div class="view-toggle">
+        <button class="view-btn active" onclick="setTableView('table')">
+            <i class="fas fa-table"></i> Table
+        </button>
+        <button class="view-btn" onclick="setTableView('cards')">
+            <i class="fas fa-th-large"></i> Cards
+        </button>
+        <button class="view-btn" onclick="setTableView('compact')">
+            <i class="fas fa-list"></i> Compact
+        </button>
+    </div>
+
+    <!-- Table View (Default) -->
+    <div class="table-container table-view" id="tableView">
+        <div class="table-responsive">
+            <table class="data-table enhanced-table">
+                <thead>
+                    <tr>
+                        <th class="select-col">
+                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                        </th>
+                        <th class="student-col">Student</th>
+                        <th class="course-col">Course</th>
+                        <th class="assessment-col">Assessment</th>
+                        <th class="score-col">Score</th>
+                        <th class="grade-col">Grade</th>
+                        <th class="date-col">Date</th>
+                        <th class="status-col">Status</th>
+                        <th class="actions-col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="marksTableBody">
+                    <!-- Data will be populated here -->
+                </tbody>
+            </table>
         </div>
     </div>
-    
-    <!-- Compact Table View -->
-    <div class="table-container compact-view" id="compactTable">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Student</th>
-                    <th>Course</th>
-                    <th>Score</th>
-                    <th>Grade</th>
-                    <th class="text-center">Status</th>
-                    <th>Date</th>
-                    <th class="text-center">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="marksTableBody">
-                <!-- Data will be populated here -->
-            </tbody>
-        </table>
+
+    <!-- Cards View -->
+    <div class="cards-container cards-view" id="cardsView" style="display: none;">
+        <div class="cards-grid" id="marksCards">
+            <!-- Cards will be populated here -->
+        </div>
     </div>
-    
-    <!-- Detailed Table View (Hidden by default) -->
-    <div class="table-container detailed-view" id="detailedTable" style="display: none;">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Student ID</th>
-                    <th>Student Name</th>
-                    <th>Course Code</th>
-                    <th>Course Name</th>
-                    <th>Assessment</th>
-                    <th>Score</th>
-                    <th>%</th>
-                    <th>Grade</th>
-                    <th>Credits</th>
-                    <th>Date</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="detailedMarksTableBody">
-                <!-- Detailed data will be populated here -->
-            </tbody>
-        </table>
-    </div>
-    
+
     <!-- Pagination -->
-    <div class="pagination">
-        <button class="page-btn" id="prevPage" disabled>
-            <i class="fas fa-chevron-left"></i>
-        </button>
-        <span id="pageInfo">Page 1 of 1</span>
-        <button class="page-btn" id="nextPage" disabled>
-            <i class="fas fa-chevron-right"></i>
-        </button>
-        <select id="pageSize" class="page-size">
-            <option value="10">10 per page</option>
-            <option value="25" selected>25 per page</option>
-            <option value="50">50 per page</option>
-            <option value="100">100 per page</option>
-        </select>
+    <div class="pagination-bar">
+        <div class="pagination-info">
+            Showing <span id="startRow">0</span>-<span id="endRow">0</span> of <span id="totalRows">0</span> records
+        </div>
+        <div class="pagination-controls">
+            <button class="page-btn" id="prevPage" onclick="app.marks.prevPage()">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <div class="page-numbers" id="pageNumbers">
+                <!-- Page numbers will be generated here -->
+            </div>
+            <button class="page-btn" id="nextPage" onclick="app.marks.nextPage()">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+            <select class="page-size-select" id="pageSize" onchange="app.marks.changePageSize()">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+        <div class="selected-actions" id="selectedActions" style="display: none;">
+            <span id="selectedCount">0</span> selected
+            <button class="btn-sm btn-danger" onclick="app.marks.deleteSelected()">
+                <i class="fas fa-trash"></i> Delete
+            </button>
+            <button class="btn-sm btn-secondary" onclick="app.marks.exportSelected()">
+                <i class="fas fa-download"></i> Export
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="quick-stats">
+        <div class="stats-grid">
+            <div class="stat-card small">
+                <div class="stat-header">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Grade Distribution</span>
+                </div>
+                <div class="grade-distribution" id="gradeDistribution">
+                    <!-- Distribution bars will be added here -->
+                </div>
+            </div>
+            <div class="stat-card small">
+                <div class="stat-header">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Recent Activity</span>
+                </div>
+                <div class="recent-updates" id="recentUpdates">
+                    <!-- Recent updates will be added here -->
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+<!-- Empty State Template -->
+<template id="emptyStateTemplate">
+    <tr class="empty-state-row">
+        <td colspan="9">
+            <div class="empty-state">
+                <i class="fas fa-chart-bar fa-3x"></i>
+                <h3>No Academic Records Found</h3>
+                <p>Get started by adding your first academic record</p>
+                <button class="btn-primary" onclick="app.marks.openMarksModal()">
+                    <i class="fas fa-plus"></i> Add First Record
+                </button>
+            </div>
+        </td>
+    </tr>
+</template>
+
+<!-- Card Template -->
+<template id="markCardTemplate">
+    <div class="mark-card" data-mark-id="{id}">
+        <div class="card-header">
+            <div class="student-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="student-info">
+                <h4>{studentName}</h4>
+                <p class="student-id">{studentId}</p>
+            </div>
+            <div class="card-actions">
+                <input type="checkbox" class="select-card" onchange="updateSelection()">
+                <button class="card-action-btn" onclick="app.marks.editMark('{id}')">
+                    <i class="fas fa-edit"></i>
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="course-info">
+                <div class="course-code">{courseCode}</div>
+                <div class="course-name">{courseName}</div>
+            </div>
+            <div class="score-display">
+                <div class="score">
+                    <span class="label">Score:</span>
+                    <span class="value">{score}/{maxScore}</span>
+                </div>
+                <div class="percentage">
+                    <span class="label">Percentage:</span>
+                    <span class="value">{percentage}%</span>
+                </div>
+            </div>
+            <div class="grade-display">
+                <span class="grade-badge {gradeClass}">{grade}</span>
+                <span class="grade-points">{gradePoints} GP</span>
+            </div>
+            <div class="assessment-info">
+                <span class="type">{assessmentType}</span>
+                <span class="date">{date}</span>
+            </div>
+        </div>
+        <div class="card-footer">
+            <div class="footer-actions">
+                <button class="btn-sm" onclick="app.marks.viewDetails('{id}')">
+                    <i class="fas fa-eye"></i> View
+                </button>
+                <button class="btn-sm btn-danger" onclick="app.marks.deleteMark('{id}')">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</template>
             
           <!-- Reports Section -->
 <div id="reports" class="content-section">
