@@ -1407,6 +1407,7 @@
                 const titleMap = {
                     'dashboard': 'Dashboard Overview',
                     'students': 'Student Management',
+                    'programs': 'Program Management',  // ADD THIS
                     'courses': 'Course Management',
                     'marks': 'Academic Records',
                     'reports': 'Reports & Analytics',
@@ -1450,9 +1451,24 @@
                     app.students.loadStudentsTable();
                 }
                 break;
+            case 'programs':  // ADD THIS
+                if (app.programs?.loadProgramsTable) {
+                    app.programs.loadProgramsTable();
+                }
+                break;
             case 'centres':
                 if (app.centres?.loadCentres) {
                     app.centres.loadCentres();
+                }
+                break;
+            case 'courses':  // ADD THIS
+                if (app.courses?.loadCourses) {
+                    app.courses.loadCourses();
+                }
+                break;
+            case 'marks':  // ADD THIS
+                if (app.marks?.loadMarksTable) {
+                    app.marks.loadMarksTable();
                 }
                 break;
         }
