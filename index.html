@@ -1162,6 +1162,8 @@
     <script>
         // Global functions
         window.showSection = function(sectionId) {
+            console.log('Switching to section:', sectionId);
+            
             // Hide all sections
             document.querySelectorAll('.content-section').forEach(section => {
                 section.classList.remove('active');
@@ -1171,21 +1173,110 @@
             const targetSection = document.getElementById(sectionId);
             if (targetSection) {
                 targetSection.classList.add('active');
+                
+                // Update page title
+                const titleMap = {
+                    'dashboard': 'Dashboard Overview',
+                    'students': 'Student Management',
+                    'courses': 'Course Management',
+                    'marks': 'Academic Records',
+                    'reports': 'Reports & Analytics',
+                    'centres': 'Centre Management',
+                    'profile': 'User Profile',
+                    'settings': 'System Settings'
+                };
+                
+                const titleElement = document.getElementById('section-title');
+                if (titleElement && titleMap[sectionId]) {
+                    titleElement.textContent = titleMap[sectionId];
+                }
+            } else {
+                console.error('Section not found:', sectionId);
             }
             
             // Update active nav link
             document.querySelectorAll('.nav-link').forEach(link => {
                 link.classList.remove('active');
             });
-            document.querySelector(`a[href="#${sectionId}"]`).classList.add('active');
+            
+            const navLink = document.querySelector(`a[href="#${sectionId}"]`);
+            if (navLink) {
+                navLink.classList.add('active');
+            }
+            
+            // Lazy load section data
+            lazyLoadSectionData(sectionId);
         };
         
+        function lazyLoadSectionData(sectionId) {
+            const app = window.app;
+            if (!app) return;
+            
+            switch(sectionId) {
+                case 'students':
+                    if (app.students && typeof app.students.loadStudentsTable === 'function') {
+                        setTimeout(() => {
+                            app.students.loadStudentsTable().catch(console.error);
+                        }, 100);
+                    }
+                    break;
+                    
+                case 'courses':
+                    if (app.courses && typeof app.courses.loadCourses === 'function') {
+                        setTimeout(() => {
+                            app.courses.loadCourses().catch(console.error);
+                        }, 100);
+                    }
+                    break;
+                    
+                case 'marks':
+                    if (app.marks && typeof app.marks.loadMarksTable === 'function') {
+                        setTimeout(() => {
+                            app.marks.loadMarksTable().catch(console.error);
+                        }, 100);
+                    }
+                    break;
+                    
+                case 'dashboard':
+                    if (app.dashboard && typeof app.dashboard.updateDashboard === 'function') {
+                        setTimeout(() => {
+                            app.dashboard.updateDashboard().catch(console.error);
+                        }, 100);
+                    }
+                    break;
+                    
+                case 'centres':
+                    if (app.centres && typeof app.centres.loadCentres === 'function') {
+                        setTimeout(() => {
+                            app.centres.loadCentres().catch(console.error);
+                        }, 100);
+                    }
+                    break;
+            }
+        }
+        
         window.openModal = function(modalId) {
-            document.getElementById(modalId).classList.add('active');
+            console.log('Opening modal:', modalId);
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
         };
         
         window.closeModal = function(modalId) {
-            document.getElementById(modalId).classList.remove('active');
+            console.log('Closing modal:', modalId);
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('active');
+                document.body.style.overflow = 'auto';
+                
+                // Clear form if it exists
+                const form = modal.querySelector('form');
+                if (form) {
+                    form.reset();
+                }
+            }
         };
         
         window.openStudentModal = function() {
@@ -1200,16 +1291,42 @@
             openModal('centreModal');
         };
         
+        // Close modal when clicking outside
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal')) {
+                e.target.classList.remove('active');
+                document.body.style.overflow = 'auto';
+            }
+        });
+        
         // Initialize when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing app...');
+            
             // Initialize the app
             if (window.app) {
-                window.app.initialize();
+                window.app.initialize().catch(error => {
+                    console.error('App initialization failed:', error);
+                });
+            } else {
+                console.error('App not found! Make sure app.js is loaded.');
             }
             
-            // Show dashboard by default
-            showSection('dashboard');
+            // Show dashboard by default (after a short delay)
+            setTimeout(() => {
+                showSection('dashboard');
+            }, 500);
         });
+        
+        // Refresh dashboard function
+        window.refreshDashboard = function() {
+            const app = window.app;
+            if (app && app.dashboard && typeof app.dashboard.updateDashboard === 'function') {
+                app.dashboard.updateDashboard().then(() => {
+                    console.log('Dashboard refreshed');
+                }).catch(console.error);
+            }
+        };
     </script>
 </body>
 </html>
