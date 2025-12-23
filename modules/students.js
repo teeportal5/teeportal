@@ -1,4 +1,4 @@
-// modules/students.js - Enhanced Student Management Module
+// modules/students.js - Enhanced Student Management Module (XSS Secured)
 class StudentManager {
     constructor(db, app = null) {
         this.db = db;
@@ -260,27 +260,29 @@ class StudentManager {
     }
     
     /**
-     * Render student table row
+     * Render student table row (XSS SECURED)
      */
     _renderStudentRow(student, settings) {
         const programName = settings.programs && settings.programs[student.program] 
-            ? settings.programs[student.program].name 
-            : student.program;
+            ? this._escapeHtml(settings.programs[student.program].name) 
+            : this._escapeHtml(student.program || '');
         
         const studentName = this._escapeHtml(student.full_name || '');
         const email = this._escapeHtml(student.email || '');
         const phone = this._escapeHtml(student.phone || '');
         const status = student.status || 'active';
         const isSelected = this.selectedStudents.has(student.id);
+        const safeStudentId = this._escapeAttr(student.id);
+        const safeRegNumber = this._escapeAttr(student.reg_number);
         
         return `
-            <tr data-student-id="${student.id}" data-student-reg="${student.reg_number}">
+            <tr data-student-id="${safeStudentId}" data-student-reg="${safeRegNumber}">
                 <td>
                     <input type="checkbox" class="student-checkbox" 
-                           data-student-id="${student.id}" 
+                           data-student-id="${safeStudentId}" 
                            ${isSelected ? 'checked' : ''}>
                 </td>
-                <td><strong>${student.reg_number}</strong></td>
+                <td><strong>${this._escapeHtml(student.reg_number)}</strong></td>
                 <td>
                     <div class="student-avatar">
                         <div class="avatar-icon" style="background-color: ${this._getAvatarColor(student.full_name)}">
@@ -293,25 +295,25 @@ class StudentManager {
                     </div>
                 </td>
                 <td>${programName}</td>
-                <td>${student.intake_year}</td>
+                <td>${this._escapeHtml(student.intake_year)}</td>
                 <td>${email}</td>
                 <td>${phone}</td>
                 <td>
-                    <span class="status-badge ${status}">
-                        ${status.toUpperCase()}
+                    <span class="status-badge ${this._escapeAttr(status)}">
+                        ${this._escapeHtml(status.toUpperCase())}
                     </span>
                 </td>
                 <td class="action-buttons">
-                    <button class="btn-action view-student" data-id="${student.id}" title="View Details">
+                    <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
                         <i class="fas fa-eye"></i>
                     </button>
-                    <button class="btn-action edit-student" data-id="${student.id}" title="Edit Student">
+                    <button class="btn-action edit-student" data-id="${safeStudentId}" title="Edit Student">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button class="btn-action enter-marks" data-id="${student.id}" title="Enter Marks">
+                    <button class="btn-action enter-marks" data-id="${safeStudentId}" title="Enter Marks">
                         <i class="fas fa-chart-bar"></i>
                     </button>
-                    <button class="btn-action delete-student" data-id="${student.id}" title="Delete Student">
+                    <button class="btn-action delete-student" data-id="${safeStudentId}" title="Delete Student">
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>
@@ -508,7 +510,7 @@ class StudentManager {
                 return;
             }
             
-            if (!confirm(`Are you sure you want to delete ${student.full_name} (${student.reg_number})? This action cannot be undone.`)) {
+            if (!confirm(`Are you sure you want to delete ${this._escapeHtml(student.full_name)} (${this._escapeHtml(student.reg_number)})? This action cannot be undone.`)) {
                 return;
             }
             
@@ -606,8 +608,8 @@ class StudentManager {
         modal.innerHTML = `
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3>Update Status for ${this.selectedStudents.size} Student(s)</h3>
-                    <span class="close" onclick="document.getElementById('bulkStatusModal').remove()">&times;</span>
+                    <h3>Update Status for ${this._escapeHtml(this.selectedStudents.size.toString())} Student(s)</h3>
+                    <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
@@ -621,7 +623,7 @@ class StudentManager {
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn-secondary" onclick="document.getElementById('bulkStatusModal').remove()">Cancel</button>
+                    <button class="btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
                     <button class="btn-primary" id="confirmBulkStatus">Update Status</button>
                 </div>
             </div>
@@ -658,21 +660,21 @@ class StudentManager {
         modal.innerHTML = `
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3>Delete ${this.selectedStudents.size} Student(s)</h3>
-                    <span class="close" onclick="document.getElementById('bulkDeleteModal').remove()">&times;</span>
+                    <h3>Delete ${this._escapeHtml(this.selectedStudents.size.toString())} Student(s)</h3>
+                    <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
                 </div>
                 <div class="modal-body">
                     <div class="alert alert-warning">
                         <i class="fas fa-exclamation-triangle"></i>
                         <strong>Warning:</strong> This action cannot be undone. 
-                        Are you sure you want to delete ${this.selectedStudents.size} student(s)?
+                        Are you sure you want to delete ${this._escapeHtml(this.selectedStudents.size.toString())} student(s)?
                     </div>
                     <p>This will permanently remove all data associated with these students, including marks and records.</p>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn-secondary" onclick="document.getElementById('bulkDeleteModal').remove()">Cancel</button>
+                    <button class="btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
                     <button class="btn-danger" id="confirmBulkDelete">
-                        <i class="fas fa-trash"></i> Delete ${this.selectedStudents.size} Student(s)
+                        <i class="fas fa-trash"></i> Delete ${this._escapeHtml(this.selectedStudents.size.toString())} Student(s)
                     </button>
                 </div>
             </div>
@@ -694,9 +696,23 @@ class StudentManager {
     }
     
     /**
-     * Show student details modal
+     * Show student details modal (XSS SECURED)
      */
     _showStudentDetailsModal(student, marks, gpa, courses) {
+        const safeStudentId = this._escapeAttr(student.id);
+        const safeStudentName = this._escapeHtml(student.full_name);
+        const safeRegNumber = this._escapeHtml(student.reg_number);
+        const safeEmail = this._escapeHtml(student.email);
+        const safePhone = this._escapeHtml(student.phone || 'N/A');
+        const safeProgram = this._escapeHtml(student.program);
+        const safeIntakeYear = this._escapeHtml(student.intake_year);
+        const safeStatus = this._escapeAttr(student.status || 'active');
+        const safeDob = student.dob ? new Date(student.dob).toLocaleDateString() : 'N/A';
+        const safeGender = this._escapeHtml(student.gender || 'N/A');
+        const safeAddress = this._escapeHtml(student.address || 'N/A');
+        const safeEmergencyContact = this._escapeHtml(student.emergency_contact || 'N/A');
+        const safeNotes = this._escapeHtml(student.notes || 'No notes');
+        
         const modal = document.createElement('div');
         modal.id = 'studentDetailsModal';
         modal.className = 'modal';
@@ -704,7 +720,7 @@ class StudentManager {
             <div class="modal-content">
                 <div class="modal-header">
                     <h3>Student Details</h3>
-                    <span class="close" onclick="document.getElementById('studentDetailsModal').remove()">&times;</span>
+                    <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
                 </div>
                 <div class="modal-body">
                     <div class="student-detail-header">
@@ -712,50 +728,50 @@ class StudentManager {
                             <i class="fas fa-user-graduate"></i>
                         </div>
                         <div>
-                            <h2>${this._escapeHtml(student.full_name)}</h2>
-                            <p class="student-reg">${student.reg_number}</p>
-                            <p class="student-email">${student.email}</p>
+                            <h2>${safeStudentName}</h2>
+                            <p class="student-reg">${safeRegNumber}</p>
+                            <p class="student-email">${safeEmail}</p>
                         </div>
                     </div>
                     
                     <div class="student-details-grid">
                         <div class="detail-item">
                             <label>Program:</label>
-                            <span>${student.program}</span>
+                            <span>${safeProgram}</span>
                         </div>
                         <div class="detail-item">
                             <label>Intake Year:</label>
-                            <span>${student.intake_year}</span>
+                            <span>${safeIntakeYear}</span>
                         </div>
                         <div class="detail-item">
                             <label>Status:</label>
-                            <span class="status-badge ${student.status || 'active'}">
-                                ${(student.status || 'active').toUpperCase()}
+                            <span class="status-badge ${safeStatus}">
+                                ${this._escapeHtml((student.status || 'active').toUpperCase())}
                             </span>
                         </div>
                         <div class="detail-item">
                             <label>Phone:</label>
-                            <span>${student.phone || 'N/A'}</span>
+                            <span>${safePhone}</span>
                         </div>
                         <div class="detail-item">
                             <label>Date of Birth:</label>
-                            <span>${student.dob ? new Date(student.dob).toLocaleDateString() : 'N/A'}</span>
+                            <span>${safeDob}</span>
                         </div>
                         <div class="detail-item">
                             <label>Gender:</label>
-                            <span>${student.gender || 'N/A'}</span>
+                            <span>${safeGender}</span>
                         </div>
                         <div class="detail-item">
                             <label>Address:</label>
-                            <span>${student.address || 'N/A'}</span>
+                            <span>${safeAddress}</span>
                         </div>
                         <div class="detail-item">
                             <label>Emergency Contact:</label>
-                            <span>${student.emergency_contact || 'N/A'}</span>
+                            <span>${safeEmergencyContact}</span>
                         </div>
                         <div class="detail-item full-width">
                             <label>Notes:</label>
-                            <span>${student.notes || 'No notes'}</span>
+                            <span>${safeNotes}</span>
                         </div>
                     </div>
                     
@@ -780,28 +796,15 @@ class StudentManager {
                             </div>
                         </div>
                         
-                        ${marks.length > 0 ? `
-                            <h5>Recent Marks</h5>
-                            <div class="marks-list">
-                                ${marks.slice(0, 10).map(mark => `
-                                    <div class="mark-item">
-                                        <div class="mark-course">${mark.courses?.course_code || 'N/A'}</div>
-                                        <div class="mark-grade grade-${mark.grade?.charAt(0) || 'F'}">${mark.grade || 'F'}</div>
-                                        <div class="mark-score">${mark.score}/${mark.max_score || 100}</div>
-                                        <div class="mark-date">${new Date(mark.created_at).toLocaleDateString()}</div>
-                                    </div>
-                                `).join('')}
-                            </div>
-                            ${marks.length > 10 ? `<p class="text-center">... and ${marks.length - 10} more marks</p>` : ''}
-                        ` : '<p class="no-marks">No marks recorded yet.</p>'}
+                        ${marks.length > 0 ? this._renderMarksList(marks) : '<p class="no-marks">No marks recorded yet.</p>'}
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn-secondary" onclick="document.getElementById('studentDetailsModal').remove()">Close</button>
-                    <button class="btn-primary" onclick="app.studentManager.editStudent('${student.id}')">
+                    <button class="btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+                    <button class="btn-primary edit-student-details" data-id="${safeStudentId}">
                         <i class="fas fa-edit"></i> Edit Student
                     </button>
-                    <button class="btn-success" onclick="app.enterMarksForStudent('${student.id}')">
+                    <button class="btn-success enter-marks-details" data-id="${safeStudentId}">
                         <i class="fas fa-chart-bar"></i> Enter Marks
                     </button>
                 </div>
@@ -811,11 +814,51 @@ class StudentManager {
         document.body.appendChild(modal);
         modal.style.display = 'block';
         
+        // Attach event listeners using safe methods
+        modal.querySelector('.edit-student-details').addEventListener('click', () => {
+            modal.remove();
+            this.editStudent(student.id);
+        });
+        
+        modal.querySelector('.enter-marks-details').addEventListener('click', () => {
+            modal.remove();
+            this.enterMarksForStudent(student.id);
+        });
+        
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
                 modal.remove();
             }
         });
+    }
+    
+    /**
+     * Render marks list (XSS Secured)
+     */
+    _renderMarksList(marks) {
+        const recentMarks = marks.slice(0, 10);
+        const marksHtml = recentMarks.map(mark => {
+            const courseCode = this._escapeHtml(mark.courses?.course_code || 'N/A');
+            const grade = this._escapeHtml(mark.grade || 'F');
+            const score = this._escapeHtml(mark.score || 0);
+            const maxScore = this._escapeHtml(mark.max_score || 100);
+            const date = mark.created_at ? new Date(mark.created_at).toLocaleDateString() : 'N/A';
+            
+            return `
+                <div class="mark-item">
+                    <div class="mark-course">${courseCode}</div>
+                    <div class="mark-grade grade-${this._escapeAttr(grade.charAt(0) || 'F')}">${grade}</div>
+                    <div class="mark-score">${score}/${maxScore}</div>
+                    <div class="mark-date">${date}</div>
+                </div>
+            `;
+        }).join('');
+        
+        return `
+            <h5>Recent Marks</h5>
+            <div class="marks-list">${marksHtml}</div>
+            ${marks.length > 10 ? `<p class="text-center">... and ${this._escapeHtml((marks.length - 10).toString())} more marks</p>` : ''}
+        `;
     }
     
     /**
@@ -1202,13 +1245,13 @@ class StudentManager {
             <div class="modal-content">
                 <div class="modal-header">
                     <h3>Import Students</h3>
-                    <span class="close" onclick="document.getElementById('importModal').remove()">&times;</span>
+                    <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
                 </div>
                 <div class="modal-body">
                     <div class="import-instructions">
                         <h4>Instructions:</h4>
                         <ol>
-                            <li>Download the <a href="#" onclick="app.studentManager.downloadTemplate()">template CSV</a></li>
+                            <li>Download the <a href="#" class="download-template-link">template CSV</a></li>
                             <li>Fill in the student information</li>
                             <li>Upload the completed CSV file</li>
                         </ol>
@@ -1232,7 +1275,7 @@ class StudentManager {
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn-secondary" onclick="document.getElementById('importModal').remove()">Cancel</button>
+                    <button class="btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
                     <button class="btn-primary" id="processImport">Import Students</button>
                 </div>
             </div>
@@ -1241,7 +1284,13 @@ class StudentManager {
         document.body.appendChild(modal);
         modal.style.display = 'block';
         
-        document.getElementById('processImport').addEventListener('click', async () => {
+        // Safe event listener attachment
+        modal.querySelector('.download-template-link').addEventListener('click', (e) => {
+            e.preventDefault();
+            this.downloadTemplate();
+        });
+        
+        modal.querySelector('#processImport').addEventListener('click', async () => {
             const fileInput = document.getElementById('importFile');
             const skipDuplicates = document.getElementById('skipDuplicates').checked;
             
@@ -1290,10 +1339,10 @@ class StudentManager {
             <div class="modal-content">
                 <div class="modal-header">
                     <h3>Import Confirmation</h3>
-                    <span class="close" onclick="document.getElementById('importConfirmationModal').remove()">&times;</span>
+                    <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
                 </div>
                 <div class="modal-body">
-                    <p>Found ${students.length} student(s) to import:</p>
+                    <p>Found ${this._escapeHtml(students.length.toString())} student(s) to import:</p>
                     <div class="import-preview">
                         <table>
                             <thead>
@@ -1309,18 +1358,18 @@ class StudentManager {
                                     <tr>
                                         <td>${this._escapeHtml(student.name)}</td>
                                         <td>${this._escapeHtml(student.email)}</td>
-                                        <td>${student.program}</td>
-                                        <td>${student.intake}</td>
+                                        <td>${this._escapeHtml(student.program)}</td>
+                                        <td>${this._escapeHtml(student.intake)}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
                         </table>
-                        ${students.length > 10 ? `<p>... and ${students.length - 10} more</p>` : ''}
+                        ${students.length > 10 ? `<p>... and ${this._escapeHtml((students.length - 10).toString())} more</p>` : ''}
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn-secondary" onclick="document.getElementById('importConfirmationModal').remove()">Cancel</button>
-                    <button class="btn-primary" id="confirmImport">Import ${students.length} Students</button>
+                    <button class="btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                    <button class="btn-primary" id="confirmImport">Import ${this._escapeHtml(students.length.toString())} Students</button>
                 </div>
             </div>
         `;
@@ -1394,24 +1443,24 @@ class StudentManager {
             <div class="modal-content">
                 <div class="modal-header">
                     <h3>Import Results</h3>
-                    <span class="close" onclick="document.getElementById('importResultsModal').remove()">&times;</span>
+                    <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
                 </div>
                 <div class="modal-body">
                     <div class="import-results">
                         <div class="result-success">
                             <i class="fas fa-check-circle"></i>
-                            <span>${results.success} students imported successfully</span>
+                            <span>${this._escapeHtml(results.success.toString())} students imported successfully</span>
                         </div>
                         ${results.skipped > 0 ? `
                             <div class="result-skipped">
                                 <i class="fas fa-info-circle"></i>
-                                <span>${results.skipped} students skipped (duplicates)</span>
+                                <span>${this._escapeHtml(results.skipped.toString())} students skipped (duplicates)</span>
                             </div>
                         ` : ''}
                         ${results.failed > 0 ? `
                             <div class="result-failed">
                                 <i class="fas fa-exclamation-triangle"></i>
-                                <span>${results.failed} students failed to import</span>
+                                <span>${this._escapeHtml(results.failed.toString())} students failed to import</span>
                             </div>
                         ` : ''}
                         
@@ -1421,19 +1470,24 @@ class StudentManager {
                                 <ul>
                                     ${results.errors.slice(0, 10).map(error => `<li>${this._escapeHtml(error)}</li>`).join('')}
                                 </ul>
-                                ${results.errors.length > 10 ? `<p>... and ${results.errors.length - 10} more</p>` : ''}
+                                ${results.errors.length > 10 ? `<p>... and ${this._escapeHtml((results.errors.length - 10).toString())} more</p>` : ''}
                             </div>
                         ` : ''}
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn-primary" onclick="document.getElementById('importResultsModal').remove(); app.studentManager.loadStudentsTable();">Close & Refresh</button>
+                    <button class="btn-primary" id="closeImportResults">Close & Refresh</button>
                 </div>
             </div>
         `;
         
         document.body.appendChild(modal);
         modal.style.display = 'block';
+        
+        modal.querySelector('#closeImportResults').addEventListener('click', () => {
+            modal.remove();
+            this.loadStudentsTable();
+        });
         
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
@@ -1453,15 +1507,29 @@ class StudentManager {
                     <i class="fas fa-user-graduate fa-3x"></i>
                     <h3>No Students Found</h3>
                     <p>Get started by adding your first student.</p>
-                    <button class="btn-primary" onclick="app.openStudentModal()">
+                    <button class="btn-primary open-student-modal">
                         <i class="fas fa-plus"></i> Add Your First Student
                     </button>
                     <p style="margin-top: 15px;">
-                        <small>or <a href="#" onclick="app.studentManager.downloadTemplate()">download template</a> to import multiple students</small>
+                        <small>or <a href="#" class="download-template-link">download template</a> to import multiple students</small>
                     </p>
                 </td>
             </tr>
         `;
+        
+        // Safe event listeners
+        tbody.querySelector('.open-student-modal')?.addEventListener('click', () => {
+            if (this.app && typeof this.app.openStudentModal === 'function') {
+                this.app.openStudentModal();
+            } else {
+                this.ui.openModal('studentModal');
+            }
+        });
+        
+        tbody.querySelector('.download-template-link')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.downloadTemplate();
+        });
     }
     
     /**
@@ -1476,23 +1544,53 @@ class StudentManager {
                         <i class="fas fa-exclamation-triangle fa-3x"></i>
                         <h3>Error Loading Students</h3>
                         <p>Unable to load student data. Please try again.</p>
-                        <button class="btn-primary" onclick="app.studentManager.loadStudentsTable()">
+                        <button class="btn-primary retry-load-students">
                             <i class="fas fa-redo"></i> Try Again
                         </button>
                     </td>
                 </tr>
             `;
+            
+            tbody.querySelector('.retry-load-students')?.addEventListener('click', () => {
+                this.loadStudentsTable();
+            });
         }
     }
     
     /**
-     * Escape HTML to prevent XSS
+     * Escape HTML for text content (safe for text nodes)
      */
     _escapeHtml(text) {
         if (text === null || text === undefined) return '';
+        
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+    
+    /**
+     * Escape HTML for attributes (safe for attribute values)
+     */
+    _escapeAttr(text) {
+        if (text === null || text === undefined) return '';
+        
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+    
+    /**
+     * Escape HTML for URL attributes (href, src)
+     */
+    _escapeUrl(text) {
+        if (text === null || text === undefined) return '';
+        
+        // Only allow safe URLs
+        const safeText = String(text).replace(/[^-A-Za-z0-9+&@#/%?=~_|!:,.;\(\)]/g, '');
+        return encodeURI(safeText);
     }
 }
 
@@ -1502,5 +1600,6 @@ if (typeof module !== 'undefined' && module.exports) {
 }
 
 // Auto-initialize if loaded in browser
-if (typeof window !== 'undefined') {
-  
+if (typeof window !== 'undefined' && typeof window.StudentManager !== 'undefined') {
+    window.StudentManager = StudentManager;
+}
