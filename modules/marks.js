@@ -1211,7 +1211,7 @@ class MarksManager {
         }
     }
     
-    async saveMarks(event) {
+   async saveMarks(event) {
     event.preventDefault();
     
     try {
@@ -1221,7 +1221,7 @@ class MarksManager {
         const score = parseFloat(document.getElementById('marksScore').value);
         const maxScore = parseFloat(document.getElementById('marksMaxScore').value) || 100;
         
-        // FIX: Double-check assessment type with fallback
+        // Get assessment type
         let assessmentType = document.getElementById('assessmentType')?.value;
         if (!assessmentType || assessmentType.trim() === '') {
             assessmentType = 'exam'; // Default fallback
@@ -1229,12 +1229,7 @@ class MarksManager {
         
         const assessmentDate = document.getElementById('assessmentDate')?.value || new Date().toISOString().split('T')[0];
         
-        // Validation - ADD assessment type validation
-        if (!assessmentType) {
-            this.showToast('Assessment type is required', 'error');
-            return;
-        }
-        
+        // Validation
         if (!studentId || !courseId || isNaN(score)) {
             this.showToast('Please select student, course, and enter score', 'error');
             return;
@@ -1255,12 +1250,12 @@ class MarksManager {
         const grade = this.calculateGrade(percentage);
         const gradePoints = this.getGradePoints(grade);
         
-        // Prepare data - ADD validation to assessment_name
+        // Prepare data - REMOVE assessment_name if it's not needed
         const markData = {
             student_id: studentId,
             course_id: courseId,
             assessment_type: assessmentType,
-            assessment_name: assessmentType.charAt(0).toUpperCase() + assessmentType.slice(1) || 'Assessment',
+            // REMOVED: assessment_name field
             score: score,
             max_score: maxScore,
             percentage: percentage,
@@ -1271,8 +1266,7 @@ class MarksManager {
             assessment_date: assessmentDate
         };
         
-        // DEBUG: Log the data being sent
-        console.log('💾 Saving academic record:', JSON.stringify(markData, null, 2));
+        console.log('💾 Saving academic record:', markData);
         
         // Save to database
         await this.db.addMark(markData);
@@ -1286,13 +1280,7 @@ class MarksManager {
         
     } catch (error) {
         console.error('❌ Error saving academic record:', error);
-        
-        // Check if it's the assessment_type error
-        if (error.message && error.message.includes('assessment_type') && error.message.includes('null')) {
-            this.showToast('Database Error: Assessment type cannot be empty. Please select an assessment type.', 'error');
-        } else {
-            this.showToast(`Error: ${error.message || 'Failed to save'}`, 'error');
-        }
+        this.showToast(`Error: ${error.message || 'Failed to save'}`, 'error');
     }
 }
     
