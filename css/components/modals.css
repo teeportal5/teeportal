@@ -1,4 +1,4 @@
-/* css/components/modals.css - Modal Styles */
+/* css/components/modals.css - Updated Modal Styles */
 .modal {
     display: none;
     position: fixed;
@@ -10,6 +10,7 @@
     background-color: rgba(0,0,0,0.5);
     backdrop-filter: blur(4px);
     animation: fadeIn 0.3s ease;
+    overflow-y: auto; /* Enable scrolling for the entire modal overlay */
 }
 
 @keyframes fadeIn {
@@ -23,17 +24,18 @@
 
 .modal-content {
     background-color: white;
-    margin: 5% auto;
+    margin: 40px auto; /* Increased top margin for better visibility */
     padding: 0;
     border-radius: 12px;
     width: 90%;
-    max-width: 600px;
+    max-width: 700px; /* Increased from 600px for wider form */
     box-shadow: 0 20px 60px rgba(0,0,0,0.3);
     animation: slideIn 0.3s ease;
-    max-height: 90vh;
-    overflow: hidden;
+    max-height: calc(100vh - 80px); /* Ensure it doesn't exceed viewport */
+    overflow: hidden; /* Keep content contained */
     display: flex;
     flex-direction: column;
+    position: relative;
 }
 
 @keyframes slideIn {
@@ -55,6 +57,7 @@
     align-items: center;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
+    flex-shrink: 0; /* Prevent header from shrinking */
 }
 
 .modal-header h3 {
@@ -70,6 +73,9 @@
     cursor: pointer;
     line-height: 1;
     transition: opacity 0.2s;
+    background: none;
+    border: none;
+    padding: 0;
 }
 
 .modal-header .close:hover {
@@ -78,8 +84,116 @@
 
 .modal-body {
     padding: 2rem;
-    overflow-y: auto;
+    overflow-y: auto; /* Make body scrollable */
+    flex: 1; /* Take remaining space */
+    min-height: 200px; /* Minimum height */
+}
+
+/* Marks form specific styling */
+#marksForm {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+#marksForm .form-row {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    width: 100%;
+}
+
+#marksForm .form-row .form-group {
     flex: 1;
+    min-width: 0; /* Prevent overflow */
+}
+
+#marksForm label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #333;
+    font-size: 0.95rem;
+}
+
+#marksForm .form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background-color: white;
+}
+
+#marksForm .form-control:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+#marksForm .form-control[readonly] {
+    background-color: #f8f9fa;
+    cursor: not-allowed;
+}
+
+/* Grade badge styling */
+.grade-classification {
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+
+.grade-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    min-width: 140px;
+    text-align: center;
+    background-color: #f8f9fa;
+    color: #666;
+    border: 2px solid #e9ecef;
+    transition: all 0.2s;
+    height: 48px; /* Match input field height */
+}
+
+.grade-badge.grade-distinction {
+    background-color: #e7f7ef;
+    color: #10b981;
+    border-color: #10b981;
+}
+
+.grade-badge.grade-credit {
+    background-color: #eff6ff;
+    color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.grade-badge.grade-pass {
+    background-color: #fef3c7;
+    color: #f59e0b;
+    border-color: #f59e0b;
+}
+
+.grade-badge.grade-fail {
+    background-color: #fee2e2;
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
+/* Percentage display styling */
+.percentage-display {
+    position: relative;
+}
+
+.percentage-display .form-control {
+    font-weight: bold;
+    color: #333;
+    text-align: center;
 }
 
 .modal-footer {
@@ -89,13 +203,15 @@
     display: flex;
     justify-content: flex-end;
     gap: 1rem;
+    flex-shrink: 0; /* Prevent footer from shrinking */
 }
 
-/* Responsive */
+/* Responsive adjustments */
 @media (max-width: 768px) {
     .modal-content {
         width: 95%;
-        margin: 2% auto;
+        max-width: 95%;
+        margin: 20px auto;
     }
     
     .modal-header,
@@ -103,4 +219,61 @@
     .modal-footer {
         padding: 1.25rem;
     }
+    
+    #marksForm .form-row {
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    #marksForm .form-row .form-group {
+        width: 100%;
+    }
+    
+    .grade-badge {
+        min-width: 120px;
+        padding: 0.6rem 1rem;
+    }
+}
+
+/* For very tall content */
+@media (min-height: 800px) {
+    .modal-content {
+        max-height: calc(100vh - 100px);
+    }
+    
+    .modal-body {
+        max-height: 500px; /* Cap the scrollable area */
+    }
+}
+
+/* For very small screens */
+@media (max-height: 600px) {
+    .modal-content {
+        margin: 10px auto;
+        max-height: calc(100vh - 20px);
+    }
+    
+    .modal-body {
+        max-height: 300px;
+    }
+}
+
+/* Custom scrollbar for modal body */
+.modal-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
 }
