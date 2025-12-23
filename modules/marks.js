@@ -1212,71 +1212,89 @@ class MarksManager {
     }
     
     async saveMarks(event) {
-        event.preventDefault();
+    event.preventDefault();
+    
+    try {
+        // Get form values
+        const studentId = document.getElementById('marksStudent').value;
+        const courseId = document.getElementById('marksCourse').value;
+        const score = parseFloat(document.getElementById('marksScore').value);
+        const maxScore = parseFloat(document.getElementById('marksMaxScore').value) || 100;
         
-        try {
-            // Get form values
-            const studentId = document.getElementById('marksStudent').value;
-            const courseId = document.getElementById('marksCourse').value;
-            const score = parseFloat(document.getElementById('marksScore').value);
-            const maxScore = parseFloat(document.getElementById('marksMaxScore').value) || 100;
-            const assessmentType = document.getElementById('assessmentType')?.value || 'exam';
-            const assessmentDate = document.getElementById('assessmentDate')?.value || new Date().toISOString().split('T')[0];
-            
-            // Validation
-            if (!studentId || !courseId || isNaN(score)) {
-                this.showToast('Please select student, course, and enter score', 'error');
-                return;
-            }
-            
-            if (score < 0 || maxScore <= 0) {
-                this.showToast('Score must be positive and maximum score must be greater than 0', 'error');
-                return;
-            }
-            
-            if (score > maxScore) {
-                this.showToast(`Score cannot exceed maximum score of ${maxScore}`, 'error');
-                return;
-            }
-            
-            // Calculate grade
-            const percentage = (score / maxScore) * 100;
-            const grade = this.calculateGrade(percentage);
-            const gradePoints = this.getGradePoints(grade);
-            
-            // Prepare data
-            const markData = {
-                student_id: studentId,
-                course_id: courseId,
-                assessment_type: assessmentType,
-                assessment_name: assessmentType.charAt(0).toUpperCase() + assessmentType.slice(1),
-                score: score,
-                max_score: maxScore,
-                percentage: percentage,
-                grade: grade,
-                grade_points: gradePoints,
-                visible_to_student: true,
-                entered_by: this.app.user?.id || 'system',
-                assessment_date: assessmentDate
-            };
-            
-            console.log('💾 Saving academic record:', markData);
-            
-            // Save to database
-            await this.db.addMark(markData);
-            
-            // Success
-            this.showToast('✅ Academic record saved successfully!', 'success');
-            this.closeModal('marksModal');
-            
-            // Reload table
-            await this.loadMarksTable();
-            
-        } catch (error) {
-            console.error('❌ Error saving academic record:', error);
+        // FIX: Double-check assessment type with fallback
+        let assessmentType = document.getElementById('assessmentType')?.value;
+        if (!assessmentType || assessmentType.trim() === '') {
+            assessmentType = 'exam'; // Default fallback
+        }
+        
+        const assessmentDate = document.getElementById('assessmentDate')?.value || new Date().toISOString().split('T')[0];
+        
+        // Validation - ADD assessment type validation
+        if (!assessmentType) {
+            this.showToast('Assessment type is required', 'error');
+            return;
+        }
+        
+        if (!studentId || !courseId || isNaN(score)) {
+            this.showToast('Please select student, course, and enter score', 'error');
+            return;
+        }
+        
+        if (score < 0 || maxScore <= 0) {
+            this.showToast('Score must be positive and maximum score must be greater than 0', 'error');
+            return;
+        }
+        
+        if (score > maxScore) {
+            this.showToast(`Score cannot exceed maximum score of ${maxScore}`, 'error');
+            return;
+        }
+        
+        // Calculate grade
+        const percentage = (score / maxScore) * 100;
+        const grade = this.calculateGrade(percentage);
+        const gradePoints = this.getGradePoints(grade);
+        
+        // Prepare data - ADD validation to assessment_name
+        const markData = {
+            student_id: studentId,
+            course_id: courseId,
+            assessment_type: assessmentType,
+            assessment_name: assessmentType.charAt(0).toUpperCase() + assessmentType.slice(1) || 'Assessment',
+            score: score,
+            max_score: maxScore,
+            percentage: percentage,
+            grade: grade,
+            grade_points: gradePoints,
+            visible_to_student: true,
+            entered_by: this.app.user?.id || 'system',
+            assessment_date: assessmentDate
+        };
+        
+        // DEBUG: Log the data being sent
+        console.log('💾 Saving academic record:', JSON.stringify(markData, null, 2));
+        
+        // Save to database
+        await this.db.addMark(markData);
+        
+        // Success
+        this.showToast('✅ Academic record saved successfully!', 'success');
+        this.closeModal('marksModal');
+        
+        // Reload table
+        await this.loadMarksTable();
+        
+    } catch (error) {
+        console.error('❌ Error saving academic record:', error);
+        
+        // Check if it's the assessment_type error
+        if (error.message && error.message.includes('assessment_type') && error.message.includes('null')) {
+            this.showToast('Database Error: Assessment type cannot be empty. Please select an assessment type.', 'error');
+        } else {
             this.showToast(`Error: ${error.message || 'Failed to save'}`, 'error');
         }
     }
+}
     
     // ==================== TOAST NOTIFICATIONS ====================
     
