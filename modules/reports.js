@@ -15,30 +15,116 @@ class ReportsManager {
         this.charts = {};
     }
     
-    // ==================== INITIALIZATION ====================
-    
-    async initializeReportsUI() {
-        try {
-            console.log('📊 Initializing Reports UI...');
-            
-            // Populate all dropdowns
-            await this.populateFilters();
-            await this.populateReportSelectors();
-            
-            // Set up event listeners
-            this.setupEventListeners();
-            
-            // Load initial statistics
-            await this.updateStatistics();
-            
-            // Set default dates
-            this.setDefaultDates();
-            
-            console.log('✅ Reports UI initialized');
-        } catch (error) {
-            console.error('Error initializing reports UI:', error);
-        }
+   // ==================== MISSING METHODS FOR HTML BUTTONS ====================
+
+studentReport() {
+    console.log('📊 Generating student report...');
+    try {
+        this.showToast('Generating student report...', 'info');
+        // Call the existing quickStudentReport function
+        return this.quickStudentReport();
+    } catch (error) {
+        console.error('Error in studentReport:', error);
+        this.showToast('Error generating student report', 'error');
+        throw error;
     }
+}
+
+academicReport() {
+    console.log('📈 Generating academic report...');
+    try {
+        this.showToast('Generating academic report...', 'info');
+        // Call the existing quickAcademicReport function
+        return this.quickAcademicReport();
+    } catch (error) {
+        console.error('Error in academicReport:', error);
+        this.showToast('Error generating academic report', 'error');
+        throw error;
+    }
+}
+
+generateCentreReport() {
+    console.log('📍 Generating centre report...');
+    try {
+        this.showToast('Centre report feature coming soon', 'info');
+        // This would generate a report focused on centres
+        // For now, create a simple placeholder report
+        return this.generateCentreReportData();
+    } catch (error) {
+        console.error('Error in generateCentreReport:', error);
+        this.showToast('Error generating centre report', 'error');
+        throw error;
+    }
+}
+
+generateCentreReportData() {
+    // Placeholder function - would generate centre-specific report
+    this.showToast('Centre report feature is in development', 'warning');
+    return Promise.resolve([]);
+}
+
+geographicalReport() {
+    console.log('🗺️ Generating geographical report...');
+    try {
+        this.showToast('Geographical report feature coming soon', 'info');
+        // This would generate a geographical distribution report
+        // For now, create a simple placeholder report
+        return this.generateGeographicalReportData();
+    } catch (error) {
+        console.error('Error in geographicalReport:', error);
+        this.showToast('Error generating geographical report', 'error');
+        throw error;
+    }
+}
+
+generateGeographicalReportData() {
+    // Placeholder function - would generate geographical report
+    this.showToast('Geographical report feature is in development', 'warning');
+    return Promise.resolve([]);
+}
+
+generateSummaryReport() {
+    console.log('📋 Generating summary report...');
+    try {
+        this.showToast('Generating summary report...', 'info');
+        // This would generate a comprehensive summary report
+        // For now, use the existing performance report
+        return this.quickAcademicReport();
+    } catch (error) {
+        console.error('Error in generateSummaryReport:', error);
+        this.showToast('Error generating summary report', 'error');
+        throw error;
+    }
+}
+
+// ==================== INITIALIZATION METHOD ====================
+
+async initialize() {
+    if (this.initialized) return;
+    
+    try {
+        console.log('📊 Initializing Reports Manager...');
+        
+        // Initialize UI components
+        await this.initializeReportsUI();
+        
+        // Set up event listeners
+        this.setupEventListeners();
+        
+        // Load initial statistics
+        await this.updateStatistics();
+        
+        this.initialized = true;
+        console.log('✅ Reports Manager initialized');
+        
+        // Show success message
+        this.showToast('Reports module ready', 'success');
+        
+    } catch (error) {
+        console.error('❌ Error initializing reports:', error);
+        this.showToast('Reports module failed to initialize', 'error');
+    }
+}
     
     async populateFilters() {
         try {
