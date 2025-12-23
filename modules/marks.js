@@ -1,4 +1,4 @@
-// modules/marks.js - FINAL FIXED VERSION
+// modules/marks.js - COMPLETE FIXED VERSION
 class MarksManager {
     constructor(db, app) {
         this.db = db;
@@ -29,6 +29,9 @@ class MarksManager {
     initEventListeners() {
         console.log('🎯 Initializing MarksManager event listeners');
         
+        // Initialize modal handlers first
+        this.initModalHandlers();
+        
         // Search input with debounce
         const searchInput = document.getElementById('marksSearch');
         if (searchInput) {
@@ -45,7 +48,7 @@ class MarksManager {
             }
         });
         
-        // View mode buttons - FIXED: Use proper event handlers
+        // View mode buttons
         document.querySelectorAll('.view-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -81,6 +84,94 @@ class MarksManager {
                 e.preventDefault();
                 this.clearFilters();
             });
+        }
+        
+        // Marks form submit handler
+        const marksForm = document.getElementById('marksForm');
+        if (marksForm) {
+            marksForm.addEventListener('submit', (e) => this.saveMarks(e));
+        }
+        
+        // Add "Add Marks" button listener if it exists
+        const addMarksBtn = document.querySelector('[onclick*="openMarksModal"]');
+        if (addMarksBtn) {
+            addMarksBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.openMarksModal();
+            });
+        }
+    }
+    
+    initModalHandlers() {
+        // Global modal close handlers
+        document.addEventListener('click', (e) => {
+            // Close modal when clicking on close button
+            if (e.target.closest('[data-modal-close]')) {
+                const modal = e.target.closest('.modal');
+                if (modal) {
+                    this.closeModal(modal.id);
+                }
+            }
+            
+            // Close modal when clicking outside
+            if (e.target.classList.contains('modal')) {
+                this.closeModal(e.target.id);
+            }
+        });
+        
+        // Close modal with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const openModal = document.querySelector('.modal[style*="block"], .modal.active');
+                if (openModal) {
+                    this.closeModal(openModal.id);
+                }
+            }
+        });
+    }
+    
+    openModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'block';
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        }
+    }
+    
+    closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+            document.body.style.overflow = ''; // Restore scrolling
+            
+            // Reset forms
+            if (modalId === 'marksModal') {
+                const form = document.getElementById('marksForm');
+                if (form) {
+                    form.reset();
+                    
+                    // Reset specific fields
+                    const maxScoreInput = document.getElementById('marksMaxScore');
+                    if (maxScoreInput) maxScoreInput.value = '100';
+                    
+                    const assessmentType = document.getElementById('assessmentType');
+                    if (assessmentType) assessmentType.value = 'exam';
+                    
+                    // Set today's date
+                    const dateField = document.getElementById('assessmentDate');
+                    if (dateField) {
+                        dateField.value = new Date().toISOString().split('T')[0];
+                    }
+                    
+                    // Reset grade display
+                    this.resetMarksGradeDisplay(
+                        document.getElementById('gradeBadge'),
+                        document.getElementById('marksPercentage')
+                    );
+                }
+            }
         }
     }
     
@@ -260,7 +351,6 @@ class MarksManager {
             }
             
             const gradeCSSClass = this.getGradeCSSClass(grade);
-            const gradePoints = this.getGradePoints(grade);
             const status = mark.visible_to_student ? 'published' : 'hidden';
             
             // Escape HTML to prevent XSS
@@ -552,7 +642,7 @@ class MarksManager {
         
         const distinctionCount = marks.filter(m => m.grade === 'DISTINCTION').length;
         
-        // Update DOM elements - FIXED: No string parsing needed
+        // Update DOM elements
         this.updateElementText('totalRecords', totalRecords);
         this.updateElementText('distinctStudents', distinctStudents);
         this.updateElementText('avgScore', `${avgScore.toFixed(1)}%`);
@@ -775,7 +865,6 @@ class MarksManager {
     }
     
     clearFilters() {
-        // FIXED: Check if elements exist before setting values
         const searchInput = document.getElementById('marksSearch');
         const gradeFilter = document.getElementById('gradeFilter');
         const courseFilter = document.getElementById('courseFilter');
@@ -799,7 +888,7 @@ class MarksManager {
         this.filterTable();
     }
     
-    // ==================== PAGINATION (FIXED) ====================
+    // ==================== PAGINATION ====================
     
     updatePagination() {
         const totalRows = this.filteredData.length;
@@ -809,7 +898,6 @@ class MarksManager {
         const startRow = Math.min((this.currentPage - 1) * this.pageSize + 1, totalRows);
         const endRow = Math.min(this.currentPage * this.pageSize, totalRows);
         
-        // FIXED: Safe element updates
         this.safeUpdateElement('startRow', startRow);
         this.safeUpdateElement('endRow', endRow);
         this.safeUpdateElement('totalRows', totalRows);
@@ -890,7 +978,7 @@ class MarksManager {
             this.selectedMarks.add(markId);
         }
         
-        // Update row/card selection styling
+        // Update row selection styling
         const element = document.querySelector(`[data-mark-id="${markId}"]`);
         if (element) {
             element.classList.toggle('selected');
@@ -970,8 +1058,8 @@ class MarksManager {
         this.renderCurrentView();
     }
     
-    // ==================== MARKS MODAL (UPDATED FOR NEW HTML) ====================
-
+    // ==================== MARKS MODAL ====================
+    
     async openMarksModal() {
         try {
             await this.populateStudentDropdown();
@@ -983,7 +1071,7 @@ class MarksManager {
                 dateField.value = new Date().toISOString().split('T')[0];
             }
             
-            // Set default max score to 100
+            // Set default max score
             const maxScoreField = document.getElementById('marksMaxScore');
             if (maxScoreField) {
                 maxScoreField.value = 100;
@@ -999,8 +1087,48 @@ class MarksManager {
         }
     }
     
-    // ... [populateStudentDropdown and populateCourseDropdown remain the same] ...
-
+    async populateStudentDropdown() {
+        const select = document.getElementById('marksStudent');
+        if (!select) return;
+        
+        try {
+            const students = await this.db.getStudents();
+            select.innerHTML = '<option value="">Select student...</option>';
+            
+            students.forEach(student => {
+                const option = document.createElement('option');
+                option.value = student.id;
+                option.textContent = `${student.reg_number} - ${student.full_name}`;
+                select.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error populating student dropdown:', error);
+            select.innerHTML = '<option value="">Error loading students</option>';
+        }
+    }
+    
+    async populateCourseDropdown() {
+        const select = document.getElementById('marksCourse');
+        if (!select) return;
+        
+        try {
+            const courses = await this.db.getCourses();
+            const activeCourses = courses.filter(c => !c.status || c.status === 'active');
+            
+            select.innerHTML = '<option value="">Select course...</option>';
+            
+            activeCourses.forEach(course => {
+                const option = document.createElement('option');
+                option.value = course.id;
+                option.textContent = `${course.course_code} - ${course.course_name}`;
+                select.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error populating course dropdown:', error);
+            select.innerHTML = '<option value="">Error loading courses</option>';
+        }
+    }
+    
     setupMarksModalListeners() {
         const scoreInput = document.getElementById('marksScore');
         const maxScoreInput = document.getElementById('marksMaxScore');
@@ -1116,19 +1244,18 @@ class MarksManager {
             const grade = this.calculateGrade(percentage);
             const gradePoints = this.getGradePoints(grade);
             
-            // Prepare data - REMARKS AND VISIBLE_TO_STUDENT REMOVED
+            // Prepare data
             const markData = {
                 student_id: studentId,
                 course_id: courseId,
                 assessment_type: assessmentType,
-                assessment_name: assessmentType.charAt(0).toUpperCase() + assessmentType.slice(1), // e.g., "Exam"
+                assessment_name: assessmentType.charAt(0).toUpperCase() + assessmentType.slice(1),
                 score: score,
                 max_score: maxScore,
                 percentage: percentage,
                 grade: grade,
                 grade_points: gradePoints,
-                // Remarks field removed
-                visible_to_student: true, // Always visible in new version
+                visible_to_student: true,
                 entered_by: this.app.user?.id || 'system',
                 assessment_date: assessmentDate
             };
@@ -1148,42 +1275,6 @@ class MarksManager {
         } catch (error) {
             console.error('❌ Error saving academic record:', error);
             this.showToast(`Error: ${error.message || 'Failed to save'}`, 'error');
-        }
-    }
-    
-  // ==================== MODAL UTILITIES (UPDATED) ====================
-    
-    closeModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.style.display = 'none';
-            
-            // Reset forms
-            if (modalId === 'marksModal') {
-                const form = document.getElementById('marksForm');
-                if (form) {
-                    form.reset();
-                    
-                    // Reset specific fields
-                    const maxScoreInput = document.getElementById('marksMaxScore');
-                    if (maxScoreInput) maxScoreInput.value = '100';
-                    
-                    const assessmentType = document.getElementById('assessmentType');
-                    if (assessmentType) assessmentType.value = 'exam';
-                    
-                    // Set today's date
-                    const dateField = document.getElementById('assessmentDate');
-                    if (dateField) {
-                        dateField.value = new Date().toISOString().split('T')[0];
-                    }
-                    
-                    // Reset grade display
-                    this.resetMarksGradeDisplay(
-                        document.getElementById('gradeBadge'),
-                        document.getElementById('marksPercentage')
-                    );
-                }
-            }
         }
     }
     
