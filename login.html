@@ -342,45 +342,44 @@
         
         // Validate login credentials
         async function validateLogin(email, password) {
-            try {
-                // Initialize Supabase
-                const supabaseConnected = await initSupabase();
-                if (!supabaseConnected) {
-                    throw new Error('Could not connect to database');
-                }
-                
-                // Find user by email
-                const { data: user, error } = await supabaseClient
-                    .from('users')
-                    .select('*')
-                    .eq('email', email)
-                    .single();
-                    
-                if (error) {
-                    if (error.code === 'PGRST116') {
-                        throw new Error('User not found. Please create an account first.');
-                    }
-                    throw new Error('Invalid credentials');
-                }
-                
-                // Check if account is active
-                if (user.status !== 'active') {
-                    throw new Error('Account is inactive. Please contact administrator.');
-                }
-                
-                // Verify password (demo - use proper auth in production)
-                const hashedPassword = btoa(password);
-                if (user.passwordHash !== hashedPassword) {
-                    throw new Error('Invalid email or password');
-                }
-                
-                return user;
-            } catch (error) {
-                console.error('Login validation error:', error);
-                throw error;
-            }
+    try {
+        // Initialize Supabase
+        const supabaseConnected = await initSupabase();
+        if (!supabaseConnected) {
+            throw new Error('Could not connect to database');
         }
         
+        // Find user by email
+        const { data: user, error } = await supabaseClient
+            .from('users')
+            .select('*')
+            .eq('email', email)
+            .single();
+            
+        if (error) {
+            if (error.code === 'PGRST116') {
+                throw new Error('User not found. Please create an account first.');
+            }
+            throw new Error('Invalid credentials');
+        }
+        
+        // Check if account is active
+        if (user.status !== 'active') {
+            throw new Error('Account is inactive. Please contact administrator.');
+        }
+        
+        // Verify password (demo - use proper auth in production)
+        const hashedPassword = btoa(password);
+        if (user.password_hash !== hashedPassword) {  // snake_case
+            throw new Error('Invalid email or password');
+        }
+        
+        return user;
+    } catch (error) {
+        console.error('Login validation error:', error);
+        throw error;
+    }
+}
         // Handle login
         async function handleLogin(event) {
             event.preventDefault();
