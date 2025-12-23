@@ -905,331 +905,331 @@
         </main>
     </div>
     
-    <!-- ============ MODALS ============ -->
-    
-    <!-- Student Modal with Location Fields -->
-    <div id="studentModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Register New Student</h3>
-                <span class="close" onclick="closeModal('studentModal')">&times;</span>
-            </div>
-            <form id="studentForm">
-                <div class="modal-body">
-                    <!-- Personal Information -->
-                    <div class="form-section">
-                        <h4><i class="fas fa-user"></i> Personal Information</h4>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Full Name *</label>
-                                <input type="text" id="studentName" class="form-control" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Email Address *</label>
-                                <input type="email" id="studentEmail" class="form-control" required>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Phone Number *</label>
-                                <input type="tel" id="studentPhone" class="form-control" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Date of Birth</label>
-                                <input type="date" id="studentDOB" class="form-control">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>ID/Passport Number</label>
-                                <input type="text" id="studentIdNumber" class="form-control">
-                            </div>
-                            <div class="form-group">
-                                <label>Gender</label>
-                                <select id="studentGender" class="form-control">
-                                    <option value="">Select Gender</option>
-                                    <option value="male">Male</option>
-                                    <option value="female">Female</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Location Information -->
-                    <div class="form-section">
-                        <h4><i class="fas fa-map-marker-alt"></i> Location Information</h4>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>County *</label>
-                                <select id="studentCounty" class="form-control" required>
-                                    <option value="">Select County</option>
-                                    <!-- Kenya counties will be loaded -->
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Sub-County/Constituency</label>
-                                <input type="text" id="studentSubCounty" class="form-control">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Ward/Location</label>
-                                <input type="text" id="studentWard" class="form-control">
-                            </div>
-                            <div class="form-group">
-                                <label>Village/Estate</label>
-                                <input type="text" id="studentVillage" class="form-control">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Academic Information -->
-                    <div class="form-section">
-                        <h4><i class="fas fa-graduation-cap"></i> Academic Information</h4>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Study Centre *</label>
-                                <select id="studentCentre" class="form-control" required>
-                                    <option value="">Select Centre</option>
-                                    <!-- Centres will be loaded -->
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Program *</label>
-                                <select id="studentProgram" class="form-control" required>
-                                    <option value="">Select Program</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Intake Year *</label>
-                                <select id="studentIntake" class="form-control" required>
-                                    <option value="">Select Intake Year</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Study Mode</label>
-                                <select id="studentStudyMode" class="form-control">
-                                    <option value="fulltime">Full-time</option>
-                                    <option value="parttime">Part-time</option>
-                                    <option value="distance">Distance Learning</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Employment Information (for TEE students) -->
-                    <div class="form-section">
-                        <h4><i class="fas fa-briefcase"></i> Employment Information</h4>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Employment Status</label>
-                                <select id="studentEmployment" class="form-control">
-                                    <option value="">Select Status</option>
-                                    <option value="employed">Employed</option>
-                                    <option value="self-employed">Self-employed</option>
-                                    <option value="unemployed">Unemployed</option>
-                                    <option value="student">Student</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Employer Name</label>
-                                <input type="text" id="studentEmployer" class="form-control">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Job Title</label>
-                                <input type="text" id="studentJobTitle" class="form-control">
-                            </div>
-                            <div class="form-group">
-                                <label>Years of Experience</label>
-                                <input type="number" id="studentExperience" class="form-control" min="0">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal('studentModal')">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Register Student</button>
-                </div>
-            </form>
+   <!-- ============ MODALS ============ -->
+
+<!-- Student Modal with Location Fields -->
+<div id="studentModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Register New Student</h3>
+            <span class="close" data-modal-close>&times;</span>
         </div>
-    </div>
-    
-    <!-- Course Modal -->
-    <div id="courseModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Add New Course</h3>
-                <span class="close" onclick="closeModal('courseModal')">&times;</span>
-            </div>
-            <form id="courseForm">
-                <div class="modal-body">
+        <form id="studentForm">
+            <div class="modal-body">
+                <!-- Personal Information -->
+                <div class="form-section">
+                    <h4><i class="fas fa-user"></i> Personal Information</h4>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Course Code *</label>
-                            <input type="text" id="courseCode" class="form-control" required>
+                            <label>Full Name *</label>
+                            <input type="text" id="studentName" class="form-control" required>
                         </div>
                         <div class="form-group">
-                            <label>Course Name *</label>
-                            <input type="text" id="courseName" class="form-control" required>
+                            <label>Email Address *</label>
+                            <input type="email" id="studentEmail" class="form-control" required>
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Program *</label>
-                            <select id="courseProgram" class="form-control" required>
-                                <option value="">Select Program</option>
+                            <label>Phone Number *</label>
+                            <input type="tel" id="studentPhone" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Date of Birth</label>
+                            <input type="date" id="studentDOB" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>ID/Passport Number</label>
+                            <input type="text" id="studentIdNumber" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Gender</label>
+                            <select id="studentGender" class="form-control">
+                                <option value="">Select Gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label>Credits</label>
-                            <input type="number" id="courseCredits" class="form-control" value="3">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Description</label>
-                        <textarea id="courseDescription" class="form-control" rows="3"></textarea>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal('courseModal')">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Add Course</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <!-- Centre Modal -->
-    <div id="centreModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Add New Centre</h3>
-                <span class="close" onclick="closeModal('centreModal')">&times;</span>
-            </div>
-            <form id="centreForm">
-                <div class="modal-body">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Centre Name *</label>
-                            <input type="text" id="centreName" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Centre Code *</label>
-                            <input type="text" id="centreCode" class="form-control" required>
-                        </div>
-                    </div>
+                
+                <!-- Location Information -->
+                <div class="form-section">
+                    <h4><i class="fas fa-map-marker-alt"></i> Location Information</h4>
                     <div class="form-row">
                         <div class="form-group">
                             <label>County *</label>
-                            <select id="centreCounty" class="form-control" required>
+                            <select id="studentCounty" class="form-control" required>
                                 <option value="">Select County</option>
+                                <!-- Kenya counties will be loaded -->
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Sub-County</label>
-                            <input type="text" id="centreSubCounty" class="form-control">
+                            <label>Sub-County/Constituency</label>
+                            <input type="text" id="studentSubCounty" class="form-control">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Address</label>
-                            <input type="text" id="centreAddress" class="form-control">
+                            <label>Ward/Location</label>
+                            <input type="text" id="studentWard" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label>Contact Person</label>
-                            <input type="text" id="centreContactPerson" class="form-control">
+                            <label>Village/Estate</label>
+                            <input type="text" id="studentVillage" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Academic Information -->
+                <div class="form-section">
+                    <h4><i class="fas fa-graduation-cap"></i> Academic Information</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Study Centre *</label>
+                            <select id="studentCentre" class="form-control" required>
+                                <option value="">Select Centre</option>
+                                <!-- Centres will be loaded -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Program *</label>
+                            <select id="studentProgram" class="form-control" required>
+                                <option value="">Select Program</option>
+                            </select>
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Phone Number</label>
-                            <input type="tel" id="centrePhone" class="form-control">
+                            <label>Intake Year *</label>
+                            <select id="studentIntake" class="form-control" required>
+                                <option value="">Select Intake Year</option>
+                            </select>
                         </div>
                         <div class="form-group">
-                            <label>Email</label>
-                            <input type="email" id="centreEmail" class="form-control">
+                            <label>Study Mode</label>
+                            <select id="studentStudyMode" class="form-control">
+                                <option value="fulltime">Full-time</option>
+                                <option value="parttime">Part-time</option>
+                                <option value="distance">Distance Learning</option>
+                            </select>
                         </div>
+                    </div>
+                </div>
+                
+                <!-- Employment Information (for TEE students) -->
+                <div class="form-section">
+                    <h4><i class="fas fa-briefcase"></i> Employment Information</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Employment Status</label>
+                            <select id="studentEmployment" class="form-control">
+                                <option value="">Select Status</option>
+                                <option value="employed">Employed</option>
+                                <option value="self-employed">Self-employed</option>
+                                <option value="unemployed">Unemployed</option>
+                                <option value="student">Student</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Employer Name</label>
+                            <input type="text" id="studentEmployer" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Job Title</label>
+                            <input type="text" id="studentJobTitle" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Years of Experience</label>
+                            <input type="number" id="studentExperience" class="form-control" min="0">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-primary">Register Student</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Course Modal -->
+<div id="courseModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Add New Course</h3>
+            <span class="close" data-modal-close>&times;</span>
+        </div>
+        <form id="courseForm">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Course Code *</label>
+                        <input type="text" id="courseCode" class="form-control" required>
                     </div>
                     <div class="form-group">
-                        <label>Status</label>
-                        <select id="centreStatus" class="form-control">
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                            <option value="pending">Pending</option>
+                        <label>Course Name *</label>
+                        <input type="text" id="courseName" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Program *</label>
+                        <select id="courseProgram" class="form-control" required>
+                            <option value="">Select Program</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Credits</label>
+                        <input type="number" id="courseCredits" class="form-control" value="3">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="courseDescription" class="form-control" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Course</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Centre Modal -->
+<div id="centreModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Add New Centre</h3>
+            <span class="close" data-modal-close>&times;</span>
+        </div>
+        <form id="centreForm">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Centre Name *</label>
+                        <input type="text" id="centreName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Centre Code *</label>
+                        <input type="text" id="centreCode" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>County *</label>
+                        <select id="centreCounty" class="form-control" required>
+                            <option value="">Select County</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Sub-County</label>
+                        <input type="text" id="centreSubCounty" class="form-control">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Address</label>
+                        <input type="text" id="centreAddress" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Contact Person</label>
+                        <input type="text" id="centreContactPerson" class="form-control">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <input type="tel" id="centrePhone" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="centreEmail" class="form-control">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="centreStatus" class="form-control">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="pending">Pending</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Centre</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Marks Modal -->
+<div id="marksModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Enter Marks</h3>
+            <span class="close" data-modal-close>&times;</span>
+        </div>
+        <form id="marksForm">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Student *</label>
+                        <select id="marksStudent" class="form-control" required>
+                            <option value="">Select Student</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Course *</label>
+                        <select id="marksCourse" class="form-control" required>
+                            <option value="">Select Course</option>
                         </select>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal('centreModal')">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Centre</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <!-- Marks Modal -->
-    <div id="marksModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Enter Marks</h3>
-                <span class="close" onclick="closeModal('marksModal')">&times;</span>
-            </div>
-            <form id="marksForm">
-                <div class="modal-body">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Student *</label>
-                            <select id="marksStudent" class="form-control" required>
-                                <option value="">Select Student</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Course *</label>
-                            <select id="marksCourse" class="form-control" required>
-                                <option value="">Select Course</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Score *</label>
-                            <input type="number" id="marksScore" class="form-control" step="0.01" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Out of</label>
-                            <input type="number" id="marksMaxScore" class="form-control" value="100">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Assessment Type</label>
-                            <select id="assessmentType" class="form-control">
-                                <option value="exam">Final Exam</option>
-                                <option value="test">Test</option>
-                                <option value="assignment">Assignment</option>
-                                <option value="practical">Practical</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Date</label>
-                            <input type="date" id="assessmentDate" class="form-control">
-                        </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Score *</label>
+                        <input type="number" id="marksScore" class="form-control" step="0.01" required>
                     </div>
                     <div class="form-group">
-                        <label>Remarks</label>
-                        <textarea id="marksRemarks" class="form-control" rows="2"></textarea>
+                        <label>Out of</label>
+                        <input type="number" id="marksMaxScore" class="form-control" value="100">
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal('marksModal')">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Marks</button>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Assessment Type</label>
+                        <select id="assessmentType" class="form-control">
+                            <option value="exam">Final Exam</option>
+                            <option value="test">Test</option>
+                            <option value="assignment">Assignment</option>
+                            <option value="practical">Practical</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Date</label>
+                        <input type="date" id="assessmentDate" class="form-control">
+                    </div>
                 </div>
-            </form>
-        </div>
+                <div class="form-group">
+                    <label>Remarks</label>
+                    <textarea id="marksRemarks" class="form-control" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Marks</button>
+            </div>
+        </form>
     </div>
+</div>
     
     <!-- JavaScript Modules -->
     <!-- These should be: -->
