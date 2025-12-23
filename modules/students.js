@@ -462,42 +462,79 @@ class StudentManager {
     /**
      * Edit student
      */
-    async editStudent(studentId) {
-        try {
-            const student = await this.db.getStudent(studentId);
-            if (!student) {
-                this.ui.showToast('Student not found', 'error');
-                return;
-            }
-            
-            this.currentEditId = studentId;
-            
-            // Populate form fields
-            document.getElementById('studentName').value = student.full_name || '';
-            document.getElementById('studentEmail').value = student.email || '';
-            document.getElementById('studentPhone').value = student.phone || '';
-            document.getElementById('studentDOB').value = student.dob ? student.dob.split('T')[0] : '';
-            document.getElementById('studentGender').value = student.gender || '';
-            document.getElementById('studentProgram').value = student.program || '';
-            document.getElementById('studentIntake').value = student.intake_year || '';
-            document.getElementById('studentAddress').value = student.address || '';
-            document.getElementById('emergencyContact').value = student.emergency_contact || '';
-            document.getElementById('studentNotes').value = student.notes || '';
-            
-            // Change button text
-            const submitBtn = document.querySelector('#studentForm button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Student';
-            }
-            
-            // Open modal
-            this.ui.openModal('studentModal');
-            
-        } catch (error) {
-            console.error('Error editing student:', error);
-            this.ui.showToast('Error loading student data', 'error');
+   async editStudent(studentId) {
+    try {
+        const student = await this.db.getStudent(studentId);
+        if (!student) {
+            this.ui.showToast('Student not found', 'error');
+            return;
         }
+        
+        this.currentEditId = studentId;
+        
+        console.log('🔍 Editing student:', student.full_name);
+        
+        // Safe way to set form values
+        const setFormValue = (id, value) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.value = value || '';
+                return true;
+            }
+            return false;
+        };
+        
+        // List of fields to try (in order of priority)
+        const fields = [
+            // Personal info
+            { id: 'studentName', value: student.full_name },
+            { id: 'studentEmail', value: student.email },
+            { id: 'studentPhone', value: student.phone },
+            { id: 'studentDOB', value: student.dob ? new Date(student.dob).toISOString().split('T')[0] : '' },
+            { id: 'studentGender', value: student.gender },
+            { id: 'studentIdNumber', value: student.id_number },
+            
+            // Academic info
+            { id: 'studentProgram', value: student.program },
+            { id: 'studentIntake', value: student.intake_year },
+            { id: 'studentCentre', value: student.centre_id || student.centre },
+            { id: 'studentStudyMode', value: student.study_mode },
+            
+            // Location info
+            { id: 'studentCounty', value: student.county },
+            { id: 'studentSubCounty', value: student.sub_county },
+            { id: 'studentWard', value: student.ward },
+            { id: 'studentVillage', value: student.village },
+            
+            // Other fields
+            { id: 'studentAddress', value: student.address },
+            { id: 'emergencyContact', value: student.emergency_contact },
+            { id: 'studentNotes', value: student.notes }
+        ];
+        
+        let successCount = 0;
+        fields.forEach(field => {
+            if (setFormValue(field.id, field.value)) {
+                successCount++;
+            }
+        });
+        
+        console.log(`✅ Set ${successCount}/${fields.length} form fields`);
+        
+        // Update submit button
+        const submitBtn = document.querySelector('#studentForm button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Student';
+        }
+        
+        // Open modal
+        this.ui.openModal('studentModal');
+        
+    } catch (error) {
+        console.error('Error editing student:', error);
+        this.ui.showToast('Error loading student data', 'error');
     }
+}
     
     /**
      * Delete student with confirmation
