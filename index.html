@@ -1159,22 +1159,30 @@
 
 <!-- This one should be from root: -->
 <script src="app.js"></script>
-    <script>
-        // Global functions
-        window.showSection = function(sectionId) {
-            console.log('Switching to section:', sectionId);
+ <script>
+    // Global functions - FIXED VERSION
+    window.showSection = function(sectionId) {
+        console.log('Switching to section:', sectionId);
+        
+        // Update URL hash without triggering page scroll
+        history.replaceState(null, null, '#' + sectionId);
+        
+        // Hide all sections
+        document.querySelectorAll('.content-section').forEach(section => {
+            section.classList.remove('active');
+            section.style.display = 'none';
+        });
+        
+        // Show selected section
+        const targetSection = document.getElementById(sectionId);
+        if (targetSection) {
+            console.log('Found section, showing:', sectionId);
+            targetSection.classList.add('active');
+            targetSection.style.display = 'block';
             
-            // Hide all sections
-            document.querySelectorAll('.content-section').forEach(section => {
-                section.classList.remove('active');
-            });
-            
-            // Show selected section
-            const targetSection = document.getElementById(sectionId);
-            if (targetSection) {
-                targetSection.classList.add('active');
-                
-                // Update page title
+            // Update page title
+            const titleElement = document.getElementById('section-title');
+            if (titleElement) {
                 const titleMap = {
                     'dashboard': 'Dashboard Overview',
                     'students': 'Student Management',
@@ -1185,148 +1193,137 @@
                     'profile': 'User Profile',
                     'settings': 'System Settings'
                 };
-                
-                const titleElement = document.getElementById('section-title');
-                if (titleElement && titleMap[sectionId]) {
-                    titleElement.textContent = titleMap[sectionId];
-                }
-            } else {
-                console.error('Section not found:', sectionId);
+                titleElement.textContent = titleMap[sectionId] || sectionId;
             }
-            
-            // Update active nav link
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.classList.remove('active');
-            });
-            
-            const navLink = document.querySelector(`a[href="#${sectionId}"]`);
-            if (navLink) {
-                navLink.classList.add('active');
-            }
-            
-            // Lazy load section data
-            lazyLoadSectionData(sectionId);
-        };
-        
-        function lazyLoadSectionData(sectionId) {
-            const app = window.app;
-            if (!app) return;
-            
-            switch(sectionId) {
-                case 'students':
-                    if (app.students && typeof app.students.loadStudentsTable === 'function') {
-                        setTimeout(() => {
-                            app.students.loadStudentsTable().catch(console.error);
-                        }, 100);
-                    }
-                    break;
-                    
-                case 'courses':
-                    if (app.courses && typeof app.courses.loadCourses === 'function') {
-                        setTimeout(() => {
-                            app.courses.loadCourses().catch(console.error);
-                        }, 100);
-                    }
-                    break;
-                    
-                case 'marks':
-                    if (app.marks && typeof app.marks.loadMarksTable === 'function') {
-                        setTimeout(() => {
-                            app.marks.loadMarksTable().catch(console.error);
-                        }, 100);
-                    }
-                    break;
-                    
-                case 'dashboard':
-                    if (app.dashboard && typeof app.dashboard.updateDashboard === 'function') {
-                        setTimeout(() => {
-                            app.dashboard.updateDashboard().catch(console.error);
-                        }, 100);
-                    }
-                    break;
-                    
-                case 'centres':
-                    if (app.centres && typeof app.centres.loadCentres === 'function') {
-                        setTimeout(() => {
-                            app.centres.loadCentres().catch(console.error);
-                        }, 100);
-                    }
-                    break;
-            }
+        } else {
+            console.error('Section not found:', sectionId);
+            // Fallback to dashboard
+            showSection('dashboard');
         }
         
-        window.openModal = function(modalId) {
-            console.log('Opening modal:', modalId);
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.classList.add('active');
-                document.body.style.overflow = 'hidden';
-            }
-        };
+        // Update active nav link
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('active');
+        });
         
-        window.closeModal = function(modalId) {
-            console.log('Closing modal:', modalId);
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.classList.remove('active');
-                document.body.style.overflow = 'auto';
-                
-                // Clear form if it exists
-                const form = modal.querySelector('form');
-                if (form) {
-                    form.reset();
+        const navLink = document.querySelector(`a[href="#${sectionId}"]`);
+        if (navLink) {
+            navLink.classList.add('active');
+        } else {
+            console.warn('Nav link not found for:', sectionId);
+        }
+        
+        // Lazy load section data
+        lazyLoadSectionData(sectionId);
+    };
+    
+    function lazyLoadSectionData(sectionId) {
+        const app = window.app;
+        if (!app) {
+            console.log('App not ready yet');
+            return;
+        }
+        
+        switch(sectionId) {
+            case 'dashboard':
+                if (app.dashboard && typeof app.dashboard.updateDashboard === 'function') {
+                    setTimeout(() => {
+                        console.log('Loading dashboard data...');
+                        app.dashboard.updateDashboard().catch(error => {
+                            console.warn('Dashboard update failed:', error);
+                        });
+                    }, 100);
                 }
-            }
-        };
+                break;
+                
+            case 'students':
+                if (app.students && typeof app.students.loadStudentsTable === 'function') {
+                    setTimeout(() => {
+                        console.log('Loading students data...');
+                        app.students.loadStudentsTable().catch(console.error);
+                    }, 100);
+                }
+                break;
+                
+            case 'centres':
+                if (app.centres && typeof app.centres.loadCentres === 'function') {
+                    setTimeout(() => {
+                        console.log('Loading centres data...');
+                        app.centres.loadCentres().catch(console.error);
+                    }, 100);
+                }
+                break;
+        }
+    }
+    
+    // Handle hash changes (when user clicks back/forward or directly visits URL with hash)
+    window.addEventListener('hashchange', function() {
+        const hash = window.location.hash.substring(1); // Remove the #
+        if (hash) {
+            console.log('Hash changed to:', hash);
+            showSection(hash);
+        }
+    });
+    
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM loaded, initializing app...');
         
-        window.openStudentModal = function() {
-            openModal('studentModal');
-        };
+        // Check initial hash on page load
+        const initialHash = window.location.hash.substring(1);
+        console.log('Initial hash:', initialHash);
         
-        window.openCourseModal = function() {
-            openModal('courseModal');
-        };
-        
-        window.openCentreModal = function() {
-            openModal('centreModal');
-        };
-        
-        // Close modal when clicking outside
-        document.addEventListener('click', function(e) {
-            if (e.target.classList.contains('modal')) {
-                e.target.classList.remove('active');
-                document.body.style.overflow = 'auto';
-            }
-        });
-        
-        // Initialize when DOM is loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded, initializing app...');
-            
-            // Initialize the app
-            if (window.app) {
-                window.app.initialize().catch(error => {
-                    console.error('App initialization failed:', error);
-                });
+        // Initialize the app
+        if (window.app) {
+            window.app.initialize().then(() => {
+                console.log('App initialized, showing section...');
+                
+                // Show section based on hash or default to dashboard
+                if (initialHash && document.getElementById(initialHash)) {
+                    showSection(initialHash);
+                } else {
+                    showSection('dashboard');
+                }
+                
+            }).catch(error => {
+                console.error('App initialization failed:', error);
+                showSection('dashboard'); // Still try to show something
+            });
+        } else {
+            console.error('App not found! Make sure app.js is loaded.');
+            // Still try to show a section
+            if (initialHash && document.getElementById(initialHash)) {
+                showSection(initialHash);
             } else {
-                console.error('App not found! Make sure app.js is loaded.');
-            }
-            
-            // Show dashboard by default (after a short delay)
-            setTimeout(() => {
                 showSection('dashboard');
-            }, 500);
-        });
-        
-        // Refresh dashboard function
-        window.refreshDashboard = function() {
-            const app = window.app;
-            if (app && app.dashboard && typeof app.dashboard.updateDashboard === 'function') {
-                app.dashboard.updateDashboard().then(() => {
-                    console.log('Dashboard refreshed');
-                }).catch(console.error);
             }
-        };
-    </script>
+        }
+    });
+    
+    // Other functions remain the same...
+    window.openModal = function(modalId) {
+        console.log('Opening modal:', modalId);
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+    };
+    
+    window.closeModal = function(modalId) {
+        console.log('Closing modal:', modalId);
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+            
+            // Clear form if it exists
+            const form = modal.querySelector('form');
+            if (form) {
+                form.reset();
+            }
+        }
+    };
+</script>
 </body>
 </html>
