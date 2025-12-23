@@ -1,4 +1,4 @@
-// modules/dashboard.js - Dashboard module (XSS Secured) - FIXED
+// modules/dashboard.js - Dashboard module (XSS Secured) - FIXED Syntax Error
 class DashboardManager {
     constructor(db) {
         this.db = db;
@@ -148,12 +148,17 @@ class DashboardManager {
     }
     
     /**
-     * Update all charts - FIXED with proper chart destruction
+     * Update all charts
      */
     _updateCharts(students, marks) {
         try {
-            // Destroy existing charts if they exist
-            this._destroyAllCharts();
+            // Destroy existing charts
+            Object.keys(this.chartInstances).forEach(chartId => {
+                const chart = this.chartInstances[chartId];
+                if (chart && typeof chart.destroy === 'function') {
+                    chart.destroy();
+                }
+            });
             
             // Initialize chart instances object
             this.chartInstances = {};
@@ -170,57 +175,11 @@ class DashboardManager {
     }
     
     /**
-     * Destroy all existing charts properly
-     */
-    _destroyAllCharts() {
-        // Destroy charts from our instances
-        Object.values(this.chartInstances).forEach(chart => {
-            if (chart && typeof chart.destroy === 'function') {
-                try {
-                    chart.destroy();
-                } catch (destroyError) {
-                    console.warn('Error destroying chart:', destroyError);
-                }
-            }
-        });
-        
-        // Also check if Chart.js has any charts attached to canvas elements
-        const canvasIds = ['countyChart', 'centreChart', 'programChart'];
-        canvasIds.forEach(canvasId => {
-            const canvas = document.getElementById(canvasId);
-            if (canvas) {
-                // Get any existing chart on this canvas
-                const existingChart = Chart.getChart(canvas);
-                if (existingChart) {
-                    try {
-                        existingChart.destroy();
-                    } catch (e) {
-                        console.warn(`Could not destroy chart on ${canvasId}:`, e);
-                    }
-                }
-            }
-        });
-        
-        // Clear our instances
-        this.chartInstances = {};
-    }
-    
-    /**
      * Create county distribution chart
      */
     _createCountyChart(students) {
         const countyCtx = document.getElementById('countyChart');
         if (!countyCtx) return;
-        
-        // Check if there's already a chart on this canvas
-        const existingChart = Chart.getChart(countyCtx);
-        if (existingChart) {
-            try {
-                existingChart.destroy();
-            } catch (e) {
-                console.warn('Could not destroy existing county chart:', e);
-            }
-        }
         
         const countyCounts = {};
         students.forEach(student => {
@@ -238,48 +197,43 @@ class DashboardManager {
         const labels = sortedCounties.map(([county]) => county);
         const data = sortedCounties.map(([, count]) => count);
         
-        // Create new chart
-        try {
-            this.chartInstances.countyChart = new Chart(countyCtx.getContext('2d'), {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Students',
-                        data: data,
-                        backgroundColor: '#3498db',
-                        borderColor: '#2980b9',
-                        borderWidth: 1
-                    }]
+        this.chartInstances.countyChart = new Chart(countyCtx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Students',
+                    data: data,
+                    backgroundColor: '#3498db',
+                    borderColor: '#2980b9',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Students'
                         }
                     },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Number of Students'
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'County'
-                            }
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'County'
                         }
                     }
                 }
-            });
-        } catch (error) {
-            console.error('Error creating county chart:', error);
-        }
+            }
+        });
     }
     
     /**
@@ -288,16 +242,6 @@ class DashboardManager {
     _createCentreChart(students) {
         const centreCtx = document.getElementById('centreChart');
         if (!centreCtx) return;
-        
-        // Check if there's already a chart on this canvas
-        const existingChart = Chart.getChart(centreCtx);
-        if (existingChart) {
-            try {
-                existingChart.destroy();
-            } catch (e) {
-                console.warn('Could not destroy existing centre chart:', e);
-            }
-        }
         
         const centreCounts = {};
         students.forEach(student => {
@@ -315,32 +259,28 @@ class DashboardManager {
         const labels = sortedCentres.map(([centre]) => centre);
         const data = sortedCentres.map(([, count]) => count);
         
-        try {
-            this.chartInstances.centreChart = new Chart(centreCtx.getContext('2d'), {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: [
-                            '#3498db', '#2ecc71', '#e74c3c', '#f39c12',
-                            '#9b59b6', '#1abc9c', '#d35400', '#34495e'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom'
-                        }
+        this.chartInstances.centreChart = new Chart(centreCtx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: [
+                        '#3498db', '#2ecc71', '#e74c3c', '#f39c12',
+                        '#9b59b6', '#1abc9c', '#d35400', '#34495e'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
                     }
                 }
-            });
-        } catch (error) {
-            console.error('Error creating centre chart:', error);
-        }
+            }
+        });
     }
     
     /**
@@ -349,16 +289,6 @@ class DashboardManager {
     _createProgramChart(students) {
         const programCtx = document.getElementById('programChart');
         if (!programCtx) return;
-        
-        // Check if there's already a chart on this canvas
-        const existingChart = Chart.getChart(programCtx);
-        if (existingChart) {
-            try {
-                existingChart.destroy();
-            } catch (e) {
-                console.warn('Could not destroy existing program chart:', e);
-            }
-        }
         
         const programCounts = {};
         students.forEach(student => {
@@ -371,18 +301,17 @@ class DashboardManager {
         const labels = Object.keys(programCounts);
         const data = Object.values(programCounts);
         
-        try {
-            this.chartInstances.programChart = new Chart(programCtx.getContext('2d'), {
-                type: 'pie',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: [
-                            '#3498db', '#2ecc71', '#e74c3c', '#f39c12',
-                            '#9b59b6', '#1abc9c', '#d35400', '#34495e',
-                            '#7f8c8d', '#27ae60'
-                        ]
+        this.chartInstances.programChart = new Chart(programCtx.getContext('2d'), {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: [
+                        '#3498db', '#2ecc71', '#e74c3c', '#f39c12',
+                        '#9b59b6', '#1abc9c', '#d35400', '#34495e',
+                        '#7f8c8d', '#27ae60'
+                    ]
                 }]
             },
             options: {
@@ -535,7 +464,18 @@ class DashboardManager {
      * Cleanup method to call when leaving dashboard
      */
     cleanup() {
-        this._destroyAllCharts();
+        // Destroy existing charts
+        Object.keys(this.chartInstances).forEach(chartId => {
+            const chart = this.chartInstances[chartId];
+            if (chart && typeof chart.destroy === 'function') {
+                try {
+                    chart.destroy();
+                } catch (error) {
+                    console.warn('Error destroying chart:', error);
+                }
+            }
+        });
+        this.chartInstances = {};
     }
 }
 
