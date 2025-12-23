@@ -959,75 +959,104 @@ class TEEPortalSupabaseDB {
         }
     }
     
-    async addMark(markData) {
-        try {
-            const supabase = await this.ensureConnected();
-            const percentage = (markData.score / markData.maxScore) * 100;
-            const grade = this.calculateGrade(percentage);
-            
-            const mark = {
-                student_id: markData.studentId,
-                course_id: markData.courseId,
-                assessment_type: markData.assessmentType,
-                assessment_name: markData.assessmentName,
-                score: markData.score,
-                max_score: markData.maxScore,
-                percentage: parseFloat(percentage.toFixed(2)),
-                grade: grade.grade,
-                grade_points: grade.points,
-                remarks: markData.remarks || '',
-                visible_to_student: markData.visibleToStudent,
-                entered_by: 'admin'
-            };
-            
-            const { data: existingMarks, error: checkError } = await supabase
-                .from('marks')
-                .select('*')
-                .eq('student_id', markData.studentId)
-                .eq('course_id', markData.courseId)
-                .eq('assessment_name', markData.assessmentName)
-                .maybeSingle();
-                
-            let result;
-            
-            if (existingMarks) {
-                const { data: updatedData, error: updateError } = await supabase
-                    .from('marks')
-                    .update({
-                        score: mark.score,
-                        max_score: mark.max_score,
-                        percentage: mark.percentage,
-                        grade: mark.grade,
-                        grade_points: mark.grade_points,
-                        remarks: mark.remarks,
-                        visible_to_student: mark.visible_to_student,
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('id', existingMarks.id)
-                    .select()
-                    .single();
-                    
-                if (updateError) throw updateError;
-                result = updatedData;
-                await this.logActivity('marks_updated', `Updated marks for student`);
-            } else {
-                const { data: newData, error: insertError } = await supabase
-                    .from('marks')
-                    .insert([mark])
-                    .select()
-                    .single();
-                    
-                if (insertError) throw insertError;
-                result = newData;
-                await this.logActivity('marks_entered', `Entered new marks for student`);
-            }
-            
-            return result;
-        } catch (error) {
-            console.error('Error in addMark:', error);
-            throw error;
+   async addMark(markData) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        // Use the percentage from markData if it exists, otherwise calculate it
+        let percentage;
+        if (markData.percentage !== undefined && markData.percentage !== null) {
+            percentage = markData.percentage;
+        } else {
+            // Calculate from score and max_score (note: snake_case)
+            const score = markData.score || markData.Score;
+            const maxScore = markData.max_score || markData.maxScore || 100;
+            percentage = (score / maxScore) * 100;
         }
+        
+        // Use grade from markData if it exists, otherwise calculate it
+        let gradeObj;
+        if (markData.grade && markData.grade_points) {
+            gradeObj = {
+                grade: markData.grade,
+                points: markData.grade_points
+            };
+        } else {
+            gradeObj = this.calculateGrade(percentage);
+        }
+        
+        // Build the mark object with BOTH camelCase and snake_case support
+        const mark = {
+            student_id: markData.student_id || markData.studentId,
+            course_id: markData.course_id || markData.courseId,
+            assessment_type: markData.assessment_type || markData.assessmentType,
+            assessment_name: markData.assessment_name || markData.assessmentName || 'Assessment',
+            score: markData.score || markData.Score,
+            max_score: markData.max_score || markData.maxScore || 100,
+            percentage: parseFloat(percentage.toFixed(2)),
+            grade: gradeObj.grade,
+            grade_points: gradeObj.points,
+            remarks: markData.remarks || '',
+            visible_to_student: markData.visible_to_student !== undefined 
+                ? markData.visible_to_student 
+                : (markData.visibleToStudent !== undefined ? markData.visibleToStudent : true),
+            entered_by: markData.entered_by || 'admin',
+            assessment_date: markData.assessment_date || new Date().toISOString().split('T')[0]
+        };
+        
+        console.log('📤 DATABASE: Prepared mark data:', mark);
+        
+        // Check if mark already exists
+        const { data: existingMarks, error: checkError } = await supabase
+            .from('marks')
+            .select('*')
+            .eq('student_id', mark.student_id)
+            .eq('course_id', mark.course_id)
+            .eq('assessment_name', mark.assessment_name)
+            .maybeSingle();
+            
+        let result;
+        
+        if (existingMarks) {
+            // Update existing mark
+            const { data: updatedData, error: updateError } = await supabase
+                .from('marks')
+                .update({
+                    score: mark.score,
+                    max_score: mark.max_score,
+                    percentage: mark.percentage,
+                    grade: mark.grade,
+                    grade_points: mark.grade_points,
+                    remarks: mark.remarks,
+                    visible_to_student: mark.visible_to_student,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', existingMarks.id)
+                .select()
+                .single();
+                
+            if (updateError) throw updateError;
+            result = updatedData;
+            await this.logActivity('marks_updated', `Updated marks for student ${mark.student_id}`);
+        } else {
+            // Insert new mark
+            const { data: newData, error: insertError } = await supabase
+                .from('marks')
+                .insert([mark])
+                .select()
+                .single();
+                
+            if (insertError) throw insertError;
+            result = newData;
+            await this.logActivity('marks_entered', `Entered new marks for student ${mark.student_id}`);
+        }
+        
+        return result;
+    } catch (error) {
+        console.error('❌ Error in addMark:', error);
+        throw error;
     }
+}
     
     async getMarksTableData() {
         try {
