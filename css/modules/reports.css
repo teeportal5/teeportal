@@ -1,0 +1,214 @@
+/* ==================== */
+/* REPORTS MODULE */
+/* ==================== */
+
+/* Reports Header */
+.reports-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    color: white;
+    padding: 2.5rem 2rem;
+    border-radius: 0 0 20px 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.reports-title {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.reports-title i {
+    font-size: 2.5rem;
+    color: rgba(255,255,255,0.9);
+}
+
+.reports-title h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin: 0;
+    color: white;
+}
+
+.reports-title .subtitle {
+    font-size: 1rem;
+    opacity: 0.9;
+    margin: 0.5rem 0 0 4rem;
+}
+
+/* Smart Filters */
+.smart-filters {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin: 0 2rem 2rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+}
+
+.filter-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.filter-header i {
+    color: var(--primary);
+    font-size: 1.5rem;
+}
+
+.filter-header h3 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: var(--gray-900);
+    flex: 1;
+}
+
+.filter-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.btn-filter-clear, .btn-filter-apply {
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.btn-filter-clear {
+    background: var(--gray-100);
+    color: var(--gray-600);
+    border: 1px solid var(--gray-300);
+}
+
+.btn-filter-clear:hover {
+    background: var(--gray-200);
+    color: var(--gray-700);
+}
+
+.btn-filter-apply {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    color: white;
+}
+
+.btn-filter-apply:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(var(--primary-rgb), 0.4);
+}
+
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.filter-group label {
+    font-weight: 600;
+    color: var(--gray-700);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.select-wrapper {
+    position: relative;
+}
+
+.modern-select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--gray-300);
+    border-radius: 10px;
+    background: white;
+    font-size: 0.95rem;
+    color: var(--gray-700);
+    appearance: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.modern-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+}
+
+.select-wrapper i {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray-500);
+    pointer-events: none;
+}
+
+.date-group {
+    grid-column: span 2;
+}
+
+.date-range {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.date-input {
+    flex: 1;
+    position: relative;
+}
+
+.modern-date {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--gray-300);
+    border-radius: 10px;
+    font-size: 0.95rem;
+    color: var(--gray-700);
+    transition: all 0.3s ease;
+}
+
+.modern-date:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+}
+
+.date-input span {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray-500);
+    font-size: 0.85rem;
+    pointer-events: none;
+}
+
+.date-separator {
+    color: var(--gray-500);
+}
+
+.filter-status {
+    background: var(--gray-100);
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    display
