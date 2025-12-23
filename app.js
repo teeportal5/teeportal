@@ -1,4 +1,4 @@
-// app.js - Main application file (Updated with new areas)
+// app.js - Main application file (Updated with modal manager and programs support)
 class TEEPortalApp {
     constructor() {
         this.db = new TEEPortalSupabaseDB();
@@ -45,7 +45,7 @@ class TEEPortalApp {
             }
             
             if (typeof DashboardManager !== 'undefined') {
-                this.dashboard = new DashboardManager(this.db);
+                this.dashboard = new DashboardManager(this.db, this);
             }
             
             if (typeof ReportsManager !== 'undefined') {
@@ -53,10 +53,10 @@ class TEEPortalApp {
             }
             
             if (typeof TranscriptsManager !== 'undefined') {
-                this.transcripts = new TranscriptsManager(this.db);
+                this.transcripts = new TranscriptsManager(this.db, this);
             }
             
-            // NEW: Initialize area managers if they exist
+            // Initialize area managers if they exist
             if (typeof CountyManager !== 'undefined') {
                 this.counties = new CountyManager(this.db, this);
             }
@@ -100,6 +100,7 @@ class TEEPortalApp {
             this.initializeModules();
             
             // Setup event listeners
+            console.log('🔧 Setting up event listeners...');
             this.setupEventListeners();
             
             // Load initial data
@@ -113,6 +114,9 @@ class TEEPortalApp {
             this.initialized = true;
             console.log('✅ TEEPortal Ready');
             this.showToast('System initialized successfully', 'success');
+            
+            // Update global reference
+            window.app = this;
             
         } catch (error) {
             console.error('❌ Initialization failed:', error);
@@ -147,6 +151,11 @@ class TEEPortalApp {
                 await this.students.loadStudentsTable();
             }
             
+            // Load programs
+            if (this.programs && this.programs.loadProgramsTable) {
+                await this.programs.loadProgramsTable();
+            }
+            
             // Load courses
             if (this.courses && this.courses.loadCourses) {
                 await this.courses.loadCourses();
@@ -162,7 +171,7 @@ class TEEPortalApp {
                 await this.reports.initializeReportsUI();
             }
             
-            // NEW: Load county, centre, and program data
+            // Load county, centre, and program data
             await this.loadAreaData();
             
             // Update dashboard
@@ -179,7 +188,7 @@ class TEEPortalApp {
     }
     
     /**
-     * NEW: Load area data (counties, centres, programs)
+     * Load area data (counties, centres, programs)
      */
     async loadAreaData() {
         try {
@@ -203,7 +212,7 @@ class TEEPortalApp {
     }
     
     /**
-     * NEW: Populate county dropdowns throughout the app
+     * Populate county dropdowns throughout the app
      */
     async populateCountyDropdowns() {
         try {
@@ -242,7 +251,7 @@ class TEEPortalApp {
     }
     
     /**
-     * NEW: Populate centre dropdowns throughout the app
+     * Populate centre dropdowns throughout the app
      */
     async populateCentreDropdowns() {
         try {
@@ -272,7 +281,7 @@ class TEEPortalApp {
     }
     
     /**
-     * NEW: Populate program dropdowns throughout the app
+     * Populate program dropdowns throughout the app
      */
     async populateProgramDropdowns() {
         try {
@@ -283,7 +292,7 @@ class TEEPortalApp {
             if (programSelect) {
                 programSelect.innerHTML = '<option value="">Select Program</option>' +
                     programs.map(program => 
-                        `<option value="${this.escapeHtml(program.code)}">${this.escapeHtml(program.name)} (${this.escapeHtml(program.code)})</option>`
+                        `<option value="${this.escapeHtml(program.id)}">${this.escapeHtml(program.name)} (${this.escapeHtml(program.code)})</option>`
                     ).join('');
             }
             
@@ -292,7 +301,7 @@ class TEEPortalApp {
             if (courseProgramSelect) {
                 courseProgramSelect.innerHTML = '<option value="">Select Program</option>' +
                     programs.map(program => 
-                        `<option value="${this.escapeHtml(program.code)}">${this.escapeHtml(program.name)}</option>`
+                        `<option value="${this.escapeHtml(program.id)}">${this.escapeHtml(program.name)}</option>`
                     ).join('');
             }
             
@@ -301,7 +310,7 @@ class TEEPortalApp {
             if (filterProgramSelect) {
                 filterProgramSelect.innerHTML = '<option value="">All Programs</option>' +
                     programs.map(program => 
-                        `<option value="${this.escapeHtml(program.code)}">${this.escapeHtml(program.name)}</option>`
+                        `<option value="${this.escapeHtml(program.id)}">${this.escapeHtml(program.name)}</option>`
                     ).join('');
             }
             
@@ -310,9 +319,11 @@ class TEEPortalApp {
             if (marksProgramSelect) {
                 marksProgramSelect.innerHTML = '<option value="">All Programs</option>' +
                     programs.map(program => 
-                        `<option value="${this.escapeHtml(program.code)}">${this.escapeHtml(program.name)}</option>`
+                        `<option value="${this.escapeHtml(program.id)}">${this.escapeHtml(program.name)}</option>`
                     ).join('');
             }
+            
+            console.log(`Loaded ${programs.length} programs into dropdowns`);
             
         } catch (error) {
             console.error('Error populating program dropdowns:', error);
@@ -332,7 +343,8 @@ class TEEPortalApp {
             }
         });
         
-        this.populateDropdowns();
+        // Initialize intake year dropdown
+        this.populateIntakeYearDropdown();
         
         // Initialize settings tabs
         if (document.querySelector('.settings-tab-btn')) {
@@ -346,17 +358,23 @@ class TEEPortalApp {
         }
     }
     
-    async populateDropdowns() {
-        // Load marks dropdowns
-        if (this.marks && this.marks.populateStudentDropdown) {
-            await this.marks.populateStudentDropdown();
+    populateIntakeYearDropdown() {
+        const intakeSelect = document.getElementById('studentIntake');
+        if (intakeSelect) {
+            const currentYear = new Date().getFullYear();
+            intakeSelect.innerHTML = '<option value="">Select Intake Year</option>';
+            
+            // Add 10 years back and 2 years forward
+            for (let year = currentYear - 10; year <= currentYear + 2; year++) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                if (year === currentYear) {
+                    option.selected = true;
+                }
+                intakeSelect.appendChild(option);
+            }
         }
-        if (this.marks && this.marks.populateCourseDropdown) {
-            await this.marks.populateCourseDropdown();
-        }
-        
-        // NEW: Also load area dropdowns
-        await this.loadAreaData();
     }
     
     setupEventListeners() {
@@ -400,17 +418,20 @@ class TEEPortalApp {
                 });
             }
             
-            // NEW: Area management form submissions
-            const countyForm = document.getElementById('countyForm');
-            if (countyForm) {
-                countyForm.addEventListener('submit', (e) => {
+            // Program form submission
+            const programForm = document.getElementById('programForm');
+            if (programForm) {
+                programForm.addEventListener('submit', (e) => {
                     e.preventDefault();
-                    if (this.counties && this.counties.saveCounty) {
-                        this.counties.saveCounty(e);
+                    if (this.programs && this.programs.saveProgram) {
+                        this.programs.saveProgram(e);
+                    } else {
+                        this.showToast('Program module not available', 'error');
                     }
                 });
             }
             
+            // Centre form submission
             const centreForm = document.getElementById('centreForm');
             if (centreForm) {
                 centreForm.addEventListener('submit', (e) => {
@@ -421,17 +442,7 @@ class TEEPortalApp {
                 });
             }
             
-            const programForm = document.getElementById('programForm');
-            if (programForm) {
-                programForm.addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    if (this.programs && this.programs.saveProgram) {
-                        this.programs.saveProgram(e);
-                    }
-                });
-            }
-            
-            // NEW: Filter event listeners
+            // Filter event listeners
             const filterCounty = document.getElementById('filterCounty');
             if (filterCounty) {
                 filterCounty.addEventListener('change', () => {
@@ -450,6 +461,15 @@ class TEEPortalApp {
                 });
             }
             
+            const filterProgram = document.getElementById('filterProgram');
+            if (filterProgram) {
+                filterProgram.addEventListener('change', () => {
+                    if (this.students && this.students.filterStudents) {
+                        this.students.filterStudents();
+                    }
+                });
+            }
+            
             console.log('✅ Event listeners setup complete');
             
         } catch (error) {
@@ -459,31 +479,97 @@ class TEEPortalApp {
     
     showToast(message, type = 'info') {
         try {
+            // Create toast element
             const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
+            toast.className = `toast toast-${type}`;
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+                color: white;
+                border-radius: 8px;
+                z-index: 9999;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                animation: slideIn 0.3s ease;
+                max-width: 400px;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            `;
+            
+            // Icon based on type
+            const icon = type === 'success' ? 'fa-check-circle' : 
+                         type === 'error' ? 'fa-exclamation-circle' : 
+                         'fa-info-circle';
+            
             toast.innerHTML = `
-                <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
-                <span>${this.escapeHtml(message)}</span>
-                <button onclick="this.parentElement.remove()">
+                <i class="fas ${icon}" style="font-size: 18px;"></i>
+                <span style="flex: 1;">${this.escapeHtml(message)}</span>
+                <button onclick="this.parentElement.remove()" style="
+                    background: none;
+                    border: none;
+                    color: white;
+                    cursor: pointer;
+                    padding: 0;
+                    font-size: 16px;
+                    opacity: 0.8;
+                ">
                     <i class="fas fa-times"></i>
                 </button>
             `;
             
-            let container = document.getElementById('toastContainer');
-            if (!container) {
-                container = document.createElement('div');
-                container.id = 'toastContainer';
-                container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999;';
-                document.body.appendChild(container);
+            // Remove existing toasts if too many
+            const existingToasts = document.querySelectorAll('.toast');
+            if (existingToasts.length > 3) {
+                existingToasts[0].remove();
             }
             
-            container.appendChild(toast);
+            document.body.appendChild(toast);
             
+            // Auto remove after 5 seconds
             setTimeout(() => {
                 if (toast.parentElement) {
-                    toast.remove();
+                    toast.style.animation = 'slideOut 0.3s ease';
+                    setTimeout(() => {
+                        if (toast.parentElement) {
+                            toast.remove();
+                        }
+                    }, 300);
                 }
             }, 5000);
+            
+            // Add animation styles if not already present
+            if (!document.querySelector('#toast-animations')) {
+                const style = document.createElement('style');
+                style.id = 'toast-animations';
+                style.textContent = `
+                    @keyframes slideIn {
+                        from {
+                            transform: translateX(100%);
+                            opacity: 0;
+                        }
+                        to {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                    }
+                    @keyframes slideOut {
+                        from {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                        to {
+                            transform: translateX(100%);
+                            opacity: 0;
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
         } catch (error) {
             console.error('Error showing toast:', error);
         }
@@ -556,119 +642,74 @@ class TEEPortalApp {
     }
     
     /**
-     * Open student modal
+     * Open student modal (compatibility function)
      */
     openStudentModal() {
-        try {
-            if (this.students && this.students.ui && this.students.ui.openModal) {
-                this.students.ui.openModal('studentModal');
+        const modal = document.getElementById('studentModal');
+        if (modal) {
+            // Use modal manager if available
+            if (window.modalManager) {
+                window.modalManager.openModal('studentModal');
             } else {
                 // Fallback
-                const modal = document.getElementById('studentModal');
-                if (modal) {
-                    modal.style.display = 'block';
-                    modal.classList.add('active');
-                    document.body.style.overflow = 'hidden';
-                }
+                modal.style.display = 'block';
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
             }
-        } catch (error) {
-            console.error('Error opening student modal:', error);
-            this.showToast('Could not open student form', 'error');
         }
     }
     
     /**
-     * Open marks modal
+     * Open marks modal (compatibility function)
      */
     openMarksModal() {
-        try {
-            if (this.marks && this.marks.ui && this.marks.ui.openModal) {
-                this.marks.ui.openModal('marksModal');
+        const modal = document.getElementById('marksModal');
+        if (modal) {
+            // Use modal manager if available
+            if (window.modalManager) {
+                window.modalManager.openModal('marksModal');
             } else {
                 // Fallback
-                const modal = document.getElementById('marksModal');
-                if (modal) {
-                    modal.style.display = 'block';
-                    modal.classList.add('active');
-                    document.body.style.overflow = 'hidden';
-                }
+                modal.style.display = 'block';
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
             }
-        } catch (error) {
-            console.error('Error opening marks modal:', error);
-            this.showToast('Could not open marks form', 'error');
         }
     }
     
     /**
-     * Open course modal
+     * Open course modal (compatibility function)
      */
     openCourseModal() {
-        try {
-            if (this.courses && this.courses.ui && this.courses.ui.openModal) {
-                this.courses.ui.openModal('courseModal');
+        const modal = document.getElementById('courseModal');
+        if (modal) {
+            // Use modal manager if available
+            if (window.modalManager) {
+                window.modalManager.openModal('courseModal');
             } else {
                 // Fallback
-                const modal = document.getElementById('courseModal');
-                if (modal) {
-                    modal.style.display = 'block';
-                    modal.classList.add('active');
-                    document.body.style.overflow = 'hidden';
-                }
-            }
-        } catch (error) {
-            console.error('Error opening course modal:', error);
-            this.showToast('Could not open course form', 'error');
-        }
-    }
-    
-    /**
-     * NEW: Open county modal
-     */
-    openCountyModal() {
-        try {
-            const modal = document.getElementById('countyModal');
-            if (modal) {
                 modal.style.display = 'block';
                 modal.classList.add('active');
                 document.body.style.overflow = 'hidden';
             }
-        } catch (error) {
-            console.error('Error opening county modal:', error);
-            this.showToast('Could not open county form', 'error');
         }
     }
     
     /**
-     * NEW: Open centre modal
-     */
-    openCentreModal() {
-        try {
-            const modal = document.getElementById('centreModal');
-            if (modal) {
-                modal.style.display = 'block';
-                modal.classList.add('active');
-                document.body.style.overflow = 'hidden';
-            }
-        } catch (error) {
-            console.error('Error opening centre modal:', error);
-            this.showToast('Could not open centre form', 'error');
-        }
-    }
-    
-    /**
-     * NEW: Open program modal
+     * Open program modal (compatibility function)
      */
     openProgramModal() {
-        try {
-            const modal = document.getElementById('programModal');
-            if (modal) {
+        const modal = document.getElementById('programModal');
+        if (modal) {
+            // Use modal manager if available
+            if (window.modalManager) {
+                window.modalManager.openModal('programModal');
+            } else {
+                // Fallback
                 modal.style.display = 'block';
                 modal.classList.add('active');
                 document.body.style.overflow = 'hidden';
             }
-        } catch (error) {
-            console.error('Error opening program modal:', error);
-            this.showToast('Could not open program form', 'error');
         }
     }
     
@@ -683,6 +724,53 @@ class TEEPortalApp {
         } catch (error) {
             console.error('Error refreshing data:', error);
             this.showToast('Failed to refresh data', 'error');
+        }
+    }
+    
+    /**
+     * Refresh dashboard
+     */
+    async refreshDashboard() {
+        if (this.dashboard && this.dashboard.updateDashboard) {
+            try {
+                await this.dashboard.updateDashboard();
+                this.showToast('Dashboard refreshed', 'success');
+            } catch (error) {
+                console.error('Error refreshing dashboard:', error);
+                this.showToast('Failed to refresh dashboard', 'error');
+            }
+        }
+    }
+    
+    /**
+     * Health check
+     */
+    async healthCheck() {
+        try {
+            // Check database connection
+            const dbHealthy = await this.db.healthCheck();
+            
+            // Check if modules are loaded
+            const modulesHealthy = this.students && this.programs && this.courses;
+            
+            return {
+                healthy: dbHealthy && modulesHealthy,
+                database: dbHealthy,
+                modules: {
+                    students: !!this.students,
+                    programs: !!this.programs,
+                    courses: !!this.courses,
+                    marks: !!this.marks,
+                    centres: !!this.centres
+                },
+                timestamp: new Date().toISOString()
+            };
+        } catch (error) {
+            return {
+                healthy: false,
+                error: error.message,
+                timestamp: new Date().toISOString()
+            };
         }
     }
 }
@@ -781,17 +869,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // Show dashboard by default
         setTimeout(() => {
-            if (typeof showSection === 'function') {
+            // Check URL hash first
+            const hash = window.location.hash.substring(1);
+            if (hash && document.getElementById(hash)) {
+                showSection(hash);
+            } else {
                 showSection('dashboard');
-                
-                // Set dashboard nav as active
-                document.querySelectorAll('.nav-link').forEach(link => {
-                    link.classList.remove('active');
-                });
-                const dashboardLink = document.querySelector('[onclick*="dashboard"]');
-                if (dashboardLink) {
-                    dashboardLink.classList.add('active');
-                }
             }
         }, 100);
         
@@ -861,256 +944,175 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 });
 
-// Fixed Global helper functions
-if (typeof showSection === 'undefined') {
-    let currentSection = null;
-    let sectionSwitchInProgress = false;
+// ==============================
+// GLOBAL HELPER FUNCTIONS
+// ==============================
+
+// Global showSection function
+window.showSection = function(sectionId) {
+    console.log('🔄 Switching to section:', sectionId);
     
-    window.showSection = function(sectionId) {
-        // Prevent concurrent section switches
-        if (sectionSwitchInProgress) {
-            console.warn('Section switch already in progress');
-            return;
-        }
-        
-        // Prevent switching to same section
-        if (currentSection === sectionId) {
-            return;
-        }
-        
-        sectionSwitchInProgress = true;
-        console.log('🔄 Switching to section:', sectionId);
-        
-        try {
-            // Hide all sections
-            document.querySelectorAll('.content-section').forEach(section => {
-                section.style.display = 'none';
-                section.classList.remove('active');
-            });
-            
-            // Show selected section
-            const targetSection = document.getElementById(sectionId);
-            if (targetSection) {
-                targetSection.style.display = 'block';
-                setTimeout(() => {
-                    targetSection.classList.add('active');
-                }, 10);
-                
-                currentSection = sectionId;
-                
-                // Lazy load section content if needed
-                lazyLoadSectionContent(sectionId);
-                
-                // Update active nav link
-                updateActiveNav(sectionId);
-            } else {
-                console.error('Section not found:', sectionId);
-            }
-            
-        } catch (error) {
-            console.error('Error switching section:', error);
-        } finally {
-            sectionSwitchInProgress = false;
-        }
-    };
+    // Update URL hash
+    history.replaceState(null, null, '#' + sectionId);
     
-    // Set today's date in date fields
-    document.addEventListener('DOMContentLoaded', function() {
-        const dateFields = document.querySelectorAll('input[type="date"]');
-        const today = new Date().toISOString().split('T')[0];
-        dateFields.forEach(field => {
-            if (!field.value) {
-                field.value = today;
-            }
-        });
+    // Remove active class from all sections
+    document.querySelectorAll('.content-section').forEach(section => {
+        section.classList.remove('active');
     });
     
-    // Helper function for lazy loading
-    function lazyLoadSectionContent(sectionId) {
-        const app = window.app;
-        if (!app) return;
+    // Remove active class from all nav links
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+    });
+    
+    // Add active class to target section
+    const targetSection = document.getElementById(sectionId);
+    if (targetSection) {
+        console.log('✅ Found section, showing:', sectionId);
+        targetSection.classList.add('active');
         
-        switch(sectionId) {
-            case 'reports':
-                if (app.reports && typeof app.reports.initializeReportsUI === 'function') {
-                    // Check if already initialized
-                    const reportsSection = document.getElementById('reports');
-                    if (!reportsSection.dataset.initialized) {
-                        console.log('📊 Initializing reports UI...');
-                        app.reports.initializeReportsUI().then(() => {
-                            reportsSection.dataset.initialized = 'true';
-                            console.log('✅ Reports UI initialized');
-                        }).catch(error => {
-                            console.error('Failed to initialize reports:', error);
-                        });
-                    }
-                }
-                break;
-                
-            case 'dashboard':
-                if (app.dashboard && typeof app.dashboard.updateDashboard === 'function') {
-                    // Refresh dashboard data after a short delay
-                    setTimeout(() => {
-                        app.dashboard.updateDashboard().catch(error => {
-                            console.warn('Dashboard update failed:', error);
-                        });
-                    }, 100);
-                }
-                break;
-                
-            case 'transcripts':
-                if (app.transcripts && typeof app.transcripts.initialize === 'function') {
-                    const transcriptsSection = document.getElementById('transcripts');
-                    if (!transcriptsSection.dataset.initialized) {
-                        console.log('📄 Initializing transcripts...');
-                        app.transcripts.initialize().then(() => {
-                            transcriptsSection.dataset.initialized = 'true';
-                        }).catch(error => {
-                            console.error('Failed to initialize transcripts:', error);
-                        });
-                    }
-                }
-                break;
-                
-            case 'settings':
-                if (app.settings && typeof app.settings.initialize === 'function') {
-                    const settingsSection = document.getElementById('settings');
-                    if (!settingsSection.dataset.initialized) {
-                        console.log('⚙️ Initializing settings...');
-                        app.settings.initialize().then(() => {
-                            settingsSection.dataset.initialized = 'true';
-                        }).catch(error => {
-                            console.error('Failed to initialize settings:', error);
-                        });
-                    }
-                }
-                break;
+        // Update page title
+        const titleElement = document.getElementById('section-title');
+        if (titleElement) {
+            const titleMap = {
+                'dashboard': 'Dashboard Overview',
+                'students': 'Student Management',
+                'programs': 'Program Management',
+                'courses': 'Course Management',
+                'marks': 'Academic Records',
+                'reports': 'Reports & Analytics',
+                'centres': 'Centre Management',
+                'profile': 'User Profile',
+                'settings': 'System Settings'
+            };
+            titleElement.textContent = titleMap[sectionId] || sectionId;
         }
+    } else {
+        console.error('❌ Section not found:', sectionId);
+        // Fallback to dashboard
+        showSection('dashboard');
+        return;
     }
     
-    // Update active navigation
-    function updateActiveNav(sectionId) {
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.classList.remove('active');
-        });
-        
-        // Find the nav link that corresponds to this section
-        const navLink = document.querySelector(`[onclick*="${sectionId}"]`);
-        if (navLink) {
-            navLink.classList.add('active');
-        }
+    // Add active class to nav link
+    const navLink = document.querySelector(`a[href="#${sectionId}"]`);
+    if (navLink) {
+        navLink.classList.add('active');
+    }
+    
+    // Lazy load section data if needed
+    setTimeout(() => {
+        lazyLoadSectionData(sectionId);
+    }, 100);
+};
+
+// Lazy load section data
+function lazyLoadSectionData(sectionId) {
+    const app = window.app;
+    if (!app) return;
+    
+    switch(sectionId) {
+        case 'dashboard':
+            if (app.dashboard?.updateDashboard) {
+                app.dashboard.updateDashboard();
+            }
+            break;
+        case 'students':
+            if (app.students?.loadStudentsTable) {
+                app.students.loadStudentsTable();
+            }
+            break;
+        case 'programs':
+            if (app.programs?.loadProgramsTable) {
+                app.programs.loadProgramsTable();
+            }
+            break;
+        case 'courses':
+            if (app.courses?.loadCourses) {
+                app.courses.loadCourses();
+            }
+            break;
+        case 'centres':
+            if (app.centres?.loadCentres) {
+                app.centres.loadCentres();
+            }
+            break;
+        case 'reports':
+            if (app.reports?.initializeReportsUI) {
+                const reportsSection = document.getElementById('reports');
+                if (!reportsSection.dataset.initialized) {
+                    app.reports.initializeReportsUI().then(() => {
+                        reportsSection.dataset.initialized = 'true';
+                    });
+                }
+            }
+            break;
     }
 }
 
-// Add to the end of app.js, before the closing </script> tag
-const style = document.createElement('style');
-style.textContent = `
-    /* Section styling */
-    .content-section {
-        display: none;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-        padding: 20px;
-        min-height: 500px;
+// Handle hash changes
+window.addEventListener('hashchange', function() {
+    const hash = window.location.hash.substring(1);
+    if (hash && document.getElementById(hash)) {
+        showSection(hash);
     }
-    
-    .content-section.active {
-        display: block;
-        opacity: 1;
+});
+
+// Set today's date in date fields
+document.addEventListener('DOMContentLoaded', function() {
+    const dateFields = document.querySelectorAll('input[type="date"]');
+    const today = new Date().toISOString().split('T')[0];
+    dateFields.forEach(field => {
+        if (!field.value) {
+            field.value = today;
+        }
+        field.max = today;
+    });
+});
+
+// Add global modal functions for compatibility
+window.closeModal = function(modalId) {
+    if (window.modalManager) {
+        window.modalManager.closeModal(modalId);
+    } else {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
     }
-    
-    /* Navigation styling */
-    .nav-link {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 12px 15px;
-        color: #2c3e50;
-        text-decoration: none;
-        border-radius: 8px;
-        margin: 5px 0;
-        transition: all 0.3s ease;
-        cursor: pointer;
+};
+
+window.openModal = function(modalId) {
+    if (window.modalManager) {
+        window.modalManager.openModal(modalId);
+    } else {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'block';
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
     }
-    
-    .nav-link:hover {
-        background: #f8f9fa;
-        color: #3498db;
-        transform: translateX(5px);
+};
+
+// Global refresh function
+window.refreshDashboard = function() {
+    if (window.app && window.app.refreshDashboard) {
+        window.app.refreshDashboard();
     }
-    
-    .nav-link.active {
-        background: #3498db;
-        color: white;
-        font-weight: 600;
-    }
-    
-    .nav-link i {
-        width: 20px;
-        text-align: center;
-    }
-    
-    /* Dashboard specific */
-    .dashboard-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 20px;
-        margin-top: 20px;
-    }
-    
-    .stat-card {
-        background: white;
-        border-radius: 10px;
-        padding: 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        border-left: 4px solid #3498db;
-    }
-    
-    .stat-card h3 {
-        margin: 0 0 10px 0;
-        color: #2c3e50;
-        font-size: 16px;
-    }
-    
-    .stat-value {
-        font-size: 32px;
-        font-weight: bold;
-        color: #2c3e50;
-        margin-bottom: 5px;
-    }
-    
-    .stat-label {
-        color: #7f8c8d;
-        font-size: 14px;
-    }
-    
-    /* Toast styling */
+};
+
+// ==============================
+// ADD STYLES
+// ==============================
+
+// Add toast styles
+const toastStyles = document.createElement('style');
+toastStyles.textContent = `
     .toast {
-        background: white;
-        border-radius: 8px;
-        padding: 12px 15px;
-        margin-bottom: 10px;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.2);
-        display: flex;
-        align-items: center;
-        gap: 10px;
         animation: slideIn 0.3s ease;
-    }
-    
-    .toast.success {
-        border-left: 4px solid #2ecc71;
-    }
-    
-    .toast.error {
-        border-left: 4px solid #e74c3c;
-    }
-    
-    .toast.info {
-        border-left: 4px solid #3498db;
-    }
-    
-    .toast.warning {
-        border-left: 4px solid #f39c12;
     }
     
     @keyframes slideIn {
@@ -1123,62 +1125,18 @@ style.textContent = `
             opacity: 1;
         }
     }
+    
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
 `;
-document.head.appendChild(style);
-// In your app.js or HTML script
-window.showSection = function(sectionId) {
-    console.log('Switching to section:', sectionId);
-    
-    // If leaving dashboard, cleanup charts
-    if (window.app && window.app.dashboard && sectionId !== 'dashboard') {
-        if (window.app.dashboard.cleanup) {
-            window.app.dashboard.cleanup();
-        }
-    }
-    
-    // Hide all sections
-    document.querySelectorAll('.content-section').forEach(section => {
-        section.classList.remove('active');
-    });
-    
-    // Show selected section
-    const targetSection = document.getElementById(sectionId);
-    if (targetSection) {
-        targetSection.classList.add('active');
-        
-        // Update page title
-        const titleElement = document.getElementById('section-title');
-        if (titleElement) {
-            const titleMap = {
-                'dashboard': 'Dashboard Overview',
-                'students': 'Student Management',
-                'courses': 'Course Management',
-                'marks': 'Academic Records',
-                'reports': 'Reports & Analytics',
-                'centres': 'Centre Management',
-                'profile': 'User Profile',
-                'settings': 'System Settings'
-            };
-            titleElement.textContent = titleMap[sectionId] || sectionId;
-        }
-    }
-    
-    // Update active nav link
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.classList.remove('active');
-    });
-    
-    const navLink = document.querySelector(`a[href="#${sectionId}"]`);
-    if (navLink) {
-        navLink.classList.add('active');
-    }
-    
-    // Lazy load section data if it's dashboard
-    if (sectionId === 'dashboard' && window.app && window.app.dashboard) {
-        setTimeout(() => {
-            if (window.app.dashboard.updateDashboard) {
-                window.app.dashboard.updateDashboard();
-            }
-        }, 100);
-    }
-};
+document.head.appendChild(toastStyles);
+
+console.log('📦 app.js loaded successfully');
