@@ -107,38 +107,45 @@
 <body>
     <div class="app-container">
         <!-- Navigation Sidebar -->
-       <ul class="sidebar-menu">
-    <li><a href="#dashboard" onclick="showSection('dashboard')" class="nav-link active">
-        <i class="fas fa-home"></i> Dashboard
-    </a></li>
-    <li><a href="#students" onclick="showSection('students')" class="nav-link">
-        <i class="fas fa-user-graduate"></i> Students
-    </a></li>
-    <!-- ADD THIS: Programs Menu Item -->
-    <li><a href="#programs" onclick="showSection('programs')" class="nav-link">
-        <i class="fas fa-certificate"></i> Programs
-    </a></li>
-    <li><a href="#courses" onclick="showSection('courses')" class="nav-link">
-        <i class="fas fa-book"></i> Courses
-    </a></li>
-    <li><a href="#marks" onclick="showSection('marks')" class="nav-link">
-        <i class="fas fa-chart-bar"></i> Marks
-    </a></li>
-    <li><a href="#reports" onclick="showSection('reports')" class="nav-link">
-        <i class="fas fa-chart-line"></i> Reports
-    </a></li>
-    <li><a href="#centres" onclick="showSection('centres')" class="nav-link">
-        <i class="fas fa-map-marker-alt"></i> Centres
-    </a></li>
-    <li><a href="#profile" onclick="showSection('profile')" class="nav-link">
-        <i class="fas fa-user"></i> Profile
-    </a></li>
-    <li><a href="#settings" onclick="showSection('settings')" class="nav-link">
-        <i class="fas fa-cog"></i> Settings
-    </a></li>
-</ul>
+        <nav class="sidebar">
+            <!-- Sidebar Header -->
+            <div class="sidebar-header">
+                <h2><i class="fas fa-graduation-cap"></i> TEE Portal</h2>
+                <p class="sidebar-subtitle">Technical & Engineering Education</p>
+            </div>
             
-            <!-- User Profile in Sidebar -->
+            <!-- Sidebar Menu -->
+            <ul class="sidebar-menu">
+                <li><a href="#dashboard" onclick="showSection('dashboard')" class="nav-link active">
+                    <i class="fas fa-home"></i> Dashboard
+                </a></li>
+                <li><a href="#students" onclick="showSection('students')" class="nav-link">
+                    <i class="fas fa-user-graduate"></i> Students
+                </a></li>
+                <li><a href="#programs" onclick="showSection('programs')" class="nav-link">
+                    <i class="fas fa-certificate"></i> Programs
+                </a></li>
+                <li><a href="#courses" onclick="showSection('courses')" class="nav-link">
+                    <i class="fas fa-book"></i> Courses
+                </a></li>
+                <li><a href="#marks" onclick="showSection('marks')" class="nav-link">
+                    <i class="fas fa-chart-bar"></i> Marks
+                </a></li>
+                <li><a href="#reports" onclick="showSection('reports')" class="nav-link">
+                    <i class="fas fa-chart-line"></i> Reports
+                </a></li>
+                <li><a href="#centres" onclick="showSection('centres')" class="nav-link">
+                    <i class="fas fa-map-marker-alt"></i> Centres
+                </a></li>
+                <li><a href="#profile" onclick="showSection('profile')" class="nav-link">
+                    <i class="fas fa-user"></i> Profile
+                </a></li>
+                <li><a href="#settings" onclick="showSection('settings')" class="nav-link">
+                    <i class="fas fa-cog"></i> Settings
+                </a></li>
+            </ul>
+            
+            <!-- Sidebar Footer with User Profile -->
             <div class="sidebar-footer">
                 <div class="user-profile">
                     <div class="user-avatar">
@@ -163,9 +170,9 @@
                         <button class="btn btn-primary" onclick="app.refreshDashboard()">
                             <i class="fas fa-sync-alt"></i> Refresh
                         </button>
-                        <button class="btn btn-primary" onclick="openStudentModal()">
-                            <i class="fas fa-user-plus"></i> Add Student
-                        </button>
+                        <button class="btn btn-primary" data-open-modal="studentModal">
+    <i class="fas fa-user-plus"></i> Add Student
+</button>
                     </div>
                 </header>
                 
@@ -402,9 +409,9 @@
                 <div class="section-header">
                     <h2>Course Management</h2>
                     <div class="action-buttons">
-                        <button class="btn btn-primary" onclick="openCourseModal()">
-                            <i class="fas fa-book-medical"></i> Add Course
-                        </button>
+                        <button class="btn btn-primary" data-open-modal="courseModal">
+    <i class="fas fa-book-medical"></i> Add Course
+</button>
                         <button class="btn btn-secondary" onclick="app.courses.exportCourses()">
                             <i class="fas fa-download"></i> Export
                         </button>
@@ -425,9 +432,9 @@
                         <p class="section-subtitle">Manage and track student academic performance</p>
                     </div>
                     <div class="header-actions">
-                        <button class="btn btn-primary" onclick="app.marks.openMarksModal()">
-                            <i class="fas fa-plus"></i> New Record
-                        </button>
+                       <button class="btn btn-primary" data-open-modal="marksModal">
+    <i class="fas fa-plus"></i> New Record
+</button>
                     </div>
                 </div>
                 
