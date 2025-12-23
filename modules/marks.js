@@ -1,35 +1,34 @@
-// modules/marks.js - FIXED Marks Manager
+// modules/marks.js - FINAL FIXED VERSION
 class MarksManager {
     constructor(db, app) {
         this.db = db;
         this.app = app;
         
-        // State management
-        this.state = {
-            currentPage: 1,
-            pageSize: 25,
-            filteredData: [],
-            selectedMarks: new Set(),
-            viewMode: 'table',
-            sortColumn: null,
-            sortDirection: 'asc',
-            filters: {
-                search: '',
-                grade: '',
-                course: '',
-                date: '',
-                student: ''
-            },
-            isLoading: false
+        // Enhanced table properties
+        this.currentPage = 1;
+        this.pageSize = 25;
+        this.filteredData = [];
+        this.selectedMarks = new Set();
+        this.viewMode = 'table';
+        this.sortColumn = null;
+        this.sortDirection = 'asc';
+        this.filters = {
+            search: '',
+            grade: '',
+            course: '',
+            date: '',
+            student: ''
         };
         
-        // Initialize event listeners
-        this.initEventListeners();
+        // Initialize when ready
+        setTimeout(() => this.initEventListeners(), 100);
     }
     
     // ==================== INITIALIZATION ====================
     
     initEventListeners() {
+        console.log('🎯 Initializing MarksManager event listeners');
+        
         // Search input with debounce
         const searchInput = document.getElementById('marksSearch');
         if (searchInput) {
@@ -46,10 +45,13 @@ class MarksManager {
             }
         });
         
-        // View mode buttons
+        // View mode buttons - FIXED: Use proper event handlers
         document.querySelectorAll('.view-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const mode = e.target.getAttribute('onclick')?.match(/'([^']+)'/)?.[1] || 'table';
+                e.preventDefault();
+                const mode = btn.textContent.toLowerCase().includes('table') ? 'table' :
+                            btn.textContent.toLowerCase().includes('card') ? 'cards' :
+                            'compact';
                 this.setViewMode(mode);
             });
         });
@@ -71,33 +73,41 @@ class MarksManager {
         if (selectAll) {
             selectAll.addEventListener('change', () => this.toggleSelectAll());
         }
+        
+        // Clear filters button
+        const clearFiltersBtn = document.querySelector('.btn-outline[onclick*="clearFilters"]');
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.clearFilters();
+            });
+        }
     }
     
     // ==================== CORE DATA LOADING ====================
     
     async loadMarksTable() {
-        if (this.state.isLoading) return;
-        
         try {
-            this.state.isLoading = true;
-            this.showLoadingState(true);
-            
             console.log('📊 Loading marks table...');
-            
-            // Check if db.getMarksTableData exists
-            if (typeof this.db.getMarksTableData !== 'function') {
-                throw new Error('Database method getMarksTableData not available');
-            }
-            
             const marks = await this.db.getMarksTableData();
-            this.state.filteredData = marks || [];
+            this.filteredData = marks || [];
             
-            // Update all components
+            // Update summary stats
             this.updateSummaryStats(marks);
+            
+            // Update dashboard statistics
             this.updateDashboardStatistics(marks);
+            
+            // Apply any existing filters
             this.applyFilters();
+            
+            // Render based on current view mode
             this.renderCurrentView();
+            
+            // Update pagination
             this.updatePagination();
+            
+            // Update filter dropdowns
             await this.populateFilterDropdowns(marks);
             
             console.log('✅ Marks table loaded successfully');
@@ -105,43 +115,18 @@ class MarksManager {
         } catch (error) {
             console.error('❌ Error loading marks table:', error);
             this.showErrorState(error);
-        } finally {
-            this.state.isLoading = false;
-            this.showLoadingState(false);
-        }
-    }
-    
-    showLoadingState(show) {
-        const tableContainer = document.querySelector('.table-container');
-        if (tableContainer) {
-            if (show) {
-                let overlay = tableContainer.querySelector('.loading-overlay');
-                if (!overlay) {
-                    overlay = document.createElement('div');
-                    overlay.className = 'loading-overlay';
-                    overlay.innerHTML = `
-                        <div class="loading-spinner"></div>
-                        <div class="loading-text">Loading records...</div>
-                    `;
-                    tableContainer.appendChild(overlay);
-                }
-                overlay.style.display = 'flex';
-            } else {
-                const overlay = tableContainer.querySelector('.loading-overlay');
-                if (overlay) {
-                    overlay.style.display = 'none';
-                }
-            }
         }
     }
     
     // ==================== PROFESSIONAL GRADING SYSTEM ====================
     
     calculateGrade(percentage) {
+        // Validate input
         if (typeof percentage !== 'number' || isNaN(percentage) || percentage < 0) {
             return 'FAIL';
         }
         
+        // Cap percentage at 100%
         const cappedPercentage = Math.min(percentage, 100);
         
         // Professional grading scale
@@ -152,156 +137,205 @@ class MarksManager {
     }
     
     getGradePoints(grade) {
-        const gradePoints = {
+        const professionalGradePoints = {
             'DISTINCTION': 4.0,
             'CREDIT': 3.0,
             'PASS': 2.0,
             'FAIL': 0.0
         };
-        return gradePoints[grade?.toUpperCase()] || 0.0;
+        
+        const upperGrade = grade?.toUpperCase() || 'FAIL';
+        return professionalGradePoints[upperGrade] || 0.0;
     }
     
     getGradeDescription(grade) {
-        const descriptions = {
+        const professionalDescriptions = {
             'DISTINCTION': 'Excellent performance',
             'CREDIT': 'Good performance',
             'PASS': 'Satisfactory performance',
             'FAIL': 'Needs improvement'
         };
-        return descriptions[grade?.toUpperCase()] || 'No description available';
+        
+        const upperGrade = grade?.toUpperCase() || 'FAIL';
+        return professionalDescriptions[upperGrade] || 'No description available';
     }
     
     getGradeCSSClass(grade) {
-        const classes = {
+        const professionalClasses = {
             'DISTINCTION': 'grade-distinction',
             'CREDIT': 'grade-credit',
             'PASS': 'grade-pass',
             'FAIL': 'grade-fail'
         };
-        return classes[grade?.toUpperCase()] || 'grade-default';
+        
+        const upperGrade = grade?.toUpperCase() || 'FAIL';
+        return professionalClasses[upperGrade] || 'grade-default';
+    }
+    
+    // ==================== REAL-TIME VALIDATION ====================
+    
+    validateScoreInput(inputElement, maxScore) {
+        const value = parseFloat(inputElement.value);
+        
+        if (isNaN(value)) {
+            inputElement.value = '';
+            return 0;
+        }
+        
+        // Prevent negative scores
+        if (value < 0) {
+            inputElement.value = 0;
+            return 0;
+        }
+        
+        // Cap score at max score
+        if (maxScore && value > maxScore) {
+            inputElement.value = maxScore;
+            this.showToast(`Maximum score is ${maxScore}`, 'info');
+            return maxScore;
+        }
+        
+        return value;
+    }
+    
+    validateMaxScoreInput(inputElement) {
+        const value = parseFloat(inputElement.value);
+        
+        if (isNaN(value) || value <= 0) {
+            inputElement.value = 100;
+            return 100;
+        }
+        
+        return value;
     }
     
     // ==================== TABLE RENDERING ====================
     
     renderCurrentView() {
-        switch (this.state.viewMode) {
-            case 'table': this.renderTableView(); break;
-            case 'cards': this.renderCardsView(); break;
-            case 'compact': this.renderCompactView(); break;
+        switch (this.viewMode) {
+            case 'table':
+                this.renderTableView();
+                break;
+            case 'cards':
+                this.renderCardsView();
+                break;
+            case 'compact':
+                this.renderCompactView();
+                break;
         }
         this.updateSelectedCounts();
     }
     
     renderTableView() {
         const tbody = document.querySelector('#marksTableBody');
-        if (!tbody) {
-            console.error('Table body not found');
-            return;
-        }
+        if (!tbody) return;
         
-        const startIndex = (this.state.currentPage - 1) * this.state.pageSize;
-        const endIndex = startIndex + this.state.pageSize;
-        const pageData = this.state.filteredData.slice(startIndex, endIndex);
+        const startIndex = (this.currentPage - 1) * this.pageSize;
+        const endIndex = startIndex + this.pageSize;
+        const pageData = this.filteredData.slice(startIndex, endIndex);
         
         if (pageData.length === 0) {
             tbody.innerHTML = this.getEmptyStateHTML();
             return;
         }
         
-        tbody.innerHTML = pageData.map(mark => this.createTableRow(mark)).join('');
-    }
-    
-    createTableRow(mark) {
-        const isSelected = this.state.selectedMarks.has(mark.id);
-        const student = mark.students || {};
-        const course = mark.courses || {};
+        let html = '';
         
-        // Calculate values safely
-        const score = mark.score || 0;
-        const maxScore = mark.max_score || 100;
-        let percentage = mark.percentage;
-        if (percentage === undefined && maxScore > 0) {
-            percentage = (score / maxScore) * 100;
-        }
-        
-        let grade = mark.grade;
-        if (!grade && percentage !== undefined) {
-            grade = this.calculateGrade(percentage);
-        }
-        
-        const gradeCSSClass = this.getGradeCSSClass(grade);
-        const status = mark.visible_to_student ? 'published' : 'hidden';
-        
-        // Escape HTML to prevent XSS
-        const escapeHTML = (str) => {
-            if (!str) return '';
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
-        };
-        
-        return `
-            <tr data-mark-id="${mark.id}" class="${isSelected ? 'selected' : ''}">
-                <td class="select-col">
-                    <input type="checkbox" 
-                           ${isSelected ? 'checked' : ''}
-                           onchange="app.marks.toggleSelection('${mark.id}')">
-                </td>
-                <td class="student-col">
-                    <div class="student-cell">
-                        <div class="student-avatar-small">
-                            ${this.getInitials(student.full_name || 'N/A')}
+        pageData.forEach((mark, index) => {
+            const isSelected = this.selectedMarks.has(mark.id);
+            const student = mark.students || {};
+            const course = mark.courses || {};
+            
+            // Calculate values
+            const score = mark.score || 0;
+            const maxScore = mark.max_score || 100;
+            let percentage = mark.percentage;
+            if (!percentage && maxScore > 0) {
+                percentage = (score / maxScore) * 100;
+            }
+            
+            let grade = mark.grade;
+            if (!grade && percentage !== undefined) {
+                grade = this.calculateGrade(parseFloat(percentage));
+            }
+            
+            const gradeCSSClass = this.getGradeCSSClass(grade);
+            const gradePoints = this.getGradePoints(grade);
+            const status = mark.visible_to_student ? 'published' : 'hidden';
+            
+            // Escape HTML to prevent XSS
+            const escapeHTML = (str) => {
+                if (!str) return '';
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            };
+            
+            html += `
+                <tr data-mark-id="${mark.id}" class="${isSelected ? 'selected' : ''}">
+                    <td class="select-col">
+                        <input type="checkbox" 
+                               ${isSelected ? 'checked' : ''}
+                               onchange="window.app.marks.toggleSelection('${mark.id}')">
+                    </td>
+                    <td class="student-col">
+                        <div class="student-cell">
+                            <div class="student-avatar-small">
+                                ${this.getInitials(student.full_name || 'N/A')}
+                            </div>
+                            <div class="student-details">
+                                <div class="student-name">${escapeHTML(student.full_name || 'N/A')}</div>
+                                <div class="student-id">${escapeHTML(student.reg_number || 'N/A')}</div>
+                            </div>
                         </div>
-                        <div class="student-details">
-                            <div class="student-name">${escapeHTML(student.full_name || 'N/A')}</div>
-                            <div class="student-id">${escapeHTML(student.reg_number || 'N/A')}</div>
+                    </td>
+                    <td class="course-col">
+                        <div class="course-code">${escapeHTML(course.course_code || 'N/A')}</div>
+                        <div class="course-name">${escapeHTML(course.course_name || '')}</div>
+                    </td>
+                    <td class="assessment-col">
+                        <div class="assessment-type">${escapeHTML(mark.assessment_type || 'N/A')}</div>
+                        <div class="assessment-name">${escapeHTML(mark.assessment_name || '')}</div>
+                    </td>
+                    <td class="score-col">
+                        <div class="score-display">
+                            <div class="score-value">${score}/${maxScore}</div>
+                            <div class="score-percentage">${percentage ? percentage.toFixed(1) : '0.0'}%</div>
                         </div>
-                    </div>
-                </td>
-                <td class="course-col">
-                    <div class="course-code">${escapeHTML(course.course_code || 'N/A')}</div>
-                    <div class="course-name">${escapeHTML(course.course_name || '')}</div>
-                </td>
-                <td class="assessment-col">
-                    <div class="assessment-type">${escapeHTML(mark.assessment_type || 'N/A')}</div>
-                    <div class="assessment-name">${escapeHTML(mark.assessment_name || '')}</div>
-                </td>
-                <td class="score-col">
-                    <div class="score-display">
-                        <div class="score-value">${score}/${maxScore}</div>
-                        <div class="score-percentage">${percentage ? percentage.toFixed(1) : '0.0'}%</div>
-                    </div>
-                </td>
-                <td class="grade-col">
-                    <span class="grade-badge-table ${gradeCSSClass}" 
-                          title="${this.getGradeDescription(grade)}">
-                        ${grade || 'FAIL'}
-                    </span>
-                </td>
-                <td class="date-col">
-                    ${mark.created_at ? this.formatDate(mark.created_at) : 'N/A'}
-                </td>
-                <td class="status-col">
-                    <span class="status-indicator ${status}">
-                        <i class="fas fa-${status === 'published' ? 'eye' : 'eye-slash'}"></i>
-                        ${status}
-                    </span>
-                </td>
-                <td class="actions-col">
-                    <div class="table-actions">
-                        <button class="action-btn" onclick="app.marks.editMark('${mark.id}')" title="Edit">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="action-btn" onclick="app.marks.viewDetails('${mark.id}')" title="View Details">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="action-btn btn-danger" onclick="app.marks.deleteMark('${mark.id}')" title="Delete">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `;
+                    </td>
+                    <td class="grade-col">
+                        <span class="grade-badge-table ${gradeCSSClass}" 
+                              title="${this.getGradeDescription(grade)}">
+                            ${grade || 'FAIL'}
+                        </span>
+                    </td>
+                    <td class="date-col">
+                        ${mark.created_at ? this.formatDate(mark.created_at) : 'N/A'}
+                    </td>
+                    <td class="status-col">
+                        <span class="status-indicator ${status}">
+                            <i class="fas fa-${status === 'published' ? 'eye' : 'eye-slash'}"></i>
+                            ${status}
+                        </span>
+                    </td>
+                    <td class="actions-col">
+                        <div class="table-actions">
+                            <button class="action-btn" onclick="window.app.marks.editMark('${mark.id}')" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="action-btn" onclick="window.app.marks.viewDetails('${mark.id}')" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="action-btn btn-danger" onclick="window.app.marks.deleteMark('${mark.id}')" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
     }
     
     // ==================== UTILITIES ====================
@@ -323,7 +357,7 @@ class MarksManager {
                 month: 'short',
                 year: 'numeric'
             });
-        } catch {
+        } catch (error) {
             return 'N/A';
         }
     }
@@ -332,13 +366,13 @@ class MarksManager {
         const content = `
             <i class="fas fa-chart-bar fa-3x"></i>
             <h3>No Academic Records Found</h3>
-            <p>${this.state.filteredData.length === 0 ? 'Get started by adding your first academic record' : 'No records match your filters'}</p>
-            ${this.state.filteredData.length === 0 ? `
-                <button class="btn-primary" onclick="app.marks.openMarksModal()">
+            <p>${this.filteredData.length === 0 ? 'Get started by adding your first academic record' : 'No records match your filters'}</p>
+            ${this.filteredData.length === 0 ? `
+                <button class="btn-primary" onclick="window.app.marks.openMarksModal()">
                     <i class="fas fa-plus"></i> Add First Record
                 </button>
             ` : `
-                <button class="btn-secondary" onclick="app.marks.clearFilters()">
+                <button class="btn-secondary" onclick="window.app.marks.clearFilters()">
                     <i class="fas fa-filter"></i> Clear Filters
                 </button>
             `}
@@ -364,16 +398,138 @@ class MarksManager {
                 <tr>
                     <td colspan="9" class="error-state">
                         <i class="fas fa-exclamation-triangle fa-2x"></i>
-                        <h3>Error loading academic records</h3>
-                        <p>${error.message || 'Unknown error'}</p>
-                        <div class="error-actions">
-                            <button class="btn-secondary" onclick="app.marks.loadMarksTable()">
-                                <i class="fas fa-redo"></i> Retry
-                            </button>
-                        </div>
+                        <p>Error loading academic records</p>
+                        <small class="d-block mt-1">${error.message || 'Unknown error'}</small>
+                        <button class="btn btn-secondary mt-2" onclick="window.app.marks.loadMarksTable()">
+                            <i class="fas fa-redo"></i> Retry
+                        </button>
                     </td>
                 </tr>
             `;
+        }
+    }
+    
+    // ==================== DASHBOARD STATISTICS ====================
+    
+    updateDashboardStatistics(marks) {
+        try {
+            if (!marks || !Array.isArray(marks)) return;
+            
+            console.log('📈 Updating dashboard statistics...');
+            
+            // Calculate statistics
+            const totalMarks = marks.length;
+            const distinctStudents = new Set(marks.map(m => m.student_id).filter(Boolean)).size;
+            
+            let avgScore = 0;
+            if (marks.length > 0) {
+                const totalPercentage = marks.reduce((sum, m) => sum + (m.percentage || 0), 0);
+                avgScore = totalPercentage / marks.length;
+            }
+            
+            // Grade distribution
+            const gradeDistribution = {
+                DISTINCTION: 0,
+                CREDIT: 0,
+                PASS: 0,
+                FAIL: 0
+            };
+            
+            marks.forEach(mark => {
+                const grade = mark.grade || this.calculateGrade(mark.percentage || 0);
+                if (gradeDistribution[grade] !== undefined) {
+                    gradeDistribution[grade]++;
+                }
+            });
+            
+            // Update dashboard elements if they exist
+            this.updateDashboardElement('totalMarks', totalMarks);
+            this.updateDashboardElement('totalStudents', distinctStudents);
+            this.updateDashboardElement('avgGrade', `${avgScore.toFixed(1)}%`);
+            
+            // Update grade distribution on dashboard
+            this.updateDashboardGradeDistribution(gradeDistribution, totalMarks);
+            
+            // Update recent activity
+            this.updateRecentActivity(marks);
+            
+            console.log('✅ Dashboard statistics updated');
+            
+        } catch (error) {
+            console.error('❌ Error updating dashboard statistics:', error);
+        }
+    }
+    
+    updateDashboardElement(elementId, value) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.textContent = value;
+        }
+    }
+    
+    updateDashboardGradeDistribution(distribution, total) {
+        // Update any grade distribution elements
+        ['DISTINCTION', 'CREDIT', 'PASS', 'FAIL'].forEach(grade => {
+            const element = document.getElementById(`${grade.toLowerCase()}Count`);
+            if (element) {
+                element.textContent = distribution[grade] || 0;
+            }
+        });
+    }
+    
+    updateRecentActivity(marks) {
+        const recentActivity = document.getElementById('recentActivity');
+        if (!recentActivity || !Array.isArray(marks) || marks.length === 0) return;
+        
+        // Get last 5 marks sorted by date
+        const recentMarks = marks
+            .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+            .slice(0, 5);
+        
+        let html = '';
+        
+        recentMarks.forEach(mark => {
+            const student = mark.students || {};
+            const course = mark.courses || {};
+            const timeAgo = this.getTimeAgo(mark.created_at);
+            
+            html += `
+                <div class="activity-item">
+                    <div class="activity-icon">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <div class="activity-details">
+                        <p><strong>${student.full_name || 'Student'}</strong> scored ${mark.score}/${mark.max_score} in ${course.course_code || 'Course'}</p>
+                        <div class="activity-time">${timeAgo}</div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        recentActivity.innerHTML = html;
+    }
+    
+    getTimeAgo(dateString) {
+        if (!dateString) return 'Unknown time';
+        
+        try {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffMs = now - date;
+            
+            if (diffMs < 0) return 'Just now';
+            
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins} min ago`;
+            if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+            if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+            return this.formatDate(dateString);
+        } catch (error) {
+            return 'Unknown time';
         }
     }
     
@@ -396,13 +552,16 @@ class MarksManager {
         
         const distinctionCount = marks.filter(m => m.grade === 'DISTINCTION').length;
         
-        // Update elements - FIXED: No string replacement needed
+        // Update DOM elements - FIXED: No string parsing needed
         this.updateElementText('totalRecords', totalRecords);
         this.updateElementText('distinctStudents', distinctStudents);
         this.updateElementText('avgScore', `${avgScore.toFixed(1)}%`);
         this.updateElementText('distinctionCount', distinctionCount);
         
+        // Update grade distribution
         this.updateGradeDistribution(marks);
+        
+        // Update recent updates
         this.updateRecentUpdates(marks);
     }
     
@@ -416,7 +575,6 @@ class MarksManager {
     updateElementText(id, value) {
         const element = document.getElementById(id);
         if (element) {
-            // Handle numbers and strings differently
             if (typeof value === 'number') {
                 element.textContent = value.toLocaleString();
             } else {
@@ -435,7 +593,8 @@ class MarksManager {
         }
         
         const grades = ['DISTINCTION', 'CREDIT', 'PASS', 'FAIL'];
-        const counts = { DISTINCTION: 0, CREDIT: 0, PASS: 0, FAIL: 0 };
+        const counts = {};
+        grades.forEach(grade => counts[grade] = 0);
         
         marks.forEach(mark => {
             const grade = mark.grade || this.calculateGrade(mark.percentage || 0);
@@ -443,11 +602,13 @@ class MarksManager {
         });
         
         const total = marks.length;
-        distribution.innerHTML = grades.map(grade => {
+        let html = '';
+        
+        grades.forEach(grade => {
             const count = counts[grade];
-            const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+            const percentage = total > 0 ? (count / total * 100).toFixed(1) : 0;
             
-            return `
+            html += `
                 <div class="distribution-item">
                     <div class="distribution-label">${grade}</div>
                     <div class="distribution-bar">
@@ -457,7 +618,9 @@ class MarksManager {
                     <div class="distribution-value">${count} (${percentage}%)</div>
                 </div>
             `;
-        }).join('');
+        });
+        
+        distribution.innerHTML = html;
     }
     
     updateRecentUpdates(marks) {
@@ -483,11 +646,13 @@ class MarksManager {
             .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
             .slice(0, 3);
         
-        recentUpdates.innerHTML = recent.map(mark => {
+        let html = '';
+        
+        recent.forEach(mark => {
             const student = mark.students || {};
             const timeAgo = this.getTimeAgo(mark.created_at);
             
-            return `
+            html += `
                 <div class="update-item">
                     <div class="update-icon">
                         <i class="fas fa-user-edit"></i>
@@ -498,151 +663,9 @@ class MarksManager {
                     </div>
                 </div>
             `;
-        }).join('');
-    }
-    
-    getTimeAgo(dateString) {
-        if (!dateString) return 'Unknown time';
+        });
         
-        try {
-            const date = new Date(dateString);
-            const now = new Date();
-            const diffMs = now - date;
-            
-            if (diffMs < 0) return 'Just now';
-            
-            const diffMins = Math.floor(diffMs / 60000);
-            const diffHours = Math.floor(diffMs / 3600000);
-            const diffDays = Math.floor(diffMs / 86400000);
-            
-            if (diffMins < 1) return 'Just now';
-            if (diffMins < 60) return `${diffMins} min ago`;
-            if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-            if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-            return this.formatDate(dateString);
-        } catch {
-            return 'Unknown time';
-        }
-    }
-    
-    // ==================== DASHBOARD STATISTICS ====================
-    
-    updateDashboardStatistics(marks) {
-        try {
-            if (!marks || !Array.isArray(marks) || marks.length === 0) {
-                this.resetDashboardStats();
-                return;
-            }
-            
-            console.log('📈 Updating dashboard statistics...');
-            
-            const totalMarks = marks.length;
-            const distinctStudents = new Set(marks.map(m => m.student_id).filter(Boolean)).size;
-            
-            let avgScore = 0;
-            if (marks.length > 0) {
-                const totalPercentage = marks.reduce((sum, m) => sum + (m.percentage || 0), 0);
-                avgScore = totalPercentage / marks.length;
-            }
-            
-            // Grade distribution
-            const gradeDistribution = { DISTINCTION: 0, CREDIT: 0, PASS: 0, FAIL: 0 };
-            marks.forEach(mark => {
-                const grade = mark.grade || this.calculateGrade(mark.percentage || 0);
-                if (gradeDistribution[grade] !== undefined) {
-                    gradeDistribution[grade]++;
-                }
-            });
-            
-            // Update dashboard elements
-            this.updateElement('totalMarks', totalMarks);
-            this.updateElement('totalStudents', distinctStudents);
-            this.updateElement('avgGrade', `${avgScore.toFixed(1)}%`);
-            
-            // Update grade distribution
-            ['DISTINCTION', 'CREDIT', 'PASS', 'FAIL'].forEach(grade => {
-                this.updateElement(`${grade.toLowerCase()}Count`, gradeDistribution[grade] || 0);
-            });
-            
-            this.updateRecentActivity(marks);
-            
-            console.log('✅ Dashboard statistics updated');
-            
-        } catch (error) {
-            console.error('❌ Error updating dashboard statistics:', error);
-        }
-    }
-    
-    resetDashboardStats() {
-        this.updateElement('totalMarks', 0);
-        this.updateElement('totalStudents', 0);
-        this.updateElement('avgGrade', '0%');
-        
-        const recentActivity = document.getElementById('recentActivity');
-        if (recentActivity) {
-            recentActivity.innerHTML = `
-                <div class="activity-item">
-                    <div class="activity-icon">
-                        <i class="fas fa-info-circle"></i>
-                    </div>
-                    <div class="activity-details">
-                        <p>No recent activity</p>
-                        <div class="activity-time">Add your first record to get started</div>
-                    </div>
-                </div>
-            `;
-        }
-    }
-    
-    updateElement(id, value) {
-        const element = document.getElementById(id);
-        if (element) {
-            element.textContent = value;
-        }
-    }
-    
-    updateRecentActivity(marks) {
-        const recentActivity = document.getElementById('recentActivity');
-        if (!recentActivity) return;
-        
-        if (!marks || !Array.isArray(marks) || marks.length === 0) {
-            recentActivity.innerHTML = `
-                <div class="activity-item">
-                    <div class="activity-icon">
-                        <i class="fas fa-info-circle"></i>
-                    </div>
-                    <div class="activity-details">
-                        <p>No recent activity</p>
-                        <div class="activity-time">Add records to see activity</div>
-                    </div>
-                </div>
-            `;
-            return;
-        }
-        
-        // Get last 5 marks
-        const recentMarks = marks
-            .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-            .slice(0, 5);
-        
-        recentActivity.innerHTML = recentMarks.map(mark => {
-            const student = mark.students || {};
-            const course = mark.courses || {};
-            const timeAgo = this.getTimeAgo(mark.created_at);
-            
-            return `
-                <div class="activity-item">
-                    <div class="activity-icon">
-                        <i class="fas fa-chart-bar"></i>
-                    </div>
-                    <div class="activity-details">
-                        <p><strong>${student.full_name || 'Student'}</strong> 
-                           scored ${mark.score}/${mark.max_score} in ${course.course_code || 'Course'}</p>
-                        <div class="activity-time">${timeAgo}</div>
-                    </div>
-                </div>
-            `;
-        }).join('');
+        recentUpdates.innerHTML = html;
     }
     
     // ==================== FILTERING & SORTING ====================
@@ -653,34 +676,27 @@ class MarksManager {
             const courseFilter = document.getElementById('courseFilter');
             if (courseFilter) {
                 const courses = [...new Set(marks.map(m => m.courses?.course_name).filter(Boolean))];
-                courseFilter.innerHTML = '<option value="">All Courses</option>' +
-                    courses.map(course => `<option value="${course}">${course}</option>`).join('');
-                
-                // Restore selected value if any
-                if (this.state.filters.course) {
-                    courseFilter.value = this.state.filters.course;
-                }
+                courseFilter.innerHTML = '<option value="">All Courses</option>';
+                courses.forEach(course => {
+                    const option = document.createElement('option');
+                    option.value = course;
+                    option.textContent = course;
+                    courseFilter.appendChild(option);
+                });
             }
             
             // Populate student filter
             const studentFilter = document.getElementById('studentFilter');
             if (studentFilter) {
                 const students = [...new Set(marks.map(m => m.students?.full_name).filter(Boolean))];
-                studentFilter.innerHTML = '<option value="">All Students</option>' +
-                    students.map(student => `<option value="${student}">${student}</option>`).join('');
-                
-                // Restore selected value if any
-                if (this.state.filters.student) {
-                    studentFilter.value = this.state.filters.student;
-                }
+                studentFilter.innerHTML = '<option value="">All Students</option>';
+                students.forEach(student => {
+                    const option = document.createElement('option');
+                    option.value = student;
+                    option.textContent = student;
+                    studentFilter.appendChild(option);
+                });
             }
-            
-            // Restore grade filter
-            const gradeFilter = document.getElementById('gradeFilter');
-            if (gradeFilter && this.state.filters.grade) {
-                gradeFilter.value = this.state.filters.grade;
-            }
-            
         } catch (error) {
             console.error('Error populating filter dropdowns:', error);
         }
@@ -693,7 +709,7 @@ class MarksManager {
         const dateFilter = document.getElementById('dateFilter');
         const studentFilter = document.getElementById('studentFilter');
         
-        this.state.filters = {
+        this.filters = {
             search: searchInput?.value || '',
             grade: gradeFilter?.value || '',
             course: courseFilter?.value || '',
@@ -702,22 +718,23 @@ class MarksManager {
         };
         
         this.applyFilters();
-        this.state.currentPage = 1;
+        this.currentPage = 1;
         this.renderCurrentView();
         this.updatePagination();
-        this.updateSummaryStats(this.state.filteredData);
+        this.updateSummaryStats(this.filteredData);
     }
     
     applyFilters() {
-        if (!this.state.filteredData || !Array.isArray(this.state.filteredData)) {
+        if (!Array.isArray(this.filteredData)) {
+            this.filteredData = [];
             return;
         }
         
-        let filtered = [...this.state.filteredData];
+        let filtered = [...this.filteredData];
         
         // Apply search filter
-        if (this.state.filters.search) {
-            const searchTerm = this.state.filters.search.toLowerCase().trim();
+        if (this.filters.search) {
+            const searchTerm = this.filters.search.toLowerCase();
             filtered = filtered.filter(mark => {
                 const studentName = mark.students?.full_name?.toLowerCase() || '';
                 const studentId = mark.students?.reg_number?.toLowerCase() || '';
@@ -736,61 +753,42 @@ class MarksManager {
         }
         
         // Apply grade filter
-        if (this.state.filters.grade) {
-            filtered = filtered.filter(mark => mark.grade === this.state.filters.grade);
+        if (this.filters.grade) {
+            filtered = filtered.filter(mark => mark.grade === this.filters.grade);
         }
         
         // Apply course filter
-        if (this.state.filters.course) {
+        if (this.filters.course) {
             filtered = filtered.filter(mark => 
-                mark.courses?.course_name === this.state.filters.course
+                mark.courses?.course_name === this.filters.course
             );
         }
         
         // Apply student filter
-        if (this.state.filters.student) {
+        if (this.filters.student) {
             filtered = filtered.filter(mark => 
-                mark.students?.full_name === this.state.filters.student
+                mark.students?.full_name === this.filters.student
             );
         }
         
-        // Apply date filter
-        if (this.state.filters.date) {
-            const now = new Date();
-            filtered = filtered.filter(mark => {
-                if (!mark.created_at) return false;
-                
-                try {
-                    const date = new Date(mark.created_at);
-                    switch (this.state.filters.date) {
-                        case 'today':
-                            return date.toDateString() === now.toDateString();
-                        case 'week':
-                            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-                            return date >= weekAgo;
-                        case 'month':
-                            const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-                            return date >= monthAgo;
-                        default:
-                            return true;
-                    }
-                } catch (error) {
-                    return false;
-                }
-            });
-        }
-        
-        this.state.filteredData = filtered;
+        this.filteredData = filtered;
     }
     
     clearFilters() {
-        document.getElementById('marksSearch').value = '';
-        document.getElementById('gradeFilter').value = '';
-        document.getElementById('courseFilter').value = '';
-        document.getElementById('studentFilter').value = '';
-        document.getElementById('dateFilter').value = '';
+        // FIXED: Check if elements exist before setting values
+        const searchInput = document.getElementById('marksSearch');
+        const gradeFilter = document.getElementById('gradeFilter');
+        const courseFilter = document.getElementById('courseFilter');
+        const dateFilter = document.getElementById('dateFilter');
+        const studentFilter = document.getElementById('studentFilter');
         
-        this.state.filters = {
+        if (searchInput) searchInput.value = '';
+        if (gradeFilter) gradeFilter.value = '';
+        if (courseFilter) courseFilter.value = '';
+        if (dateFilter) dateFilter.value = '';
+        if (studentFilter) studentFilter.value = '';
+        
+        this.filters = {
             search: '',
             grade: '',
             course: '',
@@ -804,13 +802,14 @@ class MarksManager {
     // ==================== PAGINATION (FIXED) ====================
     
     updatePagination() {
-        const totalRows = this.state.filteredData.length;
-        const totalPages = Math.max(1, Math.ceil(totalRows / this.state.pageSize));
+        const totalRows = this.filteredData.length;
+        const totalPages = Math.ceil(totalRows / this.pageSize);
         
-        const startRow = Math.min((this.state.currentPage - 1) * this.state.pageSize + 1, totalRows);
-        const endRow = Math.min(this.state.currentPage * this.state.pageSize, totalRows);
+        // Update pagination info
+        const startRow = Math.min((this.currentPage - 1) * this.pageSize + 1, totalRows);
+        const endRow = Math.min(this.currentPage * this.pageSize, totalRows);
         
-        // FIXED: Use proper element update without string replacement errors
+        // FIXED: Safe element updates
         this.safeUpdateElement('startRow', startRow);
         this.safeUpdateElement('endRow', endRow);
         this.safeUpdateElement('totalRows', totalRows);
@@ -819,56 +818,27 @@ class MarksManager {
         const pageNumbers = document.getElementById('pageNumbers');
         if (pageNumbers) {
             let html = '';
-            
-            // Always show first page
-            if (totalPages > 0) {
-                html += `
-                    <button class="page-number ${1 === this.state.currentPage ? 'active' : ''}" 
-                            onclick="app.marks.goToPage(1)">
-                        1
-                    </button>
-                `;
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || 
+                    (i >= this.currentPage - 2 && i <= this.currentPage + 2)) {
+                    html += `
+                        <button class="page-number ${i === this.currentPage ? 'active' : ''}" 
+                                onclick="window.app.marks.goToPage(${i})">
+                            ${i}
+                        </button>
+                    `;
+                } else if (i === this.currentPage - 3 || i === this.currentPage + 3) {
+                    html += '<span class="page-ellipsis">...</span>';
+                }
             }
-            
-            // Show pages around current page
-            const startPage = Math.max(2, this.state.currentPage - 1);
-            const endPage = Math.min(totalPages - 1, this.state.currentPage + 1);
-            
-            if (startPage > 2) {
-                html += '<span class="page-ellipsis">...</span>';
-            }
-            
-            for (let i = startPage; i <= endPage; i++) {
-                html += `
-                    <button class="page-number ${i === this.state.currentPage ? 'active' : ''}" 
-                            onclick="app.marks.goToPage(${i})">
-                        ${i}
-                    </button>
-                `;
-            }
-            
-            if (endPage < totalPages - 1) {
-                html += '<span class="page-ellipsis">...</span>';
-            }
-            
-            // Always show last page if there's more than one page
-            if (totalPages > 1) {
-                html += `
-                    <button class="page-number ${totalPages === this.state.currentPage ? 'active' : ''}" 
-                            onclick="app.marks.goToPage(${totalPages})">
-                        ${totalPages}
-                    </button>
-                `;
-            }
-            
             pageNumbers.innerHTML = html;
         }
         
         // Update button states
         const prevBtn = document.getElementById('prevPage');
         const nextBtn = document.getElementById('nextPage');
-        if (prevBtn) prevBtn.disabled = this.state.currentPage === 1;
-        if (nextBtn) nextBtn.disabled = this.state.currentPage === totalPages;
+        if (prevBtn) prevBtn.disabled = this.currentPage === 1;
+        if (nextBtn) nextBtn.disabled = this.currentPage === totalPages;
     }
     
     safeUpdateElement(id, value) {
@@ -879,33 +849,33 @@ class MarksManager {
     }
     
     goToPage(page) {
-        const totalPages = Math.ceil(this.state.filteredData.length / this.state.pageSize);
-        if (page < 1 || page > totalPages) return;
-        
-        this.state.currentPage = page;
-        this.renderCurrentView();
-        this.updatePagination();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const totalPages = Math.ceil(this.filteredData.length / this.pageSize);
+        if (page >= 1 && page <= totalPages) {
+            this.currentPage = page;
+            this.renderCurrentView();
+            this.updatePagination();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     }
     
     nextPage() {
-        const totalPages = Math.ceil(this.state.filteredData.length / this.state.pageSize);
-        if (this.state.currentPage < totalPages) {
-            this.goToPage(this.state.currentPage + 1);
+        const totalPages = Math.ceil(this.filteredData.length / this.pageSize);
+        if (this.currentPage < totalPages) {
+            this.goToPage(this.currentPage + 1);
         }
     }
     
     prevPage() {
-        if (this.state.currentPage > 1) {
-            this.goToPage(this.state.currentPage - 1);
+        if (this.currentPage > 1) {
+            this.goToPage(this.currentPage - 1);
         }
     }
     
     changePageSize() {
         const pageSizeSelect = document.getElementById('pageSize');
         if (pageSizeSelect) {
-            this.state.pageSize = parseInt(pageSizeSelect.value);
-            this.state.currentPage = 1;
+            this.pageSize = parseInt(pageSizeSelect.value);
+            this.currentPage = 1;
             this.renderCurrentView();
             this.updatePagination();
         }
@@ -914,13 +884,13 @@ class MarksManager {
     // ==================== SELECTION MANAGEMENT ====================
     
     toggleSelection(markId) {
-        if (this.state.selectedMarks.has(markId)) {
-            this.state.selectedMarks.delete(markId);
+        if (this.selectedMarks.has(markId)) {
+            this.selectedMarks.delete(markId);
         } else {
-            this.state.selectedMarks.add(markId);
+            this.selectedMarks.add(markId);
         }
         
-        // Update row selection styling
+        // Update row/card selection styling
         const element = document.querySelector(`[data-mark-id="${markId}"]`);
         if (element) {
             element.classList.toggle('selected');
@@ -933,14 +903,14 @@ class MarksManager {
         const selectAll = document.getElementById('selectAll');
         if (!selectAll) return;
         
-        const startIndex = (this.state.currentPage - 1) * this.state.pageSize;
-        const endIndex = startIndex + this.state.pageSize;
-        const pageData = this.state.filteredData.slice(startIndex, endIndex);
+        const startIndex = (this.currentPage - 1) * this.pageSize;
+        const endIndex = startIndex + this.pageSize;
+        const pageData = this.filteredData.slice(startIndex, endIndex);
         
         if (selectAll.checked) {
-            pageData.forEach(mark => this.state.selectedMarks.add(mark.id));
+            pageData.forEach(mark => this.selectedMarks.add(mark.id));
         } else {
-            pageData.forEach(mark => this.state.selectedMarks.delete(mark.id));
+            pageData.forEach(mark => this.selectedMarks.delete(mark.id));
         }
         
         this.renderCurrentView();
@@ -948,7 +918,7 @@ class MarksManager {
     }
     
     updateSelectedActions() {
-        const selectedCount = this.state.selectedMarks.size;
+        const selectedCount = this.selectedMarks.size;
         const selectedActions = document.getElementById('selectedActions');
         const selectedCountElement = document.getElementById('selectedCount');
         
@@ -970,12 +940,48 @@ class MarksManager {
         }
     }
     
+    // ==================== VIEW MANAGEMENT ====================
+    
+    setViewMode(mode) {
+        this.viewMode = mode;
+        this.currentPage = 1;
+        
+        // Update view toggle buttons
+        document.querySelectorAll('.view-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        const activeBtn = Array.from(document.querySelectorAll('.view-btn')).find(btn => 
+            btn.textContent.toLowerCase().includes(mode)
+        );
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+        }
+        
+        // Show/hide containers
+        const tableView = document.getElementById('tableView');
+        const cardsView = document.getElementById('cardsView');
+        const compactView = document.getElementById('compactView');
+        
+        if (tableView) tableView.style.display = mode === 'table' ? 'block' : 'none';
+        if (cardsView) cardsView.style.display = mode === 'cards' ? 'block' : 'none';
+        if (compactView) compactView.style.display = mode === 'compact' ? 'block' : 'none';
+        
+        this.renderCurrentView();
+    }
+    
     // ==================== MARKS MODAL (FIXED) ====================
     
     async openMarksModal() {
         try {
             await this.populateStudentDropdown();
             await this.populateCourseDropdown();
+            
+            // FIX DATE FIELD - Remove PHP code
+            const dateField = document.getElementById('assessmentDate');
+            if (dateField) {
+                dateField.value = new Date().toISOString().split('T')[0];
+            }
             
             this.setupMarksModalListeners();
             this.openModal('marksModal');
@@ -992,13 +998,8 @@ class MarksManager {
         if (!select) return;
         
         try {
-            // Check if method exists
-            if (typeof this.db.getStudents !== 'function') {
-                throw new Error('getStudents method not available');
-            }
-            
             const students = await this.db.getStudents();
-            select.innerHTML = '<option value="">Select Student...</option>';
+            select.innerHTML = '<option value="">Select student...</option>';
             
             students.forEach(student => {
                 const option = document.createElement('option');
@@ -1017,15 +1018,10 @@ class MarksManager {
         if (!select) return;
         
         try {
-            // Check if method exists
-            if (typeof this.db.getCourses !== 'function') {
-                throw new Error('getCourses method not available');
-            }
-            
             const courses = await this.db.getCourses();
             const activeCourses = courses.filter(c => !c.status || c.status === 'active');
             
-            select.innerHTML = '<option value="">Select Course...</option>';
+            select.innerHTML = '<option value="">Select course...</option>';
             
             activeCourses.forEach(course => {
                 const option = document.createElement('option');
@@ -1063,41 +1059,6 @@ class MarksManager {
         }
     }
     
-    validateScoreInput(inputElement, maxScore) {
-        const value = parseFloat(inputElement.value);
-        
-        if (isNaN(value)) {
-            inputElement.value = '';
-            return 0;
-        }
-        
-        // Prevent negative scores
-        if (value < 0) {
-            inputElement.value = 0;
-            return 0;
-        }
-        
-        // Cap score at max score
-        if (maxScore && value > maxScore) {
-            inputElement.value = maxScore;
-            this.showToast(`Maximum score is ${maxScore}`, 'info');
-            return maxScore;
-        }
-        
-        return value;
-    }
-    
-    validateMaxScoreInput(inputElement) {
-        const value = parseFloat(inputElement.value);
-        
-        if (isNaN(value) || value <= 0) {
-            inputElement.value = 100;
-            return 100;
-        }
-        
-        return value;
-    }
-    
     updateMarksGradeDisplay() {
         try {
             const scoreInput = document.getElementById('marksScore');
@@ -1133,7 +1094,6 @@ class MarksManager {
             // Update display
             gradeDisplay.textContent = grade;
             gradeDisplay.className = `grade-badge ${gradeCSSClass}`;
-            gradeDisplay.title = gradeDescription;
             
             if (percentageDisplay) {
                 percentageDisplay.textContent = `${cappedPercentage.toFixed(2)}%`;
@@ -1152,7 +1112,6 @@ class MarksManager {
         if (gradeDisplay) {
             gradeDisplay.textContent = '--';
             gradeDisplay.className = 'grade-badge';
-            gradeDisplay.title = '';
         }
         
         if (percentageDisplay) {
@@ -1160,7 +1119,7 @@ class MarksManager {
         }
         
         if (gradeDescriptionDisplay) {
-            gradeDescriptionDisplay.textContent = '--';
+            gradeDescriptionDisplay.textContent = 'Enter score above';
         }
     }
     
@@ -1178,8 +1137,15 @@ class MarksManager {
             const remarks = document.getElementById('marksRemarks')?.value || '';
             const visibleToStudent = document.getElementById('visibleToStudent')?.checked || true;
             
-            // FIXED: Use the correct element from your HTML
-            const assessmentDate = document.getElementById('assessmentDate')?.value || new Date().toISOString().split('T')[0];
+            // Get status from radio buttons
+            const statusInput = document.querySelector('input[name="status"]:checked');
+            const visible = statusInput?.value !== 'draft';
+            
+            // FIXED: Make sure we have assessment_type
+            if (!assessmentType) {
+                this.showToast('Assessment type is required', 'error');
+                return;
+            }
             
             // Validation
             if (!studentId || !courseId || isNaN(score)) {
@@ -1202,7 +1168,7 @@ class MarksManager {
             const grade = this.calculateGrade(percentage);
             const gradePoints = this.getGradePoints(grade);
             
-            // Prepare data with all required fields
+            // Prepare data - FIXED: Ensure all required fields are present
             const markData = {
                 student_id: studentId,
                 course_id: courseId,
@@ -1214,8 +1180,8 @@ class MarksManager {
                 grade: grade,
                 grade_points: gradePoints,
                 remarks: remarks,
-                visible_to_student: visibleToStudent,
-                entered_by: this.app.user?.id || 'system'
+                visible_to_student: visible,
+                entered_by: this.app.user?.id || 'system' // Add entered_by field
             };
             
             console.log('💾 Saving academic record:', markData);
@@ -1236,7 +1202,7 @@ class MarksManager {
         }
     }
     
-    // ==================== MODAL MANAGEMENT ====================
+    // ==================== MODAL UTILITIES ====================
     
     openModal(modalId) {
         const modal = document.getElementById(modalId);
@@ -1259,19 +1225,19 @@ class MarksManager {
                 const form = document.getElementById('marksForm');
                 if (form) {
                     form.reset();
-                    // Reset default values
                     const maxScoreInput = document.getElementById('maxScore');
                     if (maxScoreInput) maxScoreInput.value = '100';
-                    
                     const assessmentType = document.getElementById('assessmentType');
                     if (assessmentType) assessmentType.value = 'exam';
                     
                     // Reset grade display
-                    this.resetMarksGradeDisplay(
-                        document.getElementById('gradeDisplay'),
-                        document.getElementById('percentageDisplay'),
-                        document.getElementById('gradeDescription')
-                    );
+                    const gradeDisplay = document.getElementById('gradeDisplay');
+                    const percentageDisplay = document.getElementById('percentageDisplay');
+                    const gradeDescriptionDisplay = document.getElementById('gradeDescription');
+                    
+                    if (gradeDisplay || percentageDisplay || gradeDescriptionDisplay) {
+                        this.resetMarksGradeDisplay(gradeDisplay, percentageDisplay, gradeDescriptionDisplay);
+                    }
                 }
             }
         }
@@ -1281,6 +1247,7 @@ class MarksManager {
     
     showToast(message, type = 'info') {
         try {
+            // Create toast container if it doesn't exist
             let container = document.getElementById('toastContainer');
             if (!container) {
                 container = document.createElement('div');
@@ -1299,6 +1266,16 @@ class MarksManager {
             
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
+            toast.style.cssText = `
+                background: ${this.getToastColor(type)};
+                color: white;
+                padding: 12px 16px;
+                border-radius: 6px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            `;
             
             const icons = {
                 'success': 'fa-check-circle',
@@ -1308,9 +1285,9 @@ class MarksManager {
             };
             
             toast.innerHTML = `
-                <i class="fas ${icons[type] || 'fa-info-circle'}"></i>
-                <span>${message}</span>
-                <button onclick="this.parentElement.remove()" class="toast-close">
+                <i class="fas ${icons[type] || 'fa-info-circle'}" style="font-size: 18px;"></i>
+                <span style="flex: 1;">${message}</span>
+                <button onclick="this.parentElement.remove()" style="background: none; border: none; color: white; cursor: pointer; padding: 4px;">
                     <i class="fas fa-times"></i>
                 </button>
             `;
@@ -1329,6 +1306,16 @@ class MarksManager {
         }
     }
     
+    getToastColor(type) {
+        const colors = {
+            'success': '#28a745',
+            'error': '#dc3545',
+            'warning': '#ffc107',
+            'info': '#17a2b8'
+        };
+        return colors[type] || '#6c757d';
+    }
+    
     // ==================== UTILITY FUNCTIONS ====================
     
     debounce(func, wait) {
@@ -1343,41 +1330,40 @@ class MarksManager {
         };
     }
     
-    // ==================== STUB METHODS (for incomplete features) ====================
+    // ==================== OTHER METHODS ====================
     
     renderCardsView() {
         console.log('Cards view not implemented yet');
-        this.showToast('Cards view coming soon!', 'info');
-        this.setViewMode('table');
+        const container = document.querySelector('#marksCards');
+        if (container) {
+            container.innerHTML = `
+                <div class="empty-state-cards">
+                    <i class="fas fa-th-large fa-3x"></i>
+                    <h3>Cards View Coming Soon</h3>
+                    <p>We're working on an enhanced cards view</p>
+                    <button class="btn-secondary" onclick="window.app.marks.setViewMode('table')">
+                        <i class="fas fa-table"></i> Switch to Table View
+                    </button>
+                </div>
+            `;
+        }
     }
     
     renderCompactView() {
         console.log('Compact view not implemented yet');
-        this.showToast('Compact view coming soon!', 'info');
-        this.setViewMode('table');
-    }
-    
-    setViewMode(mode) {
-        this.state.viewMode = mode;
-        
-        // Update view toggle buttons
-        document.querySelectorAll('.view-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        
-        // Show only table view for now
-        if (mode !== 'table') {
-            this.showToast(`${mode} view coming soon!`, 'info');
-            mode = 'table';
+        const container = document.getElementById('compactView');
+        if (container) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-list fa-3x"></i>
+                    <h3>Compact View Coming Soon</h3>
+                    <p>We're working on a compact view for faster browsing</p>
+                    <button class="btn-secondary" onclick="window.app.marks.setViewMode('table')">
+                        <i class="fas fa-table"></i> Switch to Table View
+                    </button>
+                </div>
+            `;
         }
-        
-        const tableView = document.getElementById('tableView');
-        const cardsView = document.getElementById('cardsView');
-        
-        if (tableView) tableView.style.display = 'block';
-        if (cardsView) cardsView.style.display = 'none';
-        
-        this.renderCurrentView();
     }
     
     viewDetails(markId) {
@@ -1391,17 +1377,31 @@ class MarksManager {
     }
     
     deleteMark(markId) {
-        console.log('Delete mark:', markId);
-        this.showToast('Delete feature coming soon!', 'info');
+        if (confirm('Are you sure you want to delete this record?')) {
+            console.log('Delete mark:', markId);
+            this.showToast('Delete feature coming soon!', 'info');
+        }
     }
     
     deleteSelected() {
-        console.log('Delete selected');
-        this.showToast('Bulk delete coming soon!', 'info');
+        if (this.selectedMarks.size === 0) {
+            this.showToast('Please select records to delete', 'warning');
+            return;
+        }
+        
+        if (confirm(`Are you sure you want to delete ${this.selectedMarks.size} selected records?`)) {
+            console.log('Delete selected:', this.selectedMarks.size);
+            this.showToast('Bulk delete coming soon!', 'info');
+        }
     }
     
     exportSelected() {
-        console.log('Export selected');
+        if (this.selectedMarks.size === 0) {
+            this.showToast('Please select records to export', 'warning');
+            return;
+        }
+        
+        console.log('Export selected:', this.selectedMarks.size);
         this.showToast('Export selected coming soon!', 'info');
     }
     
