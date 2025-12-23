@@ -1,0 +1,514 @@
+/* ==================== */
+/* STUDENTS MODULE */
+/* ==================== */
+
+/* Students Header */
+.students-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.students-header h2 {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--gray-900);
+    letter-spacing: -0.5px;
+    position: relative;
+    padding-bottom: 0.5rem;
+}
+
+.students-header h2::after {
+    content: '';
+    position: absolute;
+    bottom: -1rem;
+    left: 0;
+    width: 60px;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    border-radius: 2px;
+}
+
+/* Student Actions Bar */
+.student-actions-bar {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-200);
+}
+
+.action-search {
+    flex: 1;
+    position: relative;
+}
+
+.action-search i {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray-400);
+}
+
+.action-search input {
+    width: 100%;
+    padding: 0.875rem 1rem 0.875rem 3rem;
+    border: 2px solid var(--gray-300);
+    border-radius: 10px;
+    font-size: 0.875rem;
+    background: var(--gray-50);
+    transition: var(--transition);
+}
+
+.action-search input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.action-filters {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.filter-select {
+    min-width: 150px;
+    padding: 0.875rem 1rem;
+    border: 2px solid var(--gray-300);
+    border-radius: 10px;
+    font-size: 0.875rem;
+    background: var(--gray-50);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* Students Grid View */
+.students-grid-view {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.student-card {
+    background: white;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-200);
+    transition: var(--transition);
+}
+
+.student-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+}
+
+.student-card-header {
+    padding: 1.5rem;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.student-card-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 100%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    transform: rotate(45deg);
+}
+
+.student-avatar-large {
+    width: 80px;
+    height: 80px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: white;
+    margin: 0 auto 1rem;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+.student-card-header h3 {
+    text-align: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0 0 0.25rem 0;
+    position: relative;
+    z-index: 1;
+}
+
+.student-id {
+    text-align: center;
+    font-size: 0.875rem;
+    opacity: 0.9;
+    position: relative;
+    z-index: 1;
+}
+
+.student-card-body {
+    padding: 1.5rem;
+}
+
+.student-info-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.student-info-row:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.student-info-label {
+    min-width: 100px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.student-info-value {
+    flex: 1;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--gray-800);
+}
+
+.student-card-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--gray-200);
+    background: var(--gray-50);
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Student Detail Modal */
+.student-detail-modal .modal-content {
+    max-width: 900px;
+}
+
+.student-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 2rem;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    color: white;
+    margin-bottom: 2rem;
+}
+
+.student-detail-avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: white;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+}
+
+.student-detail-info h2 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+}
+
+.student-detail-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+}
+
+.student-detail-body {
+    padding: 0 2rem 2rem;
+}
+
+.student-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.student-detail-section {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-200);
+}
+
+.student-detail-section h3 {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0 0 1rem 0;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--gray-200);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.student-info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.student-info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.student-info-item:last-child {
+    border-bottom: none;
+}
+
+.student-info-item-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--gray-600);
+}
+
+.student-info-item-value {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--gray-800);
+}
+
+/* Student Courses Table */
+.student-courses-table {
+    margin-top: 1rem;
+}
+
+.student-courses-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.student-courses-table th {
+    background: var(--gray-50);
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.student-courses-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--gray-200);
+    font-size: 0.875rem;
+    color: var(--gray-700);
+}
+
+.student-courses-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Add/Edit Student Form */
+.add-student-form {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+.add-student-form .form-group {
+    margin-bottom: 0;
+}
+
+.add-student-form .form-group:last-child {
+    grid-column: span 2;
+}
+
+/* Student Import */
+.student-import-section {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-200);
+    margin-bottom: 2rem;
+}
+
+.import-dropzone {
+    border: 2px dashed var(--gray-300);
+    border-radius: var(--border-radius);
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: var(--transition);
+    background: var(--gray-50);
+}
+
+.import-dropzone:hover {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.05);
+}
+
+.import-dropzone i {
+    font-size: 3rem;
+    color: var(--gray-400);
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.import-dropzone h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--gray-700);
+    font-size: 1.125rem;
+}
+
+.import-dropzone p {
+    margin: 0;
+    color: var(--gray-500);
+    font-size: 0.875rem;
+}
+
+.import-format {
+    margin-top: 1.5rem;
+    font-size: 0.875rem;
+    color: var(--gray-600);
+}
+
+/* Empty State */
+.students-empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-200);
+}
+
+.students-empty-state i {
+    font-size: 4rem;
+    color: var(--gray-300);
+    margin-bottom: 1.5rem;
+    display: block;
+}
+
+.students-empty-state h3 {
+    margin: 0 0 0.75rem 0;
+    color: var(--gray-700);
+    font-size: 1.5rem;
+}
+
+.students-empty-state p {
+    margin: 0 0 1.5rem 0;
+    color: var(--gray-500);
+    font-size: 0.875rem;
+    max-width: 500px;
+    margin: 0 auto 1.5rem;
+}
+
+/* Bulk Actions */
+.bulk-actions-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: rgba(99, 102, 241, 0.1);
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    margin-bottom: 1.5rem;
+}
+
+.bulk-selection-count {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.bulk-actions-select {
+    min-width: 150px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .students-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .student-actions-bar {
+        flex-direction: column;
+    }
+    
+    .action-filters {
+        width: 100%;
+    }
+    
+    .filter-select {
+        flex: 1;
+    }
+    
+    .students-grid-view {
+        grid-template-columns: 1fr;
+    }
+    
+    .add-student-form {
+        grid-template-columns: 1fr;
+    }
+    
+    .add-student-form .form-group:last-child {
+        grid-column: span 1;
+    }
+    
+    .student-detail-header {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .student-detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
