@@ -1,0 +1,180 @@
+/* ==================== */
+/* MARKS MODULE */
+/* ==================== */
+
+/* Marks Entry Modal */
+.marks-modal .modal-content {
+    max-width: 800px;
+}
+
+.marks-selection-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.scores-section-large {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow);
+}
+
+.scores-container-large {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    background: var(--gray-50);
+    border-radius: 10px;
+}
+
+/* Grade Section */
+.grade-section-professional {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid #e8eaed;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+.grade-badge-professional {
+    display: inline-block;
+    padding: 1rem 2rem;
+    border-radius: 12px;
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-align: center;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+/* Marks Table View */
+.marks-summary-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.marks-filter-bar {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-200);
+}
+
+.marks-view-toggle {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    background: white;
+    padding: 0.75rem;
+    border-radius: 10px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--gray-200);
+}
+
+/* Grade Badges */
+.grade-badge {
+    display: inline-block;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 0.8125rem;
+    text-align: center;
+    min-width: 80px;
+    position: relative;
+    cursor: help;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.grade-badge:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.grade-badge-sm {
+    padding: 0.1875rem 0.5rem;
+    font-size: 0.6875rem;
+    min-width: 60px;
+}
+
+.grade-badge-lg {
+    padding: 0.625rem 1.5rem;
+    font-size: 1.2rem;
+    min-width: 100px;
+    border-radius: 12px;
+}
+
+/* Grade Colors */
+.grade-distinction { 
+    background: linear-gradient(135deg, #28a745, #218838);
+    color: white; 
+    border-color: #1e7e34;
+}
+
+.grade-credit { 
+    background: linear-gradient(135deg, #17a2b8, #138496);
+    color: white; 
+    border-color: #117a8b;
+}
+
+.grade-pass { 
+    background: linear-gradient(135deg, #ffc107, #e0a800);
+    color: #212529; 
+    border-color: #d39e00;
+}
+
+.grade-fail { 
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: white; 
+    border-color: #bd2130;
+}
+
+/* Grade Tooltip */
+.grade-display {
+    position: relative;
+    display: inline-block;
+}
+
+.grade-tooltip {
+    visibility: hidden;
+    width: 250px;
+    background-color: #2c3e50;
+    color: white;
+    text-align: center;
+    border-radius: 8px;
+    padding: 10px;
+    position: absolute;
+    z-index: 1000;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    margin-bottom: 10px;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    font-size: 12px;
+    pointer-events: none;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+}
+
+.grade-display:hover .grade-tooltip {
+    visibility: visible;
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Additional sections continue similarly... */
