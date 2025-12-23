@@ -492,7 +492,16 @@ if (typeof showSection === 'undefined') {
             sectionSwitchInProgress = false;
         }
     };
-    
+    // Set today's date in date fields
+document.addEventListener('DOMContentLoaded', function() {
+    const dateFields = document.querySelectorAll('input[type="date"]');
+    const today = new Date().toISOString().split('T')[0];
+    dateFields.forEach(field => {
+        if (!field.value) {
+            field.value = today;
+        }
+    });
+});
     // Helper function for lazy loading
     function lazyLoadSectionContent(sectionId) {
         const app = window.app;
