@@ -1,0 +1,127 @@
+/* ==================== */
+/* TEEPportal MAIN CSS */
+/* Imports all modules */
+/* ==================== */
+
+/* Base styles */
+@import url('base.css');
+
+/* Components */
+@import url('components/sidebar.css');
+@import url('components/buttons.css');
+@import url('components/forms.css');
+@import url('components/tables.css');
+@import url('components/cards.css');
+@import url('components/modals.css');
+@import url('components/toast.css');
+
+/* Modules */
+@import url('modules/dashboard.css');
+@import url('modules/marks.css');
+@import url('modules/students.css');
+@import url('modules/courses.css');
+@import url('modules/reports.css');
+@import url('modules/settings.css');
+
+/* ==================== */
+/* OVERRIDES & UTILITIES */
+/* ==================== */
+
+/* Ensure content sections display correctly */
+.content-section {
+    display: none;
+    padding: 2rem;
+    animation: fadeIn 0.5s ease;
+}
+
+.content-section.active {
+    display: block;
+}
+
+/* Main Header */
+.main-header {
+    background: white;
+    padding: 0 2rem;
+    height: var(--header-height);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--gray-200);
+}
+
+/* Section Headers */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--gray-200);
+}
+
+/* Filter Bar */
+.filter-bar {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-200);
+}
+
+/* Cards Grid */
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Charts Grid */
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Loading Spinner */
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--gray-300);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .cards-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .filter-bar {
+        flex-direction: column;
+    }
+    
+    .stats-grid,
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+}
