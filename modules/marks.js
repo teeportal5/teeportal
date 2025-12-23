@@ -1211,32 +1211,65 @@ class MarksManager {
         }
     }
     
-   async saveMarks(event) {
+  async saveMarks(event) {
     event.preventDefault();
     
     try {
         // Get form values
         const studentId = document.getElementById('marksStudent').value;
         const courseId = document.getElementById('marksCourse').value;
-        const score = parseFloat(document.getElementById('marksScore').value);
-        const maxScore = parseFloat(document.getElementById('marksMaxScore').value) || 100;
+        const scoreInput = document.getElementById('marksScore').value;
+        const maxScoreInput = document.getElementById('marksMaxScore').value;
+        
+        // Parse scores
+        const score = parseFloat(scoreInput);
+        const maxScore = parseFloat(maxScoreInput) || 100;
         
         // Get assessment type
-        let assessmentType = document.getElementById('assessmentType')?.value;
-        if (!assessmentType || assessmentType.trim() === '') {
-            assessmentType = 'exam'; // Default fallback
+        const assessmentTypeSelect = document.getElementById('assessmentType');
+        const assessmentType = assessmentTypeSelect?.value || 'exam';
+        
+        // Get assessment date or use today
+        const assessmentDateInput = document.getElementById('assessmentDate');
+        let assessmentDate = assessmentDateInput?.value;
+        if (!assessmentDate) {
+            // Set default to today if empty
+            const today = new Date();
+            assessmentDate = today.toISOString().split('T')[0];
+            if (assessmentDateInput) {
+                assessmentDateInput.value = assessmentDate;
+            }
         }
         
-        const assessmentDate = document.getElementById('assessmentDate')?.value || new Date().toISOString().split('T')[0];
+        // Debug logging
+        console.log('Form values:', {
+            studentId, courseId, score, maxScore, 
+            assessmentType, assessmentDate, scoreInput, maxScoreInput
+        });
         
         // Validation
-        if (!studentId || !courseId || isNaN(score)) {
-            this.showToast('Please select student, course, and enter score', 'error');
+        if (!studentId || studentId === '') {
+            this.showToast('Please select a student', 'error');
             return;
         }
         
-        if (score < 0 || maxScore <= 0) {
-            this.showToast('Score must be positive and maximum score must be greater than 0', 'error');
+        if (!courseId || courseId === '') {
+            this.showToast('Please select a course', 'error');
+            return;
+        }
+        
+        if (!scoreInput || isNaN(score)) {
+            this.showToast('Please enter a valid score', 'error');
+            return;
+        }
+        
+        if (score < 0) {
+            this.showToast('Score cannot be negative', 'error');
+            return;
+        }
+        
+        if (maxScore <= 0) {
+            this.showToast('Maximum score must be greater than 0', 'error');
             return;
         }
         
@@ -1245,20 +1278,45 @@ class MarksManager {
             return;
         }
         
-        // Calculate grade
+        // Calculate percentage - FIX: Ensure it's a number
         const percentage = (score / maxScore) * 100;
-        const grade = this.calculateGrade(percentage);
+        const percentageValue = parseFloat(percentage.toFixed(2)); // Ensure it's a number
+        
+        // Calculate grade
+        const grade = this.calculateGrade(percentageValue);
         const gradePoints = this.getGradePoints(grade);
         
-        // Prepare data - REMOVE assessment_name if it's not needed
+        // Create assessment_name properly
+        let assessmentName;
+        switch(assessmentType) {
+            case 'exam':
+                assessmentName = 'Final Exam';
+                break;
+            case 'test':
+                assessmentName = 'Test';
+                break;
+            case 'assignment':
+                assessmentName = 'Assignment';
+                break;
+            case 'practical':
+                assessmentName = 'Practical';
+                break;
+            case 'cat':
+                assessmentName = 'CAT';
+                break;
+            default:
+                assessmentName = 'Assessment';
+        }
+        
+        // Prepare data
         const markData = {
             student_id: studentId,
             course_id: courseId,
             assessment_type: assessmentType,
-            // REMOVED: assessment_name field
+            assessment_name: assessmentName,
             score: score,
             max_score: maxScore,
-            percentage: percentage,
+            percentage: percentageValue, // Ensure this is a number, not null
             grade: grade,
             grade_points: gradePoints,
             visible_to_student: true,
@@ -1280,7 +1338,15 @@ class MarksManager {
         
     } catch (error) {
         console.error('❌ Error saving academic record:', error);
-        this.showToast(`Error: ${error.message || 'Failed to save'}`, 'error');
+        
+        // Specific error messages
+        if (error.message && error.message.includes('percentage') && error.message.includes('null')) {
+            this.showToast('Error: Percentage calculation failed. Please check your score values.', 'error');
+        } else if (error.message && error.message.includes('assessment_name') && error.message.includes('null')) {
+            this.showToast('Error: Assessment name is required. Please select an assessment type.', 'error');
+        } else {
+            this.showToast(`Error: ${error.message || 'Failed to save'}`, 'error');
+        }
     }
 }
     
