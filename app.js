@@ -1,4 +1,4 @@
-// app.js - Main application file
+// app.js - Main application file (Updated with new areas)
 class TEEPortalApp {
     constructor() {
         this.db = new TEEPortalSupabaseDB();
@@ -9,11 +9,15 @@ class TEEPortalApp {
         this.dashboard = null;
         this.reports = null;
         this.transcripts = null;
+        this.counties = null;
+        this.centres = null;
+        this.programs = null;
         
         this.currentStudentId = null;
         this.currentView = 'dashboard';
         this.initialized = false;
         this.cachedStudents = null;
+        this._initializing = false;
         
         // Initialize modules
         this.initializeModules();
@@ -41,83 +45,99 @@ class TEEPortalApp {
             }
             
             if (typeof DashboardManager !== 'undefined') {
-                this.dashboard = new DashboardManager(this.db, this);
+                this.dashboard = new DashboardManager(this.db);
             }
             
             if (typeof ReportsManager !== 'undefined') {
                 this.reports = new ReportsManager(this.db, this);
             }
             
-            // FIXED: Use TranscriptsManager (with 's') instead of TranscriptManager
             if (typeof TranscriptsManager !== 'undefined') {
                 this.transcripts = new TranscriptsManager(this.db);
             }
             
-            console.log('✅ Modules initialized');
+            // NEW: Initialize area managers if they exist
+            if (typeof CountyManager !== 'undefined') {
+                this.counties = new CountyManager(this.db, this);
+            }
             
-            // Setup event listeners after modules are initialized
-            this.setupEventListeners();
+            if (typeof CentreManager !== 'undefined') {
+                this.centres = new CentreManager(this.db, this);
+            }
+            
+            if (typeof ProgramManager !== 'undefined') {
+                this.programs = new ProgramManager(this.db, this);
+            }
+            
+            console.log('✅ Modules initialized');
             
         } catch (error) {
             console.error('Error initializing modules:', error);
         }
     }
     
-   async initialize() {
-    // Prevent multiple initializations
-    if (this._initializing) {
-        console.warn('App initialization already in progress');
-        return;
-    }
-    
-    if (this.initialized) {
-        console.warn('App already initialized');
-        return;
-    }
-    
-    this._initializing = true;
-    console.log('🚀 TEEPortal Application Starting...');
-    
-    try {
-        // Initialize database first
-        console.log('📦 Initializing database...');
-        await this.db.init();
-        
-        // Load initial data
-        console.log('📊 Loading initial data...');
-        await this.loadInitialData();
-        
-        // Initialize UI
-        console.log('🎨 Initializing UI...');
-        this.initializeUI();
-        
-        this.initialized = true;
-        console.log('✅ TEEPortal Ready');
-        this.showToast('System initialized successfully', 'success');
-        
-    } catch (error) {
-        console.error('❌ Initialization failed:', error);
-        
-        // More specific error messages
-        let errorMessage = 'Failed to initialize system';
-        if (error.message.includes('database') || error.message.includes('connection')) {
-            errorMessage = 'Database connection failed. Please check your internet connection.';
-        } else if (error.message.includes('auth') || error.message.includes('permission')) {
-            errorMessage = 'Authentication failed. Please check your credentials.';
+    async initialize() {
+        // Prevent multiple initializations
+        if (this._initializing) {
+            console.warn('App initialization already in progress');
+            return;
         }
         
-        this.showToast(errorMessage, 'error');
+        if (this.initialized) {
+            console.warn('App already initialized');
+            return;
+        }
         
-        // Try to show error in UI
-        this.showErrorUI(error);
+        this._initializing = true;
+        console.log('🚀 TEEPortal Application Starting...');
         
-        // Don't set initialized to true on error
-        this.initialized = false;
-        
-    } finally {
-        this._initializing = false;
+        try {
+            // Initialize database first
+            console.log('📦 Initializing database...');
+            await this.db.init();
+            
+            // Initialize modules again with database connection
+            this.initializeModules();
+            
+            // Setup event listeners
+            this.setupEventListeners();
+            
+            // Load initial data
+            console.log('📊 Loading initial data...');
+            await this.loadInitialData();
+            
+            // Initialize UI
+            console.log('🎨 Initializing UI...');
+            this.initializeUI();
+            
+            this.initialized = true;
+            console.log('✅ TEEPortal Ready');
+            this.showToast('System initialized successfully', 'success');
+            
+        } catch (error) {
+            console.error('❌ Initialization failed:', error);
+            
+            // More specific error messages
+            let errorMessage = 'Failed to initialize system';
+            if (error.message.includes('database') || error.message.includes('connection')) {
+                errorMessage = 'Database connection failed. Please check your internet connection.';
+            } else if (error.message.includes('auth') || error.message.includes('permission')) {
+                errorMessage = 'Authentication failed. Please check your credentials.';
+            }
+            
+            this.showToast(errorMessage, 'error');
+            
+            // Try to show error in UI
+            this.showErrorUI(error);
+            
+            // Don't set initialized to true on error
+            this.initialized = false;
+            
+        } finally {
+            this._initializing = false;
+        }
     }
-}
+    
     async loadInitialData() {
         try {
             console.log('📊 Loading initial data...');
@@ -136,11 +156,15 @@ class TEEPortalApp {
             if (this.marks && this.marks.loadMarksTable) {
                 await this.marks.loadMarksTable();
             }
-              // Initialize reports UI
-        if (this.reports && this.reports.initializeReportsUI) {
-            await this.reports.initializeReportsUI();
-        }
-        
+            
+            // Initialize reports UI
+            if (this.reports && this.reports.initializeReportsUI) {
+                await this.reports.initializeReportsUI();
+            }
+            
+            // NEW: Load county, centre, and program data
+            await this.loadAreaData();
+            
             // Update dashboard
             if (this.dashboard && this.dashboard.updateDashboard) {
                 await this.dashboard.updateDashboard();
@@ -154,12 +178,158 @@ class TEEPortalApp {
         }
     }
     
+    /**
+     * NEW: Load area data (counties, centres, programs)
+     */
+    async loadAreaData() {
+        try {
+            console.log('🗺️ Loading area data...');
+            
+            // Load counties for dropdowns
+            await this.populateCountyDropdowns();
+            
+            // Load centres for dropdowns
+            await this.populateCentreDropdowns();
+            
+            // Load programs for dropdowns
+            await this.populateProgramDropdowns();
+            
+            console.log('✅ Area data loaded');
+            
+        } catch (error) {
+            console.warn('⚠️ Could not load area data:', error);
+            // This is not critical, so don't show error toast
+        }
+    }
+    
+    /**
+     * NEW: Populate county dropdowns throughout the app
+     */
+    async populateCountyDropdowns() {
+        try {
+            const counties = await this.db.getCounties();
+            
+            // Populate student form county dropdown
+            const countySelect = document.getElementById('studentCounty');
+            if (countySelect) {
+                countySelect.innerHTML = '<option value="">Select County</option>' +
+                    counties.map(county => 
+                        `<option value="${this.escapeHtml(county.name)}">${this.escapeHtml(county.name)}</option>`
+                    ).join('');
+            }
+            
+            // Populate centre form county dropdown
+            const centreCountySelect = document.getElementById('centreCounty');
+            if (centreCountySelect) {
+                centreCountySelect.innerHTML = '<option value="">Select County</option>' +
+                    counties.map(county => 
+                        `<option value="${this.escapeHtml(county.name)}">${this.escapeHtml(county.name)}</option>`
+                    ).join('');
+            }
+            
+            // Populate filter dropdowns
+            const filterCountySelect = document.getElementById('filterCounty');
+            if (filterCountySelect) {
+                filterCountySelect.innerHTML = '<option value="">All Counties</option>' +
+                    counties.map(county => 
+                        `<option value="${this.escapeHtml(county.name)}">${this.escapeHtml(county.name)}</option>`
+                    ).join('');
+            }
+            
+        } catch (error) {
+            console.error('Error populating county dropdowns:', error);
+        }
+    }
+    
+    /**
+     * NEW: Populate centre dropdowns throughout the app
+     */
+    async populateCentreDropdowns() {
+        try {
+            const centres = await this.db.getCentres();
+            
+            // Populate student form centre dropdown
+            const centreSelect = document.getElementById('studentCentre');
+            if (centreSelect) {
+                centreSelect.innerHTML = '<option value="">Select Centre</option>' +
+                    centres.map(centre => 
+                        `<option value="${this.escapeHtml(centre.name)}">${this.escapeHtml(centre.name)}</option>`
+                    ).join('');
+            }
+            
+            // Populate filter dropdowns
+            const filterCentreSelect = document.getElementById('filterCentre');
+            if (filterCentreSelect) {
+                filterCentreSelect.innerHTML = '<option value="">All Centres</option>' +
+                    centres.map(centre => 
+                        `<option value="${this.escapeHtml(centre.name)}">${this.escapeHtml(centre.name)}</option>`
+                    ).join('');
+            }
+            
+        } catch (error) {
+            console.error('Error populating centre dropdowns:', error);
+        }
+    }
+    
+    /**
+     * NEW: Populate program dropdowns throughout the app
+     */
+    async populateProgramDropdowns() {
+        try {
+            const programs = await this.db.getPrograms();
+            
+            // Populate student form program dropdown
+            const programSelect = document.getElementById('studentProgram');
+            if (programSelect) {
+                programSelect.innerHTML = '<option value="">Select Program</option>' +
+                    programs.map(program => 
+                        `<option value="${this.escapeHtml(program.code)}">${this.escapeHtml(program.name)} (${this.escapeHtml(program.code)})</option>`
+                    ).join('');
+            }
+            
+            // Populate course form program dropdown
+            const courseProgramSelect = document.getElementById('courseProgram');
+            if (courseProgramSelect) {
+                courseProgramSelect.innerHTML = '<option value="">Select Program</option>' +
+                    programs.map(program => 
+                        `<option value="${this.escapeHtml(program.code)}">${this.escapeHtml(program.name)}</option>`
+                    ).join('');
+            }
+            
+            // Populate filter dropdowns
+            const filterProgramSelect = document.getElementById('filterProgram');
+            if (filterProgramSelect) {
+                filterProgramSelect.innerHTML = '<option value="">All Programs</option>' +
+                    programs.map(program => 
+                        `<option value="${this.escapeHtml(program.code)}">${this.escapeHtml(program.name)}</option>`
+                    ).join('');
+            }
+            
+            // Populate marks form program filter
+            const marksProgramSelect = document.getElementById('marksProgram');
+            if (marksProgramSelect) {
+                marksProgramSelect.innerHTML = '<option value="">All Programs</option>' +
+                    programs.map(program => 
+                        `<option value="${this.escapeHtml(program.code)}">${this.escapeHtml(program.name)}</option>`
+                    ).join('');
+            }
+            
+        } catch (error) {
+            console.error('Error populating program dropdowns:', error);
+        }
+    }
+    
     initializeUI() {
         // Initialize date pickers
         const dateInputs = document.querySelectorAll('input[type="date"]');
         const today = new Date().toISOString().split('T')[0];
         dateInputs.forEach(input => {
-            if (input) input.max = today;
+            if (input) {
+                input.max = today;
+                if (!input.value) {
+                    input.value = today;
+                }
+            }
         });
         
         this.populateDropdowns();
@@ -167,7 +337,9 @@ class TEEPortalApp {
         // Initialize settings tabs
         if (document.querySelector('.settings-tab-btn')) {
             try {
-                this.settings.initializeSettingsTabs();
+                if (this.settings && this.settings.initializeSettingsTabs) {
+                    this.settings.initializeSettingsTabs();
+                }
             } catch (error) {
                 console.warn('Settings tabs initialization failed:', error);
             }
@@ -175,12 +347,16 @@ class TEEPortalApp {
     }
     
     async populateDropdowns() {
+        // Load marks dropdowns
         if (this.marks && this.marks.populateStudentDropdown) {
             await this.marks.populateStudentDropdown();
         }
         if (this.marks && this.marks.populateCourseDropdown) {
             await this.marks.populateCourseDropdown();
         }
+        
+        // NEW: Also load area dropdowns
+        await this.loadAreaData();
     }
     
     setupEventListeners() {
@@ -224,7 +400,55 @@ class TEEPortalApp {
                 });
             }
             
-            // Add other form submissions as needed
+            // NEW: Area management form submissions
+            const countyForm = document.getElementById('countyForm');
+            if (countyForm) {
+                countyForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    if (this.counties && this.counties.saveCounty) {
+                        this.counties.saveCounty(e);
+                    }
+                });
+            }
+            
+            const centreForm = document.getElementById('centreForm');
+            if (centreForm) {
+                centreForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    if (this.centres && this.centres.saveCentre) {
+                        this.centres.saveCentre(e);
+                    }
+                });
+            }
+            
+            const programForm = document.getElementById('programForm');
+            if (programForm) {
+                programForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    if (this.programs && this.programs.saveProgram) {
+                        this.programs.saveProgram(e);
+                    }
+                });
+            }
+            
+            // NEW: Filter event listeners
+            const filterCounty = document.getElementById('filterCounty');
+            if (filterCounty) {
+                filterCounty.addEventListener('change', () => {
+                    if (this.students && this.students.filterStudents) {
+                        this.students.filterStudents();
+                    }
+                });
+            }
+            
+            const filterCentre = document.getElementById('filterCentre');
+            if (filterCentre) {
+                filterCentre.addEventListener('change', () => {
+                    if (this.students && this.students.filterStudents) {
+                        this.students.filterStudents();
+                    }
+                });
+            }
             
             console.log('✅ Event listeners setup complete');
             
@@ -239,7 +463,7 @@ class TEEPortalApp {
             toast.className = `toast ${type}`;
             toast.innerHTML = `
                 <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
-                <span>${message}</span>
+                <span>${this.escapeHtml(message)}</span>
                 <button onclick="this.parentElement.remove()">
                     <i class="fas fa-times"></i>
                 </button>
@@ -262,6 +486,203 @@ class TEEPortalApp {
             }, 5000);
         } catch (error) {
             console.error('Error showing toast:', error);
+        }
+    }
+    
+    /**
+     * Show error UI
+     */
+    showErrorUI(error) {
+        try {
+            const errorDiv = document.createElement('div');
+            errorDiv.id = 'app-error';
+            errorDiv.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: white;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                z-index: 99999;
+                padding: 20px;
+                text-align: center;
+            `;
+            
+            errorDiv.innerHTML = `
+                <div style="max-width: 500px;">
+                    <div style="font-size: 48px; color: #e74c3c; margin-bottom: 20px;">⚠️</div>
+                    <h2 style="color: #2c3e50; margin-bottom: 15px;">System Error</h2>
+                    <p style="color: #7f8c8d; margin-bottom: 20px;">
+                        The application could not start properly. Please try reloading the page.
+                    </p>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <code style="color: #e74c3c; font-size: 12px;">
+                            ${this.escapeHtml(error.message || 'Unknown error')}
+                        </code>
+                    </div>
+                    <button onclick="location.reload()" style="
+                        padding: 12px 30px;
+                        background: #3498db;
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        font-size: 16px;
+                        cursor: pointer;
+                        margin: 10px;
+                    ">
+                        <i class="fas fa-redo"></i> Reload Application
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(errorDiv);
+        } catch (e) {
+            console.error('Could not show error UI:', e);
+        }
+    }
+    
+    /**
+     * XSS Protection: Escape HTML
+     */
+    escapeHtml(text) {
+        if (text === null || text === undefined) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    /**
+     * Open student modal
+     */
+    openStudentModal() {
+        try {
+            if (this.students && this.students.ui && this.students.ui.openModal) {
+                this.students.ui.openModal('studentModal');
+            } else {
+                // Fallback
+                const modal = document.getElementById('studentModal');
+                if (modal) {
+                    modal.style.display = 'block';
+                    modal.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                }
+            }
+        } catch (error) {
+            console.error('Error opening student modal:', error);
+            this.showToast('Could not open student form', 'error');
+        }
+    }
+    
+    /**
+     * Open marks modal
+     */
+    openMarksModal() {
+        try {
+            if (this.marks && this.marks.ui && this.marks.ui.openModal) {
+                this.marks.ui.openModal('marksModal');
+            } else {
+                // Fallback
+                const modal = document.getElementById('marksModal');
+                if (modal) {
+                    modal.style.display = 'block';
+                    modal.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                }
+            }
+        } catch (error) {
+            console.error('Error opening marks modal:', error);
+            this.showToast('Could not open marks form', 'error');
+        }
+    }
+    
+    /**
+     * Open course modal
+     */
+    openCourseModal() {
+        try {
+            if (this.courses && this.courses.ui && this.courses.ui.openModal) {
+                this.courses.ui.openModal('courseModal');
+            } else {
+                // Fallback
+                const modal = document.getElementById('courseModal');
+                if (modal) {
+                    modal.style.display = 'block';
+                    modal.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                }
+            }
+        } catch (error) {
+            console.error('Error opening course modal:', error);
+            this.showToast('Could not open course form', 'error');
+        }
+    }
+    
+    /**
+     * NEW: Open county modal
+     */
+    openCountyModal() {
+        try {
+            const modal = document.getElementById('countyModal');
+            if (modal) {
+                modal.style.display = 'block';
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        } catch (error) {
+            console.error('Error opening county modal:', error);
+            this.showToast('Could not open county form', 'error');
+        }
+    }
+    
+    /**
+     * NEW: Open centre modal
+     */
+    openCentreModal() {
+        try {
+            const modal = document.getElementById('centreModal');
+            if (modal) {
+                modal.style.display = 'block';
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        } catch (error) {
+            console.error('Error opening centre modal:', error);
+            this.showToast('Could not open centre form', 'error');
+        }
+    }
+    
+    /**
+     * NEW: Open program modal
+     */
+    openProgramModal() {
+        try {
+            const modal = document.getElementById('programModal');
+            if (modal) {
+                modal.style.display = 'block';
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        } catch (error) {
+            console.error('Error opening program modal:', error);
+            this.showToast('Could not open program form', 'error');
+        }
+    }
+    
+    /**
+     * Refresh all data
+     */
+    async refreshAllData() {
+        try {
+            this.showToast('Refreshing data...', 'info');
+            await this.loadInitialData();
+            this.showToast('Data refreshed successfully', 'success');
+        } catch (error) {
+            console.error('Error refreshing data:', error);
+            this.showToast('Failed to refresh data', 'error');
         }
     }
 }
@@ -492,16 +913,18 @@ if (typeof showSection === 'undefined') {
             sectionSwitchInProgress = false;
         }
     };
+    
     // Set today's date in date fields
-document.addEventListener('DOMContentLoaded', function() {
-    const dateFields = document.querySelectorAll('input[type="date"]');
-    const today = new Date().toISOString().split('T')[0];
-    dateFields.forEach(field => {
-        if (!field.value) {
-            field.value = today;
-        }
+    document.addEventListener('DOMContentLoaded', function() {
+        const dateFields = document.querySelectorAll('input[type="date"]');
+        const today = new Date().toISOString().split('T')[0];
+        dateFields.forEach(field => {
+            if (!field.value) {
+                field.value = today;
+            }
+        });
     });
-});
+    
     // Helper function for lazy loading
     function lazyLoadSectionContent(sectionId) {
         const app = window.app;
@@ -548,6 +971,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
                 break;
+                
+            case 'settings':
+                if (app.settings && typeof app.settings.initialize === 'function') {
+                    const settingsSection = document.getElementById('settings');
+                    if (!settingsSection.dataset.initialized) {
+                        console.log('⚙️ Initializing settings...');
+                        app.settings.initialize().then(() => {
+                            settingsSection.dataset.initialized = 'true';
+                        }).catch(error => {
+                            console.error('Failed to initialize settings:', error);
+                        });
+                    }
+                }
+                break;
         }
     }
     
@@ -564,6 +1001,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 }
+
 // Add to the end of app.js, before the closing </script> tag
 const style = document.createElement('style');
 style.textContent = `
@@ -644,6 +1082,46 @@ style.textContent = `
     .stat-label {
         color: #7f8c8d;
         font-size: 14px;
+    }
+    
+    /* Toast styling */
+    .toast {
+        background: white;
+        border-radius: 8px;
+        padding: 12px 15px;
+        margin-bottom: 10px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .toast.success {
+        border-left: 4px solid #2ecc71;
+    }
+    
+    .toast.error {
+        border-left: 4px solid #e74c3c;
+    }
+    
+    .toast.info {
+        border-left: 4px solid #3498db;
+    }
+    
+    .toast.warning {
+        border-left: 4px solid #f39c12;
+    }
+    
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
     }
 `;
 document.head.appendChild(style);
