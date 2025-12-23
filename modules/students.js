@@ -1,4 +1,4 @@
-// modules/students.js - Student management module
+// modules/students.js - Enhanced Student Management Module
 class StudentManager {
     constructor(db, app = null) {
         this.db = db;
@@ -16,11 +16,92 @@ class StudentManager {
                 if (modal) {
                     modal.style.display = 'none';
                     modal.classList.remove('active');
+                    document.body.style.overflow = 'auto';
+                }
+            },
+            openModal: (id) => {
+                const modal = document.getElementById(id);
+                if (modal) {
+                    modal.style.display = 'block';
+                    modal.classList.add('active');
+                    document.body.style.overflow = 'hidden';
                 }
             }
         };
+        this.currentEditId = null;
+        this.selectedStudents = new Set();
     }
     
+    /**
+     * Initialize student module
+     */
+    async init() {
+        this._attachEventListeners();
+        await this.loadStudentsTable();
+        this._setupBulkActions();
+    }
+    
+    /**
+     * Attach all event listeners
+     */
+    _attachEventListeners() {
+        // Form submission
+        const studentForm = document.getElementById('studentForm');
+        if (studentForm) {
+            studentForm.addEventListener('submit', (e) => this.saveStudent(e));
+        }
+        
+        // Search input
+        const studentSearch = document.getElementById('studentSearch');
+        if (studentSearch) {
+            studentSearch.addEventListener('input', () => this.searchStudents());
+        }
+        
+        // Filter changes
+        ['filterProgram', 'filterIntake', 'filterStatus'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('change', () => this.filterStudents());
+            }
+        });
+        
+        // Export buttons
+        document.querySelectorAll('[data-export-format]').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const format = e.currentTarget.getAttribute('data-export-format');
+                this.exportStudents(format);
+            });
+        });
+        
+        // Import button
+        const importBtn = document.getElementById('importStudentsBtn');
+        if (importBtn) {
+            importBtn.addEventListener('click', () => this._openImportModal());
+        }
+        
+        // Bulk action buttons
+        const bulkStatusBtn = document.getElementById('bulkStatusBtn');
+        if (bulkStatusBtn) {
+            bulkStatusBtn.addEventListener('click', () => this._showBulkStatusModal());
+        }
+        
+        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+        if (bulkDeleteBtn) {
+            bulkDeleteBtn.addEventListener('click', () => this._showBulkDeleteModal());
+        }
+        
+        // Select all checkbox
+        const selectAllCheckbox = document.getElementById('selectAllStudents');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', (e) => {
+                this._toggleSelectAllStudents(e.target.checked);
+            });
+        }
+    }
+    
+    /**
+     * Save or update student
+     */
     async saveStudent(event) {
         event.preventDefault();
         
@@ -38,9 +119,28 @@ class StudentManager {
                 return;
             }
             
-            const student = await this.db.addStudent(studentData);
+            if (!this._validateEmail(studentData.email)) {
+                this.ui.showToast('Please enter a valid email address', 'error');
+                return;
+            }
             
-            this.ui.showToast(`Student registered successfully! Registration Number: ${student.reg_number}`, 'success');
+            let student;
+            if (this.currentEditId) {
+                // Update existing student
+                student = await this.db.updateStudent(this.currentEditId, studentData);
+                this.ui.showToast(`Student updated successfully!`, 'success');
+                this.currentEditId = null;
+                
+                // Change button text back to "Add Student"
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.innerHTML = '<i class="fas fa-plus"></i> Add Student';
+                }
+            } else {
+                // Add new student
+                student = await this.db.addStudent(studentData);
+                this.ui.showToast(`Student registered successfully! Registration Number: ${student.reg_number}`, 'success');
+            }
             
             this.ui.closeModal('studentModal');
             form.reset();
@@ -53,6 +153,9 @@ class StudentManager {
         }
     }
     
+    /**
+     * Extract form data
+     */
     _extractFormData(form) {
         return {
             name: document.getElementById('studentName')?.value.trim() || '',
@@ -61,17 +164,65 @@ class StudentManager {
             dob: document.getElementById('studentDOB')?.value || '',
             gender: document.getElementById('studentGender')?.value || '',
             program: document.getElementById('studentProgram')?.value || '',
-            intake: document.getElementById('studentIntake')?.value || ''
+            intake: document.getElementById('studentIntake')?.value || '',
+            address: document.getElementById('studentAddress')?.value.trim() || '',
+            emergency_contact: document.getElementById('emergencyContact')?.value.trim() || '',
+            notes: document.getElementById('studentNotes')?.value.trim() || ''
         };
     }
     
+    /**
+     * Validate student data
+     */
     _validateStudentData(data) {
         const requiredFields = ['name', 'email', 'program', 'intake'];
-        return requiredFields.every(field => 
-            data[field] && data[field].toString().trim().length > 0
-        );
+        
+        // Check required fields
+        if (!requiredFields.every(field => data[field] && data[field].toString().trim().length > 0)) {
+            return false;
+        }
+        
+        // Validate email format
+        if (!this._validateEmail(data.email)) {
+            return false;
+        }
+        
+        // Validate phone if provided
+        if (data.phone && !this._validatePhone(data.phone)) {
+            return false;
+        }
+        
+        // Validate date of birth if provided
+        if (data.dob) {
+            const dob = new Date(data.dob);
+            const today = new Date();
+            if (dob >= today) {
+                return false;
+            }
+        }
+        
+        return true;
     }
     
+    /**
+     * Validate email format
+     */
+    _validateEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+    
+    /**
+     * Validate phone number
+     */
+    _validatePhone(phone) {
+        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+        return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''));
+    }
+    
+    /**
+     * Load students into table
+     */
     async loadStudentsTable(filterOptions = {}) {
         try {
             const students = await this.db.getStudents(filterOptions);
@@ -84,6 +235,7 @@ class StudentManager {
             
             if (students.length === 0) {
                 this._renderEmptyState(tbody);
+                this._toggleBulkActions(false);
                 return;
             }
             
@@ -94,8 +246,12 @@ class StudentManager {
             
             tbody.innerHTML = html;
             
-            // Attach event listeners to action buttons
+            // Attach event listeners
             this._attachStudentRowEventListeners();
+            this._setupCheckboxListeners();
+            
+            // Show bulk actions if we have students
+            this._toggleBulkActions(true);
             
         } catch (error) {
             console.error('Error loading students table:', error);
@@ -103,6 +259,9 @@ class StudentManager {
         }
     }
     
+    /**
+     * Render student table row
+     */
     _renderStudentRow(student, settings) {
         const programName = settings.programs && settings.programs[student.program] 
             ? settings.programs[student.program].name 
@@ -112,13 +271,19 @@ class StudentManager {
         const email = this._escapeHtml(student.email || '');
         const phone = this._escapeHtml(student.phone || '');
         const status = student.status || 'active';
+        const isSelected = this.selectedStudents.has(student.id);
         
         return `
             <tr data-student-id="${student.id}" data-student-reg="${student.reg_number}">
+                <td>
+                    <input type="checkbox" class="student-checkbox" 
+                           data-student-id="${student.id}" 
+                           ${isSelected ? 'checked' : ''}>
+                </td>
                 <td><strong>${student.reg_number}</strong></td>
                 <td>
                     <div class="student-avatar">
-                        <div class="avatar-icon">
+                        <div class="avatar-icon" style="background-color: ${this._getAvatarColor(student.full_name)}">
                             <i class="fas fa-user"></i>
                         </div>
                         <div class="student-info">
@@ -140,20 +305,54 @@ class StudentManager {
                     <button class="btn-action view-student" data-id="${student.id}" title="View Details">
                         <i class="fas fa-eye"></i>
                     </button>
+                    <button class="btn-action edit-student" data-id="${student.id}" title="Edit Student">
+                        <i class="fas fa-edit"></i>
+                    </button>
                     <button class="btn-action enter-marks" data-id="${student.id}" title="Enter Marks">
                         <i class="fas fa-chart-bar"></i>
+                    </button>
+                    <button class="btn-action delete-student" data-id="${student.id}" title="Delete Student">
+                        <i class="fas fa-trash"></i>
                     </button>
                 </td>
             </tr>
         `;
     }
     
+    /**
+     * Get avatar color based on name
+     */
+    _getAvatarColor(name) {
+        const colors = [
+            '#3498db', '#2ecc71', '#e74c3c', '#f39c12', 
+            '#9b59b6', '#1abc9c', '#d35400', '#c0392b'
+        ];
+        if (!name) return colors[0];
+        
+        const hash = name.split('').reduce((acc, char) => {
+            return char.charCodeAt(0) + ((acc << 5) - acc);
+        }, 0);
+        
+        return colors[Math.abs(hash) % colors.length];
+    }
+    
+    /**
+     * Attach event listeners to student row buttons
+     */
     _attachStudentRowEventListeners() {
         // View student buttons
         document.querySelectorAll('.view-student').forEach(button => {
             button.addEventListener('click', (e) => {
                 const studentId = e.currentTarget.getAttribute('data-id');
                 this.viewStudent(studentId);
+            });
+        });
+        
+        // Edit student buttons
+        document.querySelectorAll('.edit-student').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const studentId = e.currentTarget.getAttribute('data-id');
+                this.editStudent(studentId);
             });
         });
         
@@ -164,8 +363,80 @@ class StudentManager {
                 this.enterMarksForStudent(studentId);
             });
         });
+        
+        // Delete student buttons
+        document.querySelectorAll('.delete-student').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const studentId = e.currentTarget.getAttribute('data-id');
+                this.deleteStudent(studentId);
+            });
+        });
     }
     
+    /**
+     * Setup checkbox listeners
+     */
+    _setupCheckboxListeners() {
+        document.querySelectorAll('.student-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const studentId = e.target.getAttribute('data-student-id');
+                if (e.target.checked) {
+                    this.selectedStudents.add(studentId);
+                } else {
+                    this.selectedStudents.delete(studentId);
+                }
+                this._updateSelectedCount();
+            });
+        });
+    }
+    
+    /**
+     * Toggle select all students
+     */
+    _toggleSelectAllStudents(selectAll) {
+        const checkboxes = document.querySelectorAll('.student-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = selectAll;
+            const studentId = checkbox.getAttribute('data-student-id');
+            if (selectAll) {
+                this.selectedStudents.add(studentId);
+            } else {
+                this.selectedStudents.delete(studentId);
+            }
+        });
+        this._updateSelectedCount();
+    }
+    
+    /**
+     * Update selected students count
+     */
+    _updateSelectedCount() {
+        const countElement = document.getElementById('selectedCount');
+        if (countElement) {
+            countElement.textContent = this.selectedStudents.size;
+        }
+    }
+    
+    /**
+     * Setup bulk actions
+     */
+    _setupBulkActions() {
+        this._toggleBulkActions(false);
+    }
+    
+    /**
+     * Toggle bulk actions visibility
+     */
+    _toggleBulkActions(show) {
+        const bulkActions = document.getElementById('bulkActions');
+        if (bulkActions) {
+            bulkActions.style.display = show ? 'flex' : 'none';
+        }
+    }
+    
+    /**
+     * View student details
+     */
     async viewStudent(studentId) {
         try {
             const student = await this.db.getStudent(studentId);
@@ -176,9 +447,9 @@ class StudentManager {
             
             const marks = await this.db.getStudentMarks(studentId);
             const gpa = await this.db.calculateStudentGPA(studentId);
+            const courses = await this.db.getStudentCourses(studentId);
             
-            // Create a modal to show student details
-            this._showStudentDetailsModal(student, marks, gpa);
+            this._showStudentDetailsModal(student, marks, gpa, courses);
             
         } catch (error) {
             console.error('Error viewing student:', error);
@@ -186,7 +457,246 @@ class StudentManager {
         }
     }
     
-    _showStudentDetailsModal(student, marks, gpa) {
+    /**
+     * Edit student
+     */
+    async editStudent(studentId) {
+        try {
+            const student = await this.db.getStudent(studentId);
+            if (!student) {
+                this.ui.showToast('Student not found', 'error');
+                return;
+            }
+            
+            this.currentEditId = studentId;
+            
+            // Populate form fields
+            document.getElementById('studentName').value = student.full_name || '';
+            document.getElementById('studentEmail').value = student.email || '';
+            document.getElementById('studentPhone').value = student.phone || '';
+            document.getElementById('studentDOB').value = student.dob ? student.dob.split('T')[0] : '';
+            document.getElementById('studentGender').value = student.gender || '';
+            document.getElementById('studentProgram').value = student.program || '';
+            document.getElementById('studentIntake').value = student.intake_year || '';
+            document.getElementById('studentAddress').value = student.address || '';
+            document.getElementById('emergencyContact').value = student.emergency_contact || '';
+            document.getElementById('studentNotes').value = student.notes || '';
+            
+            // Change button text
+            const submitBtn = document.querySelector('#studentForm button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Student';
+            }
+            
+            // Open modal
+            this.ui.openModal('studentModal');
+            
+        } catch (error) {
+            console.error('Error editing student:', error);
+            this.ui.showToast('Error loading student data', 'error');
+        }
+    }
+    
+    /**
+     * Delete student with confirmation
+     */
+    async deleteStudent(studentId) {
+        try {
+            const student = await this.db.getStudent(studentId);
+            if (!student) {
+                this.ui.showToast('Student not found', 'error');
+                return;
+            }
+            
+            if (!confirm(`Are you sure you want to delete ${student.full_name} (${student.reg_number})? This action cannot be undone.`)) {
+                return;
+            }
+            
+            await this.db.deleteStudent(studentId);
+            this.ui.showToast('Student deleted successfully', 'success');
+            
+            // Remove from selected if present
+            this.selectedStudents.delete(studentId);
+            
+            await this.loadStudentsTable();
+            
+        } catch (error) {
+            console.error('Error deleting student:', error);
+            this.ui.showToast('Error deleting student', 'error');
+        }
+    }
+    
+    /**
+     * Bulk update student status
+     */
+    async bulkUpdateStatus(status) {
+        if (this.selectedStudents.size === 0) {
+            this.ui.showToast('No students selected', 'warning');
+            return;
+        }
+        
+        try {
+            const validStatuses = ['active', 'inactive', 'suspended', 'graduated'];
+            if (!validStatuses.includes(status)) {
+                throw new Error('Invalid status');
+            }
+            
+            const studentIds = Array.from(this.selectedStudents);
+            const promises = studentIds.map(id => 
+                this.db.updateStudent(id, { status })
+            );
+            
+            await Promise.all(promises);
+            
+            this.ui.showToast(`Updated status for ${studentIds.length} students to ${status}`, 'success');
+            this.selectedStudents.clear();
+            this._updateSelectedCount();
+            
+            await this.loadStudentsTable();
+            
+        } catch (error) {
+            console.error('Error bulk updating status:', error);
+            this.ui.showToast('Error updating student status', 'error');
+        }
+    }
+    
+    /**
+     * Bulk delete students
+     */
+    async bulkDeleteStudents() {
+        if (this.selectedStudents.size === 0) {
+            this.ui.showToast('No students selected', 'warning');
+            return;
+        }
+        
+        if (!confirm(`Are you sure you want to delete ${this.selectedStudents.size} student(s)? This action cannot be undone.`)) {
+            return;
+        }
+        
+        try {
+            const studentIds = Array.from(this.selectedStudents);
+            const promises = studentIds.map(id => this.db.deleteStudent(id));
+            
+            await Promise.all(promises);
+            
+            this.ui.showToast(`Deleted ${studentIds.length} student(s) successfully`, 'success');
+            this.selectedStudents.clear();
+            this._updateSelectedCount();
+            
+            await this.loadStudentsTable();
+            
+        } catch (error) {
+            console.error('Error bulk deleting students:', error);
+            this.ui.showToast('Error deleting students', 'error');
+        }
+    }
+    
+    /**
+     * Show bulk status modal
+     */
+    _showBulkStatusModal() {
+        if (this.selectedStudents.size === 0) {
+            this.ui.showToast('No students selected', 'warning');
+            return;
+        }
+        
+        const modal = document.createElement('div');
+        modal.id = 'bulkStatusModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Update Status for ${this.selectedStudents.size} Student(s)</h3>
+                    <span class="close" onclick="document.getElementById('bulkStatusModal').remove()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="bulkStatus">New Status:</label>
+                        <select id="bulkStatus" class="form-control">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="suspended">Suspended</option>
+                            <option value="graduated">Graduated</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="document.getElementById('bulkStatusModal').remove()">Cancel</button>
+                    <button class="btn-primary" id="confirmBulkStatus">Update Status</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        modal.style.display = 'block';
+        
+        document.getElementById('confirmBulkStatus').addEventListener('click', async () => {
+            const status = document.getElementById('bulkStatus').value;
+            modal.remove();
+            await this.bulkUpdateStatus(status);
+        });
+        
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+    
+    /**
+     * Show bulk delete modal
+     */
+    _showBulkDeleteModal() {
+        if (this.selectedStudents.size === 0) {
+            this.ui.showToast('No students selected', 'warning');
+            return;
+        }
+        
+        const modal = document.createElement('div');
+        modal.id = 'bulkDeleteModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Delete ${this.selectedStudents.size} Student(s)</h3>
+                    <span class="close" onclick="document.getElementById('bulkDeleteModal').remove()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Warning:</strong> This action cannot be undone. 
+                        Are you sure you want to delete ${this.selectedStudents.size} student(s)?
+                    </div>
+                    <p>This will permanently remove all data associated with these students, including marks and records.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="document.getElementById('bulkDeleteModal').remove()">Cancel</button>
+                    <button class="btn-danger" id="confirmBulkDelete">
+                        <i class="fas fa-trash"></i> Delete ${this.selectedStudents.size} Student(s)
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        modal.style.display = 'block';
+        
+        document.getElementById('confirmBulkDelete').addEventListener('click', async () => {
+            modal.remove();
+            await this.bulkDeleteStudents();
+        });
+        
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+    
+    /**
+     * Show student details modal
+     */
+    _showStudentDetailsModal(student, marks, gpa, courses) {
         const modal = document.createElement('div');
         modal.id = 'studentDetailsModal';
         modal.className = 'modal';
@@ -198,12 +708,13 @@ class StudentManager {
                 </div>
                 <div class="modal-body">
                     <div class="student-detail-header">
-                        <div class="student-avatar-large">
+                        <div class="student-avatar-large" style="background-color: ${this._getAvatarColor(student.full_name)}">
                             <i class="fas fa-user-graduate"></i>
                         </div>
                         <div>
                             <h2>${this._escapeHtml(student.full_name)}</h2>
                             <p class="student-reg">${student.reg_number}</p>
+                            <p class="student-email">${student.email}</p>
                         </div>
                     </div>
                     
@@ -223,10 +734,6 @@ class StudentManager {
                             </span>
                         </div>
                         <div class="detail-item">
-                            <label>Email:</label>
-                            <span>${student.email || 'N/A'}</span>
-                        </div>
-                        <div class="detail-item">
                             <label>Phone:</label>
                             <span>${student.phone || 'N/A'}</span>
                         </div>
@@ -237,6 +744,18 @@ class StudentManager {
                         <div class="detail-item">
                             <label>Gender:</label>
                             <span>${student.gender || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Address:</label>
+                            <span>${student.address || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Emergency Contact:</label>
+                            <span>${student.emergency_contact || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item full-width">
+                            <label>Notes:</label>
+                            <span>${student.notes || 'No notes'}</span>
                         </div>
                     </div>
                     
@@ -255,12 +774,16 @@ class StudentManager {
                                 <div class="stat-value">${this._countCompletedCourses(marks)}</div>
                                 <div class="stat-label">Courses Completed</div>
                             </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${courses.length}</div>
+                                <div class="stat-label">Courses Enrolled</div>
+                            </div>
                         </div>
                         
                         ${marks.length > 0 ? `
                             <h5>Recent Marks</h5>
                             <div class="marks-list">
-                                ${marks.slice(0, 5).map(mark => `
+                                ${marks.slice(0, 10).map(mark => `
                                     <div class="mark-item">
                                         <div class="mark-course">${mark.courses?.course_code || 'N/A'}</div>
                                         <div class="mark-grade grade-${mark.grade?.charAt(0) || 'F'}">${mark.grade || 'F'}</div>
@@ -269,12 +792,16 @@ class StudentManager {
                                     </div>
                                 `).join('')}
                             </div>
+                            ${marks.length > 10 ? `<p class="text-center">... and ${marks.length - 10} more marks</p>` : ''}
                         ` : '<p class="no-marks">No marks recorded yet.</p>'}
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button class="btn-secondary" onclick="document.getElementById('studentDetailsModal').remove()">Close</button>
-                    <button class="btn-primary" onclick="app.enterMarksForStudent('${student.id}')">
+                    <button class="btn-primary" onclick="app.studentManager.editStudent('${student.id}')">
+                        <i class="fas fa-edit"></i> Edit Student
+                    </button>
+                    <button class="btn-success" onclick="app.enterMarksForStudent('${student.id}')">
                         <i class="fas fa-chart-bar"></i> Enter Marks
                     </button>
                 </div>
@@ -284,7 +811,6 @@ class StudentManager {
         document.body.appendChild(modal);
         modal.style.display = 'block';
         
-        // Close modal when clicking outside
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
                 modal.remove();
@@ -292,6 +818,9 @@ class StudentManager {
         });
     }
     
+    /**
+     * Count completed courses
+     */
     _countCompletedCourses(marks) {
         const courseSet = new Set();
         marks.forEach(mark => {
@@ -302,6 +831,9 @@ class StudentManager {
         return courseSet.size;
     }
     
+    /**
+     * Enter marks for student
+     */
     async enterMarksForStudent(studentId) {
         try {
             const student = await this.db.getStudent(studentId);
@@ -319,6 +851,7 @@ class StudentManager {
                     const studentSelect = document.getElementById('marksStudent');
                     if (studentSelect) {
                         studentSelect.value = studentId;
+                        studentSelect.dispatchEvent(new Event('change'));
                     }
                 }, 100);
             } else {
@@ -332,6 +865,9 @@ class StudentManager {
         }
     }
     
+    /**
+     * Search students
+     */
     async searchStudents() {
         const searchTerm = document.getElementById('studentSearch')?.value.toLowerCase() || '';
         const rows = document.querySelectorAll('#studentsTableBody tr[data-student-id]');
@@ -340,15 +876,20 @@ class StudentManager {
             const regNumber = row.getAttribute('data-student-reg')?.toLowerCase() || '';
             const studentName = row.querySelector('.student-info strong')?.textContent.toLowerCase() || '';
             const email = row.querySelector('.student-info small')?.textContent.toLowerCase() || '';
+            const phone = row.querySelector('td:nth-child(7)')?.textContent.toLowerCase() || '';
             
             const match = regNumber.includes(searchTerm) || 
                          studentName.includes(searchTerm) || 
-                         email.includes(searchTerm);
+                         email.includes(searchTerm) ||
+                         phone.includes(searchTerm);
             
             row.style.display = match ? '' : 'none';
         });
     }
     
+    /**
+     * Filter students
+     */
     async filterStudents() {
         const program = document.getElementById('filterProgram')?.value;
         const intake = document.getElementById('filterIntake')?.value;
@@ -357,8 +898,8 @@ class StudentManager {
         const rows = document.querySelectorAll('#studentsTableBody tr[data-student-id]');
         
         rows.forEach(row => {
-            const rowProgram = row.querySelector('td:nth-child(3)')?.textContent.toLowerCase() || '';
-            const rowIntake = row.querySelector('td:nth-child(4)')?.textContent || '';
+            const rowProgram = row.querySelector('td:nth-child(4)')?.textContent.toLowerCase() || '';
+            const rowIntake = row.querySelector('td:nth-child(5)')?.textContent || '';
             const rowStatus = row.querySelector('.status-badge')?.className.includes(status) || false;
             
             let shouldShow = true;
@@ -379,6 +920,9 @@ class StudentManager {
         });
     }
     
+    /**
+     * Export students
+     */
     async exportStudents(format = 'csv') {
         try {
             const students = await this.db.getStudents();
@@ -404,6 +948,9 @@ class StudentManager {
                     'Status': student.status || 'active',
                     'Date of Birth': student.dob ? new Date(student.dob).toISOString().split('T')[0] : '',
                     'Gender': student.gender || '',
+                    'Address': student.address || '',
+                    'Emergency Contact': student.emergency_contact || '',
+                    'Notes': student.notes || '',
                     'Date Registered': student.created_at ? new Date(student.created_at).toISOString().split('T')[0] : ''
                 };
             });
@@ -414,6 +961,8 @@ class StudentManager {
                 this._exportToExcel(data, 'students');
             } else if (format === 'pdf') {
                 this._exportToPDF(data, 'students');
+            } else if (format === 'json') {
+                this._exportToJSON(data, 'students');
             }
             
             this.ui.showToast(`Exported ${students.length} students`, 'success');
@@ -424,6 +973,9 @@ class StudentManager {
         }
     }
     
+    /**
+     * Export to CSV
+     */
     _exportToCSV(data, fileName) {
         if (!data || data.length === 0) return;
         
@@ -441,11 +993,79 @@ class StudentManager {
         
         const csvContent = csvRows.join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        this._downloadBlob(blob, `${fileName}-${new Date().toISOString().split('T')[0]}.csv`);
+    }
+    
+    /**
+     * Export to Excel (CSV fallback)
+     */
+    _exportToExcel(data, fileName) {
+        // Check if SheetJS is available
+        if (typeof XLSX !== 'undefined') {
+            try {
+                const ws = XLSX.utils.json_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Students");
+                XLSX.writeFile(wb, `${fileName}-${new Date().toISOString().split('T')[0]}.xlsx`);
+                return;
+            } catch (error) {
+                console.warn('SheetJS error, falling back to CSV:', error);
+            }
+        }
+        
+        // Fall back to CSV
+        this._exportToCSV(data, fileName);
+        this.ui.showToast('Excel export requires SheetJS library. CSV exported instead.', 'info');
+    }
+    
+    /**
+     * Export to PDF
+     */
+    _exportToPDF(data, fileName) {
+        // Check if jsPDF is available
+        if (typeof jsPDF !== 'undefined') {
+            try {
+                const doc = new jsPDF();
+                doc.text('Student List', 20, 20);
+                
+                // Simple table implementation
+                const headers = Object.keys(data[0]);
+                const rows = data.map(row => Object.values(row));
+                
+                doc.autoTable({
+                    head: [headers],
+                    body: rows,
+                    startY: 30,
+                });
+                
+                doc.save(`${fileName}-${new Date().toISOString().split('T')[0]}.pdf`);
+                return;
+            } catch (error) {
+                console.warn('jsPDF error:', error);
+            }
+        }
+        
+        this.ui.showToast('PDF export requires jsPDF library', 'info');
+    }
+    
+    /**
+     * Export to JSON
+     */
+    _exportToJSON(data, fileName) {
+        const jsonContent = JSON.stringify(data, null, 2);
+        const blob = new Blob([jsonContent], { type: 'application/json' });
+        this._downloadBlob(blob, `${fileName}-${new Date().toISOString().split('T')[0]}.json`);
+    }
+    
+    /**
+     * Download blob as file
+     */
+    _downloadBlob(blob, fileName) {
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         
         link.setAttribute('href', url);
-        link.setAttribute('download', `${fileName}-${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute('download', fileName);
         link.style.visibility = 'hidden';
         
         document.body.appendChild(link);
@@ -455,18 +1075,9 @@ class StudentManager {
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
     
-    _exportToExcel(data, fileName) {
-        // This would require a library like SheetJS
-        // For now, fall back to CSV
-        this._exportToCSV(data, fileName);
-        this.ui.showToast('Excel export requires SheetJS library. CSV exported instead.', 'info');
-    }
-    
-    _exportToPDF(data, fileName) {
-        // This would require a library like jsPDF
-        this.ui.showToast('PDF export requires jsPDF library', 'info');
-    }
-    
+    /**
+     * Import students from file
+     */
     async importStudents(file) {
         try {
             if (!file) {
@@ -480,18 +1091,18 @@ class StudentManager {
             }
             
             const text = await file.text();
-            const rows = text.split('\n').filter(row => row.trim());
+            const rows = this._parseCSV(text);
             
             if (rows.length < 2) {
                 this.ui.showToast('CSV file is empty or invalid', 'error');
                 return;
             }
             
-            const headers = rows[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            const headers = rows[0];
             const students = [];
             
             for (let i = 1; i < rows.length; i++) {
-                const values = rows[i].split(',').map(v => v.trim().replace(/"/g, ''));
+                const values = rows[i];
                 const student = {};
                 
                 headers.forEach((header, index) => {
@@ -506,7 +1117,10 @@ class StudentManager {
                         dob: student.date_of_birth || student.dob || '',
                         gender: student.gender || '',
                         program: student.program || 'basic',
-                        intake: student.intake_year || student.intake || new Date().getFullYear().toString()
+                        intake: student.intake_year || student.intake || new Date().getFullYear().toString(),
+                        address: student.address || '',
+                        emergency_contact: student.emergency_contact || '',
+                        notes: student.notes || ''
                     });
                 }
             }
@@ -516,7 +1130,6 @@ class StudentManager {
                 return;
             }
             
-            // Show import confirmation
             this._showImportConfirmation(students);
             
         } catch (error) {
@@ -525,6 +1138,150 @@ class StudentManager {
         }
     }
     
+    /**
+     * Parse CSV with proper handling of quoted fields
+     */
+    _parseCSV(text) {
+        const rows = [];
+        let currentRow = [];
+        let currentField = '';
+        let insideQuotes = false;
+        
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
+            const nextChar = text[i + 1];
+            
+            if (char === '"') {
+                if (insideQuotes && nextChar === '"') {
+                    // Escaped quote
+                    currentField += '"';
+                    i++; // Skip next character
+                } else {
+                    // Start or end of quoted field
+                    insideQuotes = !insideQuotes;
+                }
+            } else if (char === ',' && !insideQuotes) {
+                // End of field
+                currentRow.push(currentField);
+                currentField = '';
+            } else if (char === '\n' && !insideQuotes) {
+                // End of row
+                currentRow.push(currentField);
+                rows.push(currentRow);
+                currentRow = [];
+                currentField = '';
+            } else if (char === '\r' && nextChar === '\n' && !insideQuotes) {
+                // Windows line ending
+                currentRow.push(currentField);
+                rows.push(currentRow);
+                currentRow = [];
+                currentField = '';
+                i++; // Skip \n
+            } else {
+                currentField += char;
+            }
+        }
+        
+        // Add last field and row if any
+        if (currentField || currentRow.length > 0) {
+            currentRow.push(currentField);
+            rows.push(currentRow);
+        }
+        
+        return rows;
+    }
+    
+    /**
+     * Open import modal
+     */
+    _openImportModal() {
+        const modal = document.createElement('div');
+        modal.id = 'importModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Import Students</h3>
+                    <span class="close" onclick="document.getElementById('importModal').remove()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="import-instructions">
+                        <h4>Instructions:</h4>
+                        <ol>
+                            <li>Download the <a href="#" onclick="app.studentManager.downloadTemplate()">template CSV</a></li>
+                            <li>Fill in the student information</li>
+                            <li>Upload the completed CSV file</li>
+                        </ol>
+                        <p><strong>Required fields:</strong> Full Name, Email, Program, Intake Year</p>
+                        <p><strong>Optional fields:</strong> Phone, Date of Birth, Gender, Address, Emergency Contact, Notes</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="importFile">Select CSV File:</label>
+                        <input type="file" id="importFile" accept=".csv" class="form-control">
+                    </div>
+                    
+                    <div class="form-check">
+                        <input type="checkbox" id="skipDuplicates" class="form-check-input" checked>
+                        <label for="skipDuplicates" class="form-check-label">Skip duplicate emails</label>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input type="checkbox" id="sendWelcomeEmail" class="form-check-input">
+                        <label for="sendWelcomeEmail" class="form-check-label">Send welcome email to new students</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="document.getElementById('importModal').remove()">Cancel</button>
+                    <button class="btn-primary" id="processImport">Import Students</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        modal.style.display = 'block';
+        
+        document.getElementById('processImport').addEventListener('click', async () => {
+            const fileInput = document.getElementById('importFile');
+            const skipDuplicates = document.getElementById('skipDuplicates').checked;
+            
+            if (!fileInput.files.length) {
+                this.ui.showToast('Please select a file', 'error');
+                return;
+            }
+            
+            modal.remove();
+            await this.importStudents(fileInput.files[0], skipDuplicates);
+        });
+        
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+    
+    /**
+     * Download import template
+     */
+    downloadTemplate() {
+        const template = [
+            ['full_name', 'email', 'phone', 'date_of_birth', 'gender', 'program', 'intake_year', 'address', 'emergency_contact', 'notes'],
+            ['John Doe', 'john@example.com', '+1234567890', '2000-01-15', 'male', 'computer-science', '2023', '123 Main St', '+0987654321', 'Excellent student'],
+            ['Jane Smith', 'jane@example.com', '', '2001-05-20', 'female', 'business', '2023', '', '', '']
+        ];
+        
+        const csvContent = template.map(row => 
+            row.map(cell => `"${cell}"`).join(',')
+        ).join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        this._downloadBlob(blob, 'student-import-template.csv');
+    }
+    
+    /**
+     * Show import confirmation
+     */
     _showImportConfirmation(students) {
         const modal = document.createElement('div');
         modal.id = 'importConfirmationModal';
@@ -589,17 +1346,34 @@ class StudentManager {
         });
     }
     
-    async _processImport(students) {
+    /**
+     * Process import
+     */
+    async _processImport(students, skipDuplicates = true) {
         const results = {
             success: 0,
             failed: 0,
+            skipped: 0,
             errors: []
         };
         
+        // Check for duplicates
+        const existingStudents = await this.db.getStudents();
+        const existingEmails = new Set(existingStudents.map(s => s.email?.toLowerCase()));
+        
         for (const studentData of students) {
             try {
+                // Skip duplicates
+                if (skipDuplicates && existingEmails.has(studentData.email.toLowerCase())) {
+                    results.skipped++;
+                    results.errors.push(`${studentData.name}: Email already exists`);
+                    continue;
+                }
+                
                 await this.db.addStudent(studentData);
                 results.success++;
+                existingEmails.add(studentData.email.toLowerCase());
+                
             } catch (error) {
                 results.failed++;
                 results.errors.push(`${studentData.name}: ${error.message}`);
@@ -609,6 +1383,9 @@ class StudentManager {
         return results;
     }
     
+    /**
+     * Show import results
+     */
     _showImportResults(results) {
         const modal = document.createElement('div');
         modal.id = 'importResultsModal';
@@ -625,6 +1402,12 @@ class StudentManager {
                             <i class="fas fa-check-circle"></i>
                             <span>${results.success} students imported successfully</span>
                         </div>
+                        ${results.skipped > 0 ? `
+                            <div class="result-skipped">
+                                <i class="fas fa-info-circle"></i>
+                                <span>${results.skipped} students skipped (duplicates)</span>
+                            </div>
+                        ` : ''}
                         ${results.failed > 0 ? `
                             <div class="result-failed">
                                 <i class="fas fa-exclamation-triangle"></i>
@@ -634,17 +1417,17 @@ class StudentManager {
                         
                         ${results.errors.length > 0 ? `
                             <div class="error-list">
-                                <h5>Errors:</h5>
+                                <h5>Details:</h5>
                                 <ul>
-                                    ${results.errors.slice(0, 5).map(error => `<li>${this._escapeHtml(error)}</li>`).join('')}
+                                    ${results.errors.slice(0, 10).map(error => `<li>${this._escapeHtml(error)}</li>`).join('')}
                                 </ul>
-                                ${results.errors.length > 5 ? `<p>... and ${results.errors.length - 5} more errors</p>` : ''}
+                                ${results.errors.length > 10 ? `<p>... and ${results.errors.length - 10} more</p>` : ''}
                             </div>
                         ` : ''}
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn-primary" onclick="document.getElementById('importResultsModal').remove(); app.loadStudentsTable();">Close & Refresh</button>
+                    <button class="btn-primary" onclick="document.getElementById('importResultsModal').remove(); app.studentManager.loadStudentsTable();">Close & Refresh</button>
                 </div>
             </div>
         `;
@@ -660,29 +1443,40 @@ class StudentManager {
         });
     }
     
+    /**
+     * Render empty state
+     */
     _renderEmptyState(tbody) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="8" class="empty-state">
-                    <i class="fas fa-user-graduate fa-2x"></i>
-                    <p>No students found</p>
-                    <button class="btn-primary" onclick="openStudentModal()" style="margin-top: 10px;">
+                <td colspan="10" class="empty-state">
+                    <i class="fas fa-user-graduate fa-3x"></i>
+                    <h3>No Students Found</h3>
+                    <p>Get started by adding your first student.</p>
+                    <button class="btn-primary" onclick="app.openStudentModal()">
                         <i class="fas fa-plus"></i> Add Your First Student
                     </button>
+                    <p style="margin-top: 15px;">
+                        <small>or <a href="#" onclick="app.studentManager.downloadTemplate()">download template</a> to import multiple students</small>
+                    </p>
                 </td>
             </tr>
         `;
     }
     
+    /**
+     * Render error state
+     */
     _renderErrorState() {
         const tbody = document.getElementById('studentsTableBody');
         if (tbody) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" class="error-state">
-                        <i class="fas fa-exclamation-triangle fa-2x"></i>
-                        <p>Error loading students</p>
-                        <button class="btn-primary" onclick="app.loadStudentsTable()" style="margin-top: 10px;">
+                    <td colspan="10" class="error-state">
+                        <i class="fas fa-exclamation-triangle fa-3x"></i>
+                        <h3>Error Loading Students</h3>
+                        <p>Unable to load student data. Please try again.</p>
+                        <button class="btn-primary" onclick="app.studentManager.loadStudentsTable()">
                             <i class="fas fa-redo"></i> Try Again
                         </button>
                     </td>
@@ -691,7 +1485,11 @@ class StudentManager {
         }
     }
     
+    /**
+     * Escape HTML to prevent XSS
+     */
     _escapeHtml(text) {
+        if (text === null || text === undefined) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
@@ -703,363 +1501,6 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = StudentManager;
 }
 
-// Auto-initialize if loaded in browser without modules
+// Auto-initialize if loaded in browser
 if (typeof window !== 'undefined') {
-    // Add CSS styles for the student module
-    const style = document.createElement('style');
-    style.textContent = `
-        .student-avatar {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .avatar-icon {
-            width: 40px;
-            height: 40px;
-            background: #3498db;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-        }
-        
-        .student-info {
-            flex: 1;
-        }
-        
-        .student-info strong {
-            display: block;
-            margin-bottom: 2px;
-        }
-        
-        .student-info small {
-            color: #666;
-            font-size: 12px;
-        }
-        
-        .action-buttons {
-            display: flex;
-            gap: 5px;
-        }
-        
-        .btn-action {
-            background: none;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 6px;
-            cursor: pointer;
-            color: #555;
-            transition: all 0.2s;
-        }
-        
-        .btn-action:hover {
-            background: #f8f9fa;
-            border-color: #3498db;
-            color: #3498db;
-        }
-        
-        /* Student Details Modal Styles */
-        .student-detail-header {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            margin-bottom: 20px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .student-avatar-large {
-            width: 80px;
-            height: 80px;
-            background: #3498db;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 32px;
-        }
-        
-        .student-reg {
-            color: #666;
-            font-size: 14px;
-            margin-top: 5px;
-        }
-        
-        .student-details-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-        
-        .detail-item {
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 6px;
-        }
-        
-        .detail-item label {
-            display: block;
-            font-weight: bold;
-            color: #555;
-            margin-bottom: 5px;
-            font-size: 13px;
-        }
-        
-        .detail-item span {
-            color: #333;
-        }
-        
-        .academic-performance {
-            margin-top: 30px;
-        }
-        
-        .performance-stats {
-            display: flex;
-            gap: 15px;
-            margin: 20px 0;
-        }
-        
-        .stat-card {
-            flex: 1;
-            text-align: center;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border: 1px solid #eee;
-        }
-        
-        .stat-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: #2c3e50;
-            margin-bottom: 5px;
-        }
-        
-        .stat-label {
-            font-size: 12px;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .marks-list {
-            margin-top: 15px;
-        }
-        
-        .mark-item {
-            display: flex;
-            align-items: center;
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-            gap: 15px;
-        }
-        
-        .mark-item:last-child {
-            border-bottom: none;
-        }
-        
-        .mark-course {
-            flex: 2;
-            font-weight: 500;
-        }
-        
-        .mark-grade {
-            flex: 1;
-            text-align: center;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-weight: bold;
-            color: white;
-            min-width: 40px;
-        }
-        
-        .mark-score {
-            flex: 1;
-            text-align: center;
-        }
-        
-        .mark-date {
-            flex: 1;
-            text-align: right;
-            font-size: 12px;
-            color: #666;
-        }
-        
-        .no-marks {
-            text-align: center;
-            padding: 30px;
-            color: #999;
-            font-style: italic;
-        }
-        
-        /* Import Preview Styles */
-        .import-preview {
-            max-height: 300px;
-            overflow-y: auto;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            margin: 15px 0;
-        }
-        
-        .import-preview table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        .import-preview th {
-            background: #f8f9fa;
-            padding: 10px;
-            text-align: left;
-            font-weight: bold;
-            font-size: 13px;
-        }
-        
-        .import-preview td {
-            padding: 8px 10px;
-            border-bottom: 1px solid #eee;
-            font-size: 13px;
-        }
-        
-        .import-results {
-            padding: 20px 0;
-        }
-        
-        .result-success, .result-failed {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 6px;
-        }
-        
-        .result-success {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .result-failed {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        
-        .error-list {
-            margin-top: 20px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 6px;
-            border: 1px solid #eee;
-        }
-        
-        .error-list h5 {
-            margin-top: 0;
-            margin-bottom: 10px;
-            color: #721c24;
-        }
-        
-        .error-list ul {
-            margin: 0;
-            padding-left: 20px;
-        }
-        
-        .error-list li {
-            margin-bottom: 5px;
-            font-size: 13px;
-            color: #721c24;
-        }
-        
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-        }
-        
-        .modal-content {
-            background-color: white;
-            margin: 5% auto;
-            padding: 0;
-            border-radius: 10px;
-            width: 90%;
-            max-width: 700px;
-            max-height: 90vh;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .modal-header {
-            padding: 20px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .modal-header h3 {
-            margin: 0;
-        }
-        
-        .close {
-            font-size: 28px;
-            font-weight: bold;
-            color: #aaa;
-            cursor: pointer;
-        }
-        
-        .close:hover {
-            color: #333;
-        }
-        
-        .modal-body {
-            padding: 20px;
-            overflow-y: auto;
-            flex: 1;
-        }
-        
-        .modal-footer {
-            padding: 20px;
-            border-top: 1px solid #eee;
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-        
-        .btn-primary {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-        }
-        
-        .btn-primary:hover {
-            background: #2980b9;
-        }
-        
-        .btn-secondary {
-            background: #95a5a6;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-        
-        .btn-secondary:hover {
-            background: #7f8c8d;
-        }
-    `;
-    document.head.appendChild(style);
-}
+  
