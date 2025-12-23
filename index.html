@@ -435,49 +435,140 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Marks Section -->
-            <div id="marks" class="content-section">
-                <div class="section-header">
-                    <h2>Academic Records</h2>
-                    <div class="action-buttons">
-                        <button class="btn-primary" onclick="openMarksModal()">
-                            <i class="fas fa-chart-bar"></i> Enter Marks
-                        </button>
-                        <button class="btn-secondary" onclick="app.marks.exportMarks()">
-                            <i class="fas fa-download"></i> Export Marks
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Student ID</th>
-                                <th>Student Name</th>
-                                <th>Course Code</th>
-                                <th>Course Name</th>
-                                <th>Assessment</th>
-                                <th>Score</th>
-                                <th>Percentage</th>
-                                <th>Grade</th>
-                                <th>Credits</th>
-                                <th>Date</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="marksTableBody">
-                            <tr>
-                                <td colspan="11" class="empty-state">
-                                    <i class="fas fa-chart-bar fa-2x"></i>
-                                    <p>No marks recorded yet</p>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+           <!-- Marks Section -->
+<div id="marks" class="content-section">
+    <div class="section-header">
+        <h2>Academic Records</h2>
+        <div class="action-buttons">
+            <button class="btn-primary" onclick="openMarksModal()">
+                <i class="fas fa-plus"></i> New Record
+            </button>
+            <button class="btn-secondary" onclick="app.marks.exportMarks()">
+                <i class="fas fa-download"></i> Export
+            </button>
+            <button class="btn-outline" onclick="toggleTableView()" id="viewToggle">
+                <i class="fas fa-table"></i> Detailed View
+            </button>
+        </div>
+    </div>
+    
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+        <div class="summary-card">
+            <div class="summary-icon" style="background: #4caf50;">
+                <i class="fas fa-user-graduate"></i>
             </div>
+            <div class="summary-info">
+                <h3 id="totalMarks">0</h3>
+                <p>Total Records</p>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-icon" style="background: #2196f3;">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="summary-info">
+                <h3 id="avgGrade">0.0</h3>
+                <p>Average Grade</p>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-icon" style="background: #ff9800;">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="summary-info">
+                <h3 id="distinctStudents">0</h3>
+                <p>Students</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="filters-bar">
+        <div class="filter-group">
+            <input type="text" id="marksSearch" placeholder="Search records..." class="search-input">
+            <i class="fas fa-search"></i>
+        </div>
+        <div class="filter-group">
+            <select id="gradeFilter" class="filter-select">
+                <option value="">All Grades</option>
+                <option value="DISTINCTION">Distinction</option>
+                <option value="CREDIT">Credit</option>
+                <option value="PASS">Pass</option>
+                <option value="FAIL">Fail</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <select id="courseFilter" class="filter-select">
+                <option value="">All Courses</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <button class="btn-sm" onclick="clearFilters()">Clear</button>
+        </div>
+    </div>
+    
+    <!-- Compact Table View -->
+    <div class="table-container compact-view" id="compactTable">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Course</th>
+                    <th>Score</th>
+                    <th>Grade</th>
+                    <th class="text-center">Status</th>
+                    <th>Date</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="marksTableBody">
+                <!-- Data will be populated here -->
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Detailed Table View (Hidden by default) -->
+    <div class="table-container detailed-view" id="detailedTable" style="display: none;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Student ID</th>
+                    <th>Student Name</th>
+                    <th>Course Code</th>
+                    <th>Course Name</th>
+                    <th>Assessment</th>
+                    <th>Score</th>
+                    <th>%</th>
+                    <th>Grade</th>
+                    <th>Credits</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="detailedMarksTableBody">
+                <!-- Detailed data will be populated here -->
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Pagination -->
+    <div class="pagination">
+        <button class="page-btn" id="prevPage" disabled>
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <span id="pageInfo">Page 1 of 1</span>
+        <button class="page-btn" id="nextPage" disabled>
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        <select id="pageSize" class="page-size">
+            <option value="10">10 per page</option>
+            <option value="25" selected>25 per page</option>
+            <option value="50">50 per page</option>
+            <option value="100">100 per page</option>
+        </select>
+    </div>
+</div>
             
           <!-- Reports Section -->
 <div id="reports" class="content-section">
@@ -1585,8 +1676,11 @@
             <h3><i class="fas fa-edit"></i> Edit Marks</h3>
             <span class="close" onclick="app.marks.closeModal('editMarksModal')">&times;</span>
         </div>
-        <form id="editMarksForm" onsubmit="app.marks.updateMark(event)">
-            <input type="hidden" id="editMarkId">
+        
+        <!-- FORM WITH NOVALIDATE AND NAME ATTRIBUTES -->
+        <form id="editMarksForm" novalidate onsubmit="app.marks.updateMark(event)">
+            <input type="hidden" id="editMarkId" name="editMarkId">
+            
             <div class="modal-body">
                 
                 <!-- Student & Course (Compact) -->
@@ -1601,6 +1695,45 @@
                     </div>
                 </div>
                 
+                <!-- Score Input Section -->
+                <div class="score-input-section">
+                    <div class="score-input-grid">
+                        <div class="form-group">
+                            <label for="editScore">Score <span class="required">*</span></label>
+                            <input type="number" 
+                                   id="editScore" 
+                                   name="editScore"  <!-- ADD NAME ATTRIBUTE -->
+                                   class="form-control form-control-sm score-input"
+                                   min="0"
+                                   max="1000"
+                                   step="0.01"
+                                   placeholder="0.00"
+                                   required>
+                            <small class="form-text text-muted">Enter score (0-1000)</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="editMaxScore">Out Of</label>
+                            <input type="number" 
+                                   id="editMaxScore" 
+                                   name="editMaxScore"  <!-- ADD NAME ATTRIBUTE -->
+                                   class="form-control form-control-sm max-score-input"
+                                   min="1"
+                                   max="10000"
+                                   step="0.01"
+                                   value="100">
+                        </div>
+                        
+                        <div class="grade-display-box">
+                            <div class="grade-label">Grade:</div>
+                            <div id="editGradeDisplay" class="grade-value">
+                                <span class="grade-badge">--</span>
+                            </div>
+                            <div id="editPercentage" class="percentage">0.00%</div>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Assessment (Collapsible) -->
                 <div class="collapsible-section">
                     <button type="button" class="collapsible-btn" onclick="toggleCollapsible(this)">
@@ -1610,7 +1743,9 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label>Assessment Type</label>
-                                <select id="editAssessmentType" class="form-control form-control-sm">
+                                <select id="editAssessmentType" 
+                                        name="editAssessmentType"  <!-- ADD NAME ATTRIBUTE -->
+                                        class="form-control form-control-sm">
                                     <option value="final" selected>Final Exam</option>
                                     <option value="midterm">Midterm</option>
                                     <option value="test">Test</option>
@@ -1623,12 +1758,64 @@
                             </div>
                             <div class="form-group">
                                 <label>Assessment Name <small class="text-muted">(Optional)</small></label>
-                                <input type="text" id="editAssessmentName" class="form-control form-control-sm" 
+                                <input type="text" 
+                                       id="editAssessmentName" 
+                                       name="editAssessmentName"  <!-- ADD NAME ATTRIBUTE -->
+                                       class="form-control form-control-sm" 
                                        placeholder="e.g., Final 2024">
                             </div>
                         </div>
                     </div>
                 </div>
+                
+                <!-- Additional Details (Collapsible) -->
+                <div class="collapsible-section">
+                    <button type="button" class="collapsible-btn" onclick="toggleCollapsible(this)">
+                        <i class="fas fa-caret-down"></i> Additional Details
+                    </button>
+                    <div class="collapsible-content">
+                        <div class="form-group">
+                            <label for="editRemarks">Remarks</label>
+                            <textarea id="editRemarks" 
+                                      name="editRemarks"  <!-- ADD NAME ATTRIBUTE -->
+                                      class="form-control form-control-sm" 
+                                      rows="2" 
+                                      placeholder="Enter any remarks or comments..."></textarea>
+                        </div>
+                        
+                        <div class="form-check">
+                            <input type="checkbox" 
+                                   class="form-check-input" 
+                                   id="editVisibleToStudent" 
+                                   name="editVisibleToStudent"  <!-- ADD NAME ATTRIBUTE -->
+                                   checked>
+                            <label class="form-check-label" for="editVisibleToStudent">
+                                Visible to student
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Grade Description -->
+                <div class="grade-description-box">
+                    <small id="editGradeDescription" class="text-muted">
+                        Enter score above to see grade description
+                    </small>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" 
+                        onclick="app.marks.closeModal('editMarksModal')">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="fas fa-save"></i> Update Marks
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
                 
                 <!-- Scores (Compact) -->
                 <div class="score-section">
