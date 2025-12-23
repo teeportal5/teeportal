@@ -327,65 +327,271 @@
                 </div>
             </section>
             
-            <!-- Reports Section -->
-            <section id="reports" class="content-section">
-                <div class="section-header">
-                    <h2>Reports & Analytics</h2>
-                    <div class="action-buttons">
-                        <button class="btn btn-primary" onclick="app.reports.generateSummaryReport()">
-                            <i class="fas fa-file-pdf"></i> Summary Report
-                        </button>
-                        <button class="btn btn-secondary" onclick="app.reports.generateCentreReport()">
-                            <i class="fas fa-map"></i> Centre Report
-                        </button>
+          <!-- Reports Section -->
+<section id="reports" class="content-section">
+    <div class="section-header">
+        <h2><i class="fas fa-chart-bar"></i> Reports & Analytics</h2>
+        <div class="action-buttons">
+            <button class="btn btn-primary" onclick="app.reports.generateSummaryReport()">
+                <i class="fas fa-file-pdf"></i> Summary Report
+            </button>
+            <button class="btn btn-secondary" onclick="app.reports.refreshReports()">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+    </div>
+    
+    <!-- Quick Report Actions -->
+    <div class="quick-actions mb-4">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <button class="btn btn-action btn-block" onclick="app.reports.studentReport()">
+                    <i class="fas fa-users fa-2x mb-2"></i>
+                    <h5>Student Reports</h5>
+                    <p>Generate student lists by county, centre, or program</p>
+                    <span class="action-badge">Generate →</span>
+                </button>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-action btn-block" onclick="app.reports.academicReport()">
+                    <i class="fas fa-chart-line fa-2x mb-2"></i>
+                    <h5>Academic Reports</h5>
+                    <p>Performance analysis and grade distribution</p>
+                    <span class="action-badge">Generate →</span>
+                </button>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-action btn-block" onclick="app.reports.generateCentreReport()">
+                    <i class="fas fa-map fa-2x mb-2"></i>
+                    <h5>Centre Reports</h5>
+                    <p>Student distribution by centre and county</p>
+                    <span class="action-badge">Generate →</span>
+                </button>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-action btn-block" onclick="app.reports.geographicalReport()">
+                    <i class="fas fa-map-marked-alt fa-2x mb-2"></i>
+                    <h5>Geographical Reports</h5>
+                    <p>Student distribution maps and statistics</p>
+                    <span class="action-badge">Generate →</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Advanced Reports -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5><i class="fas fa-cogs"></i> Advanced Reports</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-4">
+                <!-- Student Report Configuration -->
+                <div class="col-md-6">
+                    <div class="report-config">
+                        <h6><i class="fas fa-users"></i> Student Report</h6>
+                        <div class="mb-3">
+                            <label class="form-label">Report Type</label>
+                            <select id="studentReportType" class="form-select">
+                                <option value="list">Student List</option>
+                                <option value="enrollment">Enrollment Statistics</option>
+                                <option value="graduation">Graduation Report</option>
+                                <option value="demographics">Demographics</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Export Format</label>
+                            <select id="studentReportFormat" class="form-select">
+                                <option value="csv">CSV</option>
+                                <option value="excel">Excel</option>
+                                <option value="pdf">PDF</option>
+                            </select>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-primary flex-fill" onclick="app.reports.previewStudentReport()">
+                                <i class="fas fa-eye"></i> Preview
+                            </button>
+                            <button class="btn btn-success flex-fill" onclick="app.reports.quickStudentReport()">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Reports Content -->
-                <div class="reports-grid">
-                    <div class="report-card">
-                        <div class="report-icon">
-                            <i class="fas fa-users"></i>
+                <!-- Academic Report Configuration -->
+                <div class="col-md-6">
+                    <div class="report-config">
+                        <h6><i class="fas fa-chart-line"></i> Academic Report</h6>
+                        <div class="mb-3">
+                            <label class="form-label">Report Type</label>
+                            <select id="academicReportType" class="form-select">
+                                <option value="marks">Marks Report</option>
+                                <option value="performance">Performance Analysis</option>
+                                <option value="grades">Grade Distribution</option>
+                                <option value="coursewise">Course-wise Results</option>
+                            </select>
                         </div>
-                        <h3>Student Reports</h3>
-                        <p>Generate student lists by county, centre, or program</p>
-                        <button class="btn btn-secondary" onclick="app.reports.studentReport()">
-                            Generate
-                        </button>
+                        <div class="mb-3">
+                            <label class="form-label">Export Format</label>
+                            <select id="academicReportFormat" class="form-select">
+                                <option value="csv">CSV</option>
+                                <option value="excel">Excel</option>
+                                <option value="pdf">PDF</option>
+                            </select>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-primary flex-fill" onclick="app.reports.previewAcademicReport()">
+                                <i class="fas fa-eye"></i> Preview
+                            </button>
+                            <button class="btn btn-success flex-fill" onclick="app.reports.quickAcademicReport()">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                        </div>
                     </div>
-                    <div class="report-card">
-                        <div class="report-icon">
-                            <i class="fas fa-chart-line"></i>
-                        </div>
-                        <h3>Academic Reports</h3>
-                        <p>Performance analysis and grade distribution</p>
-                        <button class="btn btn-secondary" onclick="app.reports.academicReport()">
-                            Generate
-                        </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Transcript Generation -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5><i class="fas fa-graduation-cap"></i> Transcript Generation</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Select Student</label>
+                        <select id="transcriptStudent" class="form-select">
+                            <option value="">Select Student</option>
+                        </select>
                     </div>
-                    <div class="report-card">
-                        <div class="report-icon">
-                            <i class="fas fa-graduation-cap"></i>
-                        </div>
-                        <h3>Transcripts</h3>
-                        <p>Generate official student transcripts</p>
-                        <button class="btn btn-secondary" onclick="app.transcripts.generateTranscript()">
-                            Generate
-                        </button>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label">Format</label>
+                        <select id="transcriptFormat" class="form-select">
+                            <option value="pdf">PDF</option>
+                            <option value="excel">Excel</option>
+                            <option value="csv">CSV</option>
+                        </select>
                     </div>
-                    <div class="report-card">
-                        <div class="report-icon">
-                            <i class="fas fa-map-marked-alt"></i>
-                        </div>
-                        <h3>Geographical Reports</h3>
-                        <p>Student distribution by county and centre</p>
-                        <button class="btn btn-secondary" onclick="app.reports.geographicalReport()">
-                            Generate
+                </div>
+                <div class="col-md-5">
+                    <div class="d-flex gap-2 align-items-end">
+                        <button class="btn btn-outline-primary" onclick="app.reports.loadSampleTranscript()">
+                            <i class="fas fa-file-alt"></i> Sample
+                        </button>
+                        <button class="btn btn-primary" onclick="app.reports.previewTranscript()">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                        <button class="btn btn-success" onclick="app.reports.generateTranscript()">
+                            <i class="fas fa-print"></i> Generate Transcript
                         </button>
                     </div>
                 </div>
-            </section>
+            </div>
             
+            <!-- Transcript Preview -->
+            <div id="transcriptPreview" class="mt-4" style="display: none;">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">Transcript Preview</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h5 id="previewStudentName">Student Name</h5>
+                                <p class="text-muted mb-1">
+                                    <i class="fas fa-id-card"></i> Reg No: <span id="previewRegNumber">-</span> |
+                                    <i class="fas fa-graduation-cap"></i> Program: <span id="previewProgram">-</span>
+                                </p>
+                                <p class="text-muted mb-3">
+                                    <i class="fas fa-calendar"></i> Intake: <span id="previewIntake">-</span> |
+                                    Status: <span id="previewStatus" class="badge bg-success">Active</span>
+                                </p>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <div class="stat-box">
+                                    <h4 id="previewGPA">0.00</h4>
+                                    <p class="text-muted">GPA</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Courses Table -->
+                        <div class="table-responsive mt-3">
+                            <table class="table table-sm">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Course</th>
+                                        <th>Grade</th>
+                                        <th>Credits</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="previewCourses">
+                                    <!-- Will be populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bulk Export -->
+    <div class="card">
+        <div class="card-header">
+            <h5><i class="fas fa-database"></i> Bulk Export</h5>
+        </div>
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Export Type</label>
+                        <select id="bulkExportType" class="form-select">
+                            <option value="json">JSON Backup</option>
+                            <option value="excel">Excel Workbook</option>
+                            <option value="csv_all">CSV Archive</option>
+                            <option value="pdf_all">PDF Reports</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-info-circle"></i> Export all data for backup or external analysis
+                    </p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button class="btn btn-warning" onclick="app.reports.bulkExport()">
+                        <i class="fas fa-file-export"></i> Export All Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Report Preview Area -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5><i class="fas fa-eye"></i> Report Preview</h5>
+            <button class="btn btn-sm btn-outline-secondary" onclick="app.reports.clearPreview()">
+                <i class="fas fa-times"></i> Clear
+            </button>
+        </div>
+        <div class="card-body">
+            <div id="reportPreview">
+                <div class="text-center text-muted p-4">
+                    <i class="fas fa-chart-line fa-3x mb-3"></i>
+                    <p>Select a report type and click "Preview" to see a sample here</p>
+                    <small>Preview shows first 10 records only</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
             <!-- Centres Section -->
             <section id="centres" class="content-section">
                 <div class="section-header">
