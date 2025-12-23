@@ -1351,24 +1351,24 @@
                         </div>
                     </div>
                 </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Assessment Type</label>
-                        <select id="assessmentType" class="form-control">
-                            <option value="exam">Final Exam</option>
-                            <option value="test">Test</option>
-                            <option value="assignment">Assignment</option>
-                            <option value="practical">Practical</option>
-                            <option value="cat">CAT</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Date</label>
-                        <input type="date" id="assessmentDate" class="form-control" 
-                               value="<?php echo date('Y-m-d'); ?>">
-                    </div>
-                </div>
+                <!-- Update just the Assessment Type section -->
+<div class="form-row">
+    <div class="form-group">
+        <label>Assessment Type *</label>  <!-- Added asterisk -->
+        <select id="assessmentType" class="form-control" required>  <!-- Added required -->
+            <option value="exam" selected>Final Exam</option>  <!-- Added selected -->
+            <option value="test">Test</option>
+            <option value="assignment">Assignment</option>
+            <option value="practical">Practical</option>
+            <option value="cat">CAT</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="assessmentDate" class="form-control" 
+               value="<?php echo date('Y-m-d'); ?>">
+    </div>
+</div>
                 <!-- REMARKS FIELD REMOVED -->
             </div>
             <div class="modal-footer">
