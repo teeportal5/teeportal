@@ -139,42 +139,42 @@ class MarksManager {
         }
     }
     
-    closeModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.style.display = 'none';
-            modal.classList.remove('active');
-            document.body.style.overflow = ''; // Restore scrolling
-            
-            // Reset forms
-            if (modalId === 'marksModal') {
-                const form = document.getElementById('marksForm');
-                if (form) {
-                    form.reset();
-                    
-                    // Reset specific fields
-                    const maxScoreInput = document.getElementById('marksMaxScore');
-                    if (maxScoreInput) maxScoreInput.value = '100';
-                    
-                    const assessmentType = document.getElementById('assessmentType');
-                    if (assessmentType) assessmentType.value = 'exam';
-                    
-                    // Set today's date
-                    const dateField = document.getElementById('assessmentDate');
-                    if (dateField) {
-                        dateField.value = new Date().toISOString().split('T')[0];
-                    }
-                    
-                    // Reset grade display
-                    this.resetMarksGradeDisplay(
-                        document.getElementById('gradeBadge'),
-                        document.getElementById('marksPercentage')
-                    );
+   closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+        
+        // Reset forms
+        if (modalId === 'marksModal') {
+            const form = document.getElementById('marksForm');
+            if (form) {
+                form.reset();
+                
+                // Reset specific fields
+                const maxScoreInput = document.getElementById('marksMaxScore');
+                if (maxScoreInput) maxScoreInput.value = '100';
+                
+                const assessmentType = document.getElementById('assessmentType');
+                if (assessmentType) assessmentType.value = 'exam';
+                
+                // Set today's date properly - FIXED
+                const dateField = document.getElementById('assessmentDate');
+                if (dateField) {
+                    const today = new Date();
+                    dateField.value = today.toISOString().split('T')[0];
                 }
+                
+                // Reset grade display
+                this.resetMarksGradeDisplay(
+                    document.getElementById('gradeBadge'),
+                    document.getElementById('marksPercentage')
+                );
             }
         }
     }
-    
+}
     // ==================== CORE DATA LOADING ====================
     
     async loadMarksTable() {
