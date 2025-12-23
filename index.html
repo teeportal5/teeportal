@@ -107,37 +107,36 @@
 <body>
     <div class="app-container">
         <!-- Navigation Sidebar -->
-        <nav class="sidebar">
-            <div class="sidebar-header">
-                <h2><i class="fas fa-graduation-cap"></i> TEE Portal</h2>
-                <p class="sidebar-subtitle">Technical & Engineering Education</p>
-            </div>
-            <ul class="sidebar-menu">
-                <li><a href="#dashboard" onclick="showSection('dashboard')" class="nav-link active">
-                    <i class="fas fa-home"></i> Dashboard
-                </a></li>
-                <li><a href="#students" onclick="showSection('students')" class="nav-link">
-                    <i class="fas fa-user-graduate"></i> Students
-                </a></li>
-                <li><a href="#courses" onclick="showSection('courses')" class="nav-link">
-                    <i class="fas fa-book"></i> Courses
-                </a></li>
-                <li><a href="#marks" onclick="showSection('marks')" class="nav-link">
-                    <i class="fas fa-chart-bar"></i> Marks
-                </a></li>
-                <li><a href="#reports" onclick="showSection('reports')" class="nav-link">
-                    <i class="fas fa-chart-line"></i> Reports
-                </a></li>
-                <li><a href="#centres" onclick="showSection('centres')" class="nav-link">
-                    <i class="fas fa-map-marker-alt"></i> Centres
-                </a></li>
-                <li><a href="#profile" onclick="showSection('profile')" class="nav-link">
-                    <i class="fas fa-user"></i> Profile
-                </a></li>
-                <li><a href="#settings" onclick="showSection('settings')" class="nav-link">
-                    <i class="fas fa-cog"></i> Settings
-                </a></li>
-            </ul>
+       <ul class="sidebar-menu">
+    <li><a href="#dashboard" onclick="showSection('dashboard')" class="nav-link active">
+        <i class="fas fa-home"></i> Dashboard
+    </a></li>
+    <li><a href="#students" onclick="showSection('students')" class="nav-link">
+        <i class="fas fa-user-graduate"></i> Students
+    </a></li>
+    <!-- ADD THIS: Programs Menu Item -->
+    <li><a href="#programs" onclick="showSection('programs')" class="nav-link">
+        <i class="fas fa-certificate"></i> Programs
+    </a></li>
+    <li><a href="#courses" onclick="showSection('courses')" class="nav-link">
+        <i class="fas fa-book"></i> Courses
+    </a></li>
+    <li><a href="#marks" onclick="showSection('marks')" class="nav-link">
+        <i class="fas fa-chart-bar"></i> Marks
+    </a></li>
+    <li><a href="#reports" onclick="showSection('reports')" class="nav-link">
+        <i class="fas fa-chart-line"></i> Reports
+    </a></li>
+    <li><a href="#centres" onclick="showSection('centres')" class="nav-link">
+        <i class="fas fa-map-marker-alt"></i> Centres
+    </a></li>
+    <li><a href="#profile" onclick="showSection('profile')" class="nav-link">
+        <i class="fas fa-user"></i> Profile
+    </a></li>
+    <li><a href="#settings" onclick="showSection('settings')" class="nav-link">
+        <i class="fas fa-cog"></i> Settings
+    </a></li>
+</ul>
             
             <!-- User Profile in Sidebar -->
             <div class="sidebar-footer">
@@ -337,7 +336,67 @@
                     </table>
                 </div>
             </section>
-            
+            <!-- Programs Section -->
+<section id="programs" class="content-section">
+    <div class="section-header">
+        <h2>Program Management</h2>
+        <div class="action-buttons">
+            <button class="btn btn-primary" data-open-modal="programModal">
+                <i class="fas fa-certificate"></i> Add Program
+            </button>
+            <button class="btn btn-secondary" onclick="app.programs?.exportPrograms()">
+                <i class="fas fa-download"></i> Export
+            </button>
+        </div>
+    </div>
+    
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <input type="text" id="programSearch" placeholder="Search programs..." class="search-input">
+        <select id="filterProgramLevel" class="filter-select">
+            <option value="">All Levels</option>
+            <option value="certificate">Certificate</option>
+            <option value="diploma">Diploma</option>
+            <option value="degree">Degree</option>
+        </select>
+        <select id="filterProgramStatus" class="filter-select">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+        </select>
+    </div>
+    
+    <!-- Programs Table -->
+    <div class="table-container">
+        <table class="data-table" id="programsTable">
+            <thead>
+                <tr>
+                    <th>Program Code</th>
+                    <th>Program Name</th>
+                    <th>Level</th>
+                    <th>Duration</th>
+                    <th>Courses</th>
+                    <th>Total Students</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="programsTableBody">
+                <!-- Programs will be loaded here -->
+                <tr>
+                    <td colspan="8" class="empty-state">
+                        <i class="fas fa-certificate fa-3x"></i>
+                        <h3>No Programs Found</h3>
+                        <p>Get started by adding your first program.</p>
+                        <button class="btn-primary" data-open-modal="programModal">
+                            <i class="fas fa-plus"></i> Add Your First Program
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
             <!-- Courses Section -->
             <section id="courses" class="content-section">
                 <div class="section-header">
@@ -1058,6 +1117,67 @@
     </div>
 </div>
 
+    <!-- Program Modal -->
+<div id="programModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Add New Program</h3>
+            <span class="close" data-modal-close>&times;</span>
+        </div>
+        <form id="programForm">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Program Code *</label>
+                        <input type="text" id="programCode" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Program Name *</label>
+                        <input type="text" id="programName" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Program Level *</label>
+                        <select id="programLevel" class="form-control" required>
+                            <option value="">Select Level</option>
+                            <option value="certificate">Certificate</option>
+                            <option value="diploma">Diploma</option>
+                            <option value="degree">Degree</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Duration (Months) *</label>
+                        <input type="number" id="programDuration" class="form-control" required min="1" max="48">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Required Credits</label>
+                        <input type="number" id="programCredits" class="form-control" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="programStatus" class="form-control">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="programDescription" class="form-control" rows="4" 
+                              placeholder="Brief description of the program, objectives, and career opportunities"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Program</button>
+            </div>
+        </form>
+    </div>
+</div>
+    
 <!-- Course Modal -->
 <div id="courseModal" class="modal">
     <div class="modal-content">
