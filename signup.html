@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEE Portal - Sign Up</title>
+    
+    <!-- CSS Libraries -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .auth-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .auth-header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            padding: 40px 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .auth-header h1 {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .auth-header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .auth-body {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #495057;
+            border: 2px solid #e9ecef;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+        }
+
+        .password-strength {
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .strength-meter {
+            height: 100%;
+            width: 0%;
+            transition: all 0.3s;
+        }
+
+        .strength-weak { background: #e74c3c; }
+        .strength-medium { background: #f39c12; }
+        .strength-strong { background: #27ae60; }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .success-message {
+            color: #27ae60;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .auth-footer {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .auth-footer a {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .centre-select {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .centre-option {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .centre-option:hover {
+            border-color: #3498db;
+            background: #f8f9fa;
+        }
+
+        .centre-option.selected {
+            border-color: #3498db;
+            background: #3498db;
+            color: white;
+        }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 10000;
+            animation: slideIn 0.3s ease;
+            min-width: 300px;
+        }
+
+        .toast.success {
+            border-left: 4px solid #27ae60;
+        }
+
+        .toast.error {
+            border-left: 4px solid #e74c3c;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .auth-card {
+                border-radius: 8px;
+            }
+            
+            .auth-header {
+                padding: 30px 20px;
+            }
+            
+            .auth-body {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>
+                    <i class="fas fa-graduation-cap"></i>
+                    TEE Portal
+                </h1>
+                <p>Create Administrator Account</p>
+            </div>
+            
+            <div class="auth-body">
+                <form id="signupForm">
+                    <div class="form-group">
+                        <label for="fullName">
+                            <i class="fas fa-user"></i> Full Name
+                        </label>
+                        <input type="text" id="fullName" class="form-control" placeholder="Enter your full name" required>
+                        <div class="error-message" id="nameError"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">
+                            <i class="fas fa-envelope"></i> Email Address
+                        </label>
+                        <input type="email" id="email" class="form-control" placeholder="admin@teeportal.edu" required>
+                        <div class="error-message" id="emailError"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="phone">
+                            <i class="fas fa-phone"></i> Phone Number
+                        </label>
+                        <input type="tel" id="phone" class="form-control" placeholder="+254 700 000000" required>
+                        <div class="error-message" id="phoneError"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="centre">
+                            <i class="fas fa-map-marker-alt"></i> Select Your Centre
+                        </label>
+                        <select id="centre" class="form-control" required>
+                            <option value="">Select a centre...</option>
+                            <option value="nairobi-hq">Nairobi HQ (Headquarters)</option>
+                            <option value="mombasa">Mombasa Centre</option>
+                            <option value="kisumu">Kisumu Centre</option>
+                            <option value="nakuru">Nakuru Centre</option>
+                            <option value="eldoret">Eldoret Centre</option>
+                        </select>
+                        <div class="error-message" id="centreError"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">
+                            <i class="fas fa-lock"></i> Password
+                        </label>
+                        <input type="password" id="password" class="form-control" placeholder="Create a strong password" required>
+                        <div class="password-strength">
+                            <div class="strength-meter" id="passwordStrength"></div>
+                        </div>
+                        <div class="error-message" id="passwordError"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="confirmPassword">
+                            <i class="fas fa-lock"></i> Confirm Password
+                        </label>
+                        <input type="password" id="confirmPassword" class="form-control" placeholder="Re-enter your password" required>
+                        <div class="error-message" id="confirmPasswordError"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="terms" required>
+                            I agree to the <a href="#" style="color: #3498db;">Terms of Service</a> and <a href="#" style="color: #3498db;">Privacy Policy</a>
+                        </label>
+                        <div class="error-message" id="termsError"></div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <span id="btnText">Create Account</span>
+                        <div class="loading-spinner" id="loadingSpinner"></div>
+                    </button>
+                </form>
+                
+                <div class="auth-footer">
+                    <p>Already have an account? <a href="login.html">Sign In</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        // Supabase Configuration
+        const SUPABASE_URL = 'https://kmkjsessuzdfadlmndyr.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtta2pzZXNzdXpkZmFkbG1uZHlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYyNTA1MzUsImV4cCI6MjA4MTgyNjUzNX0.16m_thmf2Td8uB5lan8vZDLkGkWIlftaxSOroqvDkU4';
+        
+        let supabaseClient = null;
+        
+        // Initialize Supabase
+        async function initSupabase() {
+            try {
+                supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                
+                // Test connection
+                const { data, error } = await supabaseClient
+                    .from('users')
+                    .select('count', { count: 'exact', head: true })
+                    .limit(1);
+                    
+                console.log('✅ Supabase connected successfully');
+                return true;
+            } catch (error) {
+                console.error('❌ Supabase connection failed:', error);
+                return false;
+            }
+        }
+        
+        // Password strength checker
+        function checkPasswordStrength(password) {
+            if (!password) return 0;
+            
+            let strength = 0;
+            if (password.length >= 8) strength++;
+            if (/[A-Z]/.test(password)) strength++;
+            if (/[a-z]/.test(password)) strength++;
+            if (/[0-9]/.test(password)) strength++;
+            if (/[^A-Za-z0-9]/.test(password)) strength++;
+            
+            return Math.min(strength, 5);
+        }
+        
+        // Update password strength meter
+        function updatePasswordStrength(password) {
+            const strength = checkPasswordStrength(password);
+            const meter = document.getElementById('passwordStrength');
+            const percentage = (strength / 5) * 100;
+            
+            meter.style.width = `${percentage}%`;
+            
+            // Update color based on strength
+            meter.className = 'strength-meter';
+            if (strength <= 2) {
+                meter.classList.add('strength-weak');
+            } else if (strength <= 3) {
+                meter.classList.add('strength-medium');
+            } else {
+                meter.classList.add('strength-strong');
+            }
+        }
+        
+        // Show error message
+        function showError(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.style.display = 'block';
+        }
+        
+        // Hide error message
+        function hideError(elementId) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'none';
+        }
+        
+        // Show toast notification
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+                <span>${message}</span>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Remove after 5 seconds
+            setTimeout(() => {
+                toast.remove();
+            }, 5000);
+        }
+        
+        // Validate form
+        function validateForm(formData) {
+            let isValid = true;
+            
+            // Reset all errors
+            document.querySelectorAll('.error-message').forEach(el => {
+                el.style.display = 'none';
+            });
+            
+            // Validate name
+            if (!formData.name.trim()) {
+                showError('nameError', 'Full name is required');
+                isValid = false;
+            }
+            
+            // Validate email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(formData.email)) {
+                showError('emailError', 'Please enter a valid email address');
+                isValid = false;
+            }
+            
+            // Validate phone
+            const phoneRegex = /^\+?[\d\s-]{10,}$/;
+            if (!phoneRegex.test(formData.phone)) {
+                showError('phoneError', 'Please enter a valid phone number');
+                isValid = false;
+            }
+            
+            // Validate centre
+            if (!formData.centre) {
+                showError('centreError', 'Please select a centre');
+                isValid = false;
+            }
+            
+            // Validate password
+            if (formData.password.length < 8) {
+                showError('passwordError', 'Password must be at least 8 characters');
+                isValid = false;
+            }
+            
+            // Check password strength
+            const strength = checkPasswordStrength(formData.password);
+            if (strength < 3) {
+                showError('passwordError', 'Password is too weak. Use a mix of letters, numbers, and symbols');
+                isValid = false;
+            }
+            
+            // Validate confirm password
+            if (formData.password !== formData.confirmPassword) {
+                showError('confirmPasswordError', 'Passwords do not match');
+                isValid = false;
+            }
+            
+            // Validate terms
+            if (!document.getElementById('terms').checked) {
+                showError('termsError', 'You must agree to the terms and conditions');
+                isValid = false;
+            }
+            
+            return isValid;
+        }
+        
+        // Create admin user in Supabase
+        async function createAdminUser(userData) {
+            try {
+                // Check if user already exists
+                const { data: existingUser, error: checkError } = await supabaseClient
+                    .from('users')
+                    .select('email')
+                    .eq('email', userData.email)
+                    .maybeSingle();
+                    
+                if (existingUser) {
+                    throw new Error('An account with this email already exists');
+                }
+                
+                // Hash password (in production, use proper hashing)
+                const hashedPassword = btoa(userData.password); // Simple demo hash
+                
+                // Create user record
+                const user = {
+                    name: userData.name,
+                    email: userData.email,
+                    phone: userData.phone,
+                    centre: userData.centre,
+                    role: 'administrator',
+                    passwordHash: hashedPassword,
+                    status: 'active',
+                    preferences: {
+                        emailNotifications: true,
+                        darkMode: false,
+                        autoSave: true
+                    },
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+                
+                const { data, error } = await supabaseClient
+                    .from('users')
+                    .insert([user])
+                    .select()
+                    .single();
+                    
+                if (error) throw error;
+                
+                // Create default settings if they don't exist
+                await createDefaultSettings();
+                
+                // Create default centre if it doesn't exist
+                await createDefaultCentre(userData.centre);
+                
+                return data;
+            } catch (error) {
+                console.error('Error creating user:', error);
+                throw error;
+            }
+        }
+        
+        async function createDefaultSettings() {
+            try {
+                const defaultSettings = {
+                    instituteName: 'Theological Education by Extension College',
+                    instituteAbbreviation: 'TEE College',
+                    academicYear: new Date().getFullYear(),
+                    semester: 'Spring',
+                    timezone: 'Africa/Nairobi',
+                    currency: 'KES',
+                    language: 'en',
+                    gradingScale: {
+                        'DISTINCTION': { min: 85, max: 100, points: 4.0 },
+                        'CREDIT': { min: 70, max: 84, points: 3.0 },
+                        'PASS': { min: 50, max: 69, points: 2.0 },
+                        'FAIL': { min: 0, max: 49, points: 0.0 }
+                    },
+                    programs: {
+                        'basic': { name: 'Basic TEE', duration: '2 years', maxCredits: 60 },
+                        'hnc': { name: 'Higher National Certificate', duration: '3 years', maxCredits: 90 },
+                        'advanced': { name: 'Advanced TEE', duration: '4 years', maxCredits: 120 }
+                    },
+                    system: {
+                        autoGenerateRegNumbers: true,
+                        allowMarkOverwrite: false,
+                        showGPA: true,
+                        enableEmailNotifications: false,
+                        defaultPassword: 'Welcome123',
+                        sessionTimeout: 30,
+                        maxLoginAttempts: 5,
+                        enableTwoFactor: false,
+                        centreBasedAccess: true
+                    }
+                };
+                
+                const { error } = await supabaseClient
+                    .from('settings')
+                    .upsert([{
+                        setting_type: 'system',
+                        settings_data: defaultSettings,
+                        created_at: new Date().toISOString()
+                    }]);
+                    
+                if (error) console.warn('Could not create settings:', error.message);
+            } catch (error) {
+                console.warn('Settings creation failed:', error.message);
+            }
+        }
+        
+        async function createDefaultCentre(centreCode) {
+            try {
+                const centreMap = {
+                    'nairobi-hq': {
+                        name: 'Nairobi Headquarters',
+                        code: 'NBO-HQ',
+                        county: 'Nairobi',
+                        status: 'active'
+                    },
+                    'mombasa': {
+                        name: 'Mombasa Centre',
+                        code: 'MBA',
+                        county: 'Mombasa',
+                        status: 'active'
+                    },
+                    'kisumu': {
+                        name: 'Kisumu Centre',
+                        code: 'KSM',
+                        county: 'Kisumu',
+                        status: 'active'
+                    },
+                    'nakuru': {
+                        name: 'Nakuru Centre',
+                        code: 'NKR',
+                        county: 'Nakuru',
+                        status: 'active'
+                    },
+                    'eldoret': {
+                        name: 'Eldoret Centre',
+                        code: 'ELD',
+                        county: 'Uasin Gishu',
+                        status: 'active'
+                    }
+                };
+                
+                const centreData = centreMap[centreCode] || {
+                    name: 'Main Centre',
+                    code: centreCode.toUpperCase(),
+                    county: 'Nairobi',
+                    status: 'active'
+                };
+                
+                const { error } = await supabaseClient
+                    .from('centres')
+                    .upsert([{
+                        ...centreData,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    }]);
+                    
+                if (error) console.warn('Could not create centre:', error.message);
+            } catch (error) {
+                console.warn('Centre creation failed:', error.message);
+            }
+        }
+        
+        // Main form submission handler
+        async function handleSignup(event) {
+            event.preventDefault();
+            
+            // Get form data
+            const formData = {
+                name: document.getElementById('fullName').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                phone: document.getElementById('phone').value.trim(),
+                centre: document.getElementById('centre').value,
+                password: document.getElementById('password').value,
+                confirmPassword: document.getElementById('confirmPassword').value
+            };
+            
+            // Validate form
+            if (!validateForm(formData)) {
+                return;
+            }
+            
+            // Show loading state
+            const submitBtn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btnText');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            
+            submitBtn.disabled = true;
+            btnText.textContent = 'Creating Account...';
+            loadingSpinner.style.display = 'block';
+            
+            try {
+                // Initialize Supabase
+                const supabaseConnected = await initSupabase();
+                if (!supabaseConnected) {
+                    throw new Error('Could not connect to database. Please check your internet connection.');
+                }
+                
+                // Create admin user
+                const user = await createAdminUser(formData);
+                
+                // Store user session in localStorage
+                localStorage.setItem('teeportal_user_session', JSON.stringify({
+                    userId: user.id,
+                    email: user.email,
+                    name: user.name,
+                    centre: user.centre,
+                    role: user.role,
+                    loggedInAt: new Date().toISOString()
+                }));
+                
+                // Show success message
+                showToast('Account created successfully! Redirecting to dashboard...', 'success');
+                
+                // Redirect to main portal after 2 seconds
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 2000);
+                
+            } catch (error) {
+                // Show error message
+                showToast(error.message || 'Failed to create account. Please try again.', 'error');
+                
+                // Reset button state
+                submitBtn.disabled = false;
+                btnText.textContent = 'Create Account';
+                loadingSpinner.style.display = 'none';
+                
+                // Show specific error if available
+                if (error.message.includes('already exists')) {
+                    showError('emailError', error.message);
+                }
+            }
+        }
+        
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Form submission
+            document.getElementById('signupForm').addEventListener('submit', handleSignup);
+            
+            // Password strength indicator
+            document.getElementById('password').addEventListener('input', function(e) {
+                updatePasswordStrength(e.target.value);
+                hideError('passwordError');
+            });
+            
+            // Real-time validation
+            document.querySelectorAll('.form-control').forEach(input => {
+                input.addEventListener('blur', function() {
+                    const formData = {
+                        name: document.getElementById('fullName').value.trim(),
+                        email: document.getElementById('email').value.trim(),
+                        phone: document.getElementById('phone').value.trim(),
+                        centre: document.getElementById('centre').value,
+                        password: document.getElementById('password').value,
+                        confirmPassword: document.getElementById('confirmPassword').value
+                    };
+                    validateForm(formData);
+                });
+            });
+            
+            // Confirm password validation
+            document.getElementById('confirmPassword').addEventListener('input', function() {
+                const password = document.getElementById('password').value;
+                const confirmPassword = this.value;
+                
+                if (confirmPassword && password !== confirmPassword) {
+                    showError('confirmPasswordError', 'Passwords do not match');
+                } else {
+                    hideError('confirmPasswordError');
+                }
+            });
+            
+            // Centre selection styling
+            document.getElementById('centre').addEventListener('change', function() {
+                hideError('centreError');
+            });
+        });
+    </script>
+</body>
+</html>
