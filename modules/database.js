@@ -1,4 +1,4 @@
-// modules/database.js - Complete Supabase DB class from your code
+// modules/database.js - Complete Supabase DB class with all fixes
 class TEEPortalSupabaseDB {
     constructor() {
         this.supabase = null;
@@ -9,7 +9,6 @@ class TEEPortalSupabaseDB {
     }
     
     async init() {
-        // Your complete init() method
         if (this.initialized) return true;
         if (this.initPromise) return await this.initPromise;
         
@@ -37,6 +36,9 @@ class TEEPortalSupabaseDB {
             console.log('✅ Supabase connected successfully');
             await this.loadSettings();
             
+            // Create missing tables if needed
+            await this._ensureTablesExist();
+            
             return true;
         } catch (error) {
             console.error('❌ Supabase initialization failed:', error);
@@ -49,7 +51,6 @@ class TEEPortalSupabaseDB {
     }
     
     async testConnection() {
-        // Your complete testConnection method
         if (!this.supabase) throw new Error('Supabase client not created yet');
         
         try {
@@ -77,6 +78,42 @@ class TEEPortalSupabaseDB {
         }
     }
     
+    async _ensureTablesExist() {
+        try {
+            console.log('🔍 Checking for required tables...');
+            
+            // Test each table
+            const tables = ['students', 'courses', 'marks', 'settings', 'activities'];
+            for (const table of tables) {
+                const { error } = await this.supabase
+                    .from(table)
+                    .select('count', { count: 'exact', head: true })
+                    .limit(1);
+                    
+                if (error && error.code === '42P01') {
+                    console.warn(`⚠️ Table "${table}" does not exist`);
+                } else {
+                    console.log(`✅ Table "${table}" exists`);
+                }
+            }
+            
+            // Check for new tables
+            const newTables = ['counties', 'centres', 'programs'];
+            for (const table of newTables) {
+                const { error } = await this.supabase
+                    .from(table)
+                    .select('count', { count: 'exact', head: true })
+                    .limit(1);
+                    
+                if (error && error.code === '42P01') {
+                    console.log(`ℹ️ Table "${table}" not found - will use defaults`);
+                }
+            }
+        } catch (error) {
+            console.warn('Table check error:', error);
+        }
+    }
+    
     async ensureConnected() {
         if (!this.initialized && !this.isInitializing) await this.init();
         if (!this.supabase) throw new Error('Database connection not established');
@@ -97,41 +134,57 @@ class TEEPortalSupabaseDB {
         }
     }
     
- getDefaultSettings() {
-    return {
-        instituteName: 'Theological Education by Extension College',
-        instituteAbbreviation: 'TEE College',
-        academicYear: new Date().getFullYear(),
-        semester: 'Spring',
-        timezone: 'Africa/Nairobi',
-        currency: 'KES',
-        language: 'en',
-        
-        // FIXED: Use DISTINCTION/CREDIT/PASS/FAIL system
-        gradingScale: {
-            'DISTINCTION': { min: 85, max: 100, points: 4.0, description: 'Excellent - Outstanding achievement' },
-            'CREDIT': { min: 70, max: 84, points: 3.0, description: 'Good - Above average achievement' },
-            'PASS': { min: 50, max: 69, points: 2.0, description: 'Satisfactory - Minimum requirements met' },
-            'FAIL': { min: 0, max: 49, points: 0.0, description: 'Fail - Requirements not met' }
-        },
-        
-        programs: {
-            'basic': { name: 'Basic TEE', duration: '2 years', maxCredits: 60 },
-            'hnc': { name: 'Higher National Certificate', duration: '3 years', maxCredits: 90 },
-            'advanced': { name: 'Advanced TEE', duration: '4 years', maxCredits: 120 }
-        },
-        system: {
-            autoGenerateRegNumbers: true,
-            allowMarkOverwrite: false,
-            showGPA: true,
-            enableEmailNotifications: false,
-            defaultPassword: 'Welcome123',
-            sessionTimeout: 30,
-            maxLoginAttempts: 5,
-            enableTwoFactor: false
-        }
-    };
-}
+    getDefaultSettings() {
+        return {
+            instituteName: 'Theological Education by Extension College',
+            instituteAbbreviation: 'TEE College',
+            academicYear: new Date().getFullYear(),
+            semester: 'Spring',
+            timezone: 'Africa/Nairobi',
+            currency: 'KES',
+            language: 'en',
+            
+            // FIXED: Use DISTINCTION/CREDIT/PASS/FAIL system
+            gradingScale: {
+                'DISTINCTION': { min: 85, max: 100, points: 4.0, description: 'Excellent - Outstanding achievement' },
+                'CREDIT': { min: 70, max: 84, points: 3.0, description: 'Good - Above average achievement' },
+                'PASS': { min: 50, max: 69, points: 2.0, description: 'Satisfactory - Minimum requirements met' },
+                'FAIL': { min: 0, max: 49, points: 0.0, description: 'Fail - Requirements not met' }
+            },
+            
+            programs: {
+                'basic': { name: 'Basic TEE', duration: '2 years', maxCredits: 60 },
+                'hnc': { name: 'Higher National Certificate', duration: '3 years', maxCredits: 90 },
+                'advanced': { name: 'Advanced TEE', duration: '4 years', maxCredits: 120 }
+            },
+            
+            counties: [
+                { id: 1, name: 'Nairobi', code: '001' },
+                { id: 2, name: 'Mombasa', code: '002' },
+                { id: 3, name: 'Kisumu', code: '003' },
+                { id: 4, name: 'Nakuru', code: '004' },
+                { id: 5, name: 'Eldoret', code: '005' }
+            ],
+            
+            centres: [
+                { id: 1, name: 'Nairobi Main Campus', code: 'NBO001', county: 'Nairobi' },
+                { id: 2, name: 'Mombasa Branch', code: 'MBA001', county: 'Mombasa' },
+                { id: 3, name: 'Kisumu Centre', code: 'KSM001', county: 'Kisumu' }
+            ],
+            
+            system: {
+                autoGenerateRegNumbers: true,
+                allowMarkOverwrite: false,
+                showGPA: true,
+                enableEmailNotifications: false,
+                defaultPassword: 'Welcome123',
+                sessionTimeout: 30,
+                maxLoginAttempts: 5,
+                enableTwoFactor: false
+            }
+        };
+    }
+    
     // ========== SETTINGS MANAGEMENT ==========
     async getSettings() {
         try {
@@ -213,17 +266,245 @@ class TEEPortalSupabaseDB {
         }
     }
     
-    // ========== STUDENTS ==========
-    async getStudents() {
+    // ========== COUNTIES MANAGEMENT ==========
+    async getCounties() {
         try {
             const supabase = await this.ensureConnected();
             const { data, error } = await supabase
+                .from('counties')
+                .select('*')
+                .order('name', { ascending: true });
+                
+            if (error) {
+                // Table might not exist yet - return from settings
+                const settings = await this.getSettings();
+                return settings.counties || [];
+            }
+            return data || [];
+        } catch (error) {
+            console.error('Error fetching counties:', error);
+            const settings = await this.getSettings();
+            return settings.counties || [];
+        }
+    }
+    
+    async addCounty(countyData) {
+        try {
+            const supabase = await this.ensureConnected();
+            const { data, error } = await supabase
+                .from('counties')
+                .insert([{
+                    name: countyData.name,
+                    code: countyData.code,
+                    region: countyData.region || ''
+                }])
+                .select()
+                .single();
+                
+            if (error) throw error;
+            
+            // Update settings with new county
+            const settings = await this.getSettings();
+            if (!settings.counties) settings.counties = [];
+            settings.counties.push({
+                id: data.id,
+                name: data.name,
+                code: data.code,
+                region: data.region
+            });
+            await this.saveSettings(settings);
+            
+            await this.logActivity('county_added', `Added county: ${data.name}`);
+            return data;
+        } catch (error) {
+            console.error('Error adding county:', error);
+            throw error;
+        }
+    }
+    
+    // ========== CENTRES MANAGEMENT ==========
+    async getCentres() {
+        try {
+            const supabase = await this.ensureConnected();
+            const { data, error } = await supabase
+                .from('centres')
+                .select('*')
+                .order('name', { ascending: true });
+                
+            if (error) {
+                // Table might not exist yet - return from settings
+                const settings = await this.getSettings();
+                return settings.centres || [];
+            }
+            return data || [];
+        } catch (error) {
+            console.error('Error fetching centres:', error);
+            const settings = await this.getSettings();
+            return settings.centres || [];
+        }
+    }
+    
+    async addCentre(centreData) {
+        try {
+            const supabase = await this.ensureConnected();
+            const { data, error } = await supabase
+                .from('centres')
+                .insert([{
+                    name: centreData.name,
+                    code: centreData.code,
+                    county: centreData.county,
+                    address: centreData.address || '',
+                    phone: centreData.phone || '',
+                    email: centreData.email || '',
+                    status: 'active'
+                }])
+                .select()
+                .single();
+                
+            if (error) throw error;
+            
+            // Update settings with new centre
+            const settings = await this.getSettings();
+            if (!settings.centres) settings.centres = [];
+            settings.centres.push({
+                id: data.id,
+                name: data.name,
+                code: data.code,
+                county: data.county
+            });
+            await this.saveSettings(settings);
+            
+            await this.logActivity('centre_added', `Added centre: ${data.name}`);
+            return data;
+        } catch (error) {
+            console.error('Error adding centre:', error);
+            throw error;
+        }
+    }
+    
+    // ========== PROGRAMS MANAGEMENT ==========
+    async getPrograms() {
+        try {
+            const supabase = await this.ensureConnected();
+            const { data, error } = await supabase
+                .from('programs')
+                .select('*')
+                .order('name', { ascending: true });
+                
+            if (error) {
+                // Table might not exist yet - use settings programs
+                const settings = await this.getSettings();
+                const programsArray = [];
+                
+                if (settings.programs) {
+                    Object.entries(settings.programs).forEach(([id, program]) => {
+                        programsArray.push({
+                            id: id,
+                            code: id.toUpperCase(),
+                            name: program.name,
+                            duration: program.duration,
+                            max_credits: program.maxCredits
+                        });
+                    });
+                }
+                return programsArray;
+            }
+            return data || [];
+        } catch (error) {
+            console.error('Error fetching programs:', error);
+            const settings = await this.getSettings();
+            const programsArray = [];
+            
+            if (settings.programs) {
+                Object.entries(settings.programs).forEach(([id, program]) => {
+                    programsArray.push({
+                        id: id,
+                        code: id.toUpperCase(),
+                        name: program.name,
+                        duration: program.duration,
+                        max_credits: program.maxCredits
+                    });
+                });
+            }
+            return programsArray;
+        }
+    }
+    
+    async addProgram(programData) {
+        try {
+            const supabase = await this.ensureConnected();
+            const { data, error } = await supabase
+                .from('programs')
+                .insert([{
+                    code: programData.code,
+                    name: programData.name,
+                    description: programData.description || '',
+                    duration: programData.duration || '2 years',
+                    max_credits: programData.maxCredits || 60,
+                    status: 'active'
+                }])
+                .select()
+                .single();
+                
+            if (error) throw error;
+            
+            // Also update settings programs for backward compatibility
+            const settings = await this.getSettings();
+            if (!settings.programs) settings.programs = {};
+            settings.programs[programData.code.toLowerCase()] = {
+                name: programData.name,
+                duration: programData.duration || '2 years',
+                maxCredits: programData.maxCredits || 60
+            };
+            await this.saveSettings(settings);
+            
+            await this.logActivity('program_added', `Added program: ${data.name}`);
+            return data;
+        } catch (error) {
+            console.error('Error adding program:', error);
+            throw error;
+        }
+    }
+    
+    // ========== STUDENTS MANAGEMENT ==========
+    async getStudents(filterOptions = {}) {
+        try {
+            const supabase = await this.ensureConnected();
+            let query = supabase
                 .from('students')
                 .select('*')
                 .order('created_at', { ascending: false });
+            
+            // Apply filters if provided
+            if (filterOptions.program) {
+                query = query.eq('program', filterOptions.program);
+            }
+            if (filterOptions.intake) {
+                query = query.eq('intake_year', filterOptions.intake);
+            }
+            if (filterOptions.status && filterOptions.status !== 'all') {
+                query = query.eq('status', filterOptions.status);
+            }
+            if (filterOptions.centre) {
+                query = query.eq('centre', filterOptions.centre);
+            }
+            if (filterOptions.county) {
+                query = query.eq('county', filterOptions.county);
+            }
+            
+            const { data, error } = await query;
                 
             if (error) throw error;
-            return data || [];
+            
+            // Ensure all students have county and centre fields
+            return (data || []).map(student => ({
+                ...student,
+                county: student.county || 'Not specified',
+                centre: student.centre || 'Main Campus',
+                full_name: student.full_name || '',
+                email: student.email || '',
+                phone: student.phone || ''
+            }));
         } catch (error) {
             console.error('Error fetching students:', error);
             throw error;
@@ -240,7 +521,13 @@ class TEEPortalSupabaseDB {
                 .single();
                 
             if (error) throw error;
-            return data;
+            
+            // Add default values for missing fields
+            return {
+                ...data,
+                county: data.county || 'Not specified',
+                centre: data.centre || 'Main Campus'
+            };
         } catch (error) {
             console.error('Error fetching student:', error);
             throw error;
@@ -259,9 +546,14 @@ class TEEPortalSupabaseDB {
                 phone: studentData.phone,
                 dob: studentData.dob || null,
                 gender: studentData.gender || null,
+                county: studentData.county || '',  // NEW
+                centre: studentData.centre || '',   // NEW
                 program: studentData.program,
                 intake_year: studentData.intake,
-                status: 'active'
+                status: 'active',
+                address: studentData.address || '',
+                emergency_contact: studentData.emergency_contact || '',
+                notes: studentData.notes || ''
             };
             
             const { data, error } = await supabase
@@ -308,183 +600,183 @@ class TEEPortalSupabaseDB {
             return `TEMP${timestamp}`;
         }
     }
-    // ========== STUDENT METHODS (ADD THESE) ==========
-
-async getStudentCourses(studentId) {
-    try {
-        const supabase = await this.ensureConnected();
-        const { data, error } = await supabase
-            .from('marks')
-            .select(`
-                course_id,
-                courses (
-                    id,
-                    course_code,
-                    course_name,
-                    program,
-                    credits
-                )
-            `)
-            .eq('student_id', studentId)
-            .not('course_id', 'is', null);
-        
-        if (error) throw error;
-        
-        // Extract unique courses
-        const uniqueCourses = [];
-        const seenCourseIds = new Set();
-        
-        data.forEach(mark => {
-            if (mark.course_id && mark.courses && !seenCourseIds.has(mark.course_id)) {
-                seenCourseIds.add(mark.course_id);
-                uniqueCourses.push(mark.courses);
-            }
-        });
-        
-        return uniqueCourses;
-    } catch (error) {
-        console.error('Error getting student courses:', error);
-        return [];
-    }
-}
-
-async deleteStudent(studentId) {
-    try {
-        const supabase = await this.ensureConnected();
-        
-        // First, get the student details for logging
-        const { data: student, error: getError } = await supabase
-            .from('students')
-            .select('reg_number, full_name')
-            .eq('id', studentId)
-            .single();
+    
+    async updateStudent(studentId, updates) {
+        try {
+            const supabase = await this.ensureConnected();
             
-        if (getError && getError.code !== 'PGRST116') {
-            console.warn('Student not found:', getError);
+            const updateObj = {
+                full_name: updates.name || updates.full_name,
+                email: updates.email,
+                phone: updates.phone,
+                dob: updates.dob,
+                gender: updates.gender,
+                county: updates.county,       // NEW
+                centre: updates.centre,       // NEW
+                program: updates.program,
+                intake_year: updates.intake,
+                status: updates.status,
+                address: updates.address,
+                emergency_contact: updates.emergency_contact,
+                notes: updates.notes,
+                updated_at: new Date().toISOString()
+            };
+            
+            // Remove undefined values
+            Object.keys(updateObj).forEach(key => {
+                if (updateObj[key] === undefined) {
+                    delete updateObj[key];
+                }
+            });
+            
+            const { data, error } = await supabase
+                .from('students')
+                .update(updateObj)
+                .eq('id', studentId)
+                .select()
+                .single();
+                
+            if (error) throw error;
+            
+            await this.logActivity('student_updated', `Updated student: ${data.full_name} (${data.reg_number})`);
+            return data;
+        } catch (error) {
+            console.error('Error updating student:', error);
+            throw error;
         }
-        
-        // Delete related marks first
-        const { error: marksError } = await supabase
-            .from('marks')
-            .delete()
-            .eq('student_id', studentId);
-            
-        if (marksError) console.error('Error deleting marks:', marksError);
-        
-        // Then delete the student
-        const { error: studentError } = await supabase
-            .from('students')
-            .delete()
-            .eq('id', studentId);
-            
-        if (studentError) throw studentError;
-        
-        // Log activity
-        const studentName = student ? `${student.full_name} (${student.reg_number})` : `ID: ${studentId}`;
-        await this.logActivity('student_deleted', `Deleted student: ${studentName}`);
-        
-        return { success: true, message: 'Student deleted successfully' };
-    } catch (error) {
-        console.error('Error deleting student:', error);
-        throw error;
     }
-}
-
-async updateStudent(studentId, updates) {
-    try {
-        const supabase = await this.ensureConnected();
-        
-        const updateObj = {
-            full_name: updates.name || updates.full_name,
-            email: updates.email,
-            phone: updates.phone,
-            dob: updates.dob,
-            gender: updates.gender,
-            program: updates.program,
-            intake_year: updates.intake,
-            status: updates.status,
-            address: updates.address,
-            emergency_contact: updates.emergency_contact,
-            notes: updates.notes,
-            updated_at: new Date().toISOString()
-        };
-        
-        // Remove undefined values
-        Object.keys(updateObj).forEach(key => {
-            if (updateObj[key] === undefined) {
-                delete updateObj[key];
+    
+    async deleteStudent(studentId) {
+        try {
+            const supabase = await this.ensureConnected();
+            
+            // First, get the student details for logging
+            const { data: student, error: getError } = await supabase
+                .from('students')
+                .select('reg_number, full_name')
+                .eq('id', studentId)
+                .single();
+                
+            if (getError && getError.code !== 'PGRST116') {
+                console.warn('Student not found:', getError);
             }
-        });
-        
-        const { data, error } = await supabase
-            .from('students')
-            .update(updateObj)
-            .eq('id', studentId)
-            .select()
-            .single();
             
-        if (error) throw error;
-        
-        await this.logActivity('student_updated', `Updated student: ${data.full_name} (${data.reg_number})`);
-        return data;
-    } catch (error) {
-        console.error('Error updating student:', error);
-        throw error;
-    }
-}
-
-// ========== OTHER POTENTIALLY MISSING METHODS ==========
-
-async getStudentMarks(studentId) {
-    try {
-        const supabase = await this.ensureConnected();
-        const { data, error } = await supabase
-            .from('marks')
-            .select(`
-                *,
-                courses!inner(course_code, course_name, credits)
-            `)
-            .eq('student_id', studentId)
-            .order('created_at', { ascending: false });
+            // Delete related marks first
+            const { error: marksError } = await supabase
+                .from('marks')
+                .delete()
+                .eq('student_id', studentId);
+                
+            if (marksError) console.error('Error deleting marks:', marksError);
             
-        if (error) throw error;
-        return data || [];
-    } catch (error) {
-        console.error('Error fetching student marks:', error);
-        throw error;
-    }
-}
-
-async calculateStudentGPA(studentId) {
-    try {
-        const marks = await this.getStudentMarks(studentId);
-        if (marks.length === 0) return 0;
-        
-        // Filter out failed grades
-        const validMarks = marks.filter(mark => mark.grade !== 'FAIL');
-        if (validMarks.length === 0) return 0;
-        
-        // Calculate weighted GPA based on credits
-        let totalWeightedPoints = 0;
-        let totalCredits = 0;
-        
-        for (const mark of validMarks) {
-            const credits = mark.courses?.credits || 3; // Default 3 credits
-            const gradePoints = mark.grade_points || 0;
+            // Then delete the student
+            const { error: studentError } = await supabase
+                .from('students')
+                .delete()
+                .eq('id', studentId);
+                
+            if (studentError) throw studentError;
             
-            totalWeightedPoints += gradePoints * credits;
-            totalCredits += credits;
+            // Log activity
+            const studentName = student ? `${student.full_name} (${student.reg_number})` : `ID: ${studentId}`;
+            await this.logActivity('student_deleted', `Deleted student: ${studentName}`);
+            
+            return { success: true, message: 'Student deleted successfully' };
+        } catch (error) {
+            console.error('Error deleting student:', error);
+            throw error;
         }
-        
-        if (totalCredits === 0) return 0;
-        
-        return parseFloat((totalWeightedPoints / totalCredits).toFixed(2));
-    } catch (error) {
-        console.error('Error calculating GPA:', error);
-        return 0;
     }
-}
-    // ========== COURSES ==========
+    
+    async getStudentCourses(studentId) {
+        try {
+            const supabase = await this.ensureConnected();
+            const { data, error } = await supabase
+                .from('marks')
+                .select(`
+                    course_id,
+                    courses (
+                        id,
+                        course_code,
+                        course_name,
+                        program,
+                        credits
+                    )
+                `)
+                .eq('student_id', studentId)
+                .not('course_id', 'is', null);
+            
+            if (error) throw error;
+            
+            // Extract unique courses
+            const uniqueCourses = [];
+            const seenCourseIds = new Set();
+            
+            data.forEach(mark => {
+                if (mark.course_id && mark.courses && !seenCourseIds.has(mark.course_id)) {
+                    seenCourseIds.add(mark.course_id);
+                    uniqueCourses.push(mark.courses);
+                }
+            });
+            
+            return uniqueCourses;
+        } catch (error) {
+            console.error('Error getting student courses:', error);
+            return [];
+        }
+    }
+    
+    async getStudentMarks(studentId) {
+        try {
+            const supabase = await this.ensureConnected();
+            const { data, error } = await supabase
+                .from('marks')
+                .select(`
+                    *,
+                    courses!inner(course_code, course_name, credits)
+                `)
+                .eq('student_id', studentId)
+                .order('created_at', { ascending: false });
+                
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error fetching student marks:', error);
+            throw error;
+        }
+    }
+    
+    async calculateStudentGPA(studentId) {
+        try {
+            const marks = await this.getStudentMarks(studentId);
+            if (marks.length === 0) return 0;
+            
+            // Filter out failed grades
+            const validMarks = marks.filter(mark => mark.grade !== 'FAIL');
+            if (validMarks.length === 0) return 0;
+            
+            // Calculate weighted GPA based on credits
+            let totalWeightedPoints = 0;
+            let totalCredits = 0;
+            
+            for (const mark of validMarks) {
+                const credits = mark.courses?.credits || 3; // Default 3 credits
+                const gradePoints = mark.grade_points || 0;
+                
+                totalWeightedPoints += gradePoints * credits;
+                totalCredits += credits;
+            }
+            
+            if (totalCredits === 0) return 0;
+            
+            return parseFloat((totalWeightedPoints / totalCredits).toFixed(2));
+        } catch (error) {
+            console.error('Error calculating GPA:', error);
+            return 0;
+        }
+    }
+    
+    // ========== COURSES MANAGEMENT ==========
     async getCourses() {
         try {
             const supabase = await this.ensureConnected();
@@ -646,7 +938,7 @@ async calculateStudentGPA(studentId) {
         }
     }
     
-    // ========== MARKS ==========
+    // ========== MARKS MANAGEMENT ==========
     async getMarks() {
         try {
             const supabase = await this.ensureConnected();
@@ -733,26 +1025,6 @@ async calculateStudentGPA(studentId) {
             return result;
         } catch (error) {
             console.error('Error in addMark:', error);
-            throw error;
-        }
-    }
-    
-    async getStudentMarks(studentId) {
-        try {
-            const supabase = await this.ensureConnected();
-            const { data, error } = await supabase
-                .from('marks')
-                .select(`
-                    *,
-                    courses!inner(course_code, course_name)
-                `)
-                .eq('student_id', studentId)
-                .order('created_at', { ascending: false });
-                
-            if (error) throw error;
-            return data || [];
-        } catch (error) {
-            console.error('Error fetching student marks:', error);
             throw error;
         }
     }
@@ -895,52 +1167,22 @@ async calculateStudentGPA(studentId) {
     }
     
     // ========== UTILITY METHODS ==========
-calculateGrade(percentage) {
-    if (typeof percentage !== 'number' || isNaN(percentage)) {
-        return { grade: 'FAIL', points: 0.0 };
-    }
-    
-    // Use DISTINCTION/CREDIT/PASS/FAIL system
-    if (percentage >= 85) {
-        return { grade: 'DISTINCTION', points: 4.0 };
-    } else if (percentage >= 70) {
-        return { grade: 'CREDIT', points: 3.0 };
-    } else if (percentage >= 50) {
-        return { grade: 'PASS', points: 2.0 };
-    } else {
-        return { grade: 'FAIL', points: 0.0 };
-    }
-}
-    
-   async calculateStudentGPA(studentId) {
-    try {
-        const marks = await this.getStudentMarks(studentId);
-        if (marks.length === 0) return 0;
-        
-        // Filter out failed grades if you want (optional)
-        const validMarks = marks.filter(mark => mark.grade !== 'FAIL');
-        if (validMarks.length === 0) return 0;
-        
-        // Calculate weighted GPA based on credits
-        let totalWeightedPoints = 0;
-        let totalCredits = 0;
-        
-        for (const mark of validMarks) {
-            const credits = mark.courses?.credits || 3; // Default 3 credits
-            const gradePoints = mark.grade_points || 0;
-            
-            totalWeightedPoints += gradePoints * credits;
-            totalCredits += credits;
+    calculateGrade(percentage) {
+        if (typeof percentage !== 'number' || isNaN(percentage)) {
+            return { grade: 'FAIL', points: 0.0 };
         }
         
-        if (totalCredits === 0) return 0;
-        
-        return parseFloat((totalWeightedPoints / totalCredits).toFixed(2));
-    } catch (error) {
-        console.error('Error calculating GPA:', error);
-        return 0;
+        // Use DISTINCTION/CREDIT/PASS/FAIL system
+        if (percentage >= 85) {
+            return { grade: 'DISTINCTION', points: 4.0 };
+        } else if (percentage >= 70) {
+            return { grade: 'CREDIT', points: 3.0 };
+        } else if (percentage >= 50) {
+            return { grade: 'PASS', points: 2.0 };
+        } else {
+            return { grade: 'FAIL', points: 0.0 };
+        }
     }
-}
     
     async logActivity(type, description) {
         try {
@@ -979,4 +1221,14 @@ calculateGrade(percentage) {
             return [];
         }
     }
+}
+
+// Export for Node.js/CommonJS
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = TEEPortalSupabaseDB;
+}
+
+// Auto-initialize if loaded in browser
+if (typeof window !== 'undefined' && typeof window.TEEPortalSupabaseDB !== 'undefined') {
+    window.TEEPortalSupabaseDB = TEEPortalSupabaseDB;
 }
