@@ -897,26 +897,27 @@ getGradeColor(grade) {
     
     // ==================== BUTTON FUNCTIONS ====================
     
-    async editMark(markId) {
-        try {
-            console.log(`✏️ Editing mark: ${markId}`);
-            
-            const mark = await this.db.getMark(markId);
-            if (!mark) {
-                this.showToast('Mark record not found', 'error');
-                return;
-            }
-            
-            // Populate modal with mark data
-            await this.openMarksModalForEdit(mark);
-            
-            this.showToast('Edit mode activated', 'info');
-            
-        } catch (error) {
-            console.error('❌ Error editing mark:', error);
-            this.showToast('Error loading mark data', 'error');
+   async editMark(markId) {
+    try {
+        console.log(`✏️ Editing mark: ${markId}`);
+        
+        // ✅ FIXED: Use getMarkById() instead of getMark()
+        const mark = await this.db.getMarkById(markId);
+        if (!mark) {
+            this.showToast('Mark record not found', 'error');
+            return;
         }
+        
+        // Populate modal with mark data
+        await this.openMarksModalForEdit(mark);
+        
+        this.showToast('Edit mode activated', 'info');
+        
+    } catch (error) {
+        console.error('❌ Error editing mark:', error);
+        this.showToast('Error loading mark data', 'error');
     }
+}
     
     async openMarksModalForEdit(mark) {
         await this.populateStudentDropdown();
@@ -953,29 +954,33 @@ getGradeColor(grade) {
     }
     
     async viewMarkDetails(markId) {
-        try {
-            console.log(`👁️ Viewing mark details: ${markId}`);
-            
-            const mark = await this.db.getMark(markId);
-            if (!mark) {
-                this.showToast('Mark record not found', 'error');
-                return;
-            }
-            
-            // Get student and course details
-            const [student, course] = await Promise.all([
-                this.db.getStudent(mark.student_id),
-                this.db.getCourse(mark.course_id)
-            ]);
-            
-            // Create details modal
-            this.showMarkDetailsModal(mark, student, course);
-            
-        } catch (error) {
-            console.error('❌ Error viewing mark details:', error);
-            this.showToast('Error loading mark details', 'error');
+    try {
+        console.log(`👁️ Viewing mark details: ${markId}`);
+        
+        // ✅ FIXED: Use getMarkById() instead of getMark()
+        const mark = await this.db.getMarkById(markId);
+        if (!mark) {
+            this.showToast('Mark record not found', 'error');
+            return;
         }
+        
+        console.log('📄 Mark data:', mark);
+        
+        // ✅ FIXED: Get student details correctly
+        const student = await this.db.getStudent(mark.student_id);
+        const course = await this.db.getCourse(mark.course_id);
+        
+        console.log('👤 Student data:', student);
+        console.log('📚 Course data:', course);
+        
+        // Create details modal
+        this.showMarkDetailsModal(mark, student, course);
+        
+    } catch (error) {
+        console.error('❌ Error viewing mark details:', error);
+        this.showToast('Error loading mark details', 'error');
     }
+}
     
     showMarkDetailsModal(mark, student, course) {
         const modalHtml = `
