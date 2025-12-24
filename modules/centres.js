@@ -214,29 +214,27 @@ class CentreManager {
         }
     }
     
-    /**
-     * Delete centre with confirmation
-     */
-    async deleteCentre(centreId) {
-        if (!confirm('Are you sure you want to delete this centre?')) {
-            return;
-        }
-        
-        try {
-            // We need a delete method in db.js
-            // For now, we'll just show a message
-            alert('Delete functionality needs to be implemented in db.js');
-            console.log('Would delete centre:', centreId);
-            
-            // Refresh the list
-            await this.loadCentres();
-            
-        } catch (error) {
-            console.error('Error deleting centre:', error);
-            alert('Error deleting centre');
-        }
+  /**
+ * Delete centre with confirmation
+ */
+async deleteCentre(centreId) {
+    if (!confirm('Are you sure you want to delete this centre? This action cannot be undone.')) {
+        return;
     }
     
+    try {
+        // Call the database delete method
+        await this.db.deleteCentre(centreId);
+        alert('Centre deleted successfully!');
+        
+        // Refresh the list
+        await this.loadCentres();
+        
+    } catch (error) {
+        console.error('Error deleting centre:', error);
+        alert('Error: ' + (error.message || 'Failed to delete centre'));
+    }
+}
     /**
      * Reset centre form
      */
