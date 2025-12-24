@@ -177,99 +177,103 @@
                 </header>
                 
              <!-- Dashboard Stats -->
+<!-- In your dashboard section -->
 <div class="stats-grid">
-    <!-- Column 1 -->
+    <!-- Card 1: Total Students -->
     <div class="stat-card">
-        <div class="stat-icon">
+        <div class="stat-icon students">
             <i class="fas fa-users"></i>
         </div>
         <div class="stat-info">
-            <h3>Total Students</h3>
-            <p id="totalStudents" class="stat-number">0</p>
+            <h3 id="totalStudents">0</h3>
+            <p>Total Students</p>
         </div>
     </div>
     
+    <!-- Card 2: Active Centres (UPDATED) -->
     <div class="stat-card">
-        <div class="stat-icon">
-            <i class="fas fa-graduation-cap"></i>
-        </div>
-        <div class="stat-info">
-            <h3>Active Centres</h3>
-            <p id="activeCentres" class="stat-number">0</p>
-        </div>
-    </div>
-    
-    <!-- NEW: Active Programs Card -->
-    <div class="stat-card">
-        <div class="stat-icon">
-            <i class="fas fa-graduation-cap"></i>
-        </div>
-        <div class="stat-info">
-            <h3>Active Programs</h3>
-            <p class="stat-number" id="activePrograms">0</p>
-            <div class="program-list" id="programList">
-                <!-- Programs will be loaded dynamically -->
-                <span class="program-tag">Loading...</span>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Column 2 -->
-    <div class="stat-card">
-        <div class="stat-icon">
+        <div class="stat-icon centres">
             <i class="fas fa-map-marker-alt"></i>
         </div>
         <div class="stat-info">
-            <h3>Counties Covered</h3>
-            <p id="countiesCovered" class="stat-number">0</p>
+            <h3 id="activeCentres">0</h3>
+            <p>Active Centres</p>
+            <small>From database</small>
         </div>
     </div>
     
+    <!-- Card 3: Active Programs -->
     <div class="stat-card">
-        <div class="stat-icon">
+        <div class="stat-icon programs">
+            <i class="fas fa-graduation-cap"></i>
+        </div>
+        <div class="stat-info">
+            <h3 id="activePrograms">0</h3>
+            <p>Active Programs</p>
+            <div id="programList" class="program-tags"></div>
+        </div>
+    </div>
+    
+    <!-- Card 4: Counties Covered (UPDATED) -->
+    <div class="stat-card">
+        <div class="stat-icon counties">
+            <i class="fas fa-map"></i>
+        </div>
+        <div class="stat-info">
+            <h3 id="countiesCovered">0</h3>
+            <p>Counties Covered</p>
+            <small>From database</small>
+        </div>
+    </div>
+    
+    <!-- Card 5: Total Courses -->
+    <div class="stat-card">
+        <div class="stat-icon courses">
             <i class="fas fa-book"></i>
         </div>
         <div class="stat-info">
-            <h3>Total Courses</h3>
-            <p id="totalCourses" class="stat-number">0</p>
+            <h3 id="totalCourses">0</h3>
+            <p>Total Courses</p>
         </div>
     </div>
     
+    <!-- Card 6: Total Marks -->
     <div class="stat-card">
-        <div class="stat-icon">
+        <div class="stat-icon marks">
             <i class="fas fa-chart-bar"></i>
         </div>
         <div class="stat-info">
-            <h3>Total Marks</h3>
-            <p id="totalMarks" class="stat-number">0</p>
-        </div>
-    </div>
-    
-    <!-- Column 3 -->
-    <div class="stat-card">
-        <div class="stat-icon">
-            <i class="fas fa-star"></i>
-        </div>
-        <div class="stat-info">
-            <h3>Average Grade</h3>
-            <p id="avgGrade" class="stat-number">N/A</p>
+            <h3 id="totalMarks">0</h3>
+            <p>Total Marks</p>
         </div>
     </div>
 </div>
 
-<!-- Charts -->
+<!-- Charts section -->
 <div class="charts-grid">
+    <!-- County Chart -->
     <div class="chart-card">
-        <h3>Students by County</h3>
-        <canvas id="countyChart"></canvas>
+        <h3><i class="fas fa-map"></i> County Distribution</h3>
+        <div class="chart-container">
+            <canvas id="countyChart"></canvas>
+        </div>
     </div>
+    
+    <!-- Centre Chart (UPDATED) -->
     <div class="chart-card">
-        <h3>Enrollment by Centre</h3>
-        <canvas id="centreChart"></canvas>
+        <h3><i class="fas fa-building"></i> Centre Enrollment</h3>
+        <div class="chart-container">
+            <canvas id="centreChart"></canvas>
+        </div>
+        <small>Shows real centres from database</small>
     </div>
+    
+    <!-- Program Chart -->
     <div class="chart-card">
-        <h3>Program Distribution</h3>
-        <canvas id="programChart"></canvas>
+        <h3><i class="fas fa-graduation-cap"></i> Program Distribution</h3>
+        <div class="chart-container">
+            <canvas id="programChart"></canvas>
+        </div>
     </div>
 </div>
 
