@@ -535,86 +535,92 @@ class TEEPortalSupabaseDB {
     }
     
     async addStudent(studentData) {
-        try {
-            const supabase = await this.ensureConnected();
+    try {
+        const supabase = await this.ensureConnected();
+        
+        // Debug: Log incoming student data
+        console.log('📋 Adding student with data:', studentData);
+        
+        // Extract ALL fields from studentData to avoid missing any
+        const student = {
+            reg_number: studentData.reg_number || '',
+            full_name: studentData.full_name || studentData.name || '',
+            email: studentData.email || '',
+            phone: studentData.phone || '',
+            date_of_birth: studentData.date_of_birth || studentData.dob || null,
+            gender: studentData.gender || null,
+            id_number: studentData.id_number || '',
             
-            // Debug: Log incoming student data
-            console.log('📋 Adding student with data:', studentData);
+            // Location fields
+            county: studentData.county || '',
+            sub_county: studentData.sub_county || '',
+            ward: studentData.ward || '',
+            village: studentData.village || '',
+            address: studentData.address || '',
             
-            // Extract ALL fields from studentData to avoid missing any
-            const student = {
-                reg_number: studentData.reg_number || '',
-                full_name: studentData.full_name || studentData.name || '',
-                email: studentData.email || '',
-                phone: studentData.phone || '',
-                date_of_birth: studentData.date_of_birth || studentData.dob || null,
-                gender: studentData.gender || null,
-                id_number: studentData.id_number || '',
-                
-                // Location fields
-                county: studentData.county || '',
-                sub_county: studentData.sub_county || '',
-                ward: studentData.ward || '',
-                village: studentData.village || '',
-                address: studentData.address || '',
-                centre_id: studentData.centre_id || studentData.centre || '',
-                centre: studentData.centre || '',
-                
-                // Academic fields
-                program: studentData.program || '',
-                intake_year: studentData.intake_year || studentData.intake || new Date().getFullYear(),
-                study_mode: studentData.study_mode || 'fulltime',
-                status: studentData.status || 'active',
-                
-                // Employment fields
-                employment_status: studentData.employment_status || '',
-                employer: studentData.employer || '',
-                job_title: studentData.job_title || '',
-                years_experience: studentData.years_experience || 0,
-                
-                // Emergency contact
-                emergency_contact_name: studentData.emergency_contact_name || '',
-                emergency_contact_phone: studentData.emergency_contact_phone || '',
-                emergency_contact: studentData.emergency_contact || '',
-                
-                // Other fields
-                notes: studentData.notes || ''
-            };
+            // **FIXED: centre_id must be NULL for UUID column, not empty string**
+            centre_id: null, // ← CHANGED THIS LINE
             
-            console.log('📤 Prepared student for database:', student);
+            // **ADDED: Use centre_name field**
+            centre_name: studentData.centre_name || studentData.centre || '',
             
-            // Check for required fields
-            const requiredFields = ['reg_number', 'full_name', 'email', 'program', 'intake_year'];
-            const missingFields = requiredFields.filter(field => !student[field] || student[field].toString().trim() === '');
+            // Keep old field for backward compatibility
+            centre: studentData.centre || '',
             
-            if (missingFields.length > 0) {
-                throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
-            }
+            // Academic fields
+            program: studentData.program || '',
+            intake_year: studentData.intake_year || studentData.intake || new Date().getFullYear(),
+            study_mode: studentData.study_mode || 'fulltime',
+            status: studentData.status || 'active',
             
-            const { data, error } = await supabase
-                .from('students')
-                .insert([student])
-                .select()
-                .single();
-                
-            if (error) {
-                console.error('❌ Database error:', error);
-                if (error.code === '23502') {
-                    throw new Error(`Database constraint violation: ${error.message}. Missing required field.`);
-                } else if (error.code === '23505') {
-                    throw new Error(`Registration number "${student.reg_number}" already exists.`);
-                }
-                throw new Error(`Database error: ${error.message}`);
-            }
+            // Employment fields
+            employment_status: studentData.employment_status || '',
+            employer: studentData.employer || '',
+            job_title: studentData.job_title || '',
+            years_experience: studentData.years_experience || 0,
             
-            await this.logActivity('student_registered', `Registered student: ${data.full_name} (${data.reg_number})`);
-            return data;
-        } catch (error) {
-            console.error('Error adding student:', error);
-            throw error;
+            // Emergency contact
+            emergency_contact_name: studentData.emergency_contact_name || '',
+            emergency_contact_phone: studentData.emergency_contact_phone || '',
+            emergency_contact: studentData.emergency_contact || '',
+            
+            // Other fields
+            notes: studentData.notes || ''
+        };
+        
+        console.log('📤 Prepared student for database:', student);
+        
+        // Check for required fields
+        const requiredFields = ['reg_number', 'full_name', 'email', 'program', 'intake_year'];
+        const missingFields = requiredFields.filter(field => !student[field] || student[field].toString().trim() === '');
+        
+        if (missingFields.length > 0) {
+            throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
         }
+        
+        const { data, error } = await supabase
+            .from('students')
+            .insert([student])
+            .select()
+            .single();
+            
+        if (error) {
+            console.error('❌ Database error:', error);
+            if (error.code === '23502') {
+                throw new Error(`Database constraint violation: ${error.message}. Missing required field.`);
+            } else if (error.code === '23505') {
+                throw new Error(`Registration number "${student.reg_number}" already exists.`);
+            }
+            throw new Error(`Database error: ${error.message}`);
+        }
+        
+        await this.logActivity('student_registered', `Registered student: ${data.full_name} (${data.reg_number})`);
+        return data;
+    } catch (error) {
+        console.error('Error adding student:', error);
+        throw error;
     }
-    
+}
     // ========== REGISTRATION NUMBER HELPERS ==========
     
     /**
@@ -725,71 +731,80 @@ class TEEPortalSupabaseDB {
     }
     
     async updateStudent(studentId, updates) {
-        try {
-            const supabase = await this.ensureConnected();
+    try {
+        const supabase = await this.ensureConnected();
+        
+        const updateObj = {
+            full_name: updates.full_name || updates.name || '',
+            email: updates.email || '',
+            phone: updates.phone || '',
+            date_of_birth: updates.date_of_birth || updates.dob || null,
+            gender: updates.gender || null,
+            id_number: updates.id_number || '',
             
-            const updateObj = {
-                full_name: updates.full_name || updates.name || '',
-                email: updates.email || '',
-                phone: updates.phone || '',
-                date_of_birth: updates.date_of_birth || updates.dob || null,
-                gender: updates.gender || null,
-                id_number: updates.id_number || '',
-                
-                // Location fields
-                county: updates.county || '',
-                sub_county: updates.sub_county || '',
-                ward: updates.ward || '',
-                village: updates.village || '',
-                address: updates.address || '',
-                centre_id: updates.centre_id || updates.centre || '',
-                centre: updates.centre || '',
-                
-                // Academic fields
-                program: updates.program || '',
-                intake_year: updates.intake_year || updates.intake || new Date().getFullYear(),
-                study_mode: updates.study_mode || 'fulltime',
-                status: updates.status || 'active',
-                
-                // Employment fields
-                employment_status: updates.employment_status || '',
-                employer: updates.employer || '',
-                job_title: updates.job_title || '',
-                years_experience: updates.years_experience || 0,
-                
-                // Emergency contact
-                emergency_contact_name: updates.emergency_contact_name || '',
-                emergency_contact_phone: updates.emergency_contact_phone || '',
-                emergency_contact: updates.emergency_contact || '',
-                
-                // Other fields
-                notes: updates.notes || '',
-                updated_at: new Date().toISOString()
-            };
+            // Location fields
+            county: updates.county || '',
+            sub_county: updates.sub_county || '',
+            ward: updates.ward || '',
+            village: updates.village || '',
+            address: updates.address || '',
             
-            // Remove undefined values
-            Object.keys(updateObj).forEach(key => {
-                if (updateObj[key] === undefined) {
-                    delete updateObj[key];
-                }
-            });
+            // **FIXED: centre_id must be NULL, not empty string**
+            centre_id: null, // ← CHANGED THIS LINE
             
-            const { data, error } = await supabase
-                .from('students')
-                .update(updateObj)
-                .eq('id', studentId)
-                .select()
-                .single();
-                
-            if (error) throw error;
+            // **ADDED: Use centre_name field**
+            centre_name: updates.centre_name || updates.centre || '',
             
-            await this.logActivity('student_updated', `Updated student: ${data.full_name} (${data.reg_number})`);
-            return data;
-        } catch (error) {
-            console.error('Error updating student:', error);
-            throw error;
-        }
+            // Keep old field for backward compatibility
+            centre: updates.centre || '',
+            
+            // Academic fields
+            program: updates.program || '',
+            intake_year: updates.intake_year || updates.intake || new Date().getFullYear(),
+            study_mode: updates.study_mode || 'fulltime',
+            status: updates.status || 'active',
+            
+            // Employment fields
+            employment_status: updates.employment_status || '',
+            employer: updates.employer || '',
+            job_title: updates.job_title || '',
+            years_experience: updates.years_experience || 0,
+            
+            // Emergency contact
+            emergency_contact_name: updates.emergency_contact_name || '',
+            emergency_contact_phone: updates.emergency_contact_phone || '',
+            emergency_contact: updates.emergency_contact || '',
+            
+            // Other fields
+            notes: updates.notes || '',
+            updated_at: new Date().toISOString()
+        };
+        
+        // Remove undefined values
+        Object.keys(updateObj).forEach(key => {
+            if (updateObj[key] === undefined) {
+                delete updateObj[key];
+            }
+        });
+        
+        console.log('🔄 Updating student with data:', updateObj);
+        
+        const { data, error } = await supabase
+            .from('students')
+            .update(updateObj)
+            .eq('id', studentId)
+            .select()
+            .single();
+            
+        if (error) throw error;
+        
+        await this.logActivity('student_updated', `Updated student: ${data.full_name} (${data.reg_number})`);
+        return data;
+    } catch (error) {
+        console.error('Error updating student:', error);
+        throw error;
     }
+}
     
     async deleteStudent(studentId) {
         try {
