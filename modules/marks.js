@@ -515,231 +515,115 @@ hideDuplicateChecking() {
         return null;
     }
 }
-    showDuplicateWarning(existingMark) {
-        this.existingMarksId = existingMark.id;
-        this.isDuplicateEntry = true;
-        
-        const score = existingMark.score || 0;
-        const maxScore = existingMark.max_score || 100;
-        const percentage = existingMark.percentage || 0;
-        const grade = existingMark.grade || 'N/A';
-        const date = existingMark.assessment_date || existingMark.created_at;
-        
-        let formattedDate = 'Unknown date';
-        if (date) {
-            try {
-                formattedDate = new Date(date).toLocaleDateString('en-GB', {
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric'
-                });
-            } catch (e) {
-                formattedDate = date;
-            }
-        }
-        
-        const warningHtml = `
-            <div class="duplicate-warning-alert">
-                <div class="duplicate-warning-header">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <strong>Duplicate Entry Detected!</strong>
+   showDuplicateWarning(existingMark) {
+    this.existingMarksId = existingMark.id;
+    this.isDuplicateEntry = true;
+    
+    const score = existingMark.score || 0;
+    const maxScore = existingMark.max_score || 100;
+    const percentage = existingMark.percentage || 0;
+    const grade = existingMark.grade || 'N/A';
+    
+    const warningHtml = `
+        <div style="background: #fef3c7; border: 2px solid #fbbf24; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; color: #92400e;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong style="font-size: 0.95rem;">Duplicate Entry Found!</strong>
+            </div>
+            <div style="font-size: 0.875rem; color: #78350f;">
+                <div style="margin-bottom: 8px;">This student already has marks for this assessment.</div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: rgba(255,255,255,0.5); padding: 8px; border-radius: 6px;">
+                    <div>
+                        <div style="font-size: 0.75rem; color: #6b7280;">Existing Score</div>
+                        <div style="font-weight: 600;">${score}/${maxScore}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #6b7280;">Grade</div>
+                        <div style="font-weight: 600; color: ${this.getGradeColor(grade)}">${grade}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #6b7280;">Percentage</div>
+                        <div style="font-weight: 600;">${percentage.toFixed(1)}%</div>
+                    </div>
                 </div>
-                <div class="duplicate-warning-details">
-                    <p>This student already has marks for this course, assessment type, and date.</p>
-                    <div class="duplicate-existing-record">
-                        <div class="existing-record-item">
-                            <span class="label">Existing Score:</span>
-                            <span class="value">${score}/${maxScore} (${percentage}%)</span>
-                        </div>
-                        <div class="existing-record-item">
-                            <span class="label">Grade:</span>
-                            <span class="value grade-${grade.toLowerCase()}">${grade}</span>
-                        </div>
-                        <div class="existing-record-item">
-                            <span class="label">Date:</span>
-                            <span class="value">${formattedDate}</span>
-                        </div>
-                    </div>
-                    <div class="duplicate-warning-actions">
-                        <button type="button" class="btn-warning-overwrite" onclick="window.app.marks.overwriteExistingMarks()">
-                            <i class="fas fa-redo"></i> Overwrite Existing
-                        </button>
-                        <button type="button" class="btn-warning-cancel" onclick="window.app.marks.hideDuplicateWarning()">
-                            <i class="fas fa-times"></i> Cancel
-                        </button>
-                    </div>
+                <div style="display: flex; gap: 10px; margin-top: 12px;">
+                    <button type="button" class="btn-warning-overwrite" 
+                            onclick="window.app.marks.overwriteExistingMarks()"
+                            style="flex: 1; background: #f59e0b; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                        <i class="fas fa-redo"></i> Overwrite
+                    </button>
+                    <button type="button" class="btn-warning-cancel" 
+                            onclick="window.app.marks.hideDuplicateWarning()"
+                            style="flex: 1; background: #6b7280; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
                 </div>
             </div>
-        `;
-        
-        const duplicateWarning = document.getElementById('duplicateWarning');
-        if (duplicateWarning) {
-            duplicateWarning.innerHTML = warningHtml;
-            duplicateWarning.style.display = 'block';
-            this.addDuplicateWarningStyles();
-        }
-        
-        const submitBtn = document.getElementById('saveMarksBtn');
-        if (submitBtn) {
-            submitBtn.textContent = 'Overwrite Marks';
-            submitBtn.className = 'btn btn-warning';
-        }
+        </div>
+    `;
+    
+    const duplicateWarning = document.getElementById('duplicateWarning');
+    if (duplicateWarning) {
+        duplicateWarning.innerHTML = warningHtml;
+        duplicateWarning.style.display = 'block';
     }
+    
+    const submitBtn = document.getElementById('saveMarksBtn');
+    if (submitBtn) {
+        submitBtn.textContent = 'Overwrite Marks';
+        submitBtn.className = 'btn btn-warning';
+        submitBtn.style.background = '#f59e0b';
+    }
+}
+
+// Add this helper method
+getGradeColor(grade) {
+    const colors = {
+        'DISTINCTION': '#10b981',
+        'CREDIT': '#3b82f6',
+        'PASS': '#f59e0b',
+        'FAIL': '#ef4444'
+    };
+    return colors[grade] || '#6b7280';
+}
     
     hideDuplicateWarning() {
-        const duplicateWarning = document.getElementById('duplicateWarning');
-        if (duplicateWarning) {
-            duplicateWarning.style.display = 'none';
-        }
-        
-        const submitBtn = document.getElementById('saveMarksBtn');
-        if (submitBtn) {
-            submitBtn.textContent = 'Save Marks';
-            submitBtn.className = 'btn btn-primary';
-        }
-        
-        this.existingMarksId = null;
-        this.isDuplicateEntry = false;
+    const duplicateWarning = document.getElementById('duplicateWarning');
+    if (duplicateWarning) {
+        duplicateWarning.style.display = 'none';
     }
     
-    addDuplicateWarningStyles() {
-        const styleId = 'duplicate-warning-styles';
-        if (document.getElementById(styleId)) return;
-        
-        const style = document.createElement('style');
-        style.id = styleId;
-        style.textContent = `
-            .duplicate-warning-alert {
-                background-color: #fff3cd;
-                border: 2px solid #ffeaa7;
-                border-radius: 8px;
-                padding: 15px;
-                margin: 15px 0;
-                animation: fadeIn 0.3s ease;
-            }
-            
-            .duplicate-warning-header {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                margin-bottom: 10px;
-                color: #856404;
-            }
-            
-            .duplicate-warning-header i {
-                font-size: 1.2em;
-                color: #ffc107;
-            }
-            
-            .duplicate-warning-details {
-                color: #856404;
-                font-size: 0.95em;
-            }
-            
-            .duplicate-existing-record {
-                background: rgba(255, 255, 255, 0.5);
-                border-radius: 6px;
-                padding: 10px;
-                margin: 10px 0;
-            }
-            
-            .existing-record-item {
-                display: flex;
-                justify-content: space-between;
-                margin-bottom: 5px;
-                padding: 4px 0;
-            }
-            
-            .existing-record-item .label {
-                font-weight: 600;
-                color: #5d5d5d;
-            }
-            
-            .existing-record-item .value {
-                font-weight: 500;
-            }
-            
-            .grade-distinction {
-                color: #10b981;
-                font-weight: bold;
-            }
-            
-            .grade-credit {
-                color: #3b82f6;
-                font-weight: bold;
-            }
-            
-            .grade-pass {
-                color: #f59e0b;
-                font-weight: bold;
-            }
-            
-            .grade-fail {
-                color: #ef4444;
-                font-weight: bold;
-            }
-            
-            .duplicate-warning-actions {
-                display: flex;
-                gap: 10px;
-                margin-top: 15px;
-            }
-            
-            .btn-warning-overwrite {
-                background-color: #f59e0b;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
-                cursor: pointer;
-                font-weight: 600;
-                transition: background-color 0.2s;
-            }
-            
-            .btn-warning-overwrite:hover {
-                background-color: #d97706;
-            }
-            
-            .btn-warning-cancel {
-                background-color: #6c757d;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
-                cursor: pointer;
-                font-weight: 600;
-                transition: background-color 0.2s;
-            }
-            
-            .btn-warning-cancel:hover {
-                background-color: #545b62;
-            }
-            
-            @keyframes fadeIn {
-                from { opacity: 0; transform: translateY(-10px); }
-                to { opacity: 1; transform: translateY(0); }
-            }
-        `;
-        
-        document.head.appendChild(style);
+    const submitBtn = document.getElementById('saveMarksBtn');
+    if (submitBtn) {
+        submitBtn.textContent = 'Save Marks';
+        submitBtn.className = 'btn btn-primary';
+        submitBtn.style.background = '#3b82f6';
     }
+    
+    this.existingMarksId = null;
+    this.isDuplicateEntry = false;
+}
     
     overwriteExistingMarks() {
-        document.getElementById('isDuplicate').value = 'true';
-        document.getElementById('existingMarksId').value = this.existingMarksId;
-        
-        const submitBtn = document.getElementById('saveMarksBtn');
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Confirm Overwrite';
-            submitBtn.className = 'btn btn-warning';
-        }
-        
-        const warningMessage = document.querySelector('.duplicate-warning-details p');
-        if (warningMessage) {
-            warningMessage.innerHTML = '<strong>Confirm overwrite?</strong> This will replace the existing marks.';
+    document.getElementById('isDuplicate').value = 'true';
+    document.getElementById('existingMarksId').value = this.existingMarksId;
+    
+    const submitBtn = document.getElementById('saveMarksBtn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-check"></i> Confirm Overwrite';
+        submitBtn.style.background = '#dc2626';
+        submitBtn.className = 'btn btn-danger';
+    }
+    
+    const warningDiv = document.querySelector('#duplicateWarning > div');
+    if (warningDiv) {
+        const messageDiv = warningDiv.querySelector('div:nth-child(2) > div:nth-child(1)');
+        if (messageDiv) {
+            messageDiv.innerHTML = '<strong>⚠️ Confirm overwrite?</strong> This will replace the existing marks.';
         }
     }
+}
     
     // ==================== FORM DATA HANDLING ====================
     
@@ -798,7 +682,7 @@ hideDuplicateChecking() {
             percentage: percentage,
             grade: grade,
             grade_points: gradePoints,
-            visible_to_student: true,
+             visible_to_student: visibleToStudent,
             entered_by: this.app.user?.id || 'system',
             assessment_date: assessmentDate
         };
@@ -1698,47 +1582,56 @@ hideDuplicateChecking() {
     }
     
     updateMarksGradeDisplay() {
-        try {
-            const scoreInput = document.getElementById('marksScore');
-            const maxScoreInput = document.getElementById('marksMaxScore');
-            const percentageDisplay = document.getElementById('marksPercentage');
-            const gradeBadge = document.getElementById('gradeBadge');
-            
-            if (!scoreInput || !gradeBadge || !maxScoreInput) return;
-            
-            const score = parseFloat(scoreInput.value);
-            const maxScore = parseFloat(maxScoreInput.value);
-            
-            if (isNaN(score) || isNaN(maxScore) || maxScore <= 0) {
-                this.resetMarksGradeDisplay(gradeBadge, percentageDisplay);
-                return;
-            }
-            
-            const validScore = Math.min(score, maxScore);
-            if (score !== validScore) {
-                scoreInput.value = validScore;
-            }
-            
-            const percentage = (validScore / maxScore) * 100;
-            const cappedPercentage = Math.min(percentage, 100);
-            
-            const grade = this.calculateGrade(cappedPercentage);
-            const gradeDescription = this.getGradeDescription(grade);
-            const gradeCSSClass = this.getGradeCSSClass(grade);
-            
-            if (percentageDisplay) {
-                percentageDisplay.value = `${cappedPercentage.toFixed(2)}%`;
-            }
-            
-            gradeBadge.innerHTML = `<span>${grade}</span>`;
-            gradeBadge.className = `grade-badge ${gradeCSSClass}`;
-            gradeBadge.title = gradeDescription;
-            
-        } catch (error) {
-            console.error('Error updating grade display:', error);
+    try {
+        const scoreInput = document.getElementById('marksScore');
+        const maxScoreInput = document.getElementById('marksMaxScore');
+        const percentageDisplay = document.getElementById('marksPercentage');
+        const gradeBadge = document.getElementById('gradeBadge');
+        
+        if (!scoreInput || !gradeBadge || !maxScoreInput) return;
+        
+        const score = parseFloat(scoreInput.value);
+        const maxScore = parseFloat(maxScoreInput.value);
+        
+        if (isNaN(score) || isNaN(maxScore) || maxScore <= 0) {
+            this.resetMarksGradeDisplay(gradeBadge, percentageDisplay);
+            return;
         }
+        
+        const validScore = Math.min(score, maxScore);
+        if (score !== validScore) {
+            scoreInput.value = validScore;
+        }
+        
+        const percentage = (validScore / maxScore) * 100;
+        const cappedPercentage = Math.min(percentage, 100);
+        
+        const grade = this.calculateGrade(cappedPercentage);
+        const gradeCSSClass = this.getGradeCSSClass(grade);
+        
+        if (percentageDisplay) {
+            percentageDisplay.textContent = `${cappedPercentage.toFixed(2)}%`;
+        }
+        
+        // Update grade badge with new HTML structure
+        gradeBadge.textContent = grade;
+        gradeBadge.className = gradeCSSClass;
+        
+    } catch (error) {
+        console.error('Error updating grade display:', error);
+    }
+}
+
+resetMarksGradeDisplay(gradeBadge, percentageDisplay) {
+    if (gradeBadge) {
+        gradeBadge.textContent = '--';
+        gradeBadge.className = 'grade-default';
     }
     
+    if (percentageDisplay) {
+        percentageDisplay.textContent = '0.00%';
+    }
+}
     resetMarksGradeDisplay(gradeBadge, percentageDisplay) {
         if (gradeBadge) {
             gradeBadge.innerHTML = '<span>Enter score to see grade</span>';
