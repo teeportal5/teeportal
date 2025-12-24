@@ -1,7 +1,7 @@
 // modules/database.js - Complete Supabase DB class with all fixes
 class TEEPortalSupabaseDB {
     constructor() {
-        this.supabase = null;
+        this.supabase = null; 
         this.initialized = false;
         this.initPromise = null;
         this.settings = null;
