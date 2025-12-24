@@ -55,12 +55,81 @@ class StudentManager {
     /**
      * Initialize student module
      */
-    async init() {
-        this._attachEventListeners();
-        await this.loadStudentsTable();
-        this._setupBulkActions();
-        this._setupModalHandlers(); // Add modal handlers
+   async init() {
+    this._attachEventListeners();
+    await this.loadStudentsTable();
+    this._setupBulkActions();
+    this._setupModalHandlers();
+    
+    // NEW: Populate intake years dropdown on page load
+    await this._populateIntakeYears();
+}
+     // ========== ADD THIS NEW METHOD HERE ==========
+    /**
+     * Populate intake year dropdown with student's year included
+     */
+    async _populateIntakeYears(studentIntakeYear = null) {
+        try {
+            const intakeSelect = document.getElementById('studentIntake');
+            if (!intakeSelect) {
+                console.warn('studentIntake dropdown not found');
+                return;
+            }
+            
+            // Clear existing options
+            intakeSelect.innerHTML = '<option value="">Select Intake Year</option>';
+            
+            const currentYear = new Date().getFullYear();
+            
+            // Always include the student's intake year if provided
+            if (studentIntakeYear) {
+                const year = parseInt(studentIntakeYear);
+                if (!isNaN(year)) {
+                    // Add student's year first
+                    const studentOption = document.createElement('option');
+                    studentOption.value = year;
+                    studentOption.textContent = year;
+                    studentOption.selected = true;
+                    intakeSelect.appendChild(studentOption);
+                    console.log(`✅ Added student's intake year: ${year}`);
+                }
+            }
+            
+            // Add current year and previous 10 years
+            for (let i = 0; i <= 10; i++) {
+                const year = currentYear - i;
+                
+                // Don't add duplicate if it's the student's year
+                if (studentIntakeYear && year === parseInt(studentIntakeYear)) continue;
+                
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                
+                // Select current year by default for new students
+                if (!studentIntakeYear && i === 0) {
+                    option.selected = true;
+                }
+                
+                intakeSelect.appendChild(option);
+            }
+            
+            // Add future years (next 2 years)
+            for (let i = 1; i <= 2; i++) {
+                const year = currentYear + i;
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                intakeSelect.appendChild(option);
+            }
+            
+            console.log(`✅ Populated intake years dropdown (student year: ${studentIntakeYear || 'not specified'})`);
+            
+        } catch (error) {
+            console.error('Error populating intake years:', error);
+        }
     }
+    // ========== END OF NEW METHOD ==========
     
     /**
      * Attach all event listeners
