@@ -571,6 +571,278 @@
     <input type="text" id="centreSearchInput" placeholder="Search centres..." 
            onkeyup="if(window.app && window.app.centres) window.app.centres.searchCentres(this.value)">
 </div>
+            <!-- ========== COURSES SECTION - WITH GRADE FUNCTIONALITY ========== -->
+<section id="courses" class="content-section">
+    <div class="section-header">
+        <div class="header-left">
+            <h2><i class="fas fa-book"></i> Course Management</h2>
+            <p class="section-subtitle">Manage and organize all academic courses</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="openCourseModal()">
+                <i class="fas fa-plus"></i> Add Course
+            </button>
+            <button class="btn btn-success" onclick="openBulkGradeModal()" id="bulkGradeBtn" style="display: none;">
+                <i class="fas fa-chart-line"></i> Grade All Students
+            </button>
+            <button class="btn btn-secondary" onclick="app.courses?.exportCourses()">
+                <i class="fas fa-download"></i> Export
+            </button>
+        </div>
+    </div>
+    
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="courseSearch" placeholder="Search courses..." class="search-input" 
+                   oninput="app.courses?.searchCourses(this.value)">
+        </div>
+        <div class="filter-controls">
+            <select id="filterProgram" class="filter-select" onchange="app.courses?.filterCourses()">
+                <option value="">All Programs</option>
+                <!-- Will be populated -->
+            </select>
+            <select id="filterLevel" class="filter-select" onchange="app.courses?.filterCourses()">
+                <option value="">All Levels</option>
+                <option value="basic">Basic</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+            </select>
+            <select id="filterStatus" class="filter-select" onchange="app.courses?.filterCourses()">
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+            </select>
+        </div>
+    </div>
+    
+    <!-- Courses Grid View -->
+    <div class="cards-grid" id="coursesGrid">
+        <!-- Courses will be loaded here -->
+        <div class="empty-state">
+            <i class="fas fa-book fa-3x"></i>
+            <h3>No Courses Found</h3>
+            <p>Get started by adding your first course</p>
+            <button class="btn btn-primary" onclick="openCourseModal()">
+                <i class="fas fa-plus"></i> Add Your First Course
+            </button>
+        </div>
+    </div>
+    
+    <!-- Alternative: Table View -->
+    <div class="table-container" id="coursesTableContainer" style="display: none;">
+        <table class="data-table" id="coursesTable">
+            <thead>
+                <tr>
+                    <th>Course Code</th>
+                    <th>Course Name</th>
+                    <th>Program</th>
+                    <th>Credits</th>
+                    <th>Students</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="coursesTableBody">
+                <!-- Will be populated -->
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- View Toggle -->
+    <div class="view-toggle">
+        <button class="view-btn active" data-view="grid" onclick="setCoursesView('grid')">
+            <i class="fas fa-th-large"></i> Grid
+        </button>
+        <button class="view-btn" data-view="table" onclick="setCoursesView('table')">
+            <i class="fas fa-list"></i> Table
+        </button>
+    </div>
+    
+    <!-- Course Statistics -->
+    <div class="stats-row">
+        <div class="stat-item">
+            <span class="stat-label">Total Courses</span>
+            <span class="stat-value" id="totalCourses">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Active Courses</span>
+            <span class="stat-value" id="activeCourses">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Students Enrolled</span>
+            <span class="stat-value" id="totalStudentsEnrolled">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Ready to Grade</span>
+            <span class="stat-value" id="coursesToGrade">0</span>
+        </div>
+    </div>
+</section>
+
+<!-- ========== COURSE MODAL ========== -->
+<div id="courseModal" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+            <h3 id="courseModalTitle">Add New Course</h3>
+            <span class="close" onclick="closeCourseModal()">&times;</span>
+        </div>
+        
+        <form id="courseForm" onsubmit="saveCourse(event)">
+            <div class="modal-body">
+                <!-- Form content remains the same as before -->
+                <!-- ... (keep all your course form fields) ... -->
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeCourseModal()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save Course
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ========== BULK GRADE MODAL ========== -->
+<div id="bulkGradeModal" class="modal">
+    <div class="modal-content" style="max-width: 800px; max-height: 90vh;">
+        <div class="modal-header">
+            <h3><i class="fas fa-chart-line"></i> Bulk Grade Students</h3>
+            <span class="close" onclick="closeBulkGradeModal()">&times;</span>
+        </div>
+        
+        <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
+            <!-- Course Selection -->
+            <div class="form-section">
+                <h4><i class="fas fa-book"></i> Course Information</h4>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 2;">
+                        <label>Select Course *</label>
+                        <select id="bulkGradeCourse" class="form-control" required 
+                                onchange="loadStudentsForBulkGrading()">
+                            <option value="">Select Course</option>
+                            <!-- Courses will be populated -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Assessment Type *</label>
+                        <select id="bulkGradeType" class="form-control" required>
+                            <option value="exam">Final Exam</option>
+                            <option value="test">Test</option>
+                            <option value="assignment">Assignment</option>
+                            <option value="practical">Practical</option>
+                            <option value="cat">CAT</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="form-section">
+                <h4><i class="fas fa-filter"></i> Filter Students</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Intake Year</label>
+                        <select id="bulkGradeIntake" class="form-control" onchange="filterStudentsForGrading()">
+                            <option value="">All Intakes</option>
+                            <!-- Years will be populated -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Study Centre</label>
+                        <select id="bulkGradeCentre" class="form-control" onchange="filterStudentsForGrading()">
+                            <option value="">All Centres</option>
+                            <!-- Centres will be populated -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Program</label>
+                        <select id="bulkGradeProgram" class="form-control" onchange="filterStudentsForGrading()">
+                            <option value="">All Programs</option>
+                            <!-- Programs will be populated -->
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <button type="button" class="btn btn-outline" onclick="selectAllStudents()">
+                            <i class="fas fa-check-square"></i> Select All
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="deselectAllStudents()">
+                            <i class="fas fa-times-circle"></i> Deselect All
+                        </button>
+                        <span class="text-muted" style="margin-left: auto;" id="selectedCount">0 students selected</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Students List -->
+            <div class="form-section">
+                <h4><i class="fas fa-users"></i> Students to Grade</h4>
+                <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th width="50">
+                                    <input type="checkbox" id="selectAllCheckbox" onchange="toggleAllStudents(this.checked)">
+                                </th>
+                                <th>Student Name</th>
+                                <th>Reg Number</th>
+                                <th>Centre</th>
+                                <th>Intake</th>
+                                <th>Current Grade</th>
+                                <th>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulkGradeStudentsList">
+                            <!-- Students will be loaded here -->
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-3">
+                                    <i class="fas fa-user-graduate fa-2x mb-2"></i>
+                                    <p>Select a course to load students</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Grade Settings -->
+            <div class="form-section">
+                <h4><i class="fas fa-cog"></i> Grade Settings</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Assessment Date *</label>
+                        <input type="date" id="bulkGradeDate" class="form-control" required 
+                               value="<?php echo date('Y-m-d'); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label>Maximum Score</label>
+                        <input type="number" id="bulkMaxScore" class="form-control" value="100" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Apply Same Score</label>
+                        <input type="number" id="bulkSameScore" class="form-control" 
+                               placeholder="Enter score for all selected" min="0">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeBulkGradeModal()">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+            <button type="button" class="btn btn-primary" onclick="submitBulkGrades()" id="submitBulkGradesBtn">
+                <i class="fas fa-save"></i> Save All Grades
+            </button>
+        </div>
+    </div>
+</div>
             
           <!-- Marks Section - FIXED VERSION -->
 <section id="marks" class="content-section">
