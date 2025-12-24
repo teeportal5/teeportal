@@ -1829,7 +1829,7 @@ if (typeof window !== 'undefined') {
         </form>
     </div>
 </div>
-<!-- Centre Modal -->
+<!-- Centre Modal - SIMPLE VERSION -->
 <div id="centreModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -1838,117 +1838,35 @@ if (typeof window !== 'undefined') {
         </div>
         <div class="modal-body">
             <form id="centreForm" onsubmit="return saveCentre(event)">
-                <!-- Centre Information -->
+                <!-- Only two required fields -->
                 <div class="form-section">
                     <h4><i class="fas fa-map-marker-alt"></i> Centre Information</h4>
                     
                     <div class="form-row">
-                        <div class="form-group">
+                        <div class="form-group full-width">
                             <label for="centreName">Centre Name *</label>
                             <input type="text" id="centreName" name="centreName" required 
-                                   placeholder="e.g., Nairobi Headquarters">
-                        </div>
-                        <div class="form-group">
-                            <label for="centreCode">Centre Code</label>
-                            <input type="text" id="centreCode" name="centreCode" 
-                                   placeholder="e.g., NBO-001">
-                            <small>Unique identifier for the centre</small>
+                                   placeholder="e.g., Nairobi Headquarters" maxlength="100">
                         </div>
                     </div>
                     
                     <div class="form-row">
-                        <div class="form-group">
+                        <div class="form-group full-width">
                             <label for="centreCounty">County *</label>
                             <select id="centreCounty" name="centreCounty" required>
                                 <option value="">Select County</option>
                                 <!-- Counties will be populated dynamically -->
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label for="centreSubCounty">Sub-County/Constituency</label>
-                            <input type="text" id="centreSubCounty" name="centreSubCounty" 
-                                   placeholder="e.g., Westlands">
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="centreWard">Ward/Location</label>
-                            <input type="text" id="centreWard" name="centreWard" 
-                                   placeholder="e.g., Parklands">
-                        </div>
-                        <div class="form-group">
-                            <label for="centreStatus">Status</label>
-                            <select id="centreStatus" name="centreStatus">
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                                <option value="planned">Planned</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Contact Information -->
-                <div class="form-section">
-                    <h4><i class="fas fa-address-book"></i> Contact Information</h4>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="centreAddress">Physical Address</label>
-                            <textarea id="centreAddress" name="centreAddress" rows="3" 
-                                      placeholder="Full physical address of the centre"></textarea>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="centrePhone">Phone Number</label>
-                            <input type="tel" id="centrePhone" name="centrePhone" 
-                                   placeholder="e.g., 0712 345 678">
-                        </div>
-                        <div class="form-group">
-                            <label for="centreEmail">Email Address</label>
-                            <input type="email" id="centreEmail" name="centreEmail" 
-                                   placeholder="e.g., centre@example.com">
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="centreContactPerson">Contact Person</label>
-                            <input type="text" id="centreContactPerson" name="centreContactPerson" 
-                                   placeholder="Name of person in charge">
-                        </div>
-                        <div class="form-group">
-                            <label for="centreContactPhone">Contact Phone</label>
-                            <input type="tel" id="centreContactPhone" name="centreContactPhone" 
-                                   placeholder="Contact person's phone">
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Additional Information -->
-                <div class="form-section">
-                    <h4><i class="fas fa-info-circle"></i> Additional Information</h4>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="centreCapacity">Student Capacity</label>
-                            <input type="number" id="centreCapacity" name="centreCapacity" 
-                                   placeholder="e.g., 200" min="1">
-                        </div>
-                        <div class="form-group">
-                            <label for="centreRooms">Number of Classrooms</label>
-                            <input type="number" id="centreRooms" name="centreRooms" 
-                                   placeholder="e.g., 10" min="1">
-                        </div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group full-width">
-                            <label for="centreNotes">Notes / Remarks</label>
-                            <textarea id="centreNotes" name="centreNotes" rows="3" 
-                                      placeholder="Any additional notes about the centre"></textarea>
+                            <label for="centreStatus">Status</label>
+                            <select id="centreStatus" name="centreStatus">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -1964,7 +1882,7 @@ if (typeof window !== 'undefined') {
             </form>
         </div>
     </div>
-</div>    
+</div>   
     <!-- JavaScript Modules -->
     <!-- These should be: -->
 <script src="modules/database.js"></script>
