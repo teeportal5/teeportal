@@ -1,7 +1,10 @@
- // modules/courses.js - Course management module
+// modules/courses.js - Course management module with grading features
 class CourseManager {
-    constructor(db) {
+    constructor(db, app) {
         this.db = db;
+        this.app = app;
+        this.currentCourse = null;
+        this.selectedStudents = new Set();
     }
     
     async saveCourse(event) {
@@ -108,6 +111,8 @@ class CourseManager {
                 const programColor = programColors[course.program] || '#95a5a6';
                 const createdAt = course.created_at ? new Date(course.created_at).toLocaleDateString() : 'Unknown';
                 const status = course.status || 'active';
+                const enrolledStudents = course.enrolled_count || 0;
+                const canGrade = enrolledStudents > 0;
                 
                 html += `
                     <div class="course-card" data-course-id="${course.id}">
@@ -123,10 +128,15 @@ class CourseManager {
                             <div class="course-meta">
                                 <span><i class="fas fa-graduation-cap"></i> ${programName}</span>
                                 <span><i class="fas fa-star"></i> ${course.credits || 3} Credits</span>
-                                <span><i class="fas fa-calendar"></i> ${createdAt}</span>
+                                <span><i class="fas fa-users"></i> ${enrolledStudents} Students</span>
                             </div>
                         </div>
                         <div class="course-actions">
+                            ${canGrade ? `
+                                <button class="btn-grade" onclick="app.courses.openBulkGradeModal('${course.id}')" title="Grade all students">
+                                    <i class="fas fa-chart-line"></i> Grade
+                                </button>
+                            ` : ''}
                             <button class="btn-edit" onclick="app.courses.editCourse('${course.id}')" title="Edit Course">
                                 <i class="fas fa-edit"></i> Edit
                             </button>
@@ -220,6 +230,302 @@ class CourseManager {
             this.showToast(`❌ Error: ${error.message}`, 'error');
         }
     }
+    
+    // ===== BULK GRADING FEATURES =====
+    
+    async openBulkGradeModal(courseId = null) {
+        this.currentCourse = courseId;
+        this.selectedStudents.clear();
+        
+        // Populate course dropdown
+        const courseSelect = document.getElementById('bulkGradeCourse');
+        if (courseSelect && courseId) {
+            courseSelect.value = courseId;
+        }
+        
+        // Load students for selected course
+        await this.loadStudentsForBulkGrading();
+        
+        // Populate filters
+        await this.populateBulkGradeFilters();
+        
+        // Show modal
+        const modal = document.getElementById('bulkGradeModal');
+        if (modal) {
+            modal.style.display = 'block';
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+    
+    async loadStudentsForBulkGrading(courseId = null) {
+        const courseIdToUse = courseId || this.currentCourse;
+        if (!courseIdToUse) return;
+        
+        try {
+            const course = await this.db.getCourse(courseIdToUse);
+            if (!course) {
+                this.showToast('Course not found', 'error');
+                return;
+            }
+            
+            const students = await this.db.getStudentsByCourse(courseIdToUse);
+            this.renderBulkGradeStudents(students, course);
+            
+        } catch (error) {
+            console.error('❌ Error loading students for grading:', error);
+            this.showToast('Error loading students', 'error');
+        }
+    }
+    
+    renderBulkGradeStudents(students, course) {
+        const tbody = document.getElementById('bulkGradeStudentsList');
+        if (!tbody) return;
+        
+        if (!students || students.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        <i class="fas fa-user-graduate fa-2x mb-2"></i>
+                        <p>No students enrolled in this course</p>
+                    </td>
+                </tr>
+            `;
+            const submitBtn = document.getElementById('submitBulkGradesBtn');
+            if (submitBtn) submitBtn.disabled = true;
+            return;
+        }
+        
+        const submitBtn = document.getElementById('submitBulkGradesBtn');
+        if (submitBtn) submitBtn.disabled = false;
+        
+        let html = '';
+        students.forEach(student => {
+            const existingGrade = student.existing_grade || '-';
+            const existingScore = student.existing_score || '-';
+            const studentId = student.id || student.student_id;
+            
+            html += `
+                <tr data-student-id="${studentId}">
+                    <td class="text-center">
+                        <input type="checkbox" class="student-checkbox" 
+                               data-student-id="${studentId}"
+                               onchange="app.courses.toggleStudentSelection('${studentId}', this.checked)">
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="avatar me-2">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <div>
+                                <strong>${student.full_name}</strong>
+                                <div class="text-muted small">${student.email || ''}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><code>${student.reg_number}</code></td>
+                    <td>${student.centre_name || student.centre || '-'}</td>
+                    <td>${student.intake_year || '-'}</td>
+                    <td>
+                        <span class="badge bg-${this.getGradeBadgeColor(existingGrade)}">
+                            ${existingGrade}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="input-group input-group-sm">
+                            <input type="number" class="form-control student-score" 
+                                   data-student-id="${studentId}"
+                                   placeholder="Score" min="0" max="100" step="0.01"
+                                   value="${existingScore !== '-' ? existingScore : ''}">
+                            <span class="input-group-text">/ 100</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
+        this.updateSelectedCount();
+    }
+    
+    toggleStudentSelection(studentId, selected) {
+        if (selected) {
+            this.selectedStudents.add(studentId);
+        } else {
+            this.selectedStudents.delete(studentId);
+        }
+        this.updateSelectedCount();
+    }
+    
+    updateSelectedCount() {
+        const countElement = document.getElementById('selectedCount');
+        if (countElement) {
+            countElement.textContent = `${this.selectedStudents.size} students selected`;
+        }
+    }
+    
+    selectAllStudents() {
+        const checkboxes = document.querySelectorAll('.student-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+            const studentId = checkbox.dataset.studentId;
+            this.selectedStudents.add(studentId);
+        });
+        this.updateSelectedCount();
+    }
+    
+    deselectAllStudents() {
+        const checkboxes = document.querySelectorAll('.student-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+            const studentId = checkbox.dataset.studentId;
+            this.selectedStudents.delete(studentId);
+        });
+        this.updateSelectedCount();
+    }
+    
+    async populateBulkGradeFilters() {
+        // Populate intake years
+        const intakeSelect = document.getElementById('bulkGradeIntake');
+        if (intakeSelect) {
+            const currentYear = new Date().getFullYear();
+            intakeSelect.innerHTML = '<option value="">All Intakes</option>';
+            for (let year = currentYear - 5; year <= currentYear + 1; year++) {
+                intakeSelect.innerHTML += `<option value="${year}">${year}</option>`;
+            }
+        }
+        
+        // Populate centres
+        const centreSelect = document.getElementById('bulkGradeCentre');
+        if (centreSelect) {
+            try {
+                const centres = await this.db.getCentres();
+                centreSelect.innerHTML = '<option value="">All Centres</option>';
+                centres.forEach(centre => {
+                    centreSelect.innerHTML += `<option value="${centre.name}">${centre.name}</option>`;
+                });
+            } catch (error) {
+                console.error('Error loading centres:', error);
+            }
+        }
+        
+        // Populate programs
+        const programSelect = document.getElementById('bulkGradeProgram');
+        if (programSelect) {
+            try {
+                const programs = await this.db.getPrograms();
+                programSelect.innerHTML = '<option value="">All Programs</option>';
+                programs.forEach(program => {
+                    programSelect.innerHTML += `<option value="${program.id}">${program.name}</option>`;
+                });
+            } catch (error) {
+                console.error('Error loading programs:', error);
+            }
+        }
+    }
+    
+    async submitBulkGrades() {
+        const courseId = document.getElementById('bulkGradeCourse')?.value;
+        const assessmentType = document.getElementById('bulkGradeType')?.value;
+        const assessmentDate = document.getElementById('bulkGradeDate')?.value;
+        const maxScore = document.getElementById('bulkMaxScore')?.value || 100;
+        
+        if (!courseId) {
+            this.showToast('Please select a course', 'error');
+            return;
+        }
+        
+        if (this.selectedStudents.size === 0) {
+            this.showToast('Please select at least one student', 'error');
+            return;
+        }
+        
+        const sameScore = document.getElementById('bulkSameScore')?.value;
+        const studentsToGrade = [];
+        
+        this.selectedStudents.forEach(studentId => {
+            const scoreInput = document.querySelector(`.student-score[data-student-id="${studentId}"]`);
+            const score = sameScore || (scoreInput ? scoreInput.value : null);
+            
+            if (score) {
+                const percentage = (score / maxScore) * 100;
+                const grade = this.calculateGrade(percentage);
+                
+                studentsToGrade.push({
+                    student_id: studentId,
+                    course_id: courseId,
+                    score: parseFloat(score),
+                    percentage: percentage,
+                    grade: grade.grade,
+                    grade_points: grade.points,
+                    assessment_type: assessmentType,
+                    assessment_date: assessmentDate,
+                    max_score: parseFloat(maxScore)
+                });
+            }
+        });
+        
+        if (studentsToGrade.length === 0) {
+            this.showToast('No valid scores to save', 'error');
+            return;
+        }
+        
+        try {
+            const results = await Promise.allSettled(
+                studentsToGrade.map(gradeData => this.db.addMark(gradeData))
+            );
+            
+            const successful = results.filter(r => r.status === 'fulfilled').length;
+            const failed = results.filter(r => r.status === 'rejected').length;
+            
+            if (successful > 0) {
+                this.showToast(`✅ ${successful} grades saved successfully${failed > 0 ? `, ${failed} failed` : ''}`, 'success');
+            }
+            
+            if (failed > 0) {
+                console.error('Some grades failed to save:', results.filter(r => r.status === 'rejected'));
+            }
+            
+            this.closeBulkGradeModal();
+            await this.loadCourses();
+            
+        } catch (error) {
+            console.error('❌ Error saving bulk grades:', error);
+            this.showToast('Error saving grades', 'error');
+        }
+    }
+    
+    closeBulkGradeModal() {
+        const modal = document.getElementById('bulkGradeModal');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+        this.selectedStudents.clear();
+        this.currentCourse = null;
+    }
+    
+    // Helper functions for grading
+    getGradeBadgeColor(grade) {
+        const gradeColors = {
+            'DISTINCTION': 'success',
+            'CREDIT': 'info',
+            'PASS': 'warning',
+            'FAIL': 'danger',
+            '-': 'secondary'
+        };
+        return gradeColors[grade] || 'secondary';
+    }
+    
+    calculateGrade(percentage) {
+        if (percentage >= 85) return { grade: 'DISTINCTION', points: 4.0 };
+        if (percentage >= 70) return { grade: 'CREDIT', points: 3.0 };
+        if (percentage >= 50) return { grade: 'PASS', points: 2.0 };
+        return { grade: 'FAIL', points: 0.0 };
+    }
+    
+    // ===== END BULK GRADING FEATURES =====
     
     showToast(message, type = 'info') {
         const toast = document.createElement('div');
