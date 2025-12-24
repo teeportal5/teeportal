@@ -69,94 +69,135 @@ class StudentManager {
         await this._populateIntakeYears();
     }
     
-    /**
-     * Load program codes from database
-     */
     async _loadProgramCodes() {
-        try {
-            const programs = await this.db.getPrograms();
-            if (programs && Array.isArray(programs)) {
-                programs.forEach(program => {
-                    if (program.id && program.code) {
-                        this.programCodes[program.id] = program.code;
-                    } else if (program.id && program.name) {
-                        // Generate code from name (first 3 letters uppercase)
-                        this.programCodes[program.id] = program.name.substring(0, 3).toUpperCase();
-                    }
-                });
-                console.log('📊 Loaded program codes:', this.programCodes);
-            }
-        } catch (error) {
-            console.warn('Could not load program codes:', error);
+    try {
+        const programs = await this.db.getPrograms();
+        if (programs && Array.isArray(programs)) {
+            // Clear existing codes
+            this.programCodes = {};
+            
+            // Load all program codes
+            programs.forEach(program => {
+                if (program.id && program.code) {
+                    this.programCodes[program.id] = program.code;
+                }
+            });
+            console.log('📊 Loaded program codes:', this.programCodes);
+        } else {
+            console.warn('No programs found or invalid response');
         }
+    } catch (error) {
+        console.error('Could not load program codes:', error);
+        this.programCodes = {};
     }
+}
     
-    /**
-     * Generate registration number based on program and intake year
-     */
-    async generateRegNumber() {
-        try {
-            const programSelect = document.getElementById('studentProgram');
-            const intakeSelect = document.getElementById('studentIntake');
-            const regNumberInput = document.getElementById('studentRegNumber');
-            
-            if (!programSelect || !intakeSelect || !regNumberInput) {
-                console.warn('Required elements not found for registration number generation');
-                return;
+   /**
+ * Generate registration number based on program and intake year
+ */
+async generateRegNumber() {
+    try {
+        const programSelect = document.getElementById('studentProgram');
+        const intakeSelect = document.getElementById('studentIntake');
+        const regNumberInput = document.getElementById('studentRegNumber');
+        
+        if (!programSelect || !intakeSelect || !regNumberInput) {
+            console.warn('Required elements not found for registration number generation');
+            return;
+        }
+        
+        const programId = programSelect.value;
+        const intakeYear = intakeSelect.value;
+        
+        console.log('🔢 Generating reg number with:', { 
+            programId, 
+            intakeYear,
+            programCodes: this.programCodes // Debug log
+        });
+        
+        if (!programId || !intakeYear) {
+            regNumberInput.value = '';
+            this.ui.showToast('Select program and intake year first', 'warning');
+            return;
+        }
+        
+        // **METHOD: Get program code from database mapping**
+        let programCode = '';
+        
+        // 1. Try to get from pre-loaded programCodes
+        if (this.programCodes && this.programCodes[programId]) {
+            programCode = this.programCodes[programId];
+            console.log(`✅ Found program code in cache: ${programCode}`);
+        } 
+        // 2. If not in cache, fetch directly from database
+        else {
+            try {
+                console.log(`🔍 Program code not in cache, fetching from database...`);
+                const program = await this.db.getProgram(programId);
+                if (program && program.code) {
+                    programCode = program.code;
+                    // Cache it for next time
+                    this.programCodes[programId] = programCode;
+                    console.log(`✅ Fetched program code from DB: ${programCode}`);
+                } else {
+                    // Fallback: Extract from program name (first 3 letters)
+                    const programText = programSelect.options[programSelect.selectedIndex]?.text || '';
+                    programCode = programText.substring(0, 3).toUpperCase();
+                    console.log(`⚠️ Using fallback program code: ${programCode}`);
+                }
+            } catch (error) {
+                console.warn('Error fetching program:', error);
+                // Ultimate fallback
+                programCode = 'GEN';
+                console.log(`❌ Using default program code: ${programCode}`);
             }
-            
-            const programId = programSelect.value;
-            const intakeYear = intakeSelect.value;
-            
-            console.log('🔢 Generating reg number with:', { programId, intakeYear });
-            
-            if (!programId || !intakeYear) {
-                regNumberInput.value = '';
-                this.ui.showToast('Select program and intake year first', 'warning');
-                return;
-            }
-            
-            // Get program code
-            let programCode = this.programCodes[programId];
-            if (!programCode) {
-                // Fallback: Use program name or generate from value
-                const programText = programSelect.options[programSelect.selectedIndex]?.text || 'GEN';
-                programCode = programText.substring(0, 3).toUpperCase().replace(/\s/g, '');
-                console.log('⚠️ Using fallback program code:', programCode);
-            }
-            
-            // Get last student number for this program and year
-            const lastStudent = await this.db.getLastStudentForProgramYear(programId, intakeYear);
-            
-            // Calculate next sequence number
-            let sequenceNumber = 1;
-            if (lastStudent && lastStudent.reg_number) {
-                const regParts = lastStudent.reg_number.split('-');
-                if (regParts.length === 3) {
-                    const lastSeq = parseInt(regParts[2]);
-                    if (!isNaN(lastSeq)) {
-                        sequenceNumber = lastSeq + 1;
-                    }
+        }
+        
+        // Validate program code format (should be 2-4 uppercase letters)
+        if (!/^[A-Z]{2,4}$/.test(programCode)) {
+            console.warn(`Invalid program code format: ${programCode}, using GEN`);
+            programCode = 'GEN';
+        }
+        
+        // Get last student number for this program and year
+        const lastStudent = await this.db.getLastStudentForProgramYear(programId, intakeYear);
+        
+        // Calculate next sequence number
+        let sequenceNumber = 1;
+        if (lastStudent && lastStudent.reg_number) {
+            console.log(`📊 Last student found: ${lastStudent.reg_number}`);
+            const regParts = lastStudent.reg_number.split('-');
+            if (regParts.length === 3) {
+                const lastSeq = parseInt(regParts[2]);
+                if (!isNaN(lastSeq)) {
+                    sequenceNumber = lastSeq + 1;
+                    console.log(`📈 Next sequence: ${sequenceNumber}`);
                 }
             }
-            
-            // Format: CS-2025-001
-            const regNumber = `${programCode}-${intakeYear}-${sequenceNumber.toString().padStart(3, '0')}`;
-            
-            console.log('✅ Generated registration number:', regNumber);
-            regNumberInput.value = regNumber;
-            
-            // Update format display
-            const formatSpan = document.getElementById('regNumberFormat');
-            if (formatSpan) {
-                formatSpan.textContent = `${programCode}-${intakeYear}-###`;
-            }
-            
-        } catch (error) {
-            console.error('Error generating registration number:', error);
-            this.ui.showToast('Error generating registration number', 'error');
+        } else {
+            console.log(`📊 No previous student found for ${programCode}-${intakeYear}, starting at 001`);
         }
+        
+        // Format: DHNC-2025-001
+        const regNumber = `${programCode}-${intakeYear}-${sequenceNumber.toString().padStart(3, '0')}`;
+        
+        console.log('✅ Generated registration number:', regNumber);
+        regNumberInput.value = regNumber;
+        
+        // Update format display
+        const formatSpan = document.getElementById('regNumberFormat');
+        if (formatSpan) {
+            formatSpan.textContent = `${programCode}-${intakeYear}-###`;
+        }
+        
+        return regNumber;
+        
+    } catch (error) {
+        console.error('Error generating registration number:', error);
+        this.ui.showToast('Error generating registration number', 'error');
+        return null;
     }
+}
     
     /**
      * Populate intake year dropdown with student's year included
@@ -327,264 +368,229 @@ class StudentManager {
         });
     }
     
-    /**
-     * Save or update student - FIXED WITH REGISTRATION NUMBER
-     */
-    async saveStudent(event) {
-        event.preventDefault();
+   async saveStudent(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    if (!form || form.id !== 'studentForm') {
+        console.error('Invalid form element');
+        return;
+    }
+    
+    try {
+        // Get all form data with CORRECT field names
+        const formData = {
+            // **CRITICAL FIX: Use centre_name NOT centre_id for names**
+            centre_name: document.getElementById('studentCentre')?.value || '',
+            
+            // Registration Number (Auto-generated)
+            reg_number: document.getElementById('studentRegNumber')?.value.trim() || '',
+            
+            // Personal Information
+            full_name: document.getElementById('studentName')?.value.trim() || '',
+            email: document.getElementById('studentEmail')?.value.trim() || '',
+            phone: document.getElementById('studentPhone')?.value.trim() || '',
+            date_of_birth: document.getElementById('studentDOB')?.value || '',
+            id_number: document.getElementById('studentIdNumber')?.value.trim() || '',
+            gender: document.getElementById('studentGender')?.value || '',
+            
+            // Location Information
+            county: document.getElementById('studentCounty')?.value || '',
+            sub_county: document.getElementById('studentSubCounty')?.value.trim() || '',
+            ward: document.getElementById('studentWard')?.value.trim() || '',
+            village: document.getElementById('studentVillage')?.value.trim() || '',
+            address: document.getElementById('studentAddress')?.value.trim() || '',
+            
+            // Academic Information
+            program: document.getElementById('studentProgram')?.value || '',
+            intake_year: document.getElementById('studentIntake')?.value || new Date().getFullYear().toString(),
+            study_mode: document.getElementById('studentStudyMode')?.value || 'fulltime',
+            status: document.getElementById('studentStatus')?.value || 'active',
+            
+            // Employment Information
+            employment_status: document.getElementById('studentEmployment')?.value || '',
+            employer: document.getElementById('studentEmployer')?.value.trim() || '',
+            job_title: document.getElementById('studentJobTitle')?.value.trim() || '',
+            years_experience: parseInt(document.getElementById('studentExperience')?.value) || 0,
+            
+            // Emergency Contact
+            emergency_contact_name: document.getElementById('studentEmergencyName')?.value.trim() || '',
+            emergency_contact_phone: document.getElementById('studentEmergencyPhone')?.value.trim() || '',
+            emergency_contact_relationship: document.getElementById('studentEmergencyContact')?.value.trim() || '',
+            
+            // Additional Information
+            notes: document.getElementById('studentNotes')?.value.trim() || '',
+            
+            // Optional: Set centre_id to null if not using UUIDs
+            centre_id: null
+        };
         
-        const form = event.target;
-        if (!form || form.id !== 'studentForm') {
-            console.error('Invalid form element');
+        console.log('📝 Form data to save:', formData);
+        
+        // Validate required fields
+        const requiredFields = ['reg_number', 'full_name', 'email', 'program', 'intake_year'];
+        const missingFields = requiredFields.filter(field => !formData[field] || formData[field].toString().trim() === '');
+        
+        if (missingFields.length > 0) {
+            this.ui.showToast(`Missing required fields: ${missingFields.join(', ')}`, 'error');
             return;
         }
         
-        try {
-            // Debug: Log all form fields
-            console.log('📋 DEBUG: Form fields before processing:');
-            const formElements = form.elements;
-            for (let element of formElements) {
-                if (element.name || element.id) {
-                    console.log(`  ${element.id || element.name}:`, element.value);
-                }
-            }
+        // Show loading state
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        submitBtn.disabled = true;
+        
+        let result;
+        if (this.currentEditId) {
+            // Update existing student
+            result = await this.db.updateStudent(this.currentEditId, formData);
+            this.ui.showToast(`Student updated successfully!`, 'success');
+        } else {
+            // Add new student
+            result = await this.db.addStudent(formData);
+            const regNumber = result.reg_number || formData.reg_number;
+            this.ui.showToast(`Student registered successfully! Registration Number: ${regNumber}`, 'success');
+        }
+        
+        // Reset form and close modal
+        this._resetStudentForm();
+        this.ui.closeModal('studentModal');
+        
+        // Refresh students table
+        await this.loadStudentsTable();
+        
+    } catch (error) {
+        console.error('❌ Error saving student:', error);
+        this.ui.showToast(error.message || 'Error saving student data', 'error');
+        
+        // Reset button if error
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = this.currentEditId 
+                ? '<i class="fas fa-save"></i> Update Student'
+                : '<i class="fas fa-plus"></i> Register Student';
+            submitBtn.disabled = false;
+        }
+    }
+}
+    
+   /**
+ * Edit student - UPDATED WITH REGISTRATION NUMBER AND CENTRE_NAME
+ */
+async editStudent(studentId) {
+    try {
+        console.log(`✏️ Editing student ${studentId}...`);
+        
+        const student = await this.db.getStudent(studentId);
+        if (!student) {
+            this.ui.showToast('Student not found', 'error');
+            return;
+        }
+        
+        this.currentEditId = studentId;
+        
+        console.log('📋 Student data from database:', student);
+        
+        // FIRST: Populate intake years with student's actual year
+        await this._populateIntakeYears(student.intake_year);
+        
+        // Field mapping - matches the HTML form
+        const fieldMap = {
+            // **REGISTRATION NUMBER**
+            'studentRegNumber': student.reg_number || '',
             
-            // Get all form data with proper field mapping - INCLUDING REG_NUMBER
-            const formData = {
-                // **REGISTRATION NUMBER (CRITICAL - FIXES NOT NULL CONSTRAINT)**
-                reg_number: document.getElementById('studentRegNumber')?.value.trim() || '',
-                
-                // Personal Information
-                full_name: document.getElementById('studentName')?.value.trim() || '',
-                email: document.getElementById('studentEmail')?.value.trim() || '',
-                phone: document.getElementById('studentPhone')?.value.trim() || '',
-                date_of_birth: document.getElementById('studentDOB')?.value || '',
-                id_number: document.getElementById('studentIdNumber')?.value.trim() || '',
-                gender: document.getElementById('studentGender')?.value || '',
-                
-                // Location Information
-                county: document.getElementById('studentCounty')?.value || '',
-                sub_county: document.getElementById('studentSubCounty')?.value.trim() || '',
-                ward: document.getElementById('studentWard')?.value.trim() || '',
-                village: document.getElementById('studentVillage')?.value.trim() || '',
-                address: document.getElementById('studentAddress')?.value.trim() || '',
-                
-                // Academic Information
-                program: document.getElementById('studentProgram')?.value || '',
-                intake_year: document.getElementById('studentIntake')?.value || new Date().getFullYear().toString(),
-                centre_id: document.getElementById('studentCentre')?.value || '',
-                study_mode: document.getElementById('studentStudyMode')?.value || 'fulltime',
-                status: document.getElementById('studentStatus')?.value || 'active',
-                
-                // Employment Information
-                employment_status: document.getElementById('studentEmployment')?.value || '',
-                employer: document.getElementById('studentEmployer')?.value.trim() || '',
-                job_title: document.getElementById('studentJobTitle')?.value.trim() || '',
-                years_experience: parseInt(document.getElementById('studentExperience')?.value) || 0,
-                
-                // Emergency Contact
-                emergency_contact_name: document.getElementById('studentEmergencyName')?.value.trim() || '',
-                emergency_contact_phone: document.getElementById('studentEmergencyPhone')?.value.trim() || '',
-                emergency_contact: document.getElementById('studentEmergencyContact')?.value.trim() || '',
-                
-                // Additional Information
-                notes: document.getElementById('studentNotes')?.value.trim() || ''
-            };
+            // Personal Information
+            'studentName': student.full_name || '',
+            'studentEmail': student.email || '',
+            'studentPhone': student.phone || '',
+            'studentDOB': student.date_of_birth ? this._formatDateForInput(student.date_of_birth) : '',
+            'studentIdNumber': student.id_number || '',
+            'studentGender': student.gender || '',
             
-            console.log('📝 Form data to save/update:', formData);
-            console.log('🆔 Current edit ID:', this.currentEditId);
+            // Location Information
+            'studentCounty': student.county || '',
+            'studentSubCounty': student.sub_county || '',
+            'studentWard': student.ward || '',
+            'studentVillage': student.village || '',
+            'studentAddress': student.address || '',
             
-            // Validate required fields - ADD REG_NUMBER TO VALIDATION
-            const requiredFields = ['reg_number', 'full_name', 'email', 'program', 'intake_year'];
-            const missingFields = requiredFields.filter(field => !formData[field] || formData[field].toString().trim() === '');
+            // Academic Information
+            'studentProgram': student.program || '',
+            'studentCentre': student.centre_name || student.centre || '', // ← FIXED: centre_name
+            'studentStudyMode': student.study_mode || 'fulltime',
+            'studentStatus': student.status || 'active',
             
-            if (missingFields.length > 0) {
-                this.ui.showToast(`Missing required fields: ${missingFields.join(', ')}`, 'error');
-                return;
-            }
+            // Employment Information
+            'studentEmployment': student.employment_status || '',
+            'studentEmployer': student.employer || '',
+            'studentJobTitle': student.job_title || '',
+            'studentExperience': student.years_experience || 0,
             
-            // Validate email
-            if (!this._validateEmail(formData.email)) {
-                this.ui.showToast('Please enter a valid email address', 'error');
-                return;
-            }
+            // Emergency Contact
+            'studentEmergencyName': student.emergency_contact_name || '',
+            'studentEmergencyPhone': student.emergency_contact_phone || '',
+            'studentEmergencyContact': student.emergency_contact_relationship || student.emergency_contact || '', // ← ADDED relationship
             
-            // Validate registration number format (PROGRAM-YEAR-SEQ)
-            const regNumberRegex = /^[A-Z]{2,4}-\d{4}-\d{3}$/;
-            if (!regNumberRegex.test(formData.reg_number)) {
-                this.ui.showToast('Invalid registration number format. Please use format: ABC-2024-001', 'error');
-                return;
-            }
-            
-            // Show loading state
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-            submitBtn.disabled = true;
-            
-            let result;
-            if (this.currentEditId) {
-                // Update existing student
-                console.log(`🔄 Updating student ${this.currentEditId}...`);
-                console.log('📤 Update data:', formData);
-                
-                result = await this.db.updateStudent(this.currentEditId, formData);
-                console.log('✅ Update result:', result);
-                
-                this.ui.showToast(`Student updated successfully!`, 'success');
+            // Notes
+            'studentNotes': student.notes || ''
+        };
+        
+        // Populate form fields
+        let populatedCount = 0;
+        Object.entries(fieldMap).forEach(([fieldId, value]) => {
+            const element = document.getElementById(fieldId);
+            if (element) {
+                element.value = value;
+                populatedCount++;
+                console.log(`✅ Set ${fieldId}: ${value}`);
             } else {
-                // Add new student
-                console.log('➕ Adding new student...');
-                console.log('📤 Add data:', formData);
-                
-                result = await this.db.addStudent(formData);
-                console.log('✅ Add result:', result);
-                
-                const regNumber = result.reg_number || formData.reg_number;
-                this.ui.showToast(`Student registered successfully! Registration Number: ${regNumber}`, 'success');
+                console.warn(`⚠️ Field not found: ${fieldId}`);
             }
-            
-            // Reset form and close modal
-            this._resetStudentForm();
-            this.ui.closeModal('studentModal');
-            
-            // Refresh students table
-            console.log('🔄 Refreshing students table...');
-            await this.loadStudentsTable();
-            console.log('✅ Table refreshed');
-            
-        } catch (error) {
-            console.error('❌ Error saving student:', error);
-            console.error('Error details:', error.stack);
-            this.ui.showToast(error.message || 'Error saving student data', 'error');
-            
-            // Reset button if error
-            const submitBtn = form.querySelector('button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.innerHTML = this.currentEditId 
-                    ? '<i class="fas fa-save"></i> Update Student'
-                    : '<i class="fas fa-plus"></i> Register Student';
-                submitBtn.disabled = false;
-            }
+        });
+        
+        console.log(`📊 Populated ${populatedCount}/${Object.keys(fieldMap).length} fields`);
+        
+        // Update modal title
+        const modalTitle = document.getElementById('studentModalTitle');
+        if (modalTitle) {
+            modalTitle.textContent = 'Edit Student';
         }
-    }
-    
-    /**
-     * Edit student - UPDATED WITH REGISTRATION NUMBER
-     */
-    async editStudent(studentId) {
-        try {
-            console.log(`✏️ Editing student ${studentId}...`);
-            
-            const student = await this.db.getStudent(studentId);
-            if (!student) {
-                this.ui.showToast('Student not found', 'error');
-                return;
-            }
-            
-            this.currentEditId = studentId;
-            
-            console.log('📋 Student data from database:', student);
-            
-            // FIRST: Populate intake years with student's actual year
-            await this._populateIntakeYears(student.intake_year);
-            
-            // Field mapping - matches the HTML form
-            const fieldMap = {
-                // **REGISTRATION NUMBER**
-                'studentRegNumber': student.reg_number || '',
-                
-                // Personal Information
-                'studentName': student.full_name || '',
-                'studentEmail': student.email || '',
-                'studentPhone': student.phone || '',
-                'studentDOB': student.date_of_birth ? this._formatDateForInput(student.date_of_birth) : '',
-                'studentIdNumber': student.id_number || '',
-                'studentGender': student.gender || '',
-                
-                // Location Information
-                'studentCounty': student.county || '',
-                'studentSubCounty': student.sub_county || '',
-                'studentWard': student.ward || '',
-                'studentVillage': student.village || '',
-                'studentAddress': student.address || '',
-                
-                // Academic Information
-                'studentProgram': student.program || '',
-                'studentCentre': student.centre_id || student.centre || '',
-                'studentStudyMode': student.study_mode || 'fulltime',
-                'studentStatus': student.status || 'active',
-                
-                // Employment Information
-                'studentEmployment': student.employment_status || '',
-                'studentEmployer': student.employer || '',
-                'studentJobTitle': student.job_title || '',
-                'studentExperience': student.years_experience || 0,
-                
-                // Emergency Contact
-                'studentEmergencyName': student.emergency_contact_name || '',
-                'studentEmergencyPhone': student.emergency_contact_phone || '',
-                'studentEmergencyContact': student.emergency_contact || '',
-                
-                // Notes
-                'studentNotes': student.notes || ''
-            };
-            
-            // Populate form fields
-            let populatedCount = 0;
-            Object.entries(fieldMap).forEach(([fieldId, value]) => {
-                const element = document.getElementById(fieldId);
-                if (element) {
-                    element.value = value;
-                    populatedCount++;
-                    console.log(`✅ Set ${fieldId}: ${value}`);
-                } else {
-                    console.warn(`⚠️ Field not found: ${fieldId}`);
-                }
-            });
-            
-            console.log(`📊 Populated ${populatedCount}/${Object.keys(fieldMap).length} fields`);
-            
-            // Update modal title
-            const modalTitle = document.getElementById('studentModalTitle');
-            if (modalTitle) {
-                modalTitle.textContent = 'Edit Student';
-            }
-            
-            // Update submit button
-            const submitBtn = document.querySelector('#studentForm button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Student';
-                submitBtn.setAttribute('data-editing', 'true');
-            }
-            
-            // Disable registration number field when editing (shouldn't change)
-            const regNumberInput = document.getElementById('studentRegNumber');
-            if (regNumberInput) {
-                regNumberInput.readOnly = true;
-                regNumberInput.title = "Registration number cannot be changed";
-            }
-            
-            // Open modal
-            this.ui.openModal('studentModal');
-            
-            // Scroll to top of modal
-            const modalBody = document.querySelector('#studentModal .modal-body');
-            if (modalBody) {
-                modalBody.scrollTop = 0;
-            }
-            
-            // Focus on first field
-            setTimeout(() => {
-                document.getElementById('studentName')?.focus();
-            }, 100);
-            
-        } catch (error) {
-            console.error('Error editing student:', error);
-            this.ui.showToast('Error loading student data: ' + error.message, 'error');
+        
+        // Update submit button
+        const submitBtn = document.querySelector('#studentForm button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Student';
+            submitBtn.setAttribute('data-editing', 'true');
         }
+        
+        // Disable registration number field when editing (shouldn't change)
+        const regNumberInput = document.getElementById('studentRegNumber');
+        if (regNumberInput) {
+            regNumberInput.readOnly = true;
+            regNumberInput.title = "Registration number cannot be changed";
+        }
+        
+        // Open modal
+        this.ui.openModal('studentModal');
+        
+        // Scroll to top of modal
+        const modalBody = document.querySelector('#studentModal .modal-body');
+        if (modalBody) {
+            modalBody.scrollTop = 0;
+        }
+        
+        // Focus on first field
+        setTimeout(() => {
+            document.getElementById('studentName')?.focus();
+        }, 100);
+        
+    } catch (error) {
+        console.error('Error editing student:', error);
+        this.ui.showToast('Error loading student data: ' + error.message, 'error');
     }
-    
+}
     /**
      * Format date for input field (YYYY-MM-DD)
      */
