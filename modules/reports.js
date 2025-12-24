@@ -57,8 +57,8 @@ class ReportsManager {
             // Set default dates
             this.setDefaultDates();
             
-            // Populate report selectors
-            await this.populateReportSelectors();
+            // Initialize student selector for transcripts
+            await this.populateTranscriptStudents();
             
         } catch (error) {
             console.error('Error initializing reports UI:', error);
@@ -97,9 +97,15 @@ class ReportsManager {
                 const select = document.getElementById(selectId);
                 if (select) {
                     // Clear existing options except first
-                    while (select.options.length > 1) {
-                        select.remove(1);
+                    while (select.options.length > 0) {
+                        select.remove(0);
                     }
+                    
+                    // Add "All Centers" option
+                    const allOption = document.createElement('option');
+                    allOption.value = 'all';
+                    allOption.textContent = 'All Centers';
+                    select.appendChild(allOption);
                     
                     // Add center options
                     centers.forEach(center => {
@@ -121,9 +127,16 @@ class ReportsManager {
             countySelects.forEach(selectId => {
                 const select = document.getElementById(selectId);
                 if (select) {
-                    while (select.options.length > 1) {
-                        select.remove(1);
+                    while (select.options.length > 0) {
+                        select.remove(0);
                     }
+                    
+                    // Add "All Counties" option
+                    const allOption = document.createElement('option');
+                    allOption.value = 'all';
+                    allOption.textContent = 'All Counties';
+                    allOption.selected = true;
+                    select.appendChild(allOption);
                     
                     counties.forEach(county => {
                         const option = document.createElement('option');
@@ -137,6 +150,18 @@ class ReportsManager {
             // Populate Program filter
             const programSelect = document.getElementById('filterProgram');
             if (programSelect) {
+                // Clear existing options
+                while (programSelect.options.length > 0) {
+                    programSelect.remove(0);
+                }
+                
+                // Add "All Programs" option
+                const allOption = document.createElement('option');
+                allOption.value = 'all';
+                allOption.textContent = 'All Programs';
+                allOption.selected = true;
+                programSelect.appendChild(allOption);
+                
                 const programs = await this.db.getPrograms();
                 programs.forEach(program => {
                     const option = document.createElement('option');
@@ -149,6 +174,18 @@ class ReportsManager {
             // Populate Intake filter
             const intakeSelect = document.getElementById('filterIntake');
             if (intakeSelect) {
+                // Clear existing options
+                while (intakeSelect.options.length > 0) {
+                    intakeSelect.remove(0);
+                }
+                
+                // Add "All Intakes" option
+                const allOption = document.createElement('option');
+                allOption.value = 'all';
+                allOption.textContent = 'All Intakes';
+                allOption.selected = true;
+                intakeSelect.appendChild(allOption);
+                
                 const students = await this.db.getStudents();
                 const intakeYears = [...new Set(students.map(s => s.intake_year))]
                     .sort((a, b) => b - a);
@@ -161,25 +198,73 @@ class ReportsManager {
                 });
             }
             
-            // Populate Transcript Student selector
-            await this.filterTranscriptStudents();
-            
         } catch (error) {
             console.error('Error populating filters:', error);
         }
     }
     
+    async populateTranscriptStudents() {
+        try {
+            const studentSelect = document.getElementById('transcriptStudent');
+            if (!studentSelect) return;
+            
+            // Clear existing options
+            while (studentSelect.options.length > 0) {
+                studentSelect.remove(0);
+            }
+            
+            // Add placeholder option
+            const placeholderOption = document.createElement('option');
+            placeholderOption.value = '';
+            placeholderOption.textContent = 'Select Student';
+            placeholderOption.disabled = true;
+            placeholderOption.selected = true;
+            studentSelect.appendChild(placeholderOption);
+            
+            // Get all students
+            const students = await this.db.getStudents();
+            
+            // Add student options
+            students.forEach(student => {
+                const option = document.createElement('option');
+                option.value = student.id;
+                option.textContent = `${student.reg_number} - ${student.full_name}`;
+                
+                // Add student center if available
+                if (student.center) {
+                    option.textContent += ` (${student.center})`;
+                }
+                
+                studentSelect.appendChild(option);
+            });
+            
+            console.log(`Loaded ${students.length} students for transcript generation`);
+            
+        } catch (error) {
+            console.error('Error populating transcript students:', error);
+            this.showToast('Error loading student list', 'error');
+        }
+    }
+    
     async getCenters() {
         try {
-            // In a real application, this would come from your database
-            // For demonstration, return mock data
+            // Try to get centers from database
+            const students = await this.db.getStudents();
+            const centers = [...new Set(students.map(s => s.center).filter(Boolean))];
+            
+            if (centers.length > 0) {
+                return centers.map(center => ({
+                    id: center.toLowerCase().replace(/\s+/g, '_'),
+                    name: center,
+                    county: 'Unknown' // Default value
+                }));
+            }
+            
+            // Default centers if none found
             return [
-                { id: 'center-1', name: 'Main Campus', county: 'Nairobi' },
-                { id: 'center-2', name: 'West Campus', county: 'Kiambu' },
-                { id: 'center-3', name: 'East Campus', county: 'Machakos' },
-                { id: 'center-4', name: 'North Center', county: 'Nyeri' },
-                { id: 'center-5', name: 'South Center', county: 'Kajiado' },
-                { id: 'center-6', name: 'Online Center', county: 'Online' }
+                { id: 'main_campus', name: 'Main Campus', county: 'Nairobi' },
+                { id: 'west_campus', name: 'West Campus', county: 'Kiambu' },
+                { id: 'east_campus', name: 'East Campus', county: 'Machakos' }
             ];
         } catch (error) {
             console.error('Error getting centers:', error);
@@ -189,46 +274,17 @@ class ReportsManager {
     
     async getCounties() {
         try {
-            return ['Nairobi', 'Kiambu', 'Machakos', 'Nyeri', 'Kajiado', 'Online', 
-                    'Mombasa', 'Kisumu', 'Nakuru', 'Uasin Gishu'];
+            const students = await this.db.getStudents();
+            const counties = [...new Set(students.map(s => s.county).filter(Boolean))];
+            
+            if (counties.length > 0) {
+                return counties;
+            }
+            
+            return ['Nairobi', 'Kiambu', 'Machakos', 'Mombasa', 'Kisumu', 'Nakuru'];
         } catch (error) {
             console.error('Error getting counties:', error);
             return [];
-        }
-    }
-    
-    async filterTranscriptStudents() {
-        try {
-            const centerFilter = document.getElementById('transcriptCenterFilter');
-            const studentSelect = document.getElementById('transcriptStudent');
-            
-            if (!centerFilter || !studentSelect) return;
-            
-            // Clear existing options except first
-            while (studentSelect.options.length > 1) {
-                studentSelect.remove(1);
-            }
-            
-            const students = await this.db.getStudents();
-            const selectedCenter = centerFilter.value;
-            
-            // Filter students by center
-            const filteredStudents = selectedCenter === 'all' ? 
-                students : 
-                students.filter(student => student.center === selectedCenter);
-            
-            filteredStudents.forEach(student => {
-                const option = document.createElement('option');
-                option.value = student.id;
-                option.textContent = `${student.reg_number} - ${student.full_name}`;
-                if (student.center) {
-                    option.textContent += ` (${student.center})`;
-                }
-                studentSelect.appendChild(option);
-            });
-            
-        } catch (error) {
-            console.error('Error filtering transcript students:', error);
         }
     }
     
@@ -269,37 +325,7 @@ class ReportsManager {
         // Transcript Center Filter
         const transcriptCenterFilter = document.getElementById('transcriptCenterFilter');
         if (transcriptCenterFilter) {
-            transcriptCenterFilter.onchange = () => this.filterTranscriptStudents();
-        }
-        
-        // Center Comparison button
-        const centerCompareBtn = document.querySelector('[onclick="app.reports.generateCenterComparison()"]');
-        if (centerCompareBtn) {
-            centerCompareBtn.onclick = () => this.generateCenterComparison();
-        }
-        
-        // Scheduled Report button
-        const scheduleBtn = document.querySelector('[onclick="app.reports.addScheduledReport()"]');
-        if (scheduleBtn) {
-            scheduleBtn.onclick = () => this.addScheduledReport();
-        }
-        
-        // Save Filter Preset button
-        const savePresetBtn = document.querySelector('[onclick="app.reports.saveFilterPreset()"]');
-        if (savePresetBtn) {
-            savePresetBtn.onclick = () => this.saveFilterPreset();
-        }
-        
-        // Download Preview button
-        const downloadPreviewBtn = document.querySelector('[onclick="app.reports.downloadPreview()"]');
-        if (downloadPreviewBtn) {
-            downloadPreviewBtn.onclick = () => this.downloadPreview();
-        }
-        
-        // Bulk Transcripts button
-        const bulkTranscriptsBtn = document.querySelector('[onclick="app.reports.bulkTranscripts()"]');
-        if (bulkTranscriptsBtn) {
-            bulkTranscriptsBtn.onclick = () => this.bulkTranscripts();
+            transcriptCenterFilter.onchange = () => this.filterTranscriptStudentsByCenter();
         }
         
         // Update all onclick handlers
@@ -321,15 +347,77 @@ class ReportsManager {
             'app.reports.generateTranscript()': () => this.generateTranscript(),
             'app.reports.bulkExport()': () => this.bulkExport(),
             'app.reports.loadSampleTranscript()': () => this.loadSampleTranscript(),
-            'app.reports.clearPreview()': () => this.clearPreview()
+            'app.reports.clearPreview()': () => this.clearPreview(),
+            'app.reports.generateCenterComparison()': () => this.generateCenterComparison(),
+            'app.reports.addScheduledReport()': () => this.addScheduledReport(),
+            'app.reports.saveFilterPreset()': () => this.saveFilterPreset(),
+            'app.reports.downloadPreview()': () => this.downloadPreview(),
+            'app.reports.bulkTranscripts()': () => this.bulkTranscripts(),
+            'app.reports.removeScheduledReport()': (btn) => this.removeScheduledReport(btn)
         };
         
         document.querySelectorAll('[onclick]').forEach(button => {
             const onclickValue = button.getAttribute('onclick');
-            if (buttonMap[onclickValue]) {
-                button.onclick = buttonMap[onclickValue];
+            if (onclickValue && onclickValue.startsWith('app.reports.')) {
+                const funcName = onclickValue;
+                if (funcName.includes('removeScheduledReport')) {
+                    button.onclick = (e) => {
+                        e.stopPropagation();
+                        this.removeScheduledReport(button);
+                    };
+                } else if (buttonMap[funcName]) {
+                    button.onclick = () => buttonMap[funcName]();
+                }
             }
         });
+    }
+    
+    async filterTranscriptStudentsByCenter() {
+        try {
+            const centerFilter = document.getElementById('transcriptCenterFilter');
+            const studentSelect = document.getElementById('transcriptStudent');
+            
+            if (!centerFilter || !studentSelect) return;
+            
+            const selectedCenter = centerFilter.value;
+            const students = await this.db.getStudents();
+            
+            // Clear existing options
+            while (studentSelect.options.length > 0) {
+                studentSelect.remove(0);
+            }
+            
+            // Add placeholder option
+            const placeholderOption = document.createElement('option');
+            placeholderOption.value = '';
+            placeholderOption.textContent = 'Select Student';
+            placeholderOption.disabled = true;
+            placeholderOption.selected = true;
+            studentSelect.appendChild(placeholderOption);
+            
+            // Filter students by center
+            const filteredStudents = selectedCenter === 'all' 
+                ? students 
+                : students.filter(student => student.center === selectedCenter);
+            
+            // Add filtered students
+            filteredStudents.forEach(student => {
+                const option = document.createElement('option');
+                option.value = student.id;
+                option.textContent = `${student.reg_number} - ${student.full_name}`;
+                
+                if (student.center) {
+                    option.textContent += ` (${student.center})`;
+                }
+                
+                studentSelect.appendChild(option);
+            });
+            
+            console.log(`Filtered ${filteredStudents.length} students for center: ${selectedCenter}`);
+            
+        } catch (error) {
+            console.error('Error filtering transcript students by center:', error);
+        }
     }
     
     // ==================== REPORT GENERATION METHODS ====================
@@ -372,25 +460,33 @@ class ReportsManager {
         }
     }
     
-    generateCentreReportData() {
-        const centers = [
-            { name: 'Main Campus', county: 'Nairobi', studentCount: 1250, active: 1150, graduated: 800, avgGPA: 3.4 },
-            { name: 'West Campus', county: 'Kiambu', studentCount: 850, active: 780, graduated: 450, avgGPA: 3.2 },
-            { name: 'East Campus', county: 'Machakos', studentCount: 620, active: 580, graduated: 320, avgGPA: 3.1 },
-            { name: 'North Center', county: 'Nyeri', studentCount: 480, active: 440, graduated: 210, avgGPA: 3.3 },
-            { name: 'South Center', county: 'Kajiado', studentCount: 390, active: 360, graduated: 180, avgGPA: 3.0 },
-            { name: 'Online Center', county: 'Online', studentCount: 1120, active: 1050, graduated: 650, avgGPA: 3.5 }
-        ];
-        
-        return centers.map(center => ({
-            'Center Name': center.name,
-            'County': center.county,
-            'Total Students': center.studentCount,
-            'Active Students': center.active,
-            'Graduated': center.graduated,
-            'Graduation Rate': ((center.graduated / center.studentCount) * 100).toFixed(1) + '%',
-            'Average GPA': center.avgGPA
-        }));
+    async generateCentreReportData() {
+        try {
+            const students = await this.db.getStudents();
+            const centers = await this.getCenters();
+            
+            const centerData = centers.map(center => {
+                const centerStudents = students.filter(s => s.center === center.name);
+                const activeStudents = centerStudents.filter(s => s.status === 'active');
+                const graduatedStudents = centerStudents.filter(s => s.status === 'graduated');
+                
+                return {
+                    'Center Name': center.name,
+                    'County': center.county,
+                    'Total Students': centerStudents.length,
+                    'Active Students': activeStudents.length,
+                    'Graduated': graduatedStudents.length,
+                    'Graduation Rate': centerStudents.length > 0 
+                        ? ((graduatedStudents.length / centerStudents.length) * 100).toFixed(1) + '%' 
+                        : '0%'
+                };
+            });
+            
+            return centerData;
+        } catch (error) {
+            console.error('Error generating center report data:', error);
+            throw error;
+        }
     }
     
     geographicalReport() {
@@ -407,26 +503,29 @@ class ReportsManager {
         }
     }
     
-    generateGeographicalReportData() {
-        const counties = [
-            { name: 'Nairobi', students: 1850, centers: 2, programs: 10, growth: '12.5%' },
-            { name: 'Kiambu', students: 950, centers: 1, programs: 8, growth: '8.2%' },
-            { name: 'Machakos', students: 720, centers: 1, programs: 6, growth: '10.1%' },
-            { name: 'Nyeri', students: 480, centers: 1, programs: 5, growth: '6.8%' },
-            { name: 'Kajiado', students: 390, centers: 1, programs: 4, growth: '9.3%' },
-            { name: 'Mombasa', students: 620, centers: 1, programs: 7, growth: '11.2%' },
-            { name: 'Kisumu', students: 540, centers: 1, programs: 6, growth: '7.9%' },
-            { name: 'Nakuru', students: 680, centers: 1, programs: 7, growth: '10.5%' }
-        ];
-        
-        return counties.map(county => ({
-            'County': county.name,
-            'Total Students': county.students,
-            'Active Centers': county.centers,
-            'Programs Offered': county.programs,
-            'Enrollment Growth': county.growth,
-            'Student Density': Math.round(county.students / county.centers)
-        }));
+    async generateGeographicalReportData() {
+        try {
+            const students = await this.db.getStudents();
+            const counties = await this.getCounties();
+            
+            const countyData = counties.map(county => {
+                const countyStudents = students.filter(s => s.county === county);
+                const centers = [...new Set(countyStudents.map(s => s.center).filter(Boolean))];
+                
+                return {
+                    'County': county,
+                    'Students': countyStudents.length,
+                    'Centers': centers.length,
+                    'Programs': [...new Set(countyStudents.map(s => s.program).filter(Boolean))].length,
+                    'Active Students': countyStudents.filter(s => s.status === 'active').length
+                };
+            }).filter(data => data.Students > 0); // Only include counties with students
+            
+            return countyData;
+        } catch (error) {
+            console.error('Error generating geographical report data:', error);
+            throw error;
+        }
     }
     
     generateSummaryReport() {
@@ -443,17 +542,35 @@ class ReportsManager {
         }
     }
     
-    generateExecutiveSummary() {
-        return [
-            { 'Metric': 'Total Students', 'Value': '4,710', 'Change': '+12%', 'Trend': 'up' },
-            { 'Metric': 'Graduation Rate', 'Value': '78.2%', 'Change': '+3.1%', 'Trend': 'up' },
-            { 'Metric': 'Average GPA', 'Value': '3.24', 'Change': '+0.15', 'Trend': 'up' },
-            { 'Metric': 'Active Centers', 'Value': '6', 'Change': '+1', 'Trend': 'up' },
-            { 'Metric': 'Programs Offered', 'Value': '12', 'Change': '+2', 'Trend': 'up' },
-            { 'Metric': 'Faculty Count', 'Value': '156', 'Change': '+18', 'Trend': 'up' },
-            { 'Metric': 'Course Pass Rate', 'Value': '85.3%', 'Change': '+2.4%', 'Trend': 'up' },
-            { 'Metric': 'Student Satisfaction', 'Value': '4.2/5', 'Change': '+0.3', 'Trend': 'up' }
-        ];
+    async generateExecutiveSummary() {
+        try {
+            const students = await this.db.getStudents();
+            const courses = await this.db.getCourses();
+            const marks = await this.db.getMarksTableData();
+            
+            const totalStudents = students.length;
+            const activeStudents = students.filter(s => s.status === 'active').length;
+            const graduatedStudents = students.filter(s => s.status === 'graduated').length;
+            
+            const graduationRate = totalStudents > 0 
+                ? ((graduatedStudents / totalStudents) * 100).toFixed(1) + '%'
+                : '0%';
+            
+            const centers = await this.getCenters();
+            
+            return [
+                { 'Metric': 'Total Students', 'Value': totalStudents },
+                { 'Metric': 'Active Students', 'Value': activeStudents },
+                { 'Metric': 'Graduated Students', 'Value': graduatedStudents },
+                { 'Metric': 'Graduation Rate', 'Value': graduationRate },
+                { 'Metric': 'Total Courses', 'Value': courses.length },
+                { 'Metric': 'Active Centers', 'Value': centers.length },
+                { 'Metric': 'Marks Entries', 'Value': marks.length }
+            ];
+        } catch (error) {
+            console.error('Error generating executive summary:', error);
+            throw error;
+        }
     }
     
     // ==================== FILTER FUNCTIONS ====================
@@ -538,7 +655,10 @@ class ReportsManager {
         const select = document.getElementById(selectId);
         if (!select) return ['all'];
         
-        const selected = Array.from(select.selectedOptions).map(option => option.value);
+        const selected = Array.from(select.selectedOptions)
+            .map(option => option.value)
+            .filter(value => value !== '');
+        
         return selected.length > 0 ? selected : ['all'];
     }
     
@@ -552,7 +672,10 @@ class ReportsManager {
             
             if (!centerSelect || !metricSelect || !periodSelect) return;
             
-            const selectedCenters = Array.from(centerSelect.selectedOptions).map(opt => opt.value);
+            const selectedCenters = Array.from(centerSelect.selectedOptions)
+                .map(opt => opt.value)
+                .filter(val => val !== 'all');
+            
             const metric = metricSelect.value;
             const period = periodSelect.value;
             
@@ -573,39 +696,72 @@ class ReportsManager {
     }
     
     async generateComparisonData(centerIds, metric, period) {
-        const centers = await this.getCenters();
-        const selectedCenters = centers.filter(center => centerIds.includes(center.id));
-        
-        return selectedCenters.map(center => {
-            let value;
-            const baseValue = Math.random() * 100;
+        try {
+            const students = await this.db.getStudents();
+            const centers = await this.getCenters();
+            const selectedCenters = centers.filter(center => centerIds.includes(center.id));
             
-            switch(metric) {
-                case 'enrollment':
-                    value = Math.floor(baseValue * 50) + 100;
-                    break;
-                case 'graduation_rate':
-                    value = Math.floor(baseValue * 30) + 60;
-                    break;
-                case 'avg_gpa':
-                    value = (baseValue / 25) + 2.5;
-                    break;
-                case 'attendance':
-                    value = Math.floor(baseValue * 20) + 75;
-                    break;
-                case 'dropout_rate':
-                    value = Math.floor(baseValue * 10) + 5;
-                    break;
-                default:
-                    value = 0;
+            const comparisonData = [];
+            
+            for (const center of selectedCenters) {
+                const centerStudents = students.filter(s => s.center === center.name);
+                
+                if (centerStudents.length === 0) {
+                    comparisonData.push({
+                        center: center.name,
+                        value: 0,
+                        county: center.county
+                    });
+                    continue;
+                }
+                
+                let value;
+                
+                switch(metric) {
+                    case 'enrollment':
+                        value = centerStudents.length;
+                        break;
+                        
+                    case 'graduation_rate':
+                        const graduated = centerStudents.filter(s => s.status === 'graduated').length;
+                        value = centerStudents.length > 0 
+                            ? (graduated / centerStudents.length) * 100 
+                            : 0;
+                        break;
+                        
+                    case 'avg_gpa':
+                        // This would require actual GPA calculation from marks
+                        value = 3.0; // Placeholder
+                        break;
+                        
+                    case 'attendance':
+                        // This would require attendance data
+                        value = 85; // Placeholder percentage
+                        break;
+                        
+                    case 'dropout_rate':
+                        const withdrawn = centerStudents.filter(s => s.status === 'withdrawn').length;
+                        value = centerStudents.length > 0 
+                            ? (withdrawn / centerStudents.length) * 100 
+                            : 0;
+                        break;
+                        
+                    default:
+                        value = 0;
+                }
+                
+                comparisonData.push({
+                    center: center.name,
+                    value: parseFloat(value.toFixed(2)),
+                    county: center.county
+                });
             }
             
-            return {
-                center: center.name,
-                value: parseFloat(value.toFixed(2)),
-                county: center.county
-            };
-        });
+            return comparisonData;
+        } catch (error) {
+            console.error('Error generating comparison data:', error);
+            return [];
+        }
     }
     
     displayCenterComparisonChart(data, metric) {
@@ -614,14 +770,20 @@ class ReportsManager {
         
         if (!chartContainer || !canvas) return;
         
+        // Clear canvas
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        
         chartContainer.style.display = 'block';
         
         const ctx = canvas.getContext('2d');
         
+        // Destroy existing chart if it exists
         if (this.charts.centerComparison) {
             this.charts.centerComparison.destroy();
         }
         
+        // Create new chart
         const metricLabels = {
             enrollment: 'Enrollment Count',
             graduation_rate: 'Graduation Rate (%)',
@@ -648,6 +810,7 @@ class ReportsManager {
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     title: {
                         display: true,
@@ -908,7 +1071,7 @@ class ReportsManager {
             const centers = await this.getCenters();
             const activeCenters = centers.length;
             
-            // Calculate average GPA (simulated)
+            // Calculate average GPA (placeholder - would need actual GPA calculation)
             const avgGPA = 3.24;
             
             this.updateElementText('totalStudents', totalStudents.toLocaleString());
@@ -1234,8 +1397,8 @@ class ReportsManager {
                 'Email': student.email,
                 'Phone': student.phone,
                 'Program': student.program,
-                'Center': student.center || 'Main Campus',
-                'County': student.county || 'Nairobi',
+                'Center': student.center || 'Not specified',
+                'County': student.county || 'Not specified',
                 'Intake Year': student.intake_year,
                 'Status': student.status,
                 'Date of Birth': student.dob ? new Date(student.dob).toLocaleDateString() : '',
@@ -1258,12 +1421,15 @@ class ReportsManager {
             const enrollmentStats = {};
             
             filteredStudents.forEach(student => {
-                const key = `${student.program}-${student.intake_year}`;
+                const program = student.program || 'Not specified';
+                const center = student.center || 'Main Campus';
+                const key = `${program}-${center}-${student.intake_year}`;
+                
                 if (!enrollmentStats[key]) {
                     enrollmentStats[key] = {
-                        program: student.program,
+                        program: program,
+                        center: center,
                         intakeYear: student.intake_year,
-                        center: student.center || 'Main Campus',
                         totalStudents: 0,
                         male: 0,
                         female: 0,
@@ -1315,10 +1481,11 @@ class ReportsManager {
             
             graduatedStudents.forEach(student => {
                 // By program
-                if (!graduationByProgram[student.program]) {
-                    graduationByProgram[student.program] = 0;
+                const program = student.program || 'Not specified';
+                if (!graduationByProgram[program]) {
+                    graduationByProgram[program] = 0;
                 }
-                graduationByProgram[student.program]++;
+                graduationByProgram[program]++;
                 
                 // By center
                 const center = student.center || 'Main Campus';
@@ -1400,17 +1567,19 @@ class ReportsManager {
             
             filteredStudents.forEach(student => {
                 // Gender
-                demographics.byGender[student.gender] = (demographics.byGender[student.gender] || 0) + 1;
+                const gender = student.gender || 'Not specified';
+                demographics.byGender[gender] = (demographics.byGender[gender] || 0) + 1;
                 
                 // Program
-                demographics.byProgram[student.program] = (demographics.byProgram[student.program] || 0) + 1;
+                const program = student.program || 'Not specified';
+                demographics.byProgram[program] = (demographics.byProgram[program] || 0) + 1;
                 
                 // Center
-                const center = student.center || 'Main Campus';
+                const center = student.center || 'Not specified';
                 demographics.byCenter[center] = (demographics.byCenter[center] || 0) + 1;
                 
                 // County
-                const county = student.county || 'Nairobi';
+                const county = student.county || 'Not specified';
                 demographics.byCounty[county] = (demographics.byCounty[county] || 0) + 1;
                 
                 // Status
@@ -1421,14 +1590,18 @@ class ReportsManager {
                 
                 // Age Group
                 if (student.dob) {
-                    const dob = new Date(student.dob);
-                    const age = new Date().getFullYear() - dob.getFullYear();
-                    
-                    if (age < 18) demographics.ageGroups['Under 18']++;
-                    else if (age <= 22) demographics.ageGroups['18-22']++;
-                    else if (age <= 25) demographics.ageGroups['23-25']++;
-                    else if (age <= 30) demographics.ageGroups['26-30']++;
-                    else demographics.ageGroups['Over 30']++;
+                    try {
+                        const dob = new Date(student.dob);
+                        const age = new Date().getFullYear() - dob.getFullYear();
+                        
+                        if (age < 18) demographics.ageGroups['Under 18']++;
+                        else if (age <= 22) demographics.ageGroups['18-22']++;
+                        else if (age <= 25) demographics.ageGroups['23-25']++;
+                        else if (age <= 30) demographics.ageGroups['26-30']++;
+                        else demographics.ageGroups['Over 30']++;
+                    } catch (e) {
+                        // Invalid date, skip
+                    }
                 }
             });
             
@@ -1440,7 +1613,8 @@ class ReportsManager {
                     'Category': 'Gender',
                     'Subcategory': gender,
                     'Count': count,
-                    'Percentage': Math.round((count / filteredStudents.length) * 100) + '%'
+                    'Percentage': filteredStudents.length > 0 ? 
+                        Math.round((count / filteredStudents.length) * 100) + '%' : '0%'
                 });
             });
             
@@ -1450,7 +1624,8 @@ class ReportsManager {
                     'Category': 'Program',
                     'Subcategory': program,
                     'Count': count,
-                    'Percentage': Math.round((count / filteredStudents.length) * 100) + '%'
+                    'Percentage': filteredStudents.length > 0 ? 
+                        Math.round((count / filteredStudents.length) * 100) + '%' : '0%'
                 });
             });
             
@@ -1460,7 +1635,8 @@ class ReportsManager {
                     'Category': 'Center',
                     'Subcategory': center,
                     'Count': count,
-                    'Percentage': Math.round((count / filteredStudents.length) * 100) + '%'
+                    'Percentage': filteredStudents.length > 0 ? 
+                        Math.round((count / filteredStudents.length) * 100) + '%' : '0%'
                 });
             });
             
@@ -1492,7 +1668,7 @@ class ReportsManager {
                 return {
                     'Registration Number': student.reg_number,
                     'Student Name': student.full_name,
-                    'Center': student.center || 'Main Campus',
+                    'Center': student.center || 'Not specified',
                     'Program': student.program,
                     'Course Code': course.course_code,
                     'Course Name': course.course_name,
@@ -1541,7 +1717,7 @@ class ReportsManager {
                         regNumber: student.reg_number,
                         name: student.full_name,
                         program: student.program,
-                        center: student.center || 'Main Campus',
+                        center: student.center || 'Not specified',
                         totalMarks: 0,
                         totalMaxScore: 0,
                         courses: {},
@@ -1750,6 +1926,8 @@ class ReportsManager {
                 const course = mark.courses || {};
                 const courseId = course.id;
                 
+                if (!courseId) return;
+                
                 if (!courses[courseId]) {
                     courses[courseId] = {
                         courseCode: course.course_code,
@@ -1803,7 +1981,7 @@ class ReportsManager {
                     regNumber: student.reg_number,
                     name: student.full_name,
                     program: student.program,
-                    center: student.center || 'Main Campus',
+                    center: student.center || 'Not specified',
                     intakeYear: student.intake_year,
                     status: student.status,
                     dob: student.dob ? new Date(student.dob).toLocaleDateString() : 'N/A',
@@ -2259,7 +2437,6 @@ class ReportsManager {
                 students: await this.db.getStudents(),
                 courses: await this.db.getCourses(),
                 marks: await this.db.getMarksTableData(),
-                settings: this.db.getDefaultSettings(),
                 centers: await this.getCenters(),
                 exportDate: new Date().toISOString(),
                 version: '1.0'
@@ -2391,14 +2568,15 @@ class ReportsManager {
             dropdowns.forEach(id => {
                 const select = document.getElementById(id);
                 if (select) {
-                    while (select.options.length > 1) {
-                        select.remove(1);
+                    while (select.options.length > 0) {
+                        select.remove(0);
                     }
                 }
             });
             
             // Repopulate
             await this.populateFilters();
+            await this.populateTranscriptStudents();
             await this.updateStatistics();
             
             // Clear previews
