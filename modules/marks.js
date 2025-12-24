@@ -628,66 +628,78 @@ getGradeColor(grade) {
     // ==================== FORM DATA HANDLING ====================
     
     getMarksFormData() {
-        const studentSelect = document.getElementById('marksStudent');
-        const courseSelect = document.getElementById('marksCourse');
-        const scoreInput = document.getElementById('marksScore');
-        const maxScoreInput = document.getElementById('marksMaxScore');
-        const assessmentTypeSelect = document.getElementById('assessmentType');
-        const assessmentDateInput = document.getElementById('assessmentDate');
-        
-        const studentId = studentSelect?.value;
-        const courseId = courseSelect?.value;
-        const score = parseFloat(scoreInput?.value) || 0;
-        const maxScore = parseFloat(maxScoreInput?.value) || 100;
-        const assessmentType = assessmentTypeSelect?.value || 'exam';
-        const assessmentDate = assessmentDateInput?.value || new Date().toISOString().split('T')[0];
-        
-        let assessmentName;
-        switch(assessmentType) {
-            case 'exam':
-                assessmentName = 'Final Exam';
-                break;
-            case 'test':
-                assessmentName = 'Test';
-                break;
-            case 'assignment':
-                assessmentName = 'Assignment';
-                break;
-            case 'practical':
-                assessmentName = 'Practical';
-                break;
-            case 'cat':
-                assessmentName = 'CAT';
-                break;
-            default:
-                assessmentName = 'Assessment';
-        }
-        
-        let percentage = 0;
-        if (maxScore > 0) {
-            percentage = (score / maxScore) * 100;
-        }
-        percentage = parseFloat(percentage.toFixed(2));
-        
-        const grade = this.calculateGrade(percentage);
-        const gradePoints = this.getGradePoints(grade);
-        
-        return {
-            student_id: studentId,
-            course_id: courseId,
-            assessment_type: assessmentType,
-            assessment_name: assessmentName,
-            score: score,
-            max_score: maxScore,
-            percentage: percentage,
-            grade: grade,
-            grade_points: gradePoints,
-            visible_to_student: visibleToStudent, // ✅ FIXED: Now defined
-            entered_by: this.app.user?.id || 'system',
-            assessment_date: assessmentDate
-        };
+    const studentSelect = document.getElementById('marksStudent');
+    const courseSelect = document.getElementById('marksCourse');
+    const scoreInput = document.getElementById('marksScore');
+    const maxScoreInput = document.getElementById('marksMaxScore');
+    const assessmentTypeSelect = document.getElementById('assessmentType');
+    const assessmentDateInput = document.getElementById('assessmentDate');
+    
+    // ✅ FIX: Get status from radio buttons
+    const statusPublished = document.getElementById('statusPublished');
+    const statusDraft = document.getElementById('statusDraft');
+    
+    // ✅ FIX: Define visibleToStudent variable
+    let visibleToStudent = true; // Default to published
+    
+    if (statusPublished && statusPublished.checked) {
+        visibleToStudent = true; // Published
+    } else if (statusDraft && statusDraft.checked) {
+        visibleToStudent = false; // Draft/Hidden
     }
     
+    const studentId = studentSelect?.value;
+    const courseId = courseSelect?.value;
+    const score = parseFloat(scoreInput?.value) || 0;
+    const maxScore = parseFloat(maxScoreInput?.value) || 100;
+    const assessmentType = assessmentTypeSelect?.value || 'exam';
+    const assessmentDate = assessmentDateInput?.value || new Date().toISOString().split('T')[0];
+    
+    let assessmentName;
+    switch(assessmentType) {
+        case 'exam':
+            assessmentName = 'Final Exam';
+            break;
+        case 'test':
+            assessmentName = 'Test';
+            break;
+        case 'assignment':
+            assessmentName = 'Assignment';
+            break;
+        case 'practical':
+            assessmentName = 'Practical';
+            break;
+        case 'cat':
+            assessmentName = 'CAT';
+            break;
+        default:
+            assessmentName = 'Assessment';
+    }
+    
+    let percentage = 0;
+    if (maxScore > 0) {
+        percentage = (score / maxScore) * 100;
+    }
+    percentage = parseFloat(percentage.toFixed(2));
+    
+    const grade = this.calculateGrade(percentage);
+    const gradePoints = this.getGradePoints(grade);
+    
+    return {
+        student_id: studentId,
+        course_id: courseId,
+        assessment_type: assessmentType,
+        assessment_name: assessmentName,
+        score: score,
+        max_score: maxScore,
+        percentage: percentage,
+        grade: grade,
+        grade_points: gradePoints,
+        visible_to_student: visibleToStudent, // ✅ FIXED: Now defined
+        entered_by: this.app.user?.id || 'system',
+        assessment_date: assessmentDate
+    };
+}
     validateMarksForm(formData) {
         if (!formData.student_id) {
             this.showToast('Please select a student', 'error');
