@@ -1284,66 +1284,101 @@ class TEEPortalSupabaseDB {
 }
     
     async getMarksTableData() {
-        try {
-            const supabase = await this.ensureConnected();
-            const { data, error } = await supabase
-                .from('marks')
-                .select(`
+    try {
+        const supabase = await this.ensureConnected();
+        const { data, error } = await supabase
+            .from('marks')
+            .select(`
+                id,
+                score,
+                max_score,
+                percentage,
+                grade,
+                grade_points,
+                assessment_type,
+                assessment_name,
+                remarks,
+                visible_to_student,
+                created_at,
+                assessment_date,
+                students!inner (
                     id,
-                    score,
-                    max_score,
-                    percentage,
-                    grade,
-                    grade_points,
-                    assessment_type,
-                    assessment_name,
-                    remarks,
-                    created_at,
-                    students!inner (
+                    reg_number,
+                    full_name,
+                    program,
+                    intake_year,
+                    centre_id,
+                    centre,
+                    centre_name,
+                    county,
+                    email,
+                    phone,
+                    centres!inner (
                         id,
-                        reg_number,
-                        full_name,
-                        program,
-                        intake_year
-                    ),
-                    courses!inner (
-                        id,
-                        course_code,
-                        course_name,
-                        program
+                        name,
+                        code,
+                        county
                     )
-                `)
-                .order('created_at', { ascending: false })
-                .limit(100);
-                
-            if (error) throw error;
-            return data || [];
-        } catch (error) {
-            console.error('Error fetching marks table data:', error);
+                ),
+                courses!inner (
+                    id,
+                    course_code,
+                    course_name,
+                    program
+                )
+            `)
+            .order('created_at', { ascending: false })
+            .limit(100);
+            
+        if (error) {
+            console.error('❌ Error in getMarksTableData:', error);
             throw error;
         }
-    }
-    
-    async getMarkById(markId) {
-        try {
-            const supabase = await this.ensureConnected();
-            const { data, error } = await supabase
-                .from('marks')
-                .select(`
-                    *,
-                    students!inner (id, reg_number, full_name),
-                    courses!inner (id, course_code, course_name, credits)
-                `)
-                .eq('id', markId)
-                .single();
-                
-            if (error) throw error;
-            return data;
-        } catch (error) {
-            console.error('Error fetching mark by ID:', error);
-            throw error;
+        
+        // Process the data to get centre name properly
+        const processedData = (data || []).map(mark => {
+            const student = mark.students || {};
+            const centreData = student.centres || {};
+            
+            // Get centre name in priority order:
+            // 1. From centres table (name)
+            // 2. student.centre_name
+            // 3. student.centre
+            // 4. Default
+            let centreDisplay = 'Main Campus';
+            if (centreData.name) {
+                centreDisplay = centreData.name;
+            } else if (student.centre_name) {
+                centreDisplay = student.centre_name;
+            } else if (student.centre) {
+                centreDisplay = student.centre;
+            }
+            
+            return {
+                ...mark,
+                students: {
+                    ...student,
+                    centre_display: centreDisplay,
+                    centres: centreData
+                }
+            };
+        });
+        
+        console.log('📊 Processed marks data:', processedData.length, 'records');
+        if (processedData.length > 0) {
+            console.log('🔍 First mark centre info:', {
+                centre_display: processedData[0].students.centre_display,
+                hasCentresTable: !!processedData[0].students.centres,
+                centreName: processedData[0].students.centres?.name
+            });
         }
+        
+        return processedData;
+    } catch (error) {
+        console.error('Error fetching marks table data:', error);
+        throw error;
     }
+}
 
     async updateMark(markId, updateData) {
         try {
