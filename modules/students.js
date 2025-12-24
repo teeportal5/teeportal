@@ -280,12 +280,9 @@ async saveStudent(event) {
     }
 }
     
-   /**
- * Edit student - DEBUG VERSION
- */
-async editStudent(studentId) {
+  async editStudent(studentId) {
     try {
-        console.log(`✏️ DEBUG: Editing student ${studentId}...`);
+        console.log(`✏️ Editing student ${studentId}...`);
         
         const student = await this.db.getStudent(studentId);
         if (!student) {
@@ -297,7 +294,7 @@ async editStudent(studentId) {
         
         console.log('📋 Student data from database:', student);
         
-        // Field mapping - map database fields to form field IDs
+        // Field mapping - matches the HTML form
         const fieldMap = {
             // Personal Information
             'studentName': student.full_name || '',
@@ -312,12 +309,14 @@ async editStudent(studentId) {
             'studentSubCounty': student.sub_county || '',
             'studentWard': student.ward || '',
             'studentVillage': student.village || '',
+            'studentAddress': student.address || '',
             
             // Academic Information
             'studentProgram': student.program || '',
             'studentIntake': student.intake_year || new Date().getFullYear().toString(),
             'studentCentre': student.centre_id || student.centre || '',
             'studentStudyMode': student.study_mode || 'fulltime',
+            'studentStatus': student.status || 'active',
             
             // Employment Information
             'studentEmployment': student.employment_status || '',
@@ -325,35 +324,32 @@ async editStudent(studentId) {
             'studentJobTitle': student.job_title || '',
             'studentExperience': student.years_experience || 0,
             
-            // Status - IMPORTANT: Add this
-            'studentStatus': student.status || 'active'
+            // Emergency Contact & Notes
+            'studentEmergencyContact': student.emergency_contact || '',
+            'studentNotes': student.notes || ''
         };
-        
-        // Debug: Log what we're trying to populate
-        console.log('📝 Field mapping for form:', fieldMap);
         
         // Populate form fields
         let populatedCount = 0;
-        let missingFields = [];
-        
         Object.entries(fieldMap).forEach(([fieldId, value]) => {
             const element = document.getElementById(fieldId);
             if (element) {
                 element.value = value;
                 populatedCount++;
-                console.log(`✅ Set ${fieldId}: "${value}"`);
+                console.log(`✅ Set ${fieldId}: ${value}`);
             } else {
-                missingFields.push(fieldId);
-                console.warn(`⚠️ Field not found in form: ${fieldId}`);
+                console.warn(`⚠️ Field not found: ${fieldId}`);
             }
         });
         
         console.log(`📊 Populated ${populatedCount}/${Object.keys(fieldMap).length} fields`);
-        if (missingFields.length > 0) {
-            console.warn('Missing form fields:', missingFields);
+        
+        // Update modal title and submit button
+        const modalTitle = document.getElementById('studentModalTitle');
+        if (modalTitle) {
+            modalTitle.textContent = 'Edit Student';
         }
         
-        // Update submit button text
         const submitBtn = document.querySelector('#studentForm button[type="submit"]');
         if (submitBtn) {
             submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Student';
@@ -392,45 +388,48 @@ async editStudent(studentId) {
         }
     }
     
-    /**
-     * Reset student form - FIXED VERSION
-     */
-    _resetStudentForm() {
-        console.log('🔄 Resetting student form...');
-        
-        const form = document.getElementById('studentForm');
-        if (form) {
-            // Reset all input fields
-            form.querySelectorAll('input, select, textarea').forEach(field => {
-                if (field.type === 'checkbox') {
-                    field.checked = false;
-                } else if (field.tagName === 'SELECT') {
-                    field.selectedIndex = 0;
-                } else {
-                    field.value = '';
-                }
-            });
-            
-            // Reset submit button
-            const submitBtn = form.querySelector('button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.innerHTML = '<i class="fas fa-plus"></i> Register Student';
-                submitBtn.removeAttribute('data-editing');
-                submitBtn.disabled = false;
+   _resetStudentForm() {
+    console.log('🔄 Resetting student form...');
+    
+    const form = document.getElementById('studentForm');
+    if (form) {
+        // Reset all input fields
+        form.querySelectorAll('input, select, textarea').forEach(field => {
+            if (field.type === 'checkbox') {
+                field.checked = false;
+            } else if (field.tagName === 'SELECT') {
+                field.selectedIndex = 0;
+            } else {
+                field.value = '';
             }
-            
-            // Clear edit ID
-            this.currentEditId = null;
-            
-            // Clear any error messages
-            document.querySelectorAll('.error-message').forEach(el => el.remove());
-            document.querySelectorAll('.form-control.error').forEach(el => {
-                el.classList.remove('error');
-            });
-            
-            console.log('✅ Form reset complete');
+        });
+        
+        // Reset modal title
+        const modalTitle = document.getElementById('studentModalTitle');
+        if (modalTitle) {
+            modalTitle.textContent = 'Register New Student';
         }
+        
+        // Reset submit button
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-plus"></i> Register Student';
+            submitBtn.removeAttribute('data-editing');
+            submitBtn.disabled = false;
+        }
+        
+        // Clear edit ID
+        this.currentEditId = null;
+        
+        // Clear any error messages
+        document.querySelectorAll('.error-message').forEach(el => el.remove());
+        document.querySelectorAll('.form-control.error').forEach(el => {
+            el.classList.remove('error');
+        });
+        
+        console.log('✅ Form reset complete');
     }
+}
     
     /**
      * Validate email format
