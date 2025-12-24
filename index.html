@@ -443,25 +443,134 @@
         </table>
     </div>
 </section>
-            <!-- Courses Section -->
-            <section id="courses" class="content-section">
-                <div class="section-header">
-                    <h2>Course Management</h2>
-                    <div class="action-buttons">
-                        <button class="btn btn-primary" data-open-modal="courseModal">
-    <i class="fas fa-book-medical"></i> Add Course
-</button>
-                        <button class="btn btn-secondary" onclick="app.courses.exportCourses()">
-                            <i class="fas fa-download"></i> Export
-                        </button>
+            <!-- Centres Section -->
+<section id="centres" class="content-section">
+    <div class="section-header">
+        <h2>Centre Management</h2>
+        <div class="action-buttons">
+            <!-- Updated onclick to use window.openCentreModal() -->
+            <button class="btn btn-primary" onclick="window.openCentreModal()">
+                <i class="fas fa-map-marker-alt"></i> Add Centre
+            </button>
+            <!-- Updated onclick to use app.centres.exportCentres() -->
+            <button class="btn btn-secondary" onclick="window.app.centres.exportCentres()">
+                <i class="fas fa-download"></i> Export
+            </button>
+        </div>
+    </div>
+    
+    <!-- Centres Grid -->
+    <div class="cards-grid" id="centresGrid">
+        <!-- Centres will be loaded here by JavaScript -->
+    </div>
+    
+    <!-- Centres Stats -->
+    <div class="centre-stats">
+        <div class="stat-row">
+            <div class="stat-item">
+                <span class="stat-label">Total Centres</span>
+                <span class="stat-value" id="totalCentres">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Active Centres</span>
+                <span class="stat-value" id="activeCentres">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Inactive Centres</span>
+                <span class="stat-value" id="inactiveCentres">0</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Centre Modal - UPDATED to match the JavaScript structure -->
+<div id="centreModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <!-- Updated: Title will be changed by JavaScript -->
+            <h3 id="centreModalTitle">Add New Centre</h3>
+            <!-- Updated: onclick changed to window.closeCentreModal() -->
+            <span class="close" onclick="window.closeCentreModal()">&times;</span>
+        </div>
+        <!-- Updated: onsubmit changed to window.saveCentre(event) -->
+        <form id="centreForm" onsubmit="window.saveCentre(event)">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Centre Name *</label>
+                        <!-- Added required attribute -->
+                        <input type="text" id="centreName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Centre Code</label>
+                        <!-- Changed from required to optional -->
+                        <input type="text" id="centreCode" class="form-control">
                     </div>
                 </div>
-                
-                <!-- Courses Grid -->
-                <div class="cards-grid" id="coursesGrid">
-                    <!-- Courses will be loaded here -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>County *</label>
+                        <!-- Added required attribute -->
+                        <select id="centreCounty" class="form-control" required>
+                            <option value="">Select County</option>
+                            <!-- Counties will be populated by JavaScript -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Sub-County</label>
+                        <input type="text" id="centreSubCounty" class="form-control">
+                    </div>
                 </div>
-            </section>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Address</label>
+                        <input type="text" id="centreAddress" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Contact Person</label>
+                        <!-- Changed ID to match JavaScript -->
+                        <input type="text" id="centreContactPerson" class="form-control">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <input type="tel" id="centrePhone" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="centreEmail" class="form-control">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="centreStatus" class="form-control">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="pending">Pending</option>
+                    </select>
+                </div>
+                <!-- Added Description field to match JavaScript -->
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="centreDescription" class="form-control" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <!-- Updated: onclick changed to window.closeCentreModal() -->
+                <button type="button" class="btn btn-secondary" onclick="window.closeCentreModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Centre</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Optional: Add search functionality -->
+<div class="search-box" style="margin: 20px 0; display: none;" id="centreSearchContainer">
+    <i class="fas fa-search"></i>
+    <input type="text" id="centreSearchInput" placeholder="Search centres..." 
+           onkeyup="if(window.app && window.app.centres) window.app.centres.searchCentres(this.value)">
+</div>
             
           <!-- Marks Section - FIXED VERSION -->
 <section id="marks" class="content-section">
@@ -1870,73 +1979,6 @@ if (typeof window !== 'undefined') {
     </div>
 </div>
 
-<!-- Centre Modal -->
-<div id="centreModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>Add New Centre</h3>
-            <span class="close" data-modal-close>&times;</span>
-        </div>
-        <form id="centreForm">
-            <div class="modal-body">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Centre Name *</label>
-                        <input type="text" id="centreName" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Centre Code *</label>
-                        <input type="text" id="centreCode" class="form-control" required>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>County *</label>
-                        <select id="centreCounty" class="form-control" required>
-                            <option value="">Select County</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Sub-County</label>
-                        <input type="text" id="centreSubCounty" class="form-control">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Address</label>
-                        <input type="text" id="centreAddress" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label>Contact Person</label>
-                        <input type="text" id="centreContactPerson" class="form-control">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Phone Number</label>
-                        <input type="tel" id="centrePhone" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" id="centreEmail" class="form-control">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Status</label>
-                    <select id="centreStatus" class="form-control">
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="pending">Pending</option>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
-                <button type="submit" class="btn btn-primary">Save Centre</button>
-            </div>
-        </form>
-    </div>
-</div>
 <!-- Marks Modal - COMPACT VERSION -->
 <div id="marksModal" class="modal">
     <div class="modal-content" style="max-width: 500px;">
