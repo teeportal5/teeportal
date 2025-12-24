@@ -329,36 +329,15 @@
         </div>
     </div>
 </section>
-                <!-- Students Table -->
-                <div class="table-container">
-                    <table class="data-table" id="studentsTable">
-                        <thead>
-                            <tr>
-                                <th>Reg Number</th>
-                                <th>Student Name</th>
-                                <th>Program</th>
-                                <th>Centre</th>
-                                <th>County</th>
-                                <th>Intake</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="studentsTableBody">
-                            <!-- Data will be loaded here -->
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-            <!-- Programs Section -->
-<section id="programs" class="content-section">
+                <!-- Students Section -->
+<section id="students" class="content-section">
     <div class="section-header">
-        <h2>Program Management</h2>
+        <h2>Student Management</h2>
         <div class="action-buttons">
-            <button class="btn btn-primary" data-open-modal="programModal">
-                <i class="fas fa-certificate"></i> Add Program
+            <button class="btn btn-primary" onclick="openStudentModal()">
+                <i class="fas fa-user-plus"></i> Add Student
             </button>
-            <button class="btn btn-secondary" onclick="app.programs?.exportPrograms()">
+            <button class="btn btn-secondary" onclick="app.students?.exportStudents()">
                 <i class="fas fa-download"></i> Export
             </button>
         </div>
@@ -366,20 +345,42 @@
     
     <!-- Filter Bar -->
     <div class="filter-bar">
-        <input type="text" id="programSearch" placeholder="Search programs..." class="search-input">
-        <select id="filterProgramLevel" class="filter-select">
-            <option value="">All Levels</option>
-            <option value="certificate">Certificate</option>
-            <option value="diploma">Diploma</option>
-            <option value="degree">Degree</option>
+        <input type="text" id="studentSearch" placeholder="Search students..." class="search-input">
+        <select id="filterCentre" class="filter-select">
+            <option value="">All Centres</option>
         </select>
-        <select id="filterProgramStatus" class="filter-select">
+        <select id="filterProgram" class="filter-select">
+            <option value="">All Programs</option>
+        </select>
+        <select id="filterStatus" class="filter-select">
             <option value="">All Status</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
+            <option value="graduated">Graduated</option>
         </select>
     </div>
     
+    <!-- Students Table -->
+    <div class="table-container">
+        <table class="data-table" id="studentsTable">
+            <thead>
+                <tr>
+                    <th>Reg Number</th>
+                    <th>Student Name</th>
+                    <th>Program</th>
+                    <th>Centre</th>
+                    <th>County</th>
+                    <th>Intake</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="studentsTableBody">
+                <!-- Data will be loaded here -->
+            </tbody>
+        </table>
+    </div>
+</section>
     <!-- Programs Table -->
     <div class="table-container">
         <table class="data-table" id="programsTable">
