@@ -381,6 +381,37 @@
         </table>
     </div>
 </section>
+            
+   <!-- Programs Section -->
+<section id="programs" class="content-section">
+    <div class="section-header">
+        <h2>Program Management</h2>
+        <div class="action-buttons">
+            <button class="btn btn-primary" data-open-modal="programModal">
+                <i class="fas fa-certificate"></i> Add Program
+            </button>
+            <button class="btn btn-secondary" onclick="app.programs?.exportPrograms()">
+                <i class="fas fa-download"></i> Export
+            </button>
+        </div>
+    </div>
+    
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <input type="text" id="programSearch" placeholder="Search programs..." class="search-input">
+        <select id="filterProgramLevel" class="filter-select">
+            <option value="">All Levels</option>
+            <option value="certificate">Certificate</option>
+            <option value="diploma">Diploma</option>
+            <option value="degree">Degree</option>
+        </select>
+        <select id="filterProgramStatus" class="filter-select">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+        </select>
+    </div>
+    
     <!-- Programs Table -->
     <div class="table-container">
         <table class="data-table" id="programsTable">
