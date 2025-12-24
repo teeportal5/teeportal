@@ -938,7 +938,7 @@ clearFieldErrors() {
         this.updateSelectedCounts();
     }
     
-   renderTableView() {
+  renderTableView() {
     const tbody = document.querySelector('#marksTableBody');
     if (!tbody) return;
     
@@ -980,6 +980,15 @@ clearFieldErrors() {
         // Format date
         const formattedDate = mark.created_at ? this.formatDate(mark.created_at) : 'N/A';
         
+        // Simple escape function inline
+        const escape = (str) => {
+            if (!str) return '';
+            return str.toString()
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        };
+        
         html += `
             <tr data-mark-id="${mark.id}">
                 <!-- Student Column (Name + Reg No combined) -->
@@ -989,21 +998,21 @@ clearFieldErrors() {
                             ${this.getInitials(student.full_name || 'N/A')}
                         </div>
                         <div>
-                            <div style="font-weight: 600; color: #1f2937; margin-bottom: 2px;">${this.escapeHTML(student.full_name || 'N/A')}</div>
-                            <div style="font-size: 0.75rem; color: #6b7280; font-family: monospace;">${this.escapeHTML(student.reg_number || 'N/A')}</div>
+                            <div style="font-weight: 600; color: #1f2937; margin-bottom: 2px;">${escape(student.full_name || 'N/A')}</div>
+                            <div style="font-size: 0.75rem; color: #6b7280; font-family: monospace;">${escape(student.reg_number || 'N/A')}</div>
                         </div>
                     </div>
                 </td>
                 
                 <!-- Course Column -->
                 <td>
-                    <div style="font-weight: 600; color: #1f2937; margin-bottom: 2px;">${this.escapeHTML(course.course_code || 'N/A')}</div>
-                    <div style="font-size: 0.75rem; color: #6b7280;">${this.escapeHTML(course.course_name || '')}</div>
+                    <div style="font-weight: 600; color: #1f2937; margin-bottom: 2px;">${escape(course.course_code || 'N/A')}</div>
+                    <div style="font-size: 0.75rem; color: #6b7280;">${escape(course.course_name || '')}</div>
                 </td>
                 
                 <!-- Centre Column -->
                 <td>
-                    <div style="font-weight: 600; color: #1f2937;">${this.escapeHTML(studentCentre)}</div>
+                    <div style="font-weight: 600; color: #1f2937;">${escape(studentCentre)}</div>
                     <div style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: ${status === 'published' ? '#d1fae5' : '#f3f4f6'}; color: ${status === 'published' ? '#065f46' : '#6b7280'}; margin-top: 4px;">
                         <i class="fas ${statusIcon}"></i>
                         ${statusText}
