@@ -682,103 +682,112 @@ async editStudent(studentId) {
     /**
      * Load students into table
      */
-    async loadStudentsTable(filterOptions = {}) {
-        try {
-            console.log('📋 Loading students table...');
-            const students = await this.db.getStudents(filterOptions);
-            const tbody = document.getElementById('studentsTableBody');
-            
-            if (!tbody) {
-                console.warn('Students table body not found');
-                return;
-            }
-            
-            if (students.length === 0) {
-                this._renderEmptyState(tbody);
-                this._toggleBulkActions(false);
-                return;
-            }
-            
-            // Fetch programs once for all students
-            const allPrograms = await this.db.getPrograms();
-            const programMap = {};
-            if (allPrograms && Array.isArray(allPrograms)) {
-                allPrograms.forEach(program => {
-                    programMap[program.id] = program.name;
-                });
-            }
-            
-            // Render all rows with program names
-            const html = students.map(student => {
-                const programName = student.program 
-                    ? (programMap[student.program] || student.program)
-                    : 'N/A';
-                    
-                const studentName = this._escapeHtml(student.full_name || '');
-                const email = this._escapeHtml(student.email || '');
-                const status = student.status || 'active';
-                const safeStudentId = this._escapeAttr(student.id);
-                const safeRegNumber = this._escapeAttr(student.reg_number);
-                const centreName = student.centre || 'N/A';
-                
-                return `
-                    <tr data-student-id="${safeStudentId}" data-student-reg="${safeRegNumber}">
-                        <td><strong>${this._escapeHtml(student.reg_number)}</strong></td>
-                        <td>
-                            <div class="student-avatar">
-                                <div class="avatar-icon" style="background-color: ${this._getAvatarColor(student.full_name)}">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                                <div class="student-info">
-                                    <strong>${studentName}</strong><br>
-                                    <small>${email}</small>
-                                </div>
-                            </div>
-                        </td>
-                        <td>${this._escapeHtml(programName)}</td>
-                        <td>${this._escapeHtml(centreName)}</td>
-                        <td>${this._escapeHtml(student.county)}</td>
-                        <td>${this._escapeHtml(student.intake_year)}</td>
-                        <td>
-                            <span class="status-badge ${this._escapeAttr(status)}">
-                                ${this._escapeHtml(status.toUpperCase())}
-                            </span>
-                        </td>
-                        <td class="action-buttons">
-                            <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="btn-action edit-student" data-id="${safeStudentId}" title="Edit Student">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn-action enter-marks" data-id="${safeStudentId}" title="Enter Marks">
-                                <i class="fas fa-chart-bar"></i>
-                            </button>
-                            <button class="btn-action delete-student" data-id="${safeStudentId}" title="Delete Student">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-            
-            tbody.innerHTML = html;
-            
-            // Attach event listeners
-            this._attachStudentRowEventListeners();
-            this._setupCheckboxListeners();
-            
-            // Show bulk actions if we have students
-            this._toggleBulkActions(true);
-            
-            console.log(`✅ Loaded ${students.length} students`);
-            
-        } catch (error) {
-            console.error('Error loading students table:', error);
-            this._renderErrorState();
+    // Update the loadStudentsTable method to handle centre properly
+async loadStudentsTable(filterOptions = {}) {
+    try {
+        console.log('📋 Loading students table...');
+        const students = await this.db.getStudents(filterOptions);
+        const tbody = document.getElementById('studentsTableBody');
+        
+        if (!tbody) {
+            console.warn('Students table body not found');
+            return;
         }
+        
+        if (students.length === 0) {
+            this._renderEmptyState(tbody);
+            this._toggleBulkActions(false);
+            return;
+        }
+        
+        // Fetch programs once for all students
+        const allPrograms = await this.db.getPrograms();
+        const programMap = {};
+        if (allPrograms && Array.isArray(allPrograms)) {
+            allPrograms.forEach(program => {
+                programMap[program.id] = program.name;
+            });
+        }
+        
+        // DEBUG: Log first student to see the actual structure
+        if (students.length > 0) {
+            console.log('🔍 First student object:', students[0]);
+            console.log('🔍 Centre field in first student:', students[0].centre);
+            console.log('🔍 All student fields:', Object.keys(students[0]));
+        }
+        
+        // Render all rows with program names
+        const html = students.map(student => {
+            const programName = student.program 
+                ? (programMap[student.program] || student.program)
+                : 'N/A';
+                
+            // **FIX: Use student.centre directly (processed by database)**
+            const centreName = student.centre || 'Main Campus';
+            
+            const studentName = this._escapeHtml(student.full_name || '');
+            const email = this._escapeHtml(student.email || '');
+            const status = student.status || 'active';
+            const safeStudentId = this._escapeAttr(student.id);
+            const safeRegNumber = this._escapeAttr(student.reg_number);
+            
+            return `
+                <tr data-student-id="${safeStudentId}" data-student-reg="${safeRegNumber}">
+                    <td><strong>${this._escapeHtml(student.reg_number)}</strong></td>
+                    <td>
+                        <div class="student-avatar">
+                            <div class="avatar-icon" style="background-color: ${this._getAvatarColor(student.full_name)}">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="student-info">
+                                <strong>${studentName}</strong><br>
+                                <small>${email}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${this._escapeHtml(programName)}</td>
+                    <td>${this._escapeHtml(centreName)}</td> <!-- FIXED: This now shows the centre -->
+                    <td>${this._escapeHtml(student.county)}</td>
+                    <td>${this._escapeHtml(student.intake_year)}</td>
+                    <td>
+                        <span class="status-badge ${this._escapeAttr(status)}">
+                            ${this._escapeHtml(status.toUpperCase())}
+                        </span>
+                    </td>
+                    <td class="action-buttons">
+                        <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn-action edit-student" data-id="${safeStudentId}" title="Edit Student">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-action enter-marks" data-id="${safeStudentId}" title="Enter Marks">
+                            <i class="fas fa-chart-bar"></i>
+                        </button>
+                        <button class="btn-action delete-student" data-id="${safeStudentId}" title="Delete Student">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        tbody.innerHTML = html;
+        
+        // Attach event listeners
+        this._attachStudentRowEventListeners();
+        this._setupCheckboxListeners();
+        
+        // Show bulk actions if we have students
+        this._toggleBulkActions(true);
+        
+        console.log(`✅ Loaded ${students.length} students`);
+        
+    } catch (error) {
+        console.error('Error loading students table:', error);
+        this._renderErrorState();
     }
-    
+}
     /**
      * Render student table row
      */
