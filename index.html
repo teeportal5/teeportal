@@ -972,12 +972,11 @@
     </div>
     
    <!-- ============ MODALS ============ -->
-
-<!-- Student Modal with Location Fields -->
+<!-- Student Modal with Location Fields - FIXED VERSION -->
 <div id="studentModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>Register New Student</h3>
+            <h3 id="studentModalTitle">Register New Student</h3>
             <span class="close" data-modal-close>&times;</span>
         </div>
         <form id="studentForm">
@@ -1083,6 +1082,25 @@
                             </select>
                         </div>
                     </div>
+                    <!-- ADDED: Status Field -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Status *</label>
+                            <select id="studentStatus" class="form-control" required>
+                                <option value="">Select Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="suspended">Suspended</option>
+                                <option value="graduated">Graduated</option>
+                                <option value="withdrawn">Withdrawn</option>
+                            </select>
+                        </div>
+                        <!-- ADDED: Address Field -->
+                        <div class="form-group">
+                            <label>Address</label>
+                            <textarea id="studentAddress" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Employment Information (for TEE students) -->
@@ -1115,15 +1133,38 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Emergency Contact -->
+                <div class="form-section">
+                    <h4><i class="fas fa-phone-alt"></i> Emergency Contact</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Emergency Contact Details</label>
+                            <textarea id="studentEmergencyContact" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Additional Notes -->
+                <div class="form-section">
+                    <h4><i class="fas fa-sticky-note"></i> Additional Information</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Notes</label>
+                            <textarea id="studentNotes" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
-                <button type="submit" class="btn btn-primary">Register Student</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Register Student
+                </button>
             </div>
         </form>
     </div>
 </div>
-
     <!-- Program Modal -->
 <div id="programModal" class="modal">
     <div class="modal-content">
