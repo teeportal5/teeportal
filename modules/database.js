@@ -537,24 +537,59 @@ class TEEPortalSupabaseDB {
     async addStudent(studentData) {
         try {
             const supabase = await this.ensureConnected();
-            const regNumber = await this.generateRegNumber(studentData.program, studentData.intake);
             
+            // Debug: Log incoming student data
+            console.log('📋 Adding student with data:', studentData);
+            
+            // Extract ALL fields from studentData to avoid missing any
             const student = {
-                reg_number: regNumber,
-                full_name: studentData.name,
-                email: studentData.email,
-                phone: studentData.phone,
-                dob: studentData.dob || null,
+                reg_number: studentData.reg_number || '',
+                full_name: studentData.full_name || studentData.name || '',
+                email: studentData.email || '',
+                phone: studentData.phone || '',
+                date_of_birth: studentData.date_of_birth || studentData.dob || null,
                 gender: studentData.gender || null,
-                county: studentData.county || '',  // NEW
-                centre: studentData.centre || '',   // NEW
-                program: studentData.program,
-                intake_year: studentData.intake,
-                status: 'active',
+                id_number: studentData.id_number || '',
+                
+                // Location fields
+                county: studentData.county || '',
+                sub_county: studentData.sub_county || '',
+                ward: studentData.ward || '',
+                village: studentData.village || '',
                 address: studentData.address || '',
+                centre_id: studentData.centre_id || studentData.centre || '',
+                centre: studentData.centre || '',
+                
+                // Academic fields
+                program: studentData.program || '',
+                intake_year: studentData.intake_year || studentData.intake || new Date().getFullYear(),
+                study_mode: studentData.study_mode || 'fulltime',
+                status: studentData.status || 'active',
+                
+                // Employment fields
+                employment_status: studentData.employment_status || '',
+                employer: studentData.employer || '',
+                job_title: studentData.job_title || '',
+                years_experience: studentData.years_experience || 0,
+                
+                // Emergency contact
+                emergency_contact_name: studentData.emergency_contact_name || '',
+                emergency_contact_phone: studentData.emergency_contact_phone || '',
                 emergency_contact: studentData.emergency_contact || '',
+                
+                // Other fields
                 notes: studentData.notes || ''
             };
+            
+            console.log('📤 Prepared student for database:', student);
+            
+            // Check for required fields
+            const requiredFields = ['reg_number', 'full_name', 'email', 'program', 'intake_year'];
+            const missingFields = requiredFields.filter(field => !student[field] || student[field].toString().trim() === '');
+            
+            if (missingFields.length > 0) {
+                throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+            }
             
             const { data, error } = await supabase
                 .from('students')
@@ -562,7 +597,15 @@ class TEEPortalSupabaseDB {
                 .select()
                 .single();
                 
-            if (error) throw error;
+            if (error) {
+                console.error('❌ Database error:', error);
+                if (error.code === '23502') {
+                    throw new Error(`Database constraint violation: ${error.message}. Missing required field.`);
+                } else if (error.code === '23505') {
+                    throw new Error(`Registration number "${student.reg_number}" already exists.`);
+                }
+                throw new Error(`Database error: ${error.message}`);
+            }
             
             await this.logActivity('student_registered', `Registered student: ${data.full_name} (${data.reg_number})`);
             return data;
@@ -572,6 +615,84 @@ class TEEPortalSupabaseDB {
         }
     }
     
+    // ========== REGISTRATION NUMBER HELPERS ==========
+    
+    /**
+     * Get last student for a specific program and intake year
+     * Used for generating sequential registration numbers
+     */
+    async getLastStudentForProgramYear(programId, intakeYear) {
+        try {
+            const supabase = await this.ensureConnected();
+            console.log('🔍 Looking for last student for:', { programId, intakeYear });
+            
+            const { data, error } = await supabase
+                .from('students')
+                .select('reg_number')
+                .eq('program', programId)
+                .eq('intake_year', parseInt(intakeYear))
+                .order('reg_number', { ascending: false })
+                .limit(1)
+                .single();
+                
+            if (error) {
+                if (error.code === 'PGRST116') {
+                    console.log('✅ No existing students found for this program/year');
+                    return null;
+                }
+                console.error('Error in getLastStudentForProgramYear:', error);
+                return null;
+            }
+            
+            console.log('📊 Found last student:', data);
+            return data;
+        } catch (error) {
+            console.error('Error getting last student for program/year:', error);
+            return null;
+        }
+    }
+    
+    /**
+     * Generate registration number using format: ABC-2025-001
+     */
+    async generateRegNumberNew(programId, intakeYear) {
+        try {
+            // Get program code
+            const programs = await this.getPrograms();
+            const program = programs.find(p => p.id === programId);
+            const programCode = program?.code || programId.substring(0, 3).toUpperCase();
+            
+            // Get last sequence number
+            const lastStudent = await this.getLastStudentForProgramYear(programId, intakeYear);
+            let sequenceNumber = 1;
+            
+            if (lastStudent && lastStudent.reg_number) {
+                // Extract sequence from existing reg number
+                const regParts = lastStudent.reg_number.split('-');
+                if (regParts.length === 3) {
+                    const lastSeq = parseInt(regParts[2]);
+                    if (!isNaN(lastSeq)) {
+                        sequenceNumber = lastSeq + 1;
+                    }
+                }
+            }
+            
+            // Format: ABC-2025-001
+            const regNumber = `${programCode}-${intakeYear}-${sequenceNumber.toString().padStart(3, '0')}`;
+            console.log('🔢 Generated reg number:', regNumber);
+            
+            return regNumber;
+        } catch (error) {
+            console.error('Error generating reg number:', error);
+            // Fallback: timestamp based
+            const timestamp = Date.now().toString().slice(-6);
+            return `TEMP-${timestamp}`;
+        }
+    }
+    
+    /**
+     * Original registration number generator (kept for backward compatibility)
+     */
     async generateRegNumber(program, intakeYear) {
         try {
             const supabase = await this.ensureConnected();
@@ -593,7 +714,9 @@ class TEEPortalSupabaseDB {
             const year = intakeYear.toString().slice(-2);
             const sequence = ((count || 0) + 1).toString().padStart(3, '0');
             
-            return `${prefix}${year}${sequence}`;
+            const regNumber = `${prefix}${year}${sequence}`;
+            console.log('🔢 Generated reg number (old format):', regNumber);
+            return regNumber;
         } catch (error) {
             console.error('Error generating reg number:', error);
             const timestamp = Date.now().toString().slice(-6);
@@ -606,19 +729,41 @@ class TEEPortalSupabaseDB {
             const supabase = await this.ensureConnected();
             
             const updateObj = {
-                full_name: updates.name || updates.full_name,
-                email: updates.email,
-                phone: updates.phone,
-                dob: updates.dob,
-                gender: updates.gender,
-                county: updates.county,       // NEW
-                centre: updates.centre,       // NEW
-                program: updates.program,
-                intake_year: updates.intake,
-                status: updates.status,
-                address: updates.address,
-                emergency_contact: updates.emergency_contact,
-                notes: updates.notes,
+                full_name: updates.full_name || updates.name || '',
+                email: updates.email || '',
+                phone: updates.phone || '',
+                date_of_birth: updates.date_of_birth || updates.dob || null,
+                gender: updates.gender || null,
+                id_number: updates.id_number || '',
+                
+                // Location fields
+                county: updates.county || '',
+                sub_county: updates.sub_county || '',
+                ward: updates.ward || '',
+                village: updates.village || '',
+                address: updates.address || '',
+                centre_id: updates.centre_id || updates.centre || '',
+                centre: updates.centre || '',
+                
+                // Academic fields
+                program: updates.program || '',
+                intake_year: updates.intake_year || updates.intake || new Date().getFullYear(),
+                study_mode: updates.study_mode || 'fulltime',
+                status: updates.status || 'active',
+                
+                // Employment fields
+                employment_status: updates.employment_status || '',
+                employer: updates.employer || '',
+                job_title: updates.job_title || '',
+                years_experience: updates.years_experience || 0,
+                
+                // Emergency contact
+                emergency_contact_name: updates.emergency_contact_name || '',
+                emergency_contact_phone: updates.emergency_contact_phone || '',
+                emergency_contact: updates.emergency_contact || '',
+                
+                // Other fields
+                notes: updates.notes || '',
                 updated_at: new Date().toISOString()
             };
             
@@ -1258,6 +1403,6 @@ if (typeof module !== 'undefined' && module.exports) {
 }
 
 // Auto-initialize if loaded in browser
-if (typeof window !== 'undefined' && typeof window.TEEPortalSupabaseDB !== 'undefined') {
+if (typeof window !== 'undefined') {
     window.TEEPortalSupabaseDB = TEEPortalSupabaseDB;
 }
