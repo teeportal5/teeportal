@@ -360,7 +360,10 @@ async generateRegNumber() {
         });
     }
     
-   async saveStudent(event) {
+   /**
+ * Save or update student - FIXED VERSION
+ */
+async saveStudent(event) {
     event.preventDefault();
     
     const form = event.target;
@@ -372,9 +375,6 @@ async generateRegNumber() {
     try {
         // Get all form data with CORRECT field names
         const formData = {
-            // **CRITICAL FIX: Use centre_name NOT centre_id for names**
-            centre_name: document.getElementById('studentCentre')?.value || '',
-            
             // Registration Number (Auto-generated)
             reg_number: document.getElementById('studentRegNumber')?.value.trim() || '',
             
@@ -396,6 +396,7 @@ async generateRegNumber() {
             // Academic Information
             program: document.getElementById('studentProgram')?.value || '',
             intake_year: document.getElementById('studentIntake')?.value || new Date().getFullYear().toString(),
+            centre_name: document.getElementById('studentCentre')?.value || '', // Use centre_name, not centre_id
             study_mode: document.getElementById('studentStudyMode')?.value || 'fulltime',
             status: document.getElementById('studentStatus')?.value || 'active',
             
@@ -411,10 +412,7 @@ async generateRegNumber() {
             emergency_contact_relationship: document.getElementById('studentEmergencyContact')?.value.trim() || '',
             
             // Additional Information
-            notes: document.getElementById('studentNotes')?.value.trim() || '',
-            
-            // Optional: Set centre_id to null if not using UUIDs
-            centre_id: null
+            notes: document.getElementById('studentNotes')?.value.trim() || ''
         };
         
         console.log('📝 Form data to save:', formData);
@@ -428,6 +426,19 @@ async generateRegNumber() {
             return;
         }
         
+        // Validate email
+        if (!this._validateEmail(formData.email)) {
+            this.ui.showToast('Please enter a valid email address', 'error');
+            return;
+        }
+        
+        // Validate registration number format (PROGRAM-YEAR-SEQ)
+        const regNumberRegex = /^[A-Z]{2,4}-\d{4}-\d{3}$/;
+        if (!regNumberRegex.test(formData.reg_number)) {
+            this.ui.showToast('Invalid registration number format. Please use format: ABC-2024-001', 'error');
+            return;
+        }
+        
         // Show loading state
         const submitBtn = form.querySelector('button[type="submit"]');
         const originalText = submitBtn.innerHTML;
@@ -437,11 +448,15 @@ async generateRegNumber() {
         let result;
         if (this.currentEditId) {
             // Update existing student
+            console.log(`🔄 Updating student ${this.currentEditId}...`);
             result = await this.db.updateStudent(this.currentEditId, formData);
+            console.log('✅ Update result:', result);
             this.ui.showToast(`Student updated successfully!`, 'success');
         } else {
             // Add new student
+            console.log('➕ Adding new student...');
             result = await this.db.addStudent(formData);
+            console.log('✅ Add result:', result);
             const regNumber = result.reg_number || formData.reg_number;
             this.ui.showToast(`Student registered successfully! Registration Number: ${regNumber}`, 'success');
         }
@@ -451,10 +466,13 @@ async generateRegNumber() {
         this.ui.closeModal('studentModal');
         
         // Refresh students table
+        console.log('🔄 Refreshing students table...');
         await this.loadStudentsTable();
+        console.log('✅ Table refreshed');
         
     } catch (error) {
         console.error('❌ Error saving student:', error);
+        console.error('Error details:', error.stack);
         this.ui.showToast(error.message || 'Error saving student data', 'error');
         
         // Reset button if error
