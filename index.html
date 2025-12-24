@@ -1846,135 +1846,216 @@ if (typeof window !== 'undefined') {
         </form>
     </div>
 </div>
-<!-- Marks Modal - WITH REAL-TIME DUPLICATE CHECKING -->
+<!-- Marks Modal - COMPACT VERSION -->
 <div id="marksModal" class="modal">
-    <div class="modal-content" style="max-width: 650px;">
+    <div class="modal-content" style="max-width: 500px;">
         <div class="modal-header">
             <h3><i class="fas fa-chart-bar"></i> Enter Marks</h3>
             <span class="close" data-modal-close="marksModal">&times;</span>
         </div>
         
-        <div class="modal-body">
-            <!-- REAL-TIME DUPLICATE WARNING -->
-            <div id="duplicateWarning" style="display: none; margin-bottom: 20px;"></div>
+        <div class="modal-body" style="max-height: 500px; overflow-y: auto;">
+            <!-- Duplicate Warning -->
+            <div id="duplicateWarning" style="display: none;"></div>
             
-            <form id="marksForm">
-                <div class="form-section">
-                    <h4><i class="fas fa-user-graduate"></i> Student & Course Information</h4>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="marksStudent">Student *</label>
-                            <select id="marksStudent" name="student" required 
-                                    onchange="window.app?.marks?.checkForDuplicateMarks()">
-                                <option value="">Select Student...</option>
-                                <!-- Populated dynamically -->
-                            </select>
-                            <div class="form-loading" id="studentLoading" style="display: none;">
-                                <i class="fas fa-spinner fa-spin"></i> Loading...
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="marksCourse">Course *</label>
-                            <select id="marksCourse" name="course" required 
-                                    onchange="window.app?.marks?.checkForDuplicateMarks()">
-                                <option value="">Select Course...</option>
-                                <!-- Populated dynamically -->
-                            </select>
-                            <div class="form-loading" id="courseLoading" style="display: none;">
-                                <i class="fas fa-spinner fa-spin"></i> Loading...
-                            </div>
-                        </div>
+            <!-- Compact Form -->
+            <form id="marksForm" style="display: grid; gap: 15px;">
+                <!-- Student & Course Row -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; font-weight: 500;">
+                            <i class="fas fa-user"></i> Student *
+                        </label>
+                        <select id="marksStudent" class="form-control" required 
+                                style="width: 100%; padding: 8px 12px;"
+                                onchange="window.app?.marks?.checkForDuplicateMarks()">
+                            <option value="">Select...</option>
+                        </select>
                     </div>
                     
-                    <!-- DUPLICATE STATUS INDICATOR -->
-                    <div id="duplicateStatus" style="display: none; margin-top: 10px;">
-                        <div class="status-message" style="padding: 8px 12px; border-radius: 6px;">
-                            <i class="fas fa-sync-alt fa-spin"></i>
-                            <span>Checking for existing marks...</span>
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; font-weight: 500;">
+                            <i class="fas fa-book"></i> Course *
+                        </label>
+                        <select id="marksCourse" class="form-control" required 
+                                style="width: 100%; padding: 8px 12px;"
+                                onchange="window.app?.marks?.checkForDuplicateMarks()">
+                            <option value="">Select...</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Assessment Type & Date -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; font-weight: 500;">
+                            <i class="fas fa-clipboard-check"></i> Type *
+                        </label>
+                        <select id="assessmentType" class="form-control" required 
+                                style="width: 100%; padding: 8px 12px;"
+                                onchange="window.app?.marks?.checkForDuplicateMarks()">
+                            <option value="exam">Final Exam</option>
+                            <option value="test">Test</option>
+                            <option value="assignment">Assignment</option>
+                            <option value="practical">Practical</option>
+                            <option value="cat">CAT</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; font-weight: 500;">
+                            <i class="fas fa-calendar-alt"></i> Date *
+                        </label>
+                        <input type="date" id="assessmentDate" class="form-control" required
+                               style="width: 100%; padding: 8px 12px;"
+                               onchange="window.app?.marks?.checkForDuplicateMarks()">
+                    </div>
+                </div>
+                
+                <!-- Score Input - Compact -->
+                <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
+                    <div style="text-align: center; margin-bottom: 10px;">
+                        <label style="font-weight: 500; color: #4b5563;">Score</label>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                        <input type="number" id="marksScore" 
+                               style="flex: 1; padding: 10px; text-align: center; font-weight: bold; font-size: 1.1rem;"
+                               placeholder="0" min="0" step="0.01" required
+                               oninput="window.app?.marks?.updateMarksGradeDisplay()">
+                        
+                        <span style="font-weight: bold; color: #6b7280;">/</span>
+                        
+                        <input type="number" id="marksMaxScore" value="100"
+                               style="flex: 1; padding: 10px; text-align: center; font-weight: bold; font-size: 1.1rem;"
+                               min="1" step="0.01" required
+                               oninput="window.app?.marks?.updateMarksGradeDisplay()">
+                    </div>
+                    
+                    <!-- Grade Display -->
+                    <div style="display: flex; align-items: center; gap: 15px; background: white; padding: 12px; border-radius: 6px;">
+                        <div id="gradeBadge" style="padding: 8px 16px; border-radius: 6px; font-weight: bold; min-width: 80px; text-align: center; background: #e5e7eb; color: #6b7280;">
+                            --
+                        </div>
+                        
+                        <div style="flex: 1;">
+                            <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 2px;">Percentage</div>
+                            <div id="marksPercentage" style="font-size: 1.25rem; font-weight: bold; color: #111827;">0.00%</div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="form-section">
-                    <h4><i class="fas fa-chart-line"></i> Assessment Details</h4>
+                <!-- Status Toggle -->
+                <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <input type="radio" id="statusPublished" name="status" value="published" checked>
+                        <label for="statusPublished" style="font-size: 0.875rem; cursor: pointer;">
+                            <i class="fas fa-eye"></i> Published
+                        </label>
+                    </div>
                     
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="assessmentType">Assessment Type *</label>
-                            <select id="assessmentType" name="assessmentType" required
-                                    onchange="window.app?.marks?.checkForDuplicateMarks()">
-                                <option value="exam">Final Exam</option>
-                                <option value="test">Test</option>
-                                <option value="assignment">Assignment</option>
-                                <option value="practical">Practical</option>
-                                <option value="cat">CAT</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="assessmentDate">Assessment Date *</label>
-                            <input type="date" id="assessmentDate" name="assessmentDate" required
-                                   onchange="window.app?.marks?.checkForDuplicateMarks()">
-                        </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <input type="radio" id="statusDraft" name="status" value="draft">
+                        <label for="statusDraft" style="font-size: 0.875rem; cursor: pointer;">
+                            <i class="fas fa-eye-slash"></i> Draft
+                        </label>
                     </div>
                 </div>
                 
-                <div class="form-section">
-                    <h4><i class="fas fa-percentage"></i> Score & Grading</h4>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="marksScore">Score *</label>
-                            <input type="number" id="marksScore" name="score" step="0.01" min="0" required
-                                   placeholder="Enter score" 
-                                   oninput="window.app?.marks?.updateMarksGradeDisplay()">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="marksMaxScore">Maximum Score *</label>
-                            <input type="number" id="marksMaxScore" name="maxScore" value="100" 
-                                   min="1" step="0.01" required
-                                   oninput="window.app?.marks?.updateMarksGradeDisplay()">
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Percentage</label>
-                            <div class="input-with-icon">
-                                <input type="text" id="marksPercentage" readonly 
-                                       class="form-control" style="background: #f8f9fa;">
-                                <span class="input-icon">%</span>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Grade</label>
-                            <div id="gradeBadge" class="grade-badge">
-                                <span>Enter score to see grade</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Hidden fields for duplicate handling -->
-                <input type="hidden" id="isDuplicate" name="isDuplicate" value="false">
-                <input type="hidden" id="existingMarksId" name="existingMarksId" value="">
-                
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-modal-close="marksModal">
-                        <i class="fas fa-times"></i> Cancel
-                    </button>
-                    <button type="submit" class="btn btn-primary" id="saveMarksBtn">
-                        <i class="fas fa-save"></i> Save Marks
-                    </button>
-                </div>
+                <!-- Hidden Fields -->
+                <input type="hidden" id="isDuplicate" value="false">
+                <input type="hidden" id="existingMarksId" value="">
             </form>
+            
+            <!-- Duplicate Status Indicator -->
+            <div id="duplicateStatus" style="display: none; margin-top: 10px; text-align: center;">
+                <div style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f0f9ff; border-radius: 6px; color: #0369a1; font-size: 0.875rem;">
+                    <i class="fas fa-sync-alt fa-spin"></i>
+                    <span>Checking for duplicates...</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal Footer -->
+        <div class="modal-footer" style="padding: 15px;">
+            <button type="button" class="btn btn-secondary" data-modal-close="marksModal" style="padding: 8px 16px;">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+            <button type="submit" class="btn btn-primary" id="saveMarksBtn" form="marksForm" style="padding: 8px 24px;">
+                <i class="fas fa-save"></i> Save
+            </button>
         </div>
     </div>
 </div>
+
+<!-- Add minimal CSS for grade colors -->
+<style>
+    .grade-distinction { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; }
+    .grade-credit { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; }
+    .grade-pass { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; }
+    .grade-fail { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; }
+    .grade-default { background: #e5e7eb; color: #6b7280; }
+    
+    /* Compact form inputs */
+    .form-control {
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 0.875rem;
+        transition: border-color 0.2s;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    /* Compact modal */
+    #marksModal .modal-content {
+        animation: slideUp 0.2s ease;
+    }
+    
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Small buttons */
+    .btn {
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+    }
+    
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background: #4b5563;
+    }
+    
+    .btn-primary {
+        background: #3b82f6;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #2563eb;
+    }
+</style>
 <!-- Centre Modal - SIMPLE VERSION -->
 <div id="centreModal" class="modal">
     <div class="modal-content">
