@@ -1,4 +1,4 @@
-// modules/centres.js - FINAL Centre Management Module
+// modules/centres.js - Centre Management Module (Fixed Mandatory Fields)
 class CentreManager {
     constructor(db, app = null) {
         this.db = db;
@@ -6,9 +6,6 @@ class CentreManager {
         this.currentEditId = null;
         this.counties = [];
         this.centres = [];
-        
-        // Initialize immediately
-        this.init();
     }
     
     /**
@@ -17,19 +14,15 @@ class CentreManager {
     async init() {
         console.log('🚀 Initializing Centre Manager...');
         
-        // Load counties first
-        await this.loadCounties();
-        
-        // Setup modal event listeners
-        this.setupModalEvents();
-        
-        // Setup form submission
-        this.setupFormSubmission();
-        
-        // Load centres
-        await this.loadCentres();
-        
-        console.log('✅ Centre Manager initialized');
+        try {
+            await this.loadCounties();
+            this.setupEventListeners();
+            await this.loadCentres();
+            
+            console.log('✅ Centre Manager initialized successfully');
+        } catch (error) {
+            console.error('❌ Failed to initialize Centre Manager:', error);
+        }
     }
     
     /**
@@ -39,10 +32,8 @@ class CentreManager {
         try {
             console.log('📍 Loading counties...');
             
-            // Try database first
             if (this.db && typeof this.db.getCounties === 'function') {
                 const countiesData = await this.db.getCounties();
-                // Handle both array of objects or array of strings
                 this.counties = countiesData.map(item => 
                     typeof item === 'string' ? item : item.name || item
                 );
@@ -50,8 +41,7 @@ class CentreManager {
                 // Default counties
                 this.counties = [
                     'Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret',
-                    'Kisii', 'Kakamega', 'Thika', 'Nyeri', 'Meru',
-                    'Machakos', 'Kitui', 'Garissa', 'Wajir', 'Mandera'
+                    'Kisii', 'Kakamega', 'Thika', 'Nyeri', 'Meru'
                 ];
             }
             
@@ -59,89 +49,52 @@ class CentreManager {
             
         } catch (error) {
             console.error('❌ Error loading counties:', error);
-            this.counties = ['Nairobi', 'Mombasa', 'Kisumu']; // Fallback
+            this.counties = ['Nairobi', 'Mombasa', 'Kisumu'];
         }
     }
     
     /**
-     * Populate county dropdown
+     * Setup all event listeners
      */
-    populateCountyDropdown() {
-        const countySelect = document.getElementById('centreCounty');
-        if (!countySelect) {
-            console.error('❌ County select not found!');
-            return;
+    setupEventListeners() {
+        console.log('📍 Setting up event listeners...');
+        
+        // Form submission
+        const form = document.getElementById('centreForm');
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveCentre();
+            });
+            console.log('✅ Form submit listener added');
+        } else {
+            console.error('❌ Centre form not found!');
         }
         
-        // Clear existing options (keep first empty option)
-        countySelect.innerHTML = '<option value="">Select County</option>';
-        
-        // Add counties
-        this.counties.forEach(county => {
-            const option = document.createElement('option');
-            option.value = county;
-            option.textContent = county;
-            countySelect.appendChild(option);
+        // Close modal buttons
+        const closeButtons = document.querySelectorAll('[data-modal-close], .close');
+        closeButtons.forEach(btn => {
+            btn.addEventListener('click', () => this.closeCentreModal());
         });
-        
-        console.log(`✅ Populated ${this.counties.length} counties in dropdown`);
-    }
-    
-    /**
-     * Setup modal events
-     */
-    setupModalEvents() {
-        const modal = document.getElementById('centreModal');
-        if (!modal) {
-            console.error('❌ Centre modal not found!');
-            return;
-        }
-        
-        // Close modal when clicking X
-        const closeBtn = modal.querySelector('.close');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => this.closeModal());
-        }
         
         // Close modal when clicking outside
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                this.closeModal();
-            }
-        });
-        
-        // Close modal when clicking Cancel button
-        const cancelBtn = modal.querySelector('[onclick*="closeCentreModal"]');
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', () => this.closeModal());
+        const modal = document.getElementById('centreModal');
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    this.closeCentreModal();
+                }
+            });
         }
         
         // Escape key to close modal
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && modal.style.display === 'block') {
-                this.closeModal();
+            if (e.key === 'Escape' && modal && modal.style.display === 'block') {
+                this.closeCentreModal();
             }
         });
         
-        console.log('✅ Modal events setup complete');
-    }
-    
-    /**
-     * Setup form submission
-     */
-    setupFormSubmission() {
-        const form = document.getElementById('centreForm');
-        if (!form) {
-            console.error('❌ Centre form not found!');
-            return;
-        }
-        
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await this.saveCentre();
-        });
-        
-        console.log('✅ Form submission setup complete');
+        console.log('✅ Event listeners setup complete');
     }
     
     /**
@@ -156,46 +109,80 @@ class CentreManager {
             return;
         }
         
-        // 1. Center the modal
+        // Show modal
         modal.style.display = 'block';
         modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
         
-        // 2. Auto-populate counties dropdown
-        this.populateCountyDropdown();
+        // Populate counties dropdown
+        await this.populateCountyDropdown();
         
-        // 3. Reset form or load centre data
+        // If editing, load centre data
         if (centreId) {
-            await this.loadCentreForEdit(centreId);
+            await this.loadCentreData(centreId);
         } else {
+            // For new centre, reset form
             this.resetForm();
         }
         
-        // 4. Focus on first input
+        // Focus on first field
         setTimeout(() => {
             document.getElementById('centreName')?.focus();
         }, 100);
         
-        console.log('✅ Centre modal opened and centered');
+        console.log('✅ Centre modal opened');
+    }
+    
+    /**
+     * Populate county dropdown
+     */
+    async populateCountyDropdown() {
+        const countySelect = document.getElementById('centreCounty');
+        if (!countySelect) {
+            console.error('❌ centreCounty select not found!');
+            return;
+        }
+        
+        console.log(`📍 Populating county dropdown with ${this.counties.length} counties`);
+        
+        // Clear and add options
+        countySelect.innerHTML = '<option value="">Select County</option>';
+        
+        this.counties.forEach(county => {
+            const option = document.createElement('option');
+            option.value = county;
+            option.textContent = county;
+            countySelect.appendChild(option);
+        });
+        
+        console.log('✅ County dropdown populated');
     }
     
     /**
      * Load centre data for editing
      */
-    async loadCentreForEdit(centreId) {
+    async loadCentreData(centreId) {
         try {
-            const centre = this.centres.find(c => c.id === centreId);
+            console.log(`📝 Loading centre ${centreId} for editing...`);
+            
+            // Find centre in loaded centres
+            const centre = this.centres.find(c => c.id == centreId || c.id === centreId);
+            
             if (!centre) {
-                throw new Error('Centre not found');
+                this.showAlert('Centre not found', 'error');
+                return;
             }
             
             this.currentEditId = centreId;
             
             // Update modal title
-            const title = document.getElementById('centreModalTitle');
-            if (title) title.textContent = 'Edit Centre';
+            const titleEl = document.getElementById('centreModalTitle');
+            if (titleEl) {
+                titleEl.textContent = 'Edit Centre';
+            }
             
             // Populate form fields
-            const fields = {
+            const formData = {
                 'centreName': centre.name || '',
                 'centreCode': centre.code || '',
                 'centreCounty': centre.county || '',
@@ -208,29 +195,165 @@ class CentreManager {
                 'centreDescription': centre.description || ''
             };
             
-            Object.entries(fields).forEach(([id, value]) => {
-                const element = document.getElementById(id);
-                if (element) element.value = value;
+            // Set each field value
+            Object.entries(formData).forEach(([fieldId, value]) => {
+                const element = document.getElementById(fieldId);
+                if (element) {
+                    element.value = value;
+                }
             });
             
-            // Update button text
+            // Update submit button text
             const submitBtn = document.querySelector('#centreForm button[type="submit"]');
-            if (submitBtn) submitBtn.textContent = 'Update Centre';
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Centre';
+            }
+            
+            console.log('✅ Centre data loaded for editing');
             
         } catch (error) {
-            console.error('❌ Error loading centre:', error);
-            this.showAlert('Failed to load centre data', 'error');
+            console.error('❌ Error loading centre data:', error);
+            this.showAlert('Error loading centre data', 'error');
         }
     }
     
     /**
-     * Close modal
+     * Save centre - ONLY NAME, CODE, COUNTY ARE MANDATORY
      */
-    closeModal() {
+    async saveCentre() {
+        console.log('💾 Saving centre...');
+        
+        // Get MANDATORY fields
+        const centreName = document.getElementById('centreName')?.value.trim() || '';
+        const centreCode = document.getElementById('centreCode')?.value.trim() || '';
+        const centreCounty = document.getElementById('centreCounty')?.value || '';
+        
+        // Get OPTIONAL fields
+        const centreSubCounty = document.getElementById('centreSubCounty')?.value.trim() || '';
+        const centreAddress = document.getElementById('centreAddress')?.value.trim() || '';
+        const centreContactPerson = document.getElementById('centreContactPerson')?.value.trim() || '';
+        const centrePhone = document.getElementById('centrePhone')?.value.trim() || '';
+        const centreEmail = document.getElementById('centreEmail')?.value.trim() || '';
+        const centreStatus = document.getElementById('centreStatus')?.value || 'active';
+        const centreDescription = document.getElementById('centreDescription')?.value.trim() || '';
+        
+        // Collect all data
+        const centreData = {
+            name: centreName,
+            code: centreCode,
+            county: centreCounty,
+            subCounty: centreSubCounty,
+            address: centreAddress,
+            contactPerson: centreContactPerson,
+            phone: centrePhone,
+            email: centreEmail,
+            status: centreStatus,
+            description: centreDescription
+        };
+        
+        console.log('📝 Form data:', centreData);
+        
+        // VALIDATION: Only check mandatory fields
+        const errors = [];
+        
+        if (!centreData.name) {
+            errors.push('Centre name is required');
+            document.getElementById('centreName')?.classList.add('error');
+        } else {
+            document.getElementById('centreName')?.classList.remove('error');
+        }
+        
+        if (!centreData.code) {
+            errors.push('Centre code is required');
+            document.getElementById('centreCode')?.classList.add('error');
+        } else {
+            document.getElementById('centreCode')?.classList.remove('error');
+        }
+        
+        if (!centreData.county) {
+            errors.push('County is required');
+            document.getElementById('centreCounty')?.classList.add('error');
+        } else {
+            document.getElementById('centreCounty')?.classList.remove('error');
+        }
+        
+        // Show errors if any
+        if (errors.length > 0) {
+            this.showAlert(errors.join('\n'), 'error');
+            return;
+        }
+        
+        try {
+            // Show loading state
+            const submitBtn = document.querySelector('#centreForm button[type="submit"]');
+            const originalContent = submitBtn?.innerHTML;
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                submitBtn.disabled = true;
+            }
+            
+            let result;
+            
+            if (this.currentEditId) {
+                // Update existing centre
+                console.log(`🔄 Updating centre ${this.currentEditId}...`);
+                
+                if (this.db && typeof this.db.updateCentre === 'function') {
+                    result = await this.db.updateCentre(this.currentEditId, centreData);
+                } else {
+                    // Mock update for testing
+                    console.log('Mock update:', centreData);
+                    result = { success: true, id: this.currentEditId };
+                }
+                
+                this.showAlert('✅ Centre updated successfully!', 'success');
+            } else {
+                // Add new centre
+                console.log('➕ Adding new centre...');
+                
+                if (this.db && typeof this.db.addCentre === 'function') {
+                    result = await this.db.addCentre(centreData);
+                } else {
+                    // Mock add for testing
+                    console.log('Mock add:', centreData);
+                    const newId = 'centre_' + Date.now();
+                    centreData.id = newId;
+                    result = { success: true, id: newId };
+                }
+                
+                this.showAlert('✅ Centre added successfully!', 'success');
+            }
+            
+            // Close modal and refresh
+            this.closeCentreModal();
+            await this.loadCentres();
+            
+        } catch (error) {
+            console.error('❌ Error saving centre:', error);
+            this.showAlert('Error saving centre: ' + error.message, 'error');
+            
+            // Reset button
+            const submitBtn = document.querySelector('#centreForm button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = this.currentEditId 
+                    ? '<i class="fas fa-save"></i> Update Centre'
+                    : '<i class="fas fa-plus"></i> Add Centre';
+                submitBtn.disabled = false;
+            }
+        }
+    }
+    
+    /**
+     * Close centre modal
+     */
+    closeCentreModal() {
+        console.log('📍 Closing centre modal...');
+        
         const modal = document.getElementById('centreModal');
         if (modal) {
             modal.style.display = 'none';
             modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
             this.resetForm();
         }
     }
@@ -243,90 +366,26 @@ class CentreManager {
         if (form) {
             form.reset();
             
-            // Reset modal title
-            const title = document.getElementById('centreModalTitle');
-            if (title) title.textContent = 'Add New Centre';
+            // Remove error classes
+            ['centreName', 'centreCode', 'centreCounty'].forEach(id => {
+                document.getElementById(id)?.classList.remove('error');
+            });
             
-            // Reset button text
+            // Reset modal title
+            const titleEl = document.getElementById('centreModalTitle');
+            if (titleEl) {
+                titleEl.textContent = 'Add New Centre';
+            }
+            
+            // Reset submit button
             const submitBtn = document.querySelector('#centreForm button[type="submit"]');
-            if (submitBtn) submitBtn.textContent = 'Save Centre';
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-plus"></i> Add Centre';
+            }
             
             this.currentEditId = null;
-        }
-    }
-    
-    /**
-     * Save centre
-     */
-    async saveCentre() {
-        console.log('💾 Saving centre...');
-        
-        // Collect form data
-        const centreData = {
-            name: document.getElementById('centreName')?.value.trim() || '',
-            code: document.getElementById('centreCode')?.value.trim() || '',
-            county: document.getElementById('centreCounty')?.value || '',
-            subCounty: document.getElementById('centreSubCounty')?.value.trim() || '',
-            address: document.getElementById('centreAddress')?.value.trim() || '',
-            contactPerson: document.getElementById('centreContactPerson')?.value.trim() || '',
-            phone: document.getElementById('centrePhone')?.value.trim() || '',
-            email: document.getElementById('centreEmail')?.value.trim() || '',
-            status: document.getElementById('centreStatus')?.value || 'active',
-            description: document.getElementById('centreDescription')?.value.trim() || ''
-        };
-        
-        // Validation
-        if (!centreData.name) {
-            this.showAlert('Centre name is required', 'error');
-            return;
-        }
-        
-        if (!centreData.county) {
-            this.showAlert('County is required', 'error');
-            return;
-        }
-        
-        try {
-            // Show loading
-            const submitBtn = document.querySelector('#centreForm button[type="submit"]');
-            const originalText = submitBtn?.textContent || 'Save';
-            if (submitBtn) {
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-                submitBtn.disabled = true;
-            }
             
-            // Save to database
-            let result;
-            if (this.currentEditId) {
-                // Update existing
-                if (this.db && this.db.updateCentre) {
-                    result = await this.db.updateCentre(this.currentEditId, centreData);
-                }
-                this.showAlert('✅ Centre updated successfully!', 'success');
-            } else {
-                // Add new
-                if (this.db && this.db.addCentre) {
-                    result = await this.db.addCentre(centreData);
-                }
-                this.showAlert('✅ Centre added successfully!', 'success');
-            }
-            
-            // Close modal and refresh
-            this.closeModal();
-            await this.loadCentres();
-            
-        } catch (error) {
-            console.error('❌ Error saving centre:', error);
-            this.showAlert('Failed to save centre: ' + error.message, 'error');
-        } finally {
-            // Reset button
-            const submitBtn = document.querySelector('#centreForm button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.innerHTML = this.currentEditId ? 
-                    '<i class="fas fa-save"></i> Update Centre' : 
-                    '<i class="fas fa-plus"></i> Add Centre';
-                submitBtn.disabled = false;
-            }
+            console.log('✅ Form reset');
         }
     }
     
@@ -337,20 +396,45 @@ class CentreManager {
         try {
             console.log('📍 Loading centres...');
             
-            // Get from database
-            if (this.db && this.db.getCentres) {
+            if (this.db && typeof this.db.getCentres === 'function') {
                 this.centres = await this.db.getCentres();
             } else {
                 // Mock data for testing
                 this.centres = [
-                    { id: 1, name: 'Nairobi Main Centre', code: 'NBO001', county: 'Nairobi', status: 'active' },
-                    { id: 2, name: 'Mombasa Branch', code: 'MBA001', county: 'Mombasa', status: 'active' },
-                    { id: 3, name: 'Kisumu Centre', code: 'KSM001', county: 'Kisumu', status: 'inactive' }
+                    { 
+                        id: 1, 
+                        name: 'Nairobi Main Centre', 
+                        code: 'NBO001', 
+                        county: 'Nairobi',
+                        subCounty: 'Westlands',
+                        address: 'Westlands Road',
+                        contactPerson: 'John Doe',
+                        phone: '0712345678',
+                        email: 'nairobi@example.com',
+                        status: 'active',
+                        description: 'Main centre in Nairobi'
+                    },
+                    { 
+                        id: 2, 
+                        name: 'Mombasa Branch', 
+                        code: 'MBA001', 
+                        county: 'Mombasa',
+                        status: 'active'
+                    },
+                    { 
+                        id: 3, 
+                        name: 'Kisumu Centre', 
+                        code: 'KSM001', 
+                        county: 'Kisumu',
+                        status: 'inactive'
+                    }
                 ];
             }
             
             this.renderCentres();
             this.updateStats();
+            
+            console.log(`✅ Loaded ${this.centres.length} centres`);
             
         } catch (error) {
             console.error('❌ Error loading centres:', error);
@@ -363,7 +447,10 @@ class CentreManager {
      */
     renderCentres() {
         const grid = document.getElementById('centresGrid');
-        if (!grid) return;
+        if (!grid) {
+            console.error('❌ centresGrid not found!');
+            return;
+        }
         
         if (this.centres.length === 0) {
             grid.innerHTML = `
@@ -388,7 +475,7 @@ class CentreManager {
                 <div class="card-body">
                     <p><strong>Code:</strong> ${centre.code || 'N/A'}</p>
                     <p><strong>County:</strong> ${centre.county || 'N/A'}</p>
-                    <p><strong>Sub-County:</strong> ${centre.subCounty || 'N/A'}</p>
+                    ${centre.subCounty ? `<p><strong>Sub-County:</strong> ${centre.subCounty}</p>` : ''}
                     ${centre.contactPerson ? `<p><strong>Contact:</strong> ${centre.contactPerson}</p>` : ''}
                     ${centre.phone ? `<p><strong>Phone:</strong> ${centre.phone}</p>` : ''}
                 </div>
@@ -405,24 +492,10 @@ class CentreManager {
     }
     
     /**
-     * Update statistics
-     */
-    updateStats() {
-        const total = this.centres.length;
-        const active = this.centres.filter(c => c.status === 'active').length;
-        const inactive = this.centres.filter(c => c.status === 'inactive').length;
-        const counties = new Set(this.centres.map(c => c.county)).size;
-        
-        document.getElementById('totalCentres').textContent = total;
-        document.getElementById('activeCentres').textContent = active;
-        document.getElementById('inactiveCentres').textContent = inactive;
-        document.getElementById('totalCounties').textContent = counties;
-    }
-    
-    /**
      * Edit centre
      */
     editCentre(centreId) {
+        console.log(`✏️ Editing centre ${centreId}...`);
         this.openCentreModal(centreId);
     }
     
@@ -435,7 +508,9 @@ class CentreManager {
         }
         
         try {
-            if (this.db && this.db.deleteCentre) {
+            console.log(`🗑️ Deleting centre ${centreId}...`);
+            
+            if (this.db && typeof this.db.deleteCentre === 'function') {
                 await this.db.deleteCentre(centreId);
             }
             
@@ -449,6 +524,28 @@ class CentreManager {
     }
     
     /**
+     * Update statistics
+     */
+    updateStats() {
+        const total = this.centres.length;
+        const active = this.centres.filter(c => c.status === 'active').length;
+        const inactive = this.centres.filter(c => c.status === 'inactive').length;
+        const counties = [...new Set(this.centres.map(c => c.county).filter(Boolean))].length;
+        
+        const updateElement = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        };
+        
+        updateElement('totalCentres', total);
+        updateElement('activeCentres', active);
+        updateElement('inactiveCentres', inactive);
+        updateElement('totalCounties', counties);
+        
+        console.log('📊 Stats updated:', { total, active, inactive, counties });
+    }
+    
+    /**
      * Export centres
      */
     async exportCentres() {
@@ -458,8 +555,7 @@ class CentreManager {
                 return;
             }
             
-            // Create CSV
-            const headers = ['Name', 'Code', 'County', 'Sub-County', 'Address', 'Contact Person', 'Phone', 'Email', 'Status'];
+            const headers = ['Name', 'Code', 'County', 'Sub-County', 'Address', 'Contact Person', 'Phone', 'Email', 'Status', 'Description'];
             const rows = this.centres.map(c => [
                 c.name || '',
                 c.code || '',
@@ -469,7 +565,8 @@ class CentreManager {
                 c.contactPerson || '',
                 c.phone || '',
                 c.email || '',
-                c.status || ''
+                c.status || '',
+                c.description || ''
             ]);
             
             const csvContent = [
@@ -477,13 +574,15 @@ class CentreManager {
                 ...rows.map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(','))
             ].join('\n');
             
-            // Download
-            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = `centres_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
             a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
             
             this.showAlert(`✅ Exported ${this.centres.length} centres`, 'success');
             
@@ -494,67 +593,26 @@ class CentreManager {
     }
     
     /**
-     * Search centres
-     */
-    searchCentres(query) {
-        if (!query) {
-            this.renderCentres();
-            return;
-        }
-        
-        const searchTerm = query.toLowerCase();
-        const filtered = this.centres.filter(c =>
-            (c.name && c.name.toLowerCase().includes(searchTerm)) ||
-            (c.code && c.code.toLowerCase().includes(searchTerm)) ||
-            (c.county && c.county.toLowerCase().includes(searchTerm)) ||
-            (c.contactPerson && c.contactPerson.toLowerCase().includes(searchTerm))
-        );
-        
-        const grid = document.getElementById('centresGrid');
-        if (!grid) return;
-        
-        if (filtered.length === 0) {
-            grid.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-search fa-3x"></i>
-                    <h3>No Results Found</h3>
-                    <p>No centres match "${query}"</p>
-                </div>
-            `;
-        } else {
-            grid.innerHTML = filtered.map(centre => `
-                <div class="card">
-                    <div class="card-header">
-                        <h4>${this.escapeHtml(centre.name)}</h4>
-                        <span class="status-badge ${centre.status}">${centre.status.toUpperCase()}</span>
-                    </div>
-                    <div class="card-body">
-                        <p><strong>Code:</strong> ${centre.code || 'N/A'}</p>
-                        <p><strong>County:</strong> ${centre.county || 'N/A'}</p>
-                    </div>
-                    <div class="card-footer">
-                        <button class="btn btn-sm btn-outline" onclick="window.app.centres.editCentre('${centre.id}')">
-                            <i class="fas fa-edit"></i> Edit
-                        </button>
-                        <button class="btn btn-sm btn-danger" onclick="window.app.centres.deleteCentre('${centre.id}')">
-                            <i class="fas fa-trash"></i> Delete
-                        </button>
-                    </div>
-                </div>
-            `).join('');
-        }
-    }
-    
-    /**
      * Show alert
      */
     showAlert(message, type = 'info') {
-        // Try to use app's toast if available
-        if (this.app && this.app.showToast) {
+        console.log(`📢 ${type}: ${message}`);
+        
+        // Try app toast first
+        if (this.app && typeof this.app.showToast === 'function') {
             this.app.showToast(message, type);
-        } else {
-            alert(message);
+            return;
         }
+        
+        // Fallback to alert with emoji
+        const emojis = {
+            success: '✅',
+            error: '❌',
+            warning: '⚠️',
+            info: 'ℹ️'
+        };
+        
+        alert(`${emojis[type] || ''} ${message}`);
     }
     
     /**
@@ -566,34 +624,29 @@ class CentreManager {
         div.textContent = text;
         return div.innerHTML;
     }
-    
-    /**
-     * Refresh centres
-     */
-    async refresh() {
-        await this.loadCentres();
-        this.showAlert('Centres refreshed', 'success');
-    }
 }
 
 // Global functions for HTML onclick
-window.openCentreModal = function(centreId) {
+window.openCentreModal = function(centreId = null) {
+    console.log('🌐 Global openCentreModal called');
     if (window.app && window.app.centres) {
         window.app.centres.openCentreModal(centreId);
     } else {
-        console.error('Centre manager not initialized');
-        alert('Please wait for the app to initialize');
+        console.error('❌ Centre manager not initialized');
+        alert('Please wait for app initialization');
     }
 };
 
 window.closeCentreModal = function() {
+    console.log('🌐 Global closeCentreModal called');
     if (window.app && window.app.centres) {
-        window.app.centres.closeModal();
+        window.app.centres.closeCentreModal();
     }
 };
 
 window.saveCentre = function(event) {
     if (event) event.preventDefault();
+    console.log('🌐 Global saveCentre called');
     if (window.app && window.app.centres) {
         window.app.centres.saveCentre();
     } else {
@@ -602,7 +655,7 @@ window.saveCentre = function(event) {
     return false;
 };
 
-// Make it globally available
+// Make globally available
 window.CentreManager = CentreManager;
 
-console.log('✅ Centre Manager module loaded');
+console.log('✅ Centre Manager module loaded and ready');
