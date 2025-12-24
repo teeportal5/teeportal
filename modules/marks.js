@@ -40,7 +40,8 @@ class MarksManager {
     this.addDuplicateCheckingStyles();
         // Initialize modal handlers first
         this.initModalHandlers();
-        
+         // ✅ ADD THIS LINE - Prevent duplicate form submissions
+    this.preventDuplicateFormSubmissions();
         // Search input with debounce
         const searchInput = document.getElementById('marksSearch');
         if (searchInput) {
@@ -261,59 +262,78 @@ hideDuplicateChecking() {
     /**
      * Handle single save marks - prevents multiple saves
      */
-   async handleSingleSaveMarks(event) {
+  async handleSingleSaveMarks(event) {
     event.preventDefault();
     
-    // Check if already saving
+    console.log('🛡️ Single save protection check...');
+    
+    // ✅ STRICTER: Check if already saving
     if (this.isSaving) {
-        console.log('⚠️ Already saving, ignoring duplicate click');
+        console.log('⚠️ BLOCKED: Already saving, ignoring duplicate click');
+        this.showToast('Already saving, please wait...', 'warning');
         return false;
     }
     
-    // Set saving flag
+    // ✅ Set saving flag IMMEDIATELY
     this.isSaving = true;
+    console.log('🔒 Save lock activated');
     
-    // Disable submit button to prevent multiple clicks
+    // Disable submit button
     const submitBtn = document.getElementById('saveMarksBtn');
     const originalText = submitBtn.innerHTML;
+    const originalDisabled = submitBtn.disabled;
+    
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
     submitBtn.disabled = true;
+    
+    // Also disable form inputs temporarily
+    const formInputs = document.querySelectorAll('#marksForm input, #marksForm select, #marksForm button');
+    formInputs.forEach(input => {
+        if (input !== submitBtn) {
+            input.disabled = true;
+        }
+    });
     
     try {
         console.log('📝 Handling single marks submission...');
         
         // Get form data
         const formData = this.getMarksFormData();
+        console.log('📊 Form data:', formData);
         
         // Validate form data
         if (!this.validateMarksForm(formData)) {
-            this.resetSaveButton(submitBtn, originalText);
-            this.isSaving = false;
-            return false;
+            console.log('❌ Form validation failed');
+            throw new Error('Form validation failed');
         }
         
-        // Check if this is an overwrite operation (from duplicate warning)
+        // Check if this is an overwrite operation
         const isDuplicate = document.getElementById('isDuplicate')?.value === 'true';
         const existingId = document.getElementById('existingMarksId')?.value;
         
         let result;
         
         if (isDuplicate && existingId) {
-            // Overwrite existing marks (user confirmed from duplicate warning)
+            // Overwrite existing marks
             console.log(`🔄 Overwriting existing marks ID: ${existingId}`);
             result = await this.db.updateMark(existingId, formData);
             this.showToast('✅ Marks updated successfully!', 'success');
         } else {
             // Save new marks - SINGLE SAVE
-            // NO DUPLICATE CHECK HERE - already done in real-time
             console.log('💾 Saving new marks (single save)...');
             result = await this.db.addMark(formData);
             this.showToast('✅ Marks saved successfully!', 'success');
         }
         
         // Close modal and refresh table
+        console.log('✅ Save successful, closing modal...');
         this.closeModal('marksModal');
-        await this.loadMarksTable();
+        
+        // Small delay before refreshing table
+        setTimeout(async () => {
+            await this.loadMarksTable();
+            console.log('✅ Table refreshed');
+        }, 500);
         
         return true;
         
@@ -323,14 +343,55 @@ hideDuplicateChecking() {
         return false;
         
     } finally {
-        // Always reset saving flag
+        console.log('🔓 Releasing save lock...');
+        
+        // ✅ Always reset saving flag
         this.isSaving = false;
         
-        // Reset button state
+        // ✅ Reset button state
         if (submitBtn) {
             submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
+            submitBtn.disabled = originalDisabled;
         }
+        
+        // ✅ Re-enable form inputs
+        const formInputs = document.querySelectorAll('#marksForm input, #marksForm select, #marksForm button');
+        formInputs.forEach(input => {
+            input.disabled = false;
+        });
+        
+        console.log('🔄 Form reset complete');
+    }
+}
+    // Add this method to prevent multiple event listeners
+preventDuplicateFormSubmissions() {
+    const marksForm = document.getElementById('marksForm');
+    if (!marksForm) return;
+    
+    console.log('🛡️ Setting up form submission protection...');
+    
+    // Remove ALL existing submit event listeners
+    const newForm = marksForm.cloneNode(true);
+    marksForm.parentNode.replaceChild(newForm, marksForm);
+    
+    // Add single submit handler
+    newForm.addEventListener('submit', (e) => {
+        console.log('📝 Form submit event fired');
+        this.handleSingleSaveMarks(e);
+    });
+    
+    // Also prevent double-clicks on the save button
+    const saveBtn = document.getElementById('saveMarksBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', (e) => {
+            console.log('🖱️ Save button clicked');
+            if (this.isSaving) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('⚠️ Save button blocked (already saving)');
+                return false;
+            }
+        });
     }
 }
     addDuplicateCheckingStyles() {
