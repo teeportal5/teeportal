@@ -913,7 +913,93 @@ class TEEPortalSupabaseDB {
             return [];
         }
     }
-    
+    // Add these methods to your TEEPortalSupabaseDB class in database.js:
+
+async addCentre(centreData) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        const { data, error } = await this.supabase
+            .from('centres')
+            .insert([centreData])
+            .select()
+            .single();
+            
+        if (error) {
+            console.error('❌ Database error adding centre:', error);
+            throw new Error(`Failed to add centre: ${error.message}`);
+        }
+        
+        console.log('✅ Centre added successfully:', data);
+        return data;
+        
+    } catch (error) {
+        console.error('❌ Error adding centre:', error);
+        throw error;
+    }
+}
+
+async updateCentre(centreId, updates) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        const updateObj = {
+            name: updates.name || '',
+            code: updates.code || '',
+            county: updates.county || '',
+            sub_county: updates.sub_county || '',
+            address: updates.address || '',
+            contact_person: updates.contact_person || '',
+            phone: updates.phone || '',
+            email: updates.email || '',
+            status: updates.status || 'active',
+            description: updates.description || '',
+            updated_at: new Date().toISOString()
+        };
+        
+        const { data, error } = await this.supabase
+            .from('centres')
+            .update(updateObj)
+            .eq('id', centreId)
+            .select()
+            .single();
+            
+        if (error) {
+            console.error('❌ Database error updating centre:', error);
+            throw new Error(`Failed to update centre: ${error.message}`);
+        }
+        
+        console.log('✅ Centre updated successfully:', data);
+        return data;
+        
+    } catch (error) {
+        console.error('❌ Error updating centre:', error);
+        throw error;
+    }
+}
+
+async deleteCentre(centreId) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        const { error } = await this.supabase
+            .from('centres')
+            .delete()
+            .eq('id', centreId);
+            
+        if (error) {
+            console.error('❌ Database error deleting centre:', error);
+            throw new Error(`Failed to delete centre: ${error.message}`);
+        }
+        
+        console.log('✅ Centre deleted successfully');
+        return { success: true, message: 'Centre deleted' };
+        
+    } catch (error) {
+        console.error('❌ Error deleting centre:', error);
+        throw error;
+    }
+}
     // ========== UTILITY METHODS ==========
     
     calculateGrade(percentage) {
