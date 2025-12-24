@@ -1077,3 +1077,100 @@ class CentreManager {
      * Show alert/toast message
      */
     showAlert(message, type = 'info') {
+        console.log(`📢 ${type.toUpperCase()}: ${message}`);
+        
+        // Use app's toast if available
+        if (this.app && typeof this.app.showToast === 'function') {
+            this.app.showToast(message, type);
+            return;
+        }
+        
+        // Fallback to browser alert with emoji
+        const emojis = {
+            success: '✅',
+            error: '❌',
+            warning: '⚠️',
+            info: 'ℹ️'
+        };
+        
+        alert(`${emojis[type] || ''} ${message}`);
+    }
+    
+    /**
+     * Escape HTML to prevent XSS
+     */
+    escapeHtml(text) {
+        if (text === null || text === undefined) return '';
+        
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+}
+
+// ============================================
+// GLOBAL FUNCTIONS FOR HTML ONCLICK ATTRIBUTES
+// ============================================
+
+window.openCentreModal = function(centreId = null) {
+    console.log('🌐 Global openCentreModal called with ID:', centreId);
+    
+    if (window.app && window.app.centres) {
+        window.app.centres.openCentreModal(centreId);
+    } else {
+        console.error('❌ Centre manager not initialized');
+        
+        // Try to initialize on the fly
+        if (window.CentreManager && window.supabase) {
+            console.log('🔄 Attempting to initialize Centre Manager...');
+            try {
+                const db = { /* your database methods */ };
+                window.app = window.app || {};
+                window.app.centres = new CentreManager(db, window.app);
+                window.app.centres.openCentreModal(centreId);
+            } catch (error) {
+                alert('Centre manager not initialized. Please refresh the page.');
+            }
+        } else {
+            alert('Centre manager not initialized. Please refresh the page.');
+        }
+    }
+};
+
+window.closeCentreModal = function() {
+    console.log('🌐 Global closeCentreModal called');
+    
+    if (window.app && window.app.centres) {
+        window.app.centres.closeCentreModal();
+    } else {
+        // Fallback: Direct DOM manipulation
+        const modal = document.getElementById('centreModal');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+    }
+};
+
+window.saveCentre = function(event) {
+    if (event) event.preventDefault();
+    console.log('🌐 Global saveCentre called');
+    
+    if (window.app && window.app.centres) {
+        window.app.centres.saveCentre();
+    } else {
+        alert('Centre manager not initialized. Please refresh the page.');
+    }
+    return false;
+};
+
+// Export for Node.js/CommonJS
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = CentreManager;
+}
+
+// Make globally available
+window.CentreManager = CentreManager;
+
+console.log('✅ Centre Manager module loaded and ready');
