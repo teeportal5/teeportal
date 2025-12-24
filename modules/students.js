@@ -76,15 +76,16 @@ class StudentManager {
             // Clear existing codes
             this.programCodes = {};
             
-            // Load all program codes
+            // Load all program codes (id -> code mapping)
             programs.forEach(program => {
                 if (program.id && program.code) {
                     this.programCodes[program.id] = program.code;
                 }
             });
-            console.log('📊 Loaded program codes:', this.programCodes);
+            console.log('📊 Loaded program codes from database:', this.programCodes);
         } else {
-            console.warn('No programs found or invalid response');
+            console.warn('No programs found in database');
+            this.programCodes = {};
         }
     } catch (error) {
         console.error('Could not load program codes:', error);
@@ -111,8 +112,7 @@ async generateRegNumber() {
         
         console.log('🔢 Generating reg number with:', { 
             programId, 
-            intakeYear,
-            programCodes: this.programCodes // Debug log
+            intakeYear 
         });
         
         if (!programId || !intakeYear) {
@@ -121,76 +121,68 @@ async generateRegNumber() {
             return;
         }
         
-        // **METHOD: Get program code from database mapping**
-        let programCode = '';
-        
-        // 1. Try to get from pre-loaded programCodes
-        if (this.programCodes && this.programCodes[programId]) {
-            programCode = this.programCodes[programId];
-            console.log(`✅ Found program code in cache: ${programCode}`);
-        } 
-        // 2. If not in cache, fetch directly from database
-        else {
-            try {
-                console.log(`🔍 Program code not in cache, fetching from database...`);
-                const program = await this.db.getProgram(programId);
-                if (program && program.code) {
-                    programCode = program.code;
-                    // Cache it for next time
-                    this.programCodes[programId] = programCode;
-                    console.log(`✅ Fetched program code from DB: ${programCode}`);
-                } else {
-                    // Fallback: Extract from program name (first 3 letters)
-                    const programText = programSelect.options[programSelect.selectedIndex]?.text || '';
-                    programCode = programText.substring(0, 3).toUpperCase();
-                    console.log(`⚠️ Using fallback program code: ${programCode}`);
+        // **METHOD 1: Use database's method to generate registration number**
+        try {
+            // Call the database method that gets the last student and generates number
+            const regNumber = await this.db.generateRegNumberNew(programId, intakeYear);
+            
+            if (regNumber) {
+                console.log('✅ Generated registration number:', regNumber);
+                regNumberInput.value = regNumber;
+                
+                // Update format display
+                const formatSpan = document.getElementById('regNumberFormat');
+                if (formatSpan) {
+                    const programCode = regNumber.split('-')[0];
+                    formatSpan.textContent = `${programCode}-${intakeYear}-###`;
                 }
-            } catch (error) {
-                console.warn('Error fetching program:', error);
-                // Ultimate fallback
-                programCode = 'GEN';
-                console.log(`❌ Using default program code: ${programCode}`);
+            } else {
+                throw new Error('Could not generate registration number');
+            }
+            
+        } catch (error) {
+            console.warn('Primary method failed, trying alternative:', error);
+            
+            // **METHOD 2: Manual generation as fallback**
+            // Get program details to get the code
+            const programs = await this.db.getPrograms();
+            const program = programs.find(p => p.id === programId);
+            
+            if (!program) {
+                throw new Error('Program not found');
+            }
+            
+            const programCode = program.code || 'GEN';
+            
+            // Get last student for this program and year using the database method
+            const lastStudent = await this.db.getLastStudentForProgramYear(programId, intakeYear);
+            
+            // Calculate next sequence number
+            let sequenceNumber = 1;
+            if (lastStudent && lastStudent.reg_number) {
+                const regParts = lastStudent.reg_number.split('-');
+                if (regParts.length === 3) {
+                    const lastSeq = parseInt(regParts[2]);
+                    if (!isNaN(lastSeq)) {
+                        sequenceNumber = lastSeq + 1;
+                    }
+                }
+            }
+            
+            // Format: DHNC-2025-001
+            const regNumber = `${programCode}-${intakeYear}-${sequenceNumber.toString().padStart(3, '0')}`;
+            
+            console.log('✅ Generated registration number (fallback):', regNumber);
+            regNumberInput.value = regNumber;
+            
+            // Update format display
+            const formatSpan = document.getElementById('regNumberFormat');
+            if (formatSpan) {
+                formatSpan.textContent = `${programCode}-${intakeYear}-###`;
             }
         }
         
-        // Validate program code format (should be 2-4 uppercase letters)
-        if (!/^[A-Z]{2,4}$/.test(programCode)) {
-            console.warn(`Invalid program code format: ${programCode}, using GEN`);
-            programCode = 'GEN';
-        }
-        
-        // Get last student number for this program and year
-        const lastStudent = await this.db.getLastStudentForProgramYear(programId, intakeYear);
-        
-        // Calculate next sequence number
-        let sequenceNumber = 1;
-        if (lastStudent && lastStudent.reg_number) {
-            console.log(`📊 Last student found: ${lastStudent.reg_number}`);
-            const regParts = lastStudent.reg_number.split('-');
-            if (regParts.length === 3) {
-                const lastSeq = parseInt(regParts[2]);
-                if (!isNaN(lastSeq)) {
-                    sequenceNumber = lastSeq + 1;
-                    console.log(`📈 Next sequence: ${sequenceNumber}`);
-                }
-            }
-        } else {
-            console.log(`📊 No previous student found for ${programCode}-${intakeYear}, starting at 001`);
-        }
-        
-        // Format: DHNC-2025-001
-        const regNumber = `${programCode}-${intakeYear}-${sequenceNumber.toString().padStart(3, '0')}`;
-        
-        console.log('✅ Generated registration number:', regNumber);
-        regNumberInput.value = regNumber;
-        
-        // Update format display
-        const formatSpan = document.getElementById('regNumberFormat');
-        if (formatSpan) {
-            formatSpan.textContent = `${programCode}-${intakeYear}-###`;
-        }
-        
-        return regNumber;
+        return regNumberInput.value;
         
     } catch (error) {
         console.error('Error generating registration number:', error);
