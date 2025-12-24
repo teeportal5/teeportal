@@ -1,4 +1,4 @@
-// modules/centres.js - Centre Management Module (Fixed Mandatory Fields)
+// modules/centres.js - FIXED County Population
 class CentreManager {
     constructor(db, app = null) {
         this.db = db;
@@ -15,6 +15,7 @@ class CentreManager {
         console.log('🚀 Initializing Centre Manager...');
         
         try {
+            // Load counties FIRST
             await this.loadCounties();
             this.setupEventListeners();
             await this.loadCentres();
@@ -26,31 +27,57 @@ class CentreManager {
     }
     
     /**
-     * Load counties for dropdown
+     * Load counties for dropdown - FIXED
      */
     async loadCounties() {
         try {
-            console.log('📍 Loading counties...');
+            console.log('📍 Loading counties for dropdown...');
             
             if (this.db && typeof this.db.getCounties === 'function') {
+                console.log('📡 Fetching counties from database...');
                 const countiesData = await this.db.getCounties();
-                this.counties = countiesData.map(item => 
-                    typeof item === 'string' ? item : item.name || item
-                );
+                
+                // Handle different response formats
+                if (Array.isArray(countiesData)) {
+                    if (countiesData.length > 0 && typeof countiesData[0] === 'string') {
+                        // Array of strings: ['Nairobi', 'Mombasa']
+                        this.counties = countiesData;
+                    } else if (countiesData.length > 0 && countiesData[0].name) {
+                        // Array of objects: [{name: 'Nairobi'}, {name: 'Mombasa'}]
+                        this.counties = countiesData.map(county => county.name);
+                    } else {
+                        // Unknown format, use defaults
+                        this.counties = this.getDefaultCounties();
+                    }
+                } else {
+                    // Not an array, use defaults
+                    this.counties = this.getDefaultCounties();
+                }
+                
+                console.log(`✅ Loaded ${this.counties.length} counties from database:`, this.counties);
             } else {
-                // Default counties
-                this.counties = [
-                    'Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret',
-                    'Kisii', 'Kakamega', 'Thika', 'Nyeri', 'Meru'
-                ];
+                // Use default counties
+                this.counties = this.getDefaultCounties();
+                console.log(`📋 Using ${this.counties.length} default counties:`, this.counties);
             }
-            
-            console.log(`✅ Loaded ${this.counties.length} counties`);
             
         } catch (error) {
             console.error('❌ Error loading counties:', error);
-            this.counties = ['Nairobi', 'Mombasa', 'Kisumu'];
+            this.counties = this.getDefaultCounties();
+            console.log('🔄 Using fallback counties due to error:', this.counties);
         }
+    }
+    
+    /**
+     * Get default counties
+     */
+    getDefaultCounties() {
+        return [
+            'Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret',
+            'Kisii', 'Kakamega', 'Thika', 'Nyeri', 'Meru',
+            'Machakos', 'Kitui', 'Garissa', 'Wajir', 'Mandera',
+            'Lamu', 'Kilifi', 'Kwale', 'Tana River', 'Taita Taveta'
+        ];
     }
     
     /**
@@ -98,7 +125,7 @@ class CentreManager {
     }
     
     /**
-     * Open centre modal
+     * Open centre modal - FIXED to populate counties
      */
     async openCentreModal(centreId = null) {
         console.log('📍 Opening centre modal...');
@@ -114,8 +141,12 @@ class CentreManager {
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
         
-        // Populate counties dropdown
-        await this.populateCountyDropdown();
+        // DEBUG: Check counties data
+        console.log('🔍 Available counties:', this.counties);
+        console.log('🔍 County dropdown element:', document.getElementById('centreCounty'));
+        
+        // Populate counties dropdown - THIS IS THE FIX
+        this.populateCountyDropdown();
         
         // If editing, load centre data
         if (centreId) {
@@ -130,32 +161,55 @@ class CentreManager {
             document.getElementById('centreName')?.focus();
         }, 100);
         
-        console.log('✅ Centre modal opened');
+        console.log('✅ Centre modal opened with counties populated');
     }
     
     /**
-     * Populate county dropdown
+     * Populate county dropdown - FIXED FUNCTION
      */
-    async populateCountyDropdown() {
+    populateCountyDropdown() {
         const countySelect = document.getElementById('centreCounty');
+        
         if (!countySelect) {
-            console.error('❌ centreCounty select not found!');
+            console.error('❌ centreCounty select element not found in DOM!');
+            console.error('🔍 Searching for centreCounty...', document.querySelectorAll('select'));
             return;
         }
         
         console.log(`📍 Populating county dropdown with ${this.counties.length} counties`);
+        console.log('🔍 Counties to add:', this.counties);
         
-        // Clear and add options
-        countySelect.innerHTML = '<option value="">Select County</option>';
+        // Save current value if editing
+        const currentValue = countySelect.value;
         
+        // Clear existing options (keep first option if it exists)
+        countySelect.innerHTML = '';
+        
+        // Add default option
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = 'Select County';
+        defaultOption.disabled = true;
+        defaultOption.selected = !currentValue;
+        countySelect.appendChild(defaultOption);
+        
+        // Add all counties
         this.counties.forEach(county => {
             const option = document.createElement('option');
             option.value = county;
             option.textContent = county;
+            
+            // Select if this was the previously selected value
+            if (currentValue === county) {
+                option.selected = true;
+                defaultOption.selected = false;
+            }
+            
             countySelect.appendChild(option);
         });
         
-        console.log('✅ County dropdown populated');
+        console.log(`✅ County dropdown populated with ${this.counties.length} options`);
+        console.log('🔍 Final dropdown HTML:', countySelect.innerHTML);
     }
     
     /**
@@ -200,6 +254,9 @@ class CentreManager {
                 const element = document.getElementById(fieldId);
                 if (element) {
                     element.value = value;
+                    console.log(`✓ Set ${fieldId} = "${value}"`);
+                } else {
+                    console.error(`❌ Field ${fieldId} not found in DOM`);
                 }
             });
             
@@ -218,7 +275,7 @@ class CentreManager {
     }
     
     /**
-     * Save centre - ONLY NAME, CODE, COUNTY ARE MANDATORY
+     * Save centre
      */
     async saveCentre() {
         console.log('💾 Saving centre...');
@@ -251,7 +308,7 @@ class CentreManager {
             description: centreDescription
         };
         
-        console.log('📝 Form data:', centreData);
+        console.log('📝 Form data to save:', centreData);
         
         // VALIDATION: Only check mandatory fields
         const errors = [];
@@ -406,13 +463,7 @@ class CentreManager {
                         name: 'Nairobi Main Centre', 
                         code: 'NBO001', 
                         county: 'Nairobi',
-                        subCounty: 'Westlands',
-                        address: 'Westlands Road',
-                        contactPerson: 'John Doe',
-                        phone: '0712345678',
-                        email: 'nairobi@example.com',
-                        status: 'active',
-                        description: 'Main centre in Nairobi'
+                        status: 'active'
                     },
                     { 
                         id: 2, 
@@ -420,13 +471,6 @@ class CentreManager {
                         code: 'MBA001', 
                         county: 'Mombasa',
                         status: 'active'
-                    },
-                    { 
-                        id: 3, 
-                        name: 'Kisumu Centre', 
-                        code: 'KSM001', 
-                        county: 'Kisumu',
-                        status: 'inactive'
                     }
                 ];
             }
@@ -476,8 +520,6 @@ class CentreManager {
                     <p><strong>Code:</strong> ${centre.code || 'N/A'}</p>
                     <p><strong>County:</strong> ${centre.county || 'N/A'}</p>
                     ${centre.subCounty ? `<p><strong>Sub-County:</strong> ${centre.subCounty}</p>` : ''}
-                    ${centre.contactPerson ? `<p><strong>Contact:</strong> ${centre.contactPerson}</p>` : ''}
-                    ${centre.phone ? `<p><strong>Phone:</strong> ${centre.phone}</p>` : ''}
                 </div>
                 <div class="card-footer">
                     <button class="btn btn-sm btn-outline" onclick="window.app.centres.editCentre('${centre.id}')">
@@ -541,8 +583,6 @@ class CentreManager {
         updateElement('activeCentres', active);
         updateElement('inactiveCentres', inactive);
         updateElement('totalCounties', counties);
-        
-        console.log('📊 Stats updated:', { total, active, inactive, counties });
     }
     
     /**
@@ -598,21 +638,12 @@ class CentreManager {
     showAlert(message, type = 'info') {
         console.log(`📢 ${type}: ${message}`);
         
-        // Try app toast first
         if (this.app && typeof this.app.showToast === 'function') {
             this.app.showToast(message, type);
             return;
         }
         
-        // Fallback to alert with emoji
-        const emojis = {
-            success: '✅',
-            error: '❌',
-            warning: '⚠️',
-            info: 'ℹ️'
-        };
-        
-        alert(`${emojis[type] || ''} ${message}`);
+        alert(message);
     }
     
     /**
