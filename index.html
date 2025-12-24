@@ -524,19 +524,21 @@
     <!-- Marks Table - FIXED: Removed checkbox column to match your HTML -->
     <div class="table-container">
         <table class="data-table" id="marksTable">
-            <thead>
-                <tr>
-                    <!-- REMOVED checkbox column -->
-                    <th>Student</th>
-                    <th>Reg No</th>
-                    <th>Course</th>
-                    <th>Centre</th>
-                    <th>Score</th>
-                    <th>Grade</th>
-                    <th>Date</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
+    <thead>
+        <tr>
+            <th>Student</th> <!-- Name + Reg No combined -->
+            <th>Course</th>
+            <th>Centre</th> <!-- Centre + Status combined -->
+            <th>Score</th>
+            <th>Grade</th>
+            <th>Date</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody id="marksTableBody">
+        <!-- Data will be loaded here -->
+    </tbody>
+</table>
             <tbody id="marksTableBody">
                 <!-- Data will be loaded here -->
                 <tr>
