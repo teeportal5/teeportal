@@ -627,7 +627,10 @@ getGradeColor(grade) {
     
     // ==================== FORM DATA HANDLING ====================
     
-    getMarksFormData() {
+  getMarksFormData() {
+    console.log('📝 Getting form data...');
+    
+    // Get form field values
     const studentSelect = document.getElementById('marksStudent');
     const courseSelect = document.getElementById('marksCourse');
     const scoreInput = document.getElementById('marksScore');
@@ -635,17 +638,25 @@ getGradeColor(grade) {
     const assessmentTypeSelect = document.getElementById('assessmentType');
     const assessmentDateInput = document.getElementById('assessmentDate');
     
-    // ✅ FIX: Get status from radio buttons
+    // ✅ FIXED: Get radio button values CORRECTLY
     const statusPublished = document.getElementById('statusPublished');
     const statusDraft = document.getElementById('statusDraft');
     
-    // ✅ FIX: Define visibleToStudent variable
+    console.log('🔍 Radio button states:', {
+        published: statusPublished?.checked,
+        draft: statusDraft?.checked
+    });
+    
     let visibleToStudent = true; // Default to published
     
     if (statusPublished && statusPublished.checked) {
-        visibleToStudent = true; // Published
+        visibleToStudent = true;
+        console.log('📢 Status: Published (visible to student)');
     } else if (statusDraft && statusDraft.checked) {
-        visibleToStudent = false; // Draft/Hidden
+        visibleToStudent = false;
+        console.log('📢 Status: Draft (hidden from student)');
+    } else {
+        console.warn('⚠️ No radio button selected, defaulting to published');
     }
     
     const studentId = studentSelect?.value;
@@ -655,6 +666,43 @@ getGradeColor(grade) {
     const assessmentType = assessmentTypeSelect?.value || 'exam';
     const assessmentDate = assessmentDateInput?.value || new Date().toISOString().split('T')[0];
     
+    console.log('📊 Form values:', {
+        studentId,
+        courseId,
+        score,
+        maxScore,
+        assessmentType,
+        assessmentDate,
+        visibleToStudent
+    });
+    
+    // Validate required fields
+    if (!studentId) {
+        console.error('❌ Student not selected');
+        throw new Error('Please select a student');
+    }
+    
+    if (!courseId) {
+        console.error('❌ Course not selected');
+        throw new Error('Please select a course');
+    }
+    
+    if (isNaN(score) || score < 0) {
+        console.error('❌ Invalid score:', score);
+        throw new Error('Please enter a valid score');
+    }
+    
+    if (maxScore <= 0) {
+        console.error('❌ Invalid max score:', maxScore);
+        throw new Error('Maximum score must be greater than 0');
+    }
+    
+    if (score > maxScore) {
+        console.error('❌ Score exceeds max:', score, '>', maxScore);
+        throw new Error(`Score cannot exceed maximum score of ${maxScore}`);
+    }
+    
+    // Assessment name mapping
     let assessmentName;
     switch(assessmentType) {
         case 'exam':
@@ -676,15 +724,24 @@ getGradeColor(grade) {
             assessmentName = 'Assessment';
     }
     
+    // Calculate percentage
     let percentage = 0;
     if (maxScore > 0) {
         percentage = (score / maxScore) * 100;
     }
     percentage = parseFloat(percentage.toFixed(2));
     
+    // Calculate grade
     const grade = this.calculateGrade(percentage);
     const gradePoints = this.getGradePoints(grade);
     
+    console.log('🎓 Calculated grade:', {
+        percentage,
+        grade,
+        gradePoints
+    });
+    
+    // Return form data object
     return {
         student_id: studentId,
         course_id: courseId,
@@ -695,39 +752,90 @@ getGradeColor(grade) {
         percentage: percentage,
         grade: grade,
         grade_points: gradePoints,
-        visible_to_student: visibleToStudent, // ✅ FIXED: Now defined
+        visible_to_student: visibleToStudent, // ✅ FIXED: Now properly defined
         entered_by: this.app.user?.id || 'system',
         assessment_date: assessmentDate
     };
 }
     validateMarksForm(formData) {
-        if (!formData.student_id) {
-            this.showToast('Please select a student', 'error');
-            return false;
-        }
-        
-        if (!formData.course_id) {
-            this.showToast('Please select a course', 'error');
-            return false;
-        }
-        
-        if (formData.score < 0) {
-            this.showToast('Score cannot be negative', 'error');
-            return false;
-        }
-        
-        if (formData.max_score <= 0) {
-            this.showToast('Maximum score must be greater than 0', 'error');
-            return false;
-        }
-        
-        if (formData.score > formData.max_score) {
-            this.showToast(`Score cannot exceed maximum score of ${formData.max_score}`, 'error');
-            return false;
-        }
-        
-        return true;
+    console.log('✅ Validating form data...');
+    
+    const errors = [];
+    
+    if (!formData.student_id) {
+        errors.push('Please select a student');
+        this.showFieldError('marksStudent', 'Please select a student');
     }
+    
+    if (!formData.course_id) {
+        errors.push('Please select a course');
+        this.showFieldError('marksCourse', 'Please select a course');
+    }
+    
+    if (formData.score < 0) {
+        errors.push('Score cannot be negative');
+        this.showFieldError('marksScore', 'Score cannot be negative');
+    }
+    
+    if (formData.max_score <= 0) {
+        errors.push('Maximum score must be greater than 0');
+        this.showFieldError('marksMaxScore', 'Maximum score must be greater than 0');
+    }
+    
+    if (formData.score > formData.max_score) {
+        errors.push(`Score cannot exceed maximum score of ${formData.max_score}`);
+        this.showFieldError('marksScore', `Score cannot exceed maximum score of ${formData.max_score}`);
+    }
+    
+    if (!formData.assessment_date) {
+        errors.push('Please select an assessment date');
+        this.showFieldError('assessmentDate', 'Please select an assessment date');
+    }
+    
+    if (errors.length > 0) {
+        console.error('❌ Validation errors:', errors);
+        this.showToast(errors[0], 'error');
+        return false;
+    }
+    
+    console.log('✅ Form validation passed');
+    return true;
+}
+
+// Add helper method for field errors
+showFieldError(fieldId, message) {
+    const field = document.getElementById(fieldId);
+    if (field) {
+        field.style.borderColor = '#ef4444';
+        
+        // Create or update error message
+        let errorElement = document.getElementById(`${fieldId}Error`);
+        if (!errorElement) {
+            errorElement = document.createElement('div');
+            errorElement.id = `${fieldId}Error`;
+            errorElement.className = 'field-error';
+            errorElement.style.cssText = 'color: #ef4444; font-size: 0.75rem; margin-top: 4px;';
+            field.parentNode.appendChild(errorElement);
+        }
+        errorElement.textContent = message;
+    }
+}
+
+// Clear field errors when modal opens
+clearFieldErrors() {
+    const errorFields = ['marksStudent', 'marksCourse', 'marksScore', 'marksMaxScore', 'assessmentDate'];
+    errorFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.style.borderColor = '';
+        }
+        
+        const errorElement = document.getElementById(`${fieldId}Error`);
+        if (errorElement) {
+            errorElement.remove();
+        }
+    });
+}
     
     // ==================== CORE DATA LOADING ====================
     
@@ -1455,29 +1563,46 @@ getGradeColor(grade) {
     // ==================== MODAL POPULATION ====================
     
     async openMarksModal() {
-        try {
-            await this.populateStudentDropdown();
-            await this.populateCourseDropdown();
-            
-            const dateField = document.getElementById('assessmentDate');
-            if (dateField) {
-                dateField.value = new Date().toISOString().split('T')[0];
-            }
-            
-            const maxScoreField = document.getElementById('marksMaxScore');
-            if (maxScoreField) {
-                maxScoreField.value = 100;
-            }
-            
-            this.setupMarksModalListeners();
-            this.openModal('marksModal');
-            this.updateMarksGradeDisplay();
-            
-        } catch (error) {
-            console.error('Error opening marks modal:', error);
-            this.showToast('Error opening form', 'error');
+    try {
+        await this.populateStudentDropdown();
+        await this.populateCourseDropdown();
+        
+        const dateField = document.getElementById('assessmentDate');
+        if (dateField) {
+            dateField.value = new Date().toISOString().split('T')[0];
         }
+        
+        const maxScoreField = document.getElementById('marksMaxScore');
+        if (maxScoreField) {
+            maxScoreField.value = '100';
+        }
+        
+        const scoreField = document.getElementById('marksScore');
+        if (scoreField) {
+            scoreField.value = '';
+        }
+        
+        // ✅ Clear any existing field errors
+        this.clearFieldErrors();
+        
+        // ✅ Ensure radio buttons are in correct state
+        const statusPublished = document.getElementById('statusPublished');
+        const statusDraft = document.getElementById('statusDraft');
+        
+        if (statusPublished) statusPublished.checked = true;
+        if (statusDraft) statusDraft.checked = false;
+        
+        this.setupMarksModalListeners();
+        this.openModal('marksModal');
+        this.updateMarksGradeDisplay();
+        
+        console.log('✅ Marks modal opened successfully');
+        
+    } catch (error) {
+        console.error('Error opening marks modal:', error);
+        this.showToast('Error opening form', 'error');
     }
+}
     
     async populateStudentDropdown() {
     const select = document.getElementById('marksStudent');
