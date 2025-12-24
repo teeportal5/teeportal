@@ -1846,78 +1846,112 @@ if (typeof window !== 'undefined') {
         </form>
     </div>
 </div>
-<!-- Marks Modal - WITH DUPLICATE VALIDATION -->
+<!-- Marks Modal - WITH REAL-TIME DUPLICATE CHECKING -->
 <div id="marksModal" class="modal">
-    <div class="modal-content">
+    <div class="modal-content" style="max-width: 650px;">
         <div class="modal-header">
-            <h3>Enter Marks</h3>
-            <span class="close" data-modal-close>&times;</span>
+            <h3><i class="fas fa-chart-bar"></i> Enter Marks</h3>
+            <span class="close" data-modal-close="marksModal">&times;</span>
         </div>
-        <form id="marksForm" onsubmit="return window.app?.marks?.validateAndSubmitMarks(event)">
-            <div class="modal-body">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Student *</label>
-                        <select id="marksStudent" class="form-control" required
-                                onchange="if(window.app?.marks) window.app.marks.checkForDuplicate()">
-                            <option value="">Select Student</option>
-                        </select>
-                        <small class="form-hint" id="studentHint" style="display: none;"></small>
-                    </div>
-                    <div class="form-group">
-                        <label>Course *</label>
-                        <select id="marksCourse" class="form-control" required
-                                onchange="if(window.app?.marks) window.app.marks.checkForDuplicate()">
-                            <option value="">Select Course</option>
-                        </select>
-                        <small class="form-hint" id="courseHint" style="display: none;"></small>
-                    </div>
-                </div>
-                
-                <!-- Duplicate Warning Alert -->
-                <div id="duplicateWarning" class="duplicate-alert" style="display: none;">
-                    <div class="duplicate-alert-content">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <div class="duplicate-message">
-                            <strong>Duplicate Marks Found!</strong>
-                            <p id="duplicateDetails">This student already has marks for this course.</p>
-                            <div class="duplicate-actions">
-                                <button type="button" class="btn-sm btn-warning" onclick="window.app?.marks?.overwriteDuplicate()">
-                                    <i class="fas fa-redo"></i> Overwrite
-                                </button>
-                                <button type="button" class="btn-sm btn-secondary" onclick="window.app?.marks?.closeDuplicateWarning()">
-                                    <i class="fas fa-times"></i> Cancel
-                                </button>
+        
+        <div class="modal-body">
+            <!-- REAL-TIME DUPLICATE WARNING -->
+            <div id="duplicateWarning" style="display: none; margin-bottom: 20px;"></div>
+            
+            <form id="marksForm">
+                <div class="form-section">
+                    <h4><i class="fas fa-user-graduate"></i> Student & Course Information</h4>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="marksStudent">Student *</label>
+                            <select id="marksStudent" name="student" required 
+                                    onchange="window.app?.marks?.checkForDuplicateMarks()">
+                                <option value="">Select Student...</option>
+                                <!-- Populated dynamically -->
+                            </select>
+                            <div class="form-loading" id="studentLoading" style="display: none;">
+                                <i class="fas fa-spinner fa-spin"></i> Loading...
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="marksCourse">Course *</label>
+                            <select id="marksCourse" name="course" required 
+                                    onchange="window.app?.marks?.checkForDuplicateMarks()">
+                                <option value="">Select Course...</option>
+                                <!-- Populated dynamically -->
+                            </select>
+                            <div class="form-loading" id="courseLoading" style="display: none;">
+                                <i class="fas fa-spinner fa-spin"></i> Loading...
                             </div>
                         </div>
                     </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Score *</label>
-                       <input type="number" id="marksScore" class="form-control" step="0.01" required 
-                              oninput="window.app.marks.updateMarksGradeDisplay()">
-                    </div>
-                    <div class="form-group">
-                        <label>Out of</label>
-                       <input type="number" id="marksMaxScore" class="form-control" value="100" 
-                              oninput="window.app.marks.updateMarksGradeDisplay()">
-                    </div>
-                </div>
-                
-                <!-- Grade Classification Display -->
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Percentage</label>
-                        <div class="percentage-display">
-                            <input type="text" id="marksPercentage" class="form-control" readonly 
-                                   style="background-color: #f8f9fa; font-weight: bold;">
+                    
+                    <!-- DUPLICATE STATUS INDICATOR -->
+                    <div id="duplicateStatus" style="display: none; margin-top: 10px;">
+                        <div class="status-message" style="padding: 8px 12px; border-radius: 6px;">
+                            <i class="fas fa-sync-alt fa-spin"></i>
+                            <span>Checking for existing marks...</span>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>Grade Classification</label>
-                        <div class="grade-classification">
+                </div>
+                
+                <div class="form-section">
+                    <h4><i class="fas fa-chart-line"></i> Assessment Details</h4>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="assessmentType">Assessment Type *</label>
+                            <select id="assessmentType" name="assessmentType" required
+                                    onchange="window.app?.marks?.checkForDuplicateMarks()">
+                                <option value="exam">Final Exam</option>
+                                <option value="test">Test</option>
+                                <option value="assignment">Assignment</option>
+                                <option value="practical">Practical</option>
+                                <option value="cat">CAT</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="assessmentDate">Assessment Date *</label>
+                            <input type="date" id="assessmentDate" name="assessmentDate" required
+                                   onchange="window.app?.marks?.checkForDuplicateMarks()">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <h4><i class="fas fa-percentage"></i> Score & Grading</h4>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="marksScore">Score *</label>
+                            <input type="number" id="marksScore" name="score" step="0.01" min="0" required
+                                   placeholder="Enter score" 
+                                   oninput="window.app?.marks?.updateMarksGradeDisplay()">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="marksMaxScore">Maximum Score *</label>
+                            <input type="number" id="marksMaxScore" name="maxScore" value="100" 
+                                   min="1" step="0.01" required
+                                   oninput="window.app?.marks?.updateMarksGradeDisplay()">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Percentage</label>
+                            <div class="input-with-icon">
+                                <input type="text" id="marksPercentage" readonly 
+                                       class="form-control" style="background: #f8f9fa;">
+                                <span class="input-icon">%</span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Grade</label>
                             <div id="gradeBadge" class="grade-badge">
                                 <span>Enter score to see grade</span>
                             </div>
@@ -1925,37 +1959,20 @@ if (typeof window !== 'undefined') {
                     </div>
                 </div>
                 
-                <!-- Assessment Type section -->
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Assessment Type *</label>
-                        <select id="assessmentType" class="form-control" required
-                                onchange="if(window.app?.marks) window.app.marks.checkForDuplicate()">
-                            <option value="exam" selected>Final Exam</option>
-                            <option value="test">Test</option>
-                            <option value="assignment">Assignment</option>
-                            <option value="practical">Practical</option>
-                            <option value="cat">CAT</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Date</label>
-                        <input type="date" id="assessmentDate" class="form-control" 
-                               value="<?php echo date('Y-m-d'); ?>"
-                               onchange="if(window.app?.marks) window.app.marks.checkForDuplicate()">
-                    </div>
+                <!-- Hidden fields for duplicate handling -->
+                <input type="hidden" id="isDuplicate" name="isDuplicate" value="false">
+                <input type="hidden" id="existingMarksId" name="existingMarksId" value="">
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-modal-close="marksModal">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="saveMarksBtn">
+                        <i class="fas fa-save"></i> Save Marks
+                    </button>
                 </div>
-                
-                <!-- Hidden field for duplicate handling -->
-                <input type="hidden" id="isDuplicate" value="false">
-                <input type="hidden" id="existingMarksId" value="">
-                
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
-                <button type="submit" class="btn btn-primary" id="saveMarksBtn">Save Marks</button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
 </div>
 <!-- Centre Modal - SIMPLE VERSION -->
