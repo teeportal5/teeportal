@@ -1,4 +1,4 @@
-// modules/students.js - FIXED VERSION
+// modules/students.js - FIXED VERSION WITH AUTO-GENERATED REG NUMBERS
 class StudentManager {
     constructor(db, app = null) {
         this.db = db;
@@ -50,6 +50,7 @@ class StudentManager {
         };
         this.currentEditId = null;
         this.selectedStudents = new Set();
+        this.programCodes = {}; // Store program codes from database
     }
     
     /**
@@ -61,8 +62,100 @@ class StudentManager {
         this._setupBulkActions();
         this._setupModalHandlers();
         
+        // Load program codes for registration number generation
+        await this._loadProgramCodes();
+        
         // Populate intake years dropdown on page load
         await this._populateIntakeYears();
+    }
+    
+    /**
+     * Load program codes from database
+     */
+    async _loadProgramCodes() {
+        try {
+            const programs = await this.db.getPrograms();
+            if (programs && Array.isArray(programs)) {
+                programs.forEach(program => {
+                    if (program.id && program.code) {
+                        this.programCodes[program.id] = program.code;
+                    } else if (program.id && program.name) {
+                        // Generate code from name (first 3 letters uppercase)
+                        this.programCodes[program.id] = program.name.substring(0, 3).toUpperCase();
+                    }
+                });
+                console.log('📊 Loaded program codes:', this.programCodes);
+            }
+        } catch (error) {
+            console.warn('Could not load program codes:', error);
+        }
+    }
+    
+    /**
+     * Generate registration number based on program and intake year
+     */
+    async generateRegNumber() {
+        try {
+            const programSelect = document.getElementById('studentProgram');
+            const intakeSelect = document.getElementById('studentIntake');
+            const regNumberInput = document.getElementById('studentRegNumber');
+            
+            if (!programSelect || !intakeSelect || !regNumberInput) {
+                console.warn('Required elements not found for registration number generation');
+                return;
+            }
+            
+            const programId = programSelect.value;
+            const intakeYear = intakeSelect.value;
+            
+            console.log('🔢 Generating reg number with:', { programId, intakeYear });
+            
+            if (!programId || !intakeYear) {
+                regNumberInput.value = '';
+                this.ui.showToast('Select program and intake year first', 'warning');
+                return;
+            }
+            
+            // Get program code
+            let programCode = this.programCodes[programId];
+            if (!programCode) {
+                // Fallback: Use program name or generate from value
+                const programText = programSelect.options[programSelect.selectedIndex]?.text || 'GEN';
+                programCode = programText.substring(0, 3).toUpperCase().replace(/\s/g, '');
+                console.log('⚠️ Using fallback program code:', programCode);
+            }
+            
+            // Get last student number for this program and year
+            const lastStudent = await this.db.getLastStudentForProgramYear(programId, intakeYear);
+            
+            // Calculate next sequence number
+            let sequenceNumber = 1;
+            if (lastStudent && lastStudent.reg_number) {
+                const regParts = lastStudent.reg_number.split('-');
+                if (regParts.length === 3) {
+                    const lastSeq = parseInt(regParts[2]);
+                    if (!isNaN(lastSeq)) {
+                        sequenceNumber = lastSeq + 1;
+                    }
+                }
+            }
+            
+            // Format: CS-2025-001
+            const regNumber = `${programCode}-${intakeYear}-${sequenceNumber.toString().padStart(3, '0')}`;
+            
+            console.log('✅ Generated registration number:', regNumber);
+            regNumberInput.value = regNumber;
+            
+            // Update format display
+            const formatSpan = document.getElementById('regNumberFormat');
+            if (formatSpan) {
+                formatSpan.textContent = `${programCode}-${intakeYear}-###`;
+            }
+            
+        } catch (error) {
+            console.error('Error generating registration number:', error);
+            this.ui.showToast('Error generating registration number', 'error');
+        }
     }
     
     /**
@@ -184,6 +277,17 @@ class StudentManager {
                 this._toggleSelectAllStudents(e.target.checked);
             });
         }
+        
+        // Registration number generation triggers
+        const programSelect = document.getElementById('studentProgram');
+        const intakeSelect = document.getElementById('studentIntake');
+        
+        if (programSelect) {
+            programSelect.addEventListener('change', () => this.generateRegNumber());
+        }
+        if (intakeSelect) {
+            intakeSelect.addEventListener('change', () => this.generateRegNumber());
+        }
     }
     
     /**
@@ -224,7 +328,7 @@ class StudentManager {
     }
     
     /**
-     * Save or update student
+     * Save or update student - FIXED WITH REGISTRATION NUMBER
      */
     async saveStudent(event) {
         event.preventDefault();
@@ -245,8 +349,11 @@ class StudentManager {
                 }
             }
             
-            // Get all form data with proper field mapping
+            // Get all form data with proper field mapping - INCLUDING REG_NUMBER
             const formData = {
+                // **REGISTRATION NUMBER (CRITICAL - FIXES NOT NULL CONSTRAINT)**
+                reg_number: document.getElementById('studentRegNumber')?.value.trim() || '',
+                
                 // Personal Information
                 full_name: document.getElementById('studentName')?.value.trim() || '',
                 email: document.getElementById('studentEmail')?.value.trim() || '',
@@ -275,16 +382,20 @@ class StudentManager {
                 job_title: document.getElementById('studentJobTitle')?.value.trim() || '',
                 years_experience: parseInt(document.getElementById('studentExperience')?.value) || 0,
                 
-                // Additional Information
+                // Emergency Contact
+                emergency_contact_name: document.getElementById('studentEmergencyName')?.value.trim() || '',
+                emergency_contact_phone: document.getElementById('studentEmergencyPhone')?.value.trim() || '',
                 emergency_contact: document.getElementById('studentEmergencyContact')?.value.trim() || '',
+                
+                // Additional Information
                 notes: document.getElementById('studentNotes')?.value.trim() || ''
             };
             
             console.log('📝 Form data to save/update:', formData);
             console.log('🆔 Current edit ID:', this.currentEditId);
             
-            // Validate required fields
-            const requiredFields = ['full_name', 'email', 'program', 'intake_year'];
+            // Validate required fields - ADD REG_NUMBER TO VALIDATION
+            const requiredFields = ['reg_number', 'full_name', 'email', 'program', 'intake_year'];
             const missingFields = requiredFields.filter(field => !formData[field] || formData[field].toString().trim() === '');
             
             if (missingFields.length > 0) {
@@ -295,6 +406,13 @@ class StudentManager {
             // Validate email
             if (!this._validateEmail(formData.email)) {
                 this.ui.showToast('Please enter a valid email address', 'error');
+                return;
+            }
+            
+            // Validate registration number format (PROGRAM-YEAR-SEQ)
+            const regNumberRegex = /^[A-Z]{2,4}-\d{4}-\d{3}$/;
+            if (!regNumberRegex.test(formData.reg_number)) {
+                this.ui.showToast('Invalid registration number format. Please use format: ABC-2024-001', 'error');
                 return;
             }
             
@@ -322,7 +440,7 @@ class StudentManager {
                 result = await this.db.addStudent(formData);
                 console.log('✅ Add result:', result);
                 
-                const regNumber = result.reg_number || result.id;
+                const regNumber = result.reg_number || formData.reg_number;
                 this.ui.showToast(`Student registered successfully! Registration Number: ${regNumber}`, 'success');
             }
             
@@ -352,7 +470,7 @@ class StudentManager {
     }
     
     /**
-     * Edit student - FIXED VERSION
+     * Edit student - UPDATED WITH REGISTRATION NUMBER
      */
     async editStudent(studentId) {
         try {
@@ -373,6 +491,9 @@ class StudentManager {
             
             // Field mapping - matches the HTML form
             const fieldMap = {
+                // **REGISTRATION NUMBER**
+                'studentRegNumber': student.reg_number || '',
+                
                 // Personal Information
                 'studentName': student.full_name || '',
                 'studentEmail': student.email || '',
@@ -400,8 +521,12 @@ class StudentManager {
                 'studentJobTitle': student.job_title || '',
                 'studentExperience': student.years_experience || 0,
                 
-                // Emergency Contact & Notes
+                // Emergency Contact
+                'studentEmergencyName': student.emergency_contact_name || '',
+                'studentEmergencyPhone': student.emergency_contact_phone || '',
                 'studentEmergencyContact': student.emergency_contact || '',
+                
+                // Notes
                 'studentNotes': student.notes || ''
             };
             
@@ -431,6 +556,13 @@ class StudentManager {
             if (submitBtn) {
                 submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Student';
                 submitBtn.setAttribute('data-editing', 'true');
+            }
+            
+            // Disable registration number field when editing (shouldn't change)
+            const regNumberInput = document.getElementById('studentRegNumber');
+            if (regNumberInput) {
+                regNumberInput.readOnly = true;
+                regNumberInput.title = "Registration number cannot be changed";
             }
             
             // Open modal
@@ -467,14 +599,14 @@ class StudentManager {
     }
     
     /**
-     * Reset student form
+     * Reset student form - UPDATED FOR REGISTRATION NUMBER
      */
     _resetStudentForm() {
         console.log('🔄 Resetting student form...');
         
         const form = document.getElementById('studentForm');
         if (form) {
-            // Reset all input fields EXCEPT intake year dropdown
+            // Reset all input fields
             form.querySelectorAll('input, select, textarea').forEach(field => {
                 if (field.type === 'checkbox') {
                     field.checked = false;
@@ -483,6 +615,11 @@ class StudentManager {
                     if (field.id !== 'studentIntake') {
                         field.selectedIndex = 0;
                     }
+                } else if (field.id === 'studentRegNumber') {
+                    // Clear but keep field writable for new students
+                    field.value = '';
+                    field.readOnly = false;
+                    field.title = '';
                 } else {
                     field.value = '';
                 }
