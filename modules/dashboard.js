@@ -1,4 +1,4 @@
-// modules/dashboard.js - Dashboard module (XSS Secured) - FIXED Syntax Error
+// modules/dashboard.js - Dashboard module (XSS Secured) - FIXED Version
 class DashboardManager {
     constructor(db) {
         this.db = db;
@@ -14,11 +14,11 @@ class DashboardManager {
                 this.db.getSettings()
             ]);
             
-            // Update all statistics
-            this._updateStatistics(students, marks, courses, settings);
+            // Update all statistics - AWAIT this now
+            await this._updateStatistics(students, marks, courses, settings);
             
-            // Update charts - pass settings
-        this._updateCharts(students, marks, settings);
+            // Update charts - AWAIT this now
+            await this._updateCharts(students, marks);
             
             // Load recent activities
             await this._loadRecentActivities();
@@ -30,17 +30,17 @@ class DashboardManager {
     }
     
     /**
-     * Update all statistics for the 6 cards
+     * Update all statistics for the 6 cards - ASYNC VERSION
      */
-    _updateStatistics(students, marks, courses, settings) {
+    async _updateStatistics(students, marks, courses, settings) {
         // 1. Total Students
         this._updateStat('totalStudents', students.length);
         
         // 2. Active Centres
         this._updateStat('activeCentres', this._countActiveCentres(students));
         
-        // 3. Active Programs (Card with count AND tags)
-        this._updateActivePrograms(students, settings);
+        // 3. Active Programs (Card with count AND tags) - ASYNC CALL
+        await this._updateActivePrograms(students);
         
         // 4. Counties Covered
         this._updateStat('countiesCovered', this._countCountiesCovered(students));
@@ -97,80 +97,107 @@ class DashboardManager {
         return counties.size;
     }
     
- /**
- * Update active programs card with count and tags - SIMPLIFIED VERSION
- */
-async _updateActivePrograms(students, settings) {
-    // Count active programs
-    const programSet = new Set();
-    
-    students.forEach(student => {
-        if (student.program && student.program.trim()) {
-            programSet.add(student.program);
-        }
-    });
-    
-    // Update the count
-    this._updateStat('activePrograms', programSet.size);
-    
-    // Update the program tags
-    const programList = document.getElementById('programList');
-    if (!programList) return;
-    
-    if (programSet.size === 0) {
-        programList.innerHTML = '<span class="program-tag">No active programs</span>';
-        return;
-    }
-    
-    try {
-        // Fetch all programs from database
-        const allPrograms = await this.db.getPrograms(); // YOU NEED TO ADD THIS METHOD!
+    /**
+     * Update active programs card with count and tags - FINAL VERSION
+     */
+    async _updateActivePrograms(students) {
+        // Count active programs
+        const programSet = new Set();
         
-        // Create a map of program ID to name
-        const programMap = {};
-        if (allPrograms && Array.isArray(allPrograms)) {
-            allPrograms.forEach(program => {
-                programMap[program.id] = program.name;
-            });
-        }
+        students.forEach(student => {
+            if (student.program && student.program.trim()) {
+                programSet.add(student.program);
+            }
+        });
         
-        // Get program names from the map
-        const programIds = Array.from(programSet);
-        const programNames = programIds.map(id => {
-            return programMap[id] || id; // Fallback to ID if name not found
-        }).filter(name => name && name.trim());
+        // Update the count
+        this._updateStat('activePrograms', programSet.size);
         
-        // Limit to 4-5 programs for display
-        const displayPrograms = programNames.slice(0, 5);
+        // Update the program tags
+        const programList = document.getElementById('programList');
+        if (!programList) return;
         
-        // Create tags with XSS protection
-        if (displayPrograms.length === 0) {
-            programList.innerHTML = '<span class="program-tag">No program names found</span>';
+        if (programSet.size === 0) {
+            programList.innerHTML = '<span class="program-tag">No active programs</span>';
             return;
         }
         
-        const tagsHtml = displayPrograms.map(program => 
-            `<span class="program-tag">${this._escapeHtml(program)}</span>`
-        ).join('');
-        
-        programList.innerHTML = tagsHtml;
-        
-        // Show "+ more" if there are more programs
-        if (programNames.length > 5) {
-            programList.innerHTML += `<span class="program-tag">+${programNames.length - 5} more</span>`;
+        try {
+            // Fetch all programs from database
+            const allPrograms = await this.db.getPrograms();
+            
+            // Create a map of program ID to name
+            const programMap = {};
+            if (allPrograms && Array.isArray(allPrograms)) {
+                allPrograms.forEach(program => {
+                    programMap[program.id] = program.name;
+                });
+            }
+            
+            // Get program names from the map
+            const programIds = Array.from(programSet);
+            const programNames = programIds.map(id => {
+                return programMap[id] || id; // Fallback to ID if name not found
+            }).filter(name => name && name.trim());
+            
+            // Limit to 4-5 programs for display
+            const displayPrograms = programNames.slice(0, 5);
+            
+            // Create tags with XSS protection
+            if (displayPrograms.length === 0) {
+                programList.innerHTML = '<span class="program-tag">No program names found</span>';
+                return;
+            }
+            
+            const tagsHtml = displayPrograms.map(program => 
+                `<span class="program-tag">${this._escapeHtml(program)}</span>`
+            ).join('');
+            
+            programList.innerHTML = tagsHtml;
+            
+            // Show "+ more" if there are more programs
+            if (programNames.length > 5) {
+                programList.innerHTML += `<span class="program-tag">+${programNames.length - 5} more</span>`;
+            }
+            
+        } catch (error) {
+            console.error('Error loading program names:', error);
+            // Fallback: show program IDs
+            const programIds = Array.from(programSet);
+            const displayIds = programIds.slice(0, 5);
+            const tagsHtml = displayIds.map(id => 
+                `<span class="program-tag">${this._escapeHtml(id.substring(0, 8) + '...')}</span>`
+            ).join('');
+            programList.innerHTML = tagsHtml;
         }
-        
-    } catch (error) {
-        console.error('Error loading program names:', error);
-        // Fallback: show program IDs
-        const programIds = Array.from(programSet);
-        const displayIds = programIds.slice(0, 5);
-        const tagsHtml = displayIds.map(id => 
-            `<span class="program-tag">${this._escapeHtml(id.substring(0, 8) + '...')}</span>`
-        ).join('');
-        programList.innerHTML = tagsHtml;
     }
-}
+    
+    /**
+     * Update all charts - ASYNC VERSION
+     */
+    async _updateCharts(students, marks) {
+        try {
+            // Destroy existing charts
+            Object.keys(this.chartInstances).forEach(chartId => {
+                const chart = this.chartInstances[chartId];
+                if (chart && typeof chart.destroy === 'function') {
+                    chart.destroy();
+                }
+            });
+            
+            // Initialize chart instances object
+            this.chartInstances = {};
+            
+            // Create charts
+            this._createCountyChart(students);
+            this._createCentreChart(students);
+            await this._createProgramChart(students); // AWAIT this async call
+            
+        } catch (error) {
+            console.error('Error updating charts:', error);
+            this._showChartError();
+        }
+    }
     
     /**
      * Create county distribution chart
@@ -282,114 +309,120 @@ async _updateActivePrograms(students, settings) {
     }
     
     /**
- * Create program distribution chart - SIMPLIFIED VERSION
- */
-async _createProgramChart(students, settings) {
-    const programCtx = document.getElementById('programChart');
-    if (!programCtx) return;
-    
-    const programCounts = {};
-    
-    try {
-        // Fetch all programs from database
-        const allPrograms = await this.db.getPrograms(); // YOU NEED TO ADD THIS METHOD!
+     * Create program distribution chart - FINAL VERSION
+     */
+    async _createProgramChart(students) {
+        const programCtx = document.getElementById('programChart');
+        if (!programCtx) return;
         
-        // Create a map of program ID to name
-        const programMap = {};
-        if (allPrograms && Array.isArray(allPrograms)) {
-            allPrograms.forEach(program => {
-                programMap[program.id] = program.name;
+        const programCounts = {};
+        
+        try {
+            // Fetch all programs from database
+            const allPrograms = await this.db.getPrograms();
+            
+            // Create a map of program ID to name
+            const programMap = {};
+            if (allPrograms && Array.isArray(allPrograms)) {
+                allPrograms.forEach(program => {
+                    programMap[program.id] = program.name;
+                });
+            }
+            
+            // Count students per program
+            students.forEach(student => {
+                if (student.program && student.program.trim()) {
+                    const programName = programMap[student.program] || student.program;
+                    programCounts[programName] = (programCounts[programName] || 0) + 1;
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error loading programs for chart:', error);
+            // Fallback: count by program ID
+            students.forEach(student => {
+                if (student.program && student.program.trim()) {
+                    programCounts[student.program] = (programCounts[student.program] || 0) + 1;
+                }
             });
         }
         
-        // Count students per program
-        students.forEach(student => {
-            if (student.program && student.program.trim()) {
-                const programName = programMap[student.program] || student.program;
-                programCounts[programName] = (programCounts[programName] || 0) + 1;
-            }
-        });
+        const labels = Object.keys(programCounts);
+        const data = Object.values(programCounts);
         
-    } catch (error) {
-        console.error('Error loading programs for chart:', error);
-        // Fallback: count by program ID
-        students.forEach(student => {
-            if (student.program && student.program.trim()) {
-                programCounts[student.program] = (programCounts[student.program] || 0) + 1;
-            }
-        });
-    }
-    
-    const labels = Object.keys(programCounts);
-    const data = Object.values(programCounts);
-    
-    // Only create chart if we have data
-    if (labels.length === 0) {
-        programCtx.parentElement.innerHTML = '<p class="no-data">No program data available</p>';
-        return;
-    }
-    
-    // Clean up labels (truncate long UUIDs)
-    const cleanLabels = labels.map(label => {
-        if (label.length > 36) {
-            return label.substring(0, 15) + '...';
+        // Only create chart if we have data
+        if (labels.length === 0) {
+            programCtx.parentElement.innerHTML = '<p class="no-data">No program data available</p>';
+            return;
         }
-        return label;
-    });
-    
-    this.chartInstances.programChart = new Chart(programCtx.getContext('2d'), {
-        type: 'pie',
-        data: {
-            labels: cleanLabels,
-            datasets: [{
-                data: data,
-                backgroundColor: [
-                    '#3498db', '#2ecc71', '#e74c3c', '#f39c12',
-                    '#9b59b6', '#1abc9c', '#d35400', '#34495e',
-                    '#7f8c8d', '#27ae60'
-                ]
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right'
+        
+        this.chartInstances.programChart = new Chart(programCtx.getContext('2d'), {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: [
+                        '#3498db', '#2ecc71', '#e74c3c', '#f39c12',
+                        '#9b59b6', '#1abc9c', '#d35400', '#34495e',
+                        '#7f8c8d', '#27ae60'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    }
                 }
             }
-        }
-    });
-}
-
-/**
- * Helper to clean program names
- */
-_cleanProgramName(programName) {
-    if (!programName) return 'Unknown';
-    
-    const str = programName.toString();
-    
-    // If it contains UUID-like pattern and readable text, extract readable part
-    if (str.includes('advanced') || str.includes('basic') || str.includes('intermediate')) {
-        const matches = str.match(/(advanced|basic|intermediate|standard|premium|professional)/i);
-        if (matches && matches[1]) {
-            return matches[1].charAt(0).toUpperCase() + matches[1].slice(1);
-        }
+        });
     }
     
-    // If it's a UUID or too long, truncate
-    if (str.length > 36) {
-        // Try to find a readable substring
-        const readableMatch = str.match(/[a-zA-Z]{4,}/);
-        if (readableMatch) {
-            return readableMatch[0];
+    /**
+     * Load recent activities
+     */
+    async _loadRecentActivities() {
+        try {
+            const activities = await this.db.getRecentActivities(10);
+            const container = document.getElementById('activityList');
+            if (!container) return;
+            
+            if (!activities || activities.length === 0) {
+                container.innerHTML = '<p class="no-activities">No recent activities</p>';
+                return;
+            }
+            
+            let html = '';
+            activities.forEach(activity => {
+                const timeAgo = this._getTimeAgo(activity.created_at);
+                const icon = this._getActivityIcon(activity.type);
+                const description = this._escapeHtml(activity.description || 'Activity recorded');
+                
+                html += `
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="${icon}"></i>
+                        </div>
+                        <div class="activity-details">
+                            <p>${description}</p>
+                            <span class="activity-time">${timeAgo}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        } catch (error) {
+            console.error('Error loading recent activities:', error);
+            const container = document.getElementById('activityList');
+            if (container) {
+                container.innerHTML = '<p class="error-activities">Unable to load activities</p>';
+            }
         }
-        return str.substring(0, 15) + '...';
     }
-    
-    return str;
-}
     
     /**
      * Get time ago string
