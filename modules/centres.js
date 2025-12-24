@@ -1,4 +1,4 @@
-// modules/centres.js - FIXED County Population
+// modules/centres.js - FIXED County Loading Issue
 class CentreManager {
     constructor(db, app = null) {
         this.db = db;
@@ -6,6 +6,7 @@ class CentreManager {
         this.currentEditId = null;
         this.counties = [];
         this.centres = [];
+        this.countiesLoaded = false; // Track if counties are loaded
     }
     
     /**
@@ -15,8 +16,10 @@ class CentreManager {
         console.log('🚀 Initializing Centre Manager...');
         
         try {
-            // Load counties FIRST
+            // Load counties FIRST - wait for it to complete
             await this.loadCounties();
+            console.log('✅ Counties loaded:', this.counties.length);
+            
             this.setupEventListeners();
             await this.loadCentres();
             
@@ -27,44 +30,64 @@ class CentreManager {
     }
     
     /**
-     * Load counties for dropdown - FIXED
+     * Load counties for dropdown - FIXED with better error handling
      */
     async loadCounties() {
         try {
             console.log('📍 Loading counties for dropdown...');
             
+            // Reset counties array
+            this.counties = [];
+            
+            // Try to get from database
             if (this.db && typeof this.db.getCounties === 'function') {
-                console.log('📡 Fetching counties from database...');
-                const countiesData = await this.db.getCounties();
+                console.log('📡 Attempting to fetch counties from database...');
                 
-                // Handle different response formats
-                if (Array.isArray(countiesData)) {
-                    if (countiesData.length > 0 && typeof countiesData[0] === 'string') {
-                        // Array of strings: ['Nairobi', 'Mombasa']
+                // Call the database function
+                const countiesData = await this.db.getCounties();
+                console.log('📦 Raw counties data from DB:', countiesData);
+                
+                // Process the data
+                if (Array.isArray(countiesData) && countiesData.length > 0) {
+                    if (typeof countiesData[0] === 'string') {
+                        // Array of strings
                         this.counties = countiesData;
-                    } else if (countiesData.length > 0 && countiesData[0].name) {
-                        // Array of objects: [{name: 'Nairobi'}, {name: 'Mombasa'}]
-                        this.counties = countiesData.map(county => county.name);
+                    } else if (countiesData[0].name) {
+                        // Array of objects with name property
+                        this.counties = countiesData.map(c => c.name);
+                    } else if (countiesData[0].county_name) {
+                        // Array of objects with county_name property
+                        this.counties = countiesData.map(c => c.county_name);
                     } else {
-                        // Unknown format, use defaults
-                        this.counties = this.getDefaultCounties();
+                        // Unknown format, try to extract names
+                        this.counties = countiesData.map(c => c.name || c.Name || c.NAME || c.county || c.County || String(c));
                     }
                 } else {
-                    // Not an array, use defaults
+                    console.warn('⚠️ No counties returned from database, using defaults');
                     this.counties = this.getDefaultCounties();
                 }
-                
-                console.log(`✅ Loaded ${this.counties.length} counties from database:`, this.counties);
             } else {
-                // Use default counties
+                console.warn('⚠️ Database or getCounties function not available');
                 this.counties = this.getDefaultCounties();
-                console.log(`📋 Using ${this.counties.length} default counties:`, this.counties);
             }
+            
+            // If still empty after DB attempt, use defaults
+            if (this.counties.length === 0) {
+                console.log('🔄 No counties from DB, using default list');
+                this.counties = this.getDefaultCounties();
+            }
+            
+            console.log(`✅ Final counties list (${this.counties.length}):`, this.counties);
+            this.countiesLoaded = true;
             
         } catch (error) {
             console.error('❌ Error loading counties:', error);
+            console.error('Error details:', error.message, error.stack);
+            
+            // Use default counties as fallback
             this.counties = this.getDefaultCounties();
             console.log('🔄 Using fallback counties due to error:', this.counties);
+            this.countiesLoaded = true;
         }
     }
     
@@ -125,7 +148,7 @@ class CentreManager {
     }
     
     /**
-     * Open centre modal - FIXED to populate counties
+     * Open centre modal - FIXED to ensure counties are loaded
      */
     async openCentreModal(centreId = null) {
         console.log('📍 Opening centre modal...');
@@ -136,16 +159,20 @@ class CentreManager {
             return;
         }
         
-        // Show modal
+        // Show modal immediately
         modal.style.display = 'block';
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
         
-        // DEBUG: Check counties data
-        console.log('🔍 Available counties:', this.counties);
-        console.log('🔍 County dropdown element:', document.getElementById('centreCounty'));
+        // Check if counties are loaded
+        if (!this.countiesLoaded || this.counties.length === 0) {
+            console.log('🔄 Counties not loaded, loading now...');
+            await this.loadCounties();
+        }
         
-        // Populate counties dropdown - THIS IS THE FIX
+        console.log('🔍 Available counties before populating:', this.counties);
+        
+        // Populate counties dropdown
         this.populateCountyDropdown();
         
         // If editing, load centre data
@@ -165,51 +192,30 @@ class CentreManager {
     }
     
     /**
-     * Populate county dropdown - FIXED FUNCTION
+     * Populate county dropdown - SIMPLIFIED VERSION
      */
     populateCountyDropdown() {
         const countySelect = document.getElementById('centreCounty');
         
         if (!countySelect) {
             console.error('❌ centreCounty select element not found in DOM!');
-            console.error('🔍 Searching for centreCounty...', document.querySelectorAll('select'));
             return;
         }
         
         console.log(`📍 Populating county dropdown with ${this.counties.length} counties`);
-        console.log('🔍 Counties to add:', this.counties);
         
-        // Save current value if editing
-        const currentValue = countySelect.value;
-        
-        // Clear existing options (keep first option if it exists)
-        countySelect.innerHTML = '';
-        
-        // Add default option
-        const defaultOption = document.createElement('option');
-        defaultOption.value = '';
-        defaultOption.textContent = 'Select County';
-        defaultOption.disabled = true;
-        defaultOption.selected = !currentValue;
-        countySelect.appendChild(defaultOption);
+        // Clear and add default option
+        countySelect.innerHTML = '<option value="">Select County</option>';
         
         // Add all counties
         this.counties.forEach(county => {
             const option = document.createElement('option');
             option.value = county;
             option.textContent = county;
-            
-            // Select if this was the previously selected value
-            if (currentValue === county) {
-                option.selected = true;
-                defaultOption.selected = false;
-            }
-            
             countySelect.appendChild(option);
         });
         
         console.log(`✅ County dropdown populated with ${this.counties.length} options`);
-        console.log('🔍 Final dropdown HTML:', countySelect.innerHTML);
     }
     
     /**
@@ -254,9 +260,6 @@ class CentreManager {
                 const element = document.getElementById(fieldId);
                 if (element) {
                     element.value = value;
-                    console.log(`✓ Set ${fieldId} = "${value}"`);
-                } else {
-                    console.error(`❌ Field ${fieldId} not found in DOM`);
                 }
             });
             
@@ -441,8 +444,6 @@ class CentreManager {
             }
             
             this.currentEditId = null;
-            
-            console.log('✅ Form reset');
         }
     }
     
