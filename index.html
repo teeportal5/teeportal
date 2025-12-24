@@ -1176,43 +1176,132 @@
     </div>
 </section>
 
-            <!-- Centres Section -->
-            <section id="centres" class="content-section">
-                <div class="section-header">
-                    <h2>Centre Management</h2>
-                    <div class="action-buttons">
-                        <button class="btn btn-primary" onclick="openCentreModal()">
-                            <i class="fas fa-map-marker-alt"></i> Add Centre
-                        </button>
-                        <button class="btn btn-secondary" onclick="app.centres.exportCentres()">
-                            <i class="fas fa-download"></i> Export
-                        </button>
+          <!-- Centres Section -->
+<section id="centres" class="content-section">
+    <div class="section-header">
+        <h2>Centre Management</h2>
+        <div class="action-buttons">
+            <button class="btn btn-primary" onclick="openCentreModal()" data-action="add-centre">
+                <i class="fas fa-map-marker-alt"></i> Add Centre
+            </button>
+            <button class="btn btn-secondary" onclick="app.centres.exportCentres()" data-action="export-centres">
+                <i class="fas fa-download"></i> Export CSV
+            </button>
+            <button class="btn btn-secondary" onclick="app.centres.refresh()" data-action="refresh-centres">
+                <i class="fas fa-redo"></i> Refresh
+            </button>
+        </div>
+    </div>
+    
+    <!-- Search Box -->
+    <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" id="centreSearch" placeholder="Search centres by name, county or code..." 
+               onkeyup="app.centres.searchCentres(this.value)">
+    </div>
+    
+    <!-- Centres Grid -->
+    <div class="cards-grid" id="centresGrid">
+        <div class="empty-state">
+            <i class="fas fa-map-marker-alt fa-3x"></i>
+            <h3>No Centres Found</h3>
+            <p>Get started by adding your first centre.</p>
+            <button class="btn btn-primary" onclick="openCentreModal()">
+                <i class="fas fa-plus"></i> Add Centre
+            </button>
+        </div>
+    </div>
+    
+    <!-- Centres Stats -->
+    <div class="centre-stats">
+        <div class="stat-row">
+            <div class="stat-item">
+                <span class="stat-label">Total Centres</span>
+                <span class="stat-value" id="totalCentres">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Counties Covered</span>
+                <span class="stat-value" id="totalCounties">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Active Centres</span>
+                <span class="stat-value" id="activeCentres">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Inactive Centres</span>
+                <span class="stat-value" id="inactiveCentres">0</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Centre Modal -->
+    <div id="centreModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeCentreModal()">&times;</span>
+            <h2 id="centreModalTitle">Add New Centre</h2>
+            
+            <form id="centreForm" onsubmit="saveCentre(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="centreName">Centre Name *</label>
+                        <input type="text" id="centreName" placeholder="Enter centre name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="centreCode">Centre Code</label>
+                        <input type="text" id="centreCode" placeholder="Enter centre code (optional)">
                     </div>
                 </div>
                 
-                <!-- Centres Grid -->
-                <div class="cards-grid" id="centresGrid">
-                    <!-- Centres will be loaded here -->
-                </div>
-                
-                <!-- Centres Stats -->
-                <div class="centre-stats">
-                    <div class="stat-row">
-                        <div class="stat-item">
-                            <span class="stat-label">Total Centres</span>
-                            <span class="stat-value" id="totalCentres">0</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Counties Covered</span>
-                            <span class="stat-value" id="totalCounties">0</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Active Students</span>
-                            <span class="stat-value" id="centreStudents">0</span>
-                        </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="centreCounty">County *</label>
+                        <select id="centreCounty" required>
+                            <option value="" disabled selected>Select County</option>
+                            <!-- Counties will be populated by JavaScript -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="centreStatus">Status</label>
+                        <select id="centreStatus">
+                            <option value="active" selected>Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
                     </div>
                 </div>
-            </section>
+                
+                <div class="form-group">
+                    <label for="centreAddress">Address</label>
+                    <textarea id="centreAddress" rows="2" placeholder="Enter centre address (optional)"></textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="centrePhone">Phone Number</label>
+                        <input type="tel" id="centrePhone" placeholder="Enter phone number (optional)">
+                    </div>
+                    <div class="form-group">
+                        <label for="centreEmail">Email</label>
+                        <input type="email" id="centreEmail" placeholder="Enter email address (optional)">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="centreDescription">Description</label>
+                    <textarea id="centreDescription" rows="3" placeholder="Enter centre description (optional)"></textarea>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeCentreModal()">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Centre
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
             
             <!-- Profile Section -->
             <section id="profile" class="content-section">
