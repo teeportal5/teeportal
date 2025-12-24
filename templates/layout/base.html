@@ -1,0 +1,20 @@
+<!-- Base layout template -->
+<div class="app-container">
+    <!-- Sidebar -->
+    {{> components/sidebar}}
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Dynamic content will be injected here -->
+        <div id="content-container"></div>
+    </main>
+</div>
+
+<!-- Modals Container -->
+<div id="modals-container">
+    {{> components/modals/student-modal}}
+    {{> components/modals/centre-modal}}
+    {{> components/modals/program-modal}}
+    {{> components/modals/course-modal}}
+    {{> components/modals/marks-modal}}
+</div>
