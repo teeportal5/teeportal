@@ -381,7 +381,72 @@ class TEEPortalSupabaseDB {
             throw error;
         }
     }
-    
+    async updateCentre(centreId, updates) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        // Prepare update object - only include fields that exist in your centres table
+        const updateObj = {
+            name: updates.name || '',
+            county: updates.county || '',
+            status: updates.status || 'active'
+            // Note: Your centres table doesn't have code, address, phone, email based on the data shown
+            // Add only if your table has these columns
+        };
+        
+        console.log('🔄 Updating centre:', centreId, updateObj);
+        
+        const { data, error } = await supabase
+            .from('centres')
+            .update(updateObj)
+            .eq('id', centreId)
+            .select()
+            .single();
+            
+        if (error) throw error;
+        
+        await this.logActivity('centre_updated', `Updated centre: ${data.name}`);
+        return data;
+        
+    } catch (error) {
+        console.error('Error updating centre:', error);
+        throw error;
+    }
+}
+    async deleteCentre(centreId) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        // First get centre name for logging
+        const { data: centre, error: getError } = await supabase
+            .from('centres')
+            .select('name')
+            .eq('id', centreId)
+            .single();
+            
+        if (getError && getError.code !== 'PGRST116') {
+            console.warn('Centre not found:', getError);
+        }
+        
+        // Delete the centre
+        const { error } = await supabase
+            .from('centres')
+            .delete()
+            .eq('id', centreId);
+            
+        if (error) throw error;
+        
+        // Log activity
+        const centreName = centre ? centre.name : `ID: ${centreId}`;
+        await this.logActivity('centre_deleted', `Deleted centre: ${centreName}`);
+        
+        return { success: true, message: 'Centre deleted successfully' };
+        
+    } catch (error) {
+        console.error('Error deleting centre:', error);
+        throw error;
+    }
+}
     // ========== PROGRAMS MANAGEMENT ==========
     async getPrograms() {
         try {
