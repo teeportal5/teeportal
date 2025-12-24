@@ -531,127 +531,129 @@ class TEEPortalSupabaseDB {
         }
     }
     
-    // ========== STUDENTS MANAGEMENT ==========
-    async getStudents(filterOptions = {}) {
-        try {
-            const supabase = await this.ensureConnected();
-            let query = supabase
-                .from('students')
-                .select('*')
-                .order('created_at', { ascending: false });
-            
-            // Apply filters if provided
-            if (filterOptions.program) {
-                query = query.eq('program', filterOptions.program);
-            }
-            if (filterOptions.intake) {
-                query = query.eq('intake_year', filterOptions.intake);
-            }
-            if (filterOptions.status && filterOptions.status !== 'all') {
-                query = query.eq('status', filterOptions.status);
-            }
-            if (filterOptions.centre) {
-                query = query.eq('centre', filterOptions.centre);
-            }
-            if (filterOptions.county) {
-                query = query.eq('county', filterOptions.county);
-            }
-            
-            const { data, error } = await query;
-                
-            if (error) throw error;
-            
-            // Ensure all students have county and centre fields
-            return (data || []).map(student => ({
-                ...student,
-                county: student.county || 'Not specified',
-                centre: student.centre || 'Main Campus',
-                full_name: student.full_name || '',
-                email: student.email || '',
-                phone: student.phone || ''
-            }));
-        } catch (error) {
-            console.error('Error fetching students:', error);
-            throw error;
-        }
-    }
-    
-    async getStudent(id) {
-        try {
-            const supabase = await this.ensureConnected();
-            const { data, error } = await supabase
-                .from('students')
-                .select('*')
-                .or(`id.eq.${id},reg_number.eq.${id}`)
-                .single();
-                
-            if (error) throw error;
-            
-            // Add default values for missing fields
-            return {
-                ...data,
-                county: data.county || 'Not specified',
-                centre: data.centre || 'Main Campus'
-            };
-        } catch (error) {
-            console.error('Error fetching student:', error);
-            throw error;
-        }
-    }
-    
-    async addStudent(studentData) {
+   // ========== STUDENTS MANAGEMENT ==========
+
+async getStudents(filterOptions = {}) {
     try {
         const supabase = await this.ensureConnected();
+        let query = supabase
+            .from('students')
+            .select('*')
+            .order('created_at', { ascending: false });
         
-        // Debug: Log incoming student data
-        console.log('📋 Adding student with data:', studentData);
+        // Apply filters if provided
+        if (filterOptions.program) {
+            query = query.eq('program', filterOptions.program);
+        }
+        if (filterOptions.intake) {
+            query = query.eq('intake_year', filterOptions.intake);
+        }
+        if (filterOptions.status && filterOptions.status !== 'all') {
+            query = query.eq('status', filterOptions.status);
+        }
+        if (filterOptions.centre) {
+            query = query.ilike('centre', `%${filterOptions.centre}%`);
+        }
+        if (filterOptions.county) {
+            query = query.ilike('county', `%${filterOptions.county}%`);
+        }
         
-        // Extract ALL fields from studentData to avoid missing any
-        const student = {
-            reg_number: studentData.reg_number || '',
-            full_name: studentData.full_name || studentData.name || '',
-            email: studentData.email || '',
-            phone: studentData.phone || '',
-            date_of_birth: studentData.date_of_birth || studentData.dob || null,
-            gender: studentData.gender || null,
-            id_number: studentData.id_number || '',
+        const { data, error } = await query;
             
-            // Location fields
-            county: studentData.county || '',
-            sub_county: studentData.sub_county || '',
-            ward: studentData.ward || '',
-            village: studentData.village || '',
-            address: studentData.address || '',
+        if (error) {
+            console.error('❌ Error fetching students:', error);
+            return [];
+        }
+        
+        // Process the data to ensure centre field is properly formatted
+        return (data || []).map(student => this._processStudentData(student));
+    } catch (error) {
+        console.error('❌ Error in getStudents:', error);
+        return [];
+    }
+}
+
+async getStudent(id) {
+    try {
+        const supabase = await this.ensureConnected();
+        const { data, error } = await supabase
+            .from('students')
+            .select('*')
+            .or(`id.eq.${id},reg_number.eq.${id}`)
+            .single();
             
-            // **FIXED: centre_id must be NULL for UUID column, not empty string**
-            centre_id: null, // ← CHANGED THIS LINE
-            
-            // **ADDED: Use centre_name field**
-            centre_name: studentData.centre_name || studentData.centre || '',
-            
-            // Keep old field for backward compatibility
-            centre: studentData.centre || '',
-            
-            // Academic fields
-            program: studentData.program || '',
-            intake_year: studentData.intake_year || studentData.intake || new Date().getFullYear(),
-            study_mode: studentData.study_mode || 'fulltime',
-            status: studentData.status || 'active',
-            
-            // Employment fields
-            employment_status: studentData.employment_status || '',
-            employer: studentData.employer || '',
-            job_title: studentData.job_title || '',
-            years_experience: studentData.years_experience || 0,
-            
-            // Emergency contact
-            emergency_contact_name: studentData.emergency_contact_name || '',
-            emergency_contact_phone: studentData.emergency_contact_phone || '',
-            emergency_contact: studentData.emergency_contact || '',
-            
-            // Other fields
-            notes: studentData.notes || ''
-        };
+        if (error) {
+            console.error('❌ Error fetching student:', error);
+            return null;
+        }
+        
+        return this._processStudentData(data);
+    } catch (error) {
+        console.error('❌ Error in getStudent:', error);
+        return null;
+    }
+}
+
+// Helper method to process student data and ensure centre field is correct
+_processStudentData(student) {
+    if (!student) return null;
+    
+    // Determine the centre display value
+    let centreDisplay = 'Main Campus';
+    
+    // Try different field names for centre
+    if (student.centre_name && student.centre_name.trim()) {
+        centreDisplay = student.centre_name.trim();
+    } else if (student.centre && student.centre.trim()) {
+        centreDisplay = student.centre.trim();
+    }
+    
+    // Create a processed student object with consistent field names
+    return {
+        ...student,
+        id: student.id,
+        reg_number: student.reg_number || '',
+        full_name: student.full_name || student.name || '',
+        email: student.email || '',
+        phone: student.phone || '',
+        date_of_birth: student.date_of_birth || null,
+        gender: student.gender || '',
+        id_number: student.id_number || '',
+        
+        // Location fields
+        county: student.county || '',
+        sub_county: student.sub_county || '',
+        ward: student.ward || '',
+        village: student.village || '',
+        address: student.address || '',
+        
+        // Centre fields - consolidate into one field
+        centre: centreDisplay,
+        centre_name: centreDisplay,
+        
+        // Academic fields
+        program: student.program || '',
+        intake_year: student.intake_year || student.intake || new Date().getFullYear(),
+        study_mode: student.study_mode || 'fulltime',
+        status: student.status || 'active',
+        
+        // Employment fields
+        employment_status: student.employment_status || '',
+        employer: student.employer || '',
+        job_title: student.job_title || '',
+        years_experience: student.years_experience || 0,
+        
+        // Emergency contact
+        emergency_contact_name: student.emergency_contact_name || '',
+        emergency_contact_phone: student.emergency_contact_phone || '',
+        emergency_contact_relationship: student.emergency_contact_relationship || student.emergency_contact || '',
+        
+        // Other fields
+        notes: student.notes || '',
+        created_at: student.created_at,
+        updated_at: student.updated_at
+    };
+}
         
         console.log('📤 Prepared student for database:', student);
         
