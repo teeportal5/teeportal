@@ -156,197 +156,229 @@ class StudentManager {
     }
     
     /**
-     * Save or update student - FIXED VERSION
-     */
-    async saveStudent(event) {
-        event.preventDefault();
+ * Save or update student - DEBUG VERSION
+ */
+async saveStudent(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    if (!form || form.id !== 'studentForm') {
+        console.error('Invalid form element');
+        return;
+    }
+    
+    try {
+        // Debug: Log all form fields
+        console.log('📋 DEBUG: Form fields before processing:');
+        const formElements = form.elements;
+        for (let element of formElements) {
+            if (element.name || element.id) {
+                console.log(`  ${element.id || element.name}:`, element.value);
+            }
+        }
         
-        const form = event.target;
-        if (!form || form.id !== 'studentForm') {
-            console.error('Invalid form element');
+        // Get all form data with proper field mapping
+        const formData = {
+            // Personal Information
+            full_name: document.getElementById('studentName')?.value.trim() || '',
+            email: document.getElementById('studentEmail')?.value.trim() || '',
+            phone: document.getElementById('studentPhone')?.value.trim() || '',
+            date_of_birth: document.getElementById('studentDOB')?.value || '',
+            id_number: document.getElementById('studentIdNumber')?.value.trim() || '',
+            gender: document.getElementById('studentGender')?.value || '',
+            
+            // Location Information
+            county: document.getElementById('studentCounty')?.value || '',
+            sub_county: document.getElementById('studentSubCounty')?.value.trim() || '',
+            ward: document.getElementById('studentWard')?.value.trim() || '',
+            village: document.getElementById('studentVillage')?.value.trim() || '',
+            
+            // Academic Information
+            program: document.getElementById('studentProgram')?.value || '',
+            intake_year: document.getElementById('studentIntake')?.value || new Date().getFullYear().toString(),
+            centre_id: document.getElementById('studentCentre')?.value || '',
+            study_mode: document.getElementById('studentStudyMode')?.value || 'fulltime',
+            
+            // Employment Information
+            employment_status: document.getElementById('studentEmployment')?.value || '',
+            employer: document.getElementById('studentEmployer')?.value.trim() || '',
+            job_title: document.getElementById('studentJobTitle')?.value.trim() || '',
+            years_experience: parseInt(document.getElementById('studentExperience')?.value) || 0,
+            
+            // Status - IMPORTANT: Make sure this is being updated
+            status: document.getElementById('studentStatus')?.value || 'active'
+        };
+        
+        console.log('📝 Form data to save/update:', formData);
+        console.log('🆔 Current edit ID:', this.currentEditId);
+        
+        // Validate required fields
+        const requiredFields = ['full_name', 'email', 'program', 'intake_year'];
+        const missingFields = requiredFields.filter(field => !formData[field] || formData[field].toString().trim() === '');
+        
+        if (missingFields.length > 0) {
+            this.ui.showToast(`Missing required fields: ${missingFields.join(', ')}`, 'error');
             return;
         }
         
-        try {
-            // Get all form data with proper field mapping
-            const formData = {
-                // Personal Information
-                full_name: document.getElementById('studentName')?.value.trim() || '',
-                email: document.getElementById('studentEmail')?.value.trim() || '',
-                phone: document.getElementById('studentPhone')?.value.trim() || '',
-                date_of_birth: document.getElementById('studentDOB')?.value || '',
-                id_number: document.getElementById('studentIdNumber')?.value.trim() || '',
-                gender: document.getElementById('studentGender')?.value || '',
-                
-                // Location Information
-                county: document.getElementById('studentCounty')?.value || '',
-                sub_county: document.getElementById('studentSubCounty')?.value.trim() || '',
-                ward: document.getElementById('studentWard')?.value.trim() || '',
-                village: document.getElementById('studentVillage')?.value.trim() || '',
-                
-                // Academic Information
-                program: document.getElementById('studentProgram')?.value || '',
-                intake_year: document.getElementById('studentIntake')?.value || new Date().getFullYear().toString(),
-                centre_id: document.getElementById('studentCentre')?.value || '',
-                study_mode: document.getElementById('studentStudyMode')?.value || 'fulltime',
-                
-                // Employment Information
-                employment_status: document.getElementById('studentEmployment')?.value || '',
-                employer: document.getElementById('studentEmployer')?.value.trim() || '',
-                job_title: document.getElementById('studentJobTitle')?.value.trim() || '',
-                years_experience: parseInt(document.getElementById('studentExperience')?.value) || 0,
-                
-                // Status
-                status: 'active'
-            };
+        // Validate email
+        if (!this._validateEmail(formData.email)) {
+            this.ui.showToast('Please enter a valid email address', 'error');
+            return;
+        }
+        
+        // Show loading state
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        submitBtn.disabled = true;
+        
+        let result;
+        if (this.currentEditId) {
+            // Update existing student
+            console.log(`🔄 Updating student ${this.currentEditId}...`);
+            console.log('📤 Update data:', formData);
             
-            console.log('📝 Form data to save:', formData);
+            result = await this.db.updateStudent(this.currentEditId, formData);
+            console.log('✅ Update result:', result);
             
-            // Validate required fields
-            const requiredFields = ['full_name', 'email', 'program', 'intake_year'];
-            const missingFields = requiredFields.filter(field => !formData[field] || formData[field].toString().trim() === '');
+            this.ui.showToast(`Student updated successfully!`, 'success');
+        } else {
+            // Add new student
+            console.log('➕ Adding new student...');
+            console.log('📤 Add data:', formData);
             
-            if (missingFields.length > 0) {
-                this.ui.showToast(`Missing required fields: ${missingFields.join(', ')}`, 'error');
-                return;
-            }
+            result = await this.db.addStudent(formData);
+            console.log('✅ Add result:', result);
             
-            // Validate email
-            if (!this._validateEmail(formData.email)) {
-                this.ui.showToast('Please enter a valid email address', 'error');
-                return;
-            }
+            const regNumber = result.reg_number || result.id;
+            this.ui.showToast(`Student registered successfully! Registration Number: ${regNumber}`, 'success');
+        }
+        
+        // Reset form and close modal
+        this._resetStudentForm();
+        this.ui.closeModal('studentModal');
+        
+        // Refresh students table
+        console.log('🔄 Refreshing students table...');
+        await this.loadStudentsTable();
+        console.log('✅ Table refreshed');
+        
+    } catch (error) {
+        console.error('❌ Error saving student:', error);
+        console.error('Error details:', error.stack);
+        this.ui.showToast(error.message || 'Error saving student data', 'error');
+        
+        // Reset button if error
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = this.currentEditId 
+                ? '<i class="fas fa-save"></i> Update Student'
+                : '<i class="fas fa-plus"></i> Register Student';
+            submitBtn.disabled = false;
+        }
+    }
+}
+    
+   /**
+ * Edit student - DEBUG VERSION
+ */
+async editStudent(studentId) {
+    try {
+        console.log(`✏️ DEBUG: Editing student ${studentId}...`);
+        
+        const student = await this.db.getStudent(studentId);
+        if (!student) {
+            this.ui.showToast('Student not found', 'error');
+            return;
+        }
+        
+        this.currentEditId = studentId;
+        
+        console.log('📋 Student data from database:', student);
+        
+        // Field mapping - map database fields to form field IDs
+        const fieldMap = {
+            // Personal Information
+            'studentName': student.full_name || '',
+            'studentEmail': student.email || '',
+            'studentPhone': student.phone || '',
+            'studentDOB': student.date_of_birth ? this._formatDateForInput(student.date_of_birth) : '',
+            'studentIdNumber': student.id_number || '',
+            'studentGender': student.gender || '',
             
-            // Show loading state
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-            submitBtn.disabled = true;
+            // Location Information
+            'studentCounty': student.county || '',
+            'studentSubCounty': student.sub_county || '',
+            'studentWard': student.ward || '',
+            'studentVillage': student.village || '',
             
-            let result;
-            if (this.currentEditId) {
-                // Update existing student
-                console.log(`Updating student ${this.currentEditId}...`);
-                result = await this.db.updateStudent(this.currentEditId, formData);
-                this.ui.showToast(`Student updated successfully!`, 'success');
+            // Academic Information
+            'studentProgram': student.program || '',
+            'studentIntake': student.intake_year || new Date().getFullYear().toString(),
+            'studentCentre': student.centre_id || student.centre || '',
+            'studentStudyMode': student.study_mode || 'fulltime',
+            
+            // Employment Information
+            'studentEmployment': student.employment_status || '',
+            'studentEmployer': student.employer || '',
+            'studentJobTitle': student.job_title || '',
+            'studentExperience': student.years_experience || 0,
+            
+            // Status - IMPORTANT: Add this
+            'studentStatus': student.status || 'active'
+        };
+        
+        // Debug: Log what we're trying to populate
+        console.log('📝 Field mapping for form:', fieldMap);
+        
+        // Populate form fields
+        let populatedCount = 0;
+        let missingFields = [];
+        
+        Object.entries(fieldMap).forEach(([fieldId, value]) => {
+            const element = document.getElementById(fieldId);
+            if (element) {
+                element.value = value;
+                populatedCount++;
+                console.log(`✅ Set ${fieldId}: "${value}"`);
             } else {
-                // Add new student
-                console.log('Adding new student...');
-                result = await this.db.addStudent(formData);
-                const regNumber = result.reg_number || result.id;
-                this.ui.showToast(`Student registered successfully! Registration Number: ${regNumber}`, 'success');
+                missingFields.push(fieldId);
+                console.warn(`⚠️ Field not found in form: ${fieldId}`);
             }
-            
-            // Reset form and close modal
-            this._resetStudentForm();
-            this.ui.closeModal('studentModal');
-            
-            // Refresh students table
-            await this.loadStudentsTable();
-            
-        } catch (error) {
-            console.error('Error saving student:', error);
-            this.ui.showToast(error.message || 'Error saving student data', 'error');
-            
-            // Reset button if error
-            const submitBtn = form.querySelector('button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.innerHTML = this.currentEditId 
-                    ? '<i class="fas fa-save"></i> Update Student'
-                    : '<i class="fas fa-plus"></i> Register Student';
-                submitBtn.disabled = false;
-            }
+        });
+        
+        console.log(`📊 Populated ${populatedCount}/${Object.keys(fieldMap).length} fields`);
+        if (missingFields.length > 0) {
+            console.warn('Missing form fields:', missingFields);
         }
-    }
-    
-    /**
-     * Edit student - FIXED VERSION
-     */
-    async editStudent(studentId) {
-        try {
-            console.log(`✏️ Editing student ${studentId}...`);
-            
-            const student = await this.db.getStudent(studentId);
-            if (!student) {
-                this.ui.showToast('Student not found', 'error');
-                return;
-            }
-            
-            this.currentEditId = studentId;
-            
-            console.log('📋 Student data:', student);
-            
-            // Field mapping - map database fields to form field IDs
-            const fieldMap = {
-                // Personal Information
-                'studentName': student.full_name || '',
-                'studentEmail': student.email || '',
-                'studentPhone': student.phone || '',
-                'studentDOB': student.date_of_birth ? this._formatDateForInput(student.date_of_birth) : '',
-                'studentIdNumber': student.id_number || '',
-                'studentGender': student.gender || '',
-                
-                // Location Information
-                'studentCounty': student.county || '',
-                'studentSubCounty': student.sub_county || '',
-                'studentWard': student.ward || '',
-                'studentVillage': student.village || '',
-                
-                // Academic Information
-                'studentProgram': student.program || '',
-                'studentIntake': student.intake_year || new Date().getFullYear().toString(),
-                'studentCentre': student.centre_id || student.centre || '',
-                'studentStudyMode': student.study_mode || 'fulltime',
-                
-                // Employment Information
-                'studentEmployment': student.employment_status || '',
-                'studentEmployer': student.employer || '',
-                'studentJobTitle': student.job_title || '',
-                'studentExperience': student.years_experience || 0
-            };
-            
-            // Populate form fields
-            let populatedCount = 0;
-            Object.entries(fieldMap).forEach(([fieldId, value]) => {
-                const element = document.getElementById(fieldId);
-                if (element) {
-                    element.value = value;
-                    populatedCount++;
-                    console.log(`✅ Set ${fieldId}: ${value}`);
-                } else {
-                    console.warn(`⚠️ Field not found: ${fieldId}`);
-                }
-            });
-            
-            console.log(`📊 Populated ${populatedCount}/${Object.keys(fieldMap).length} fields`);
-            
-            // Update submit button text
-            const submitBtn = document.querySelector('#studentForm button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Student';
-                submitBtn.setAttribute('data-editing', 'true');
-            }
-            
-            // Open modal
-            this.ui.openModal('studentModal');
-            
-            // Scroll to top of modal
-            const modalBody = document.querySelector('#studentModal .modal-body');
-            if (modalBody) {
-                modalBody.scrollTop = 0;
-            }
-            
-            // Focus on first field
-            setTimeout(() => {
-                document.getElementById('studentName')?.focus();
-            }, 100);
-            
-        } catch (error) {
-            console.error('Error editing student:', error);
-            this.ui.showToast('Error loading student data: ' + error.message, 'error');
+        
+        // Update submit button text
+        const submitBtn = document.querySelector('#studentForm button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Student';
+            submitBtn.setAttribute('data-editing', 'true');
         }
+        
+        // Open modal
+        this.ui.openModal('studentModal');
+        
+        // Scroll to top of modal
+        const modalBody = document.querySelector('#studentModal .modal-body');
+        if (modalBody) {
+            modalBody.scrollTop = 0;
+        }
+        
+        // Focus on first field
+        setTimeout(() => {
+            document.getElementById('studentName')?.focus();
+        }, 100);
+        
+    } catch (error) {
+        console.error('Error editing student:', error);
+        this.ui.showToast('Error loading student data: ' + error.message, 'error');
     }
-    
+}
     /**
      * Format date for input field (YYYY-MM-DD)
      */
@@ -409,59 +441,187 @@ class StudentManager {
     }
     
     /**
-     * Load students into table
-     */
-    async loadStudentsTable(filterOptions = {}) {
-        try {
-            console.log('📋 Loading students table...');
-            const students = await this.db.getStudents(filterOptions);
-            const tbody = document.getElementById('studentsTableBody');
-            
-            if (!tbody) {
-                console.warn('Students table body not found');
-                return;
-            }
-            
-            if (students.length === 0) {
-                this._renderEmptyState(tbody);
-                this._toggleBulkActions(false);
-                return;
-            }
-            
-            const settings = await this.db.getSettings();
-            const html = students.map(student => 
-                this._renderStudentRow(student, settings)
-            ).join('');
-            
-            tbody.innerHTML = html;
-            
-            // Attach event listeners
-            this._attachStudentRowEventListeners();
-            this._setupCheckboxListeners();
-            
-            // Show bulk actions if we have students
-            this._toggleBulkActions(true);
-            
-            console.log(`✅ Loaded ${students.length} students`);
-            
-        } catch (error) {
-            console.error('Error loading students table:', error);
-            this._renderErrorState();
+ * Load students into table - UPDATED VERSION
+ */
+async loadStudentsTable(filterOptions = {}) {
+    try {
+        console.log('📋 Loading students table...');
+        const students = await this.db.getStudents(filterOptions);
+        const tbody = document.getElementById('studentsTableBody');
+        
+        if (!tbody) {
+            console.warn('Students table body not found');
+            return;
         }
+        
+        if (students.length === 0) {
+            this._renderEmptyState(tbody);
+            this._toggleBulkActions(false);
+            return;
+        }
+        
+        // Fetch programs once for all students
+        const allPrograms = await this.db.getPrograms();
+        const programMap = {};
+        if (allPrograms && Array.isArray(allPrograms)) {
+            allPrograms.forEach(program => {
+                programMap[program.id] = program.name;
+            });
+        }
+        
+        // Render all rows with program names
+        const html = students.map(student => {
+            const programName = student.program 
+                ? (programMap[student.program] || student.program)
+                : 'N/A';
+                
+            const studentName = this._escapeHtml(student.full_name || '');
+            const email = this._escapeHtml(student.email || '');
+            const status = student.status || 'active';
+            const safeStudentId = this._escapeAttr(student.id);
+            const safeRegNumber = this._escapeAttr(student.reg_number);
+            const centreName = student.centre || 'N/A';
+            
+            return `
+                <tr data-student-id="${safeStudentId}" data-student-reg="${safeRegNumber}">
+                    <td><strong>${this._escapeHtml(student.reg_number)}</strong></td>
+                    <td>
+                        <div class="student-avatar">
+                            <div class="avatar-icon" style="background-color: ${this._getAvatarColor(student.full_name)}">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="student-info">
+                                <strong>${studentName}</strong><br>
+                                <small>${email}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${this._escapeHtml(programName)}</td>
+                    <td>${this._escapeHtml(centreName)}</td>
+                    <td>${this._escapeHtml(student.county)}</td>
+                    <td>${this._escapeHtml(student.intake_year)}</td>
+                    <td>
+                        <span class="status-badge ${this._escapeAttr(status)}">
+                            ${this._escapeHtml(status.toUpperCase())}
+                        </span>
+                    </td>
+                    <td class="action-buttons">
+                        <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn-action edit-student" data-id="${safeStudentId}" title="Edit Student">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-action enter-marks" data-id="${safeStudentId}" title="Enter Marks">
+                            <i class="fas fa-chart-bar"></i>
+                        </button>
+                        <button class="btn-action delete-student" data-id="${safeStudentId}" title="Delete Student">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        tbody.innerHTML = html;
+        
+        // Attach event listeners
+        this._attachStudentRowEventListeners();
+        this._setupCheckboxListeners();
+        
+        // Show bulk actions if we have students
+        this._toggleBulkActions(true);
+        
+        console.log(`✅ Loaded ${students.length} students`);
+        
+    } catch (error) {
+        console.error('Error loading students table:', error);
+        this._renderErrorState();
     }
+}
     
    /**
- * Render student table row - CORRECTED VERSION
+ * Render student table row - FIXED VERSION with program names from database
  */
-_renderStudentRow(student, settings) {
-    const programName = settings.programs && settings.programs[student.program] 
-        ? this._escapeHtml(settings.programs[student.program].name) 
-        : this._escapeHtml(student.program || 'N/A');
-    
-    const centreName = settings.centres && settings.centres[student.centre_id] 
-        ? this._escapeHtml(settings.centres[student.centre_id].name)
-        : this._escapeHtml(student.centre || 'N/A');
-    
+async _renderStudentRow(student) {
+    try {
+        // Fetch all programs from database to get proper names
+        const allPrograms = await this.db.getPrograms();
+        
+        // Create a map of program ID to name
+        const programMap = {};
+        if (allPrograms && Array.isArray(allPrograms)) {
+            allPrograms.forEach(program => {
+                programMap[program.id] = program.name;
+            });
+        }
+        
+        // Get program name from map or fallback
+        const programName = student.program 
+            ? (programMap[student.program] || student.program)
+            : 'N/A';
+        
+        // Get other data
+        const studentName = this._escapeHtml(student.full_name || '');
+        const email = this._escapeHtml(student.email || '');
+        const status = student.status || 'active';
+        const safeStudentId = this._escapeAttr(student.id);
+        const safeRegNumber = this._escapeAttr(student.reg_number);
+        
+        // For centre, try to get from settings or use student data
+        const centreName = student.centre || 'N/A';
+        
+        return `
+            <tr data-student-id="${safeStudentId}" data-student-reg="${safeRegNumber}">
+                <td><strong>${this._escapeHtml(student.reg_number)}</strong></td>
+                <td>
+                    <div class="student-avatar">
+                        <div class="avatar-icon" style="background-color: ${this._getAvatarColor(student.full_name)}">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="student-info">
+                            <strong>${studentName}</strong><br>
+                            <small>${email}</small>
+                        </div>
+                    </div>
+                </td>
+                <td>${this._escapeHtml(programName)}</td>
+                <td>${this._escapeHtml(centreName)}</td>
+                <td>${this._escapeHtml(student.county)}</td>
+                <td>${this._escapeHtml(student.intake_year)}</td>
+                <td>
+                    <span class="status-badge ${this._escapeAttr(status)}">
+                        ${this._escapeHtml(status.toUpperCase())}
+                    </span>
+                </td>
+                <td class="action-buttons">
+                    <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn-action edit-student" data-id="${safeStudentId}" title="Edit Student">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-action enter-marks" data-id="${safeStudentId}" title="Enter Marks">
+                        <i class="fas fa-chart-bar"></i>
+                    </button>
+                    <button class="btn-action delete-student" data-id="${safeStudentId}" title="Delete Student">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+        
+    } catch (error) {
+        console.error('Error rendering student row:', error);
+        // Fallback to basic rendering
+        return this._renderStudentRowFallback(student);
+    }
+}
+
+/**
+ * Fallback student row rendering
+ */
+_renderStudentRowFallback(student) {
     const studentName = this._escapeHtml(student.full_name || '');
     const email = this._escapeHtml(student.email || '');
     const status = student.status || 'active';
@@ -482,8 +642,8 @@ _renderStudentRow(student, settings) {
                     </div>
                 </div>
             </td>
-            <td>${programName}</td>
-            <td>${centreName}</td>
+            <td>${this._escapeHtml(student.program || 'N/A')}</td>
+            <td>${this._escapeHtml(student.centre || 'N/A')}</td>
             <td>${this._escapeHtml(student.county)}</td>
             <td>${this._escapeHtml(student.intake_year)}</td>
             <td>
@@ -520,7 +680,13 @@ _renderStudentRow(student, settings) {
                 this.viewStudent(studentId);
             });
         });
-        
+        // ADD THIS: Enter marks buttons
+    document.querySelectorAll('.enter-marks').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const studentId = e.currentTarget.getAttribute('data-id');
+            this.enterMarks(studentId); // This method needs to exist!
+        });
+    });
         // Edit student buttons
         document.querySelectorAll('.edit-student').forEach(button => {
             button.addEventListener('click', (e) => {
@@ -788,8 +954,8 @@ _renderStudentRow(student, settings) {
             this.ui.openModal('studentModal');
         });
     }
-    /**
- * View student details
+  /**
+ * View student details - FIXED VERSION with proper HTML structure
  */
 async viewStudent(studentId) {
     try {
@@ -801,133 +967,284 @@ async viewStudent(studentId) {
             return;
         }
         
-        // Create a modal for viewing student details
+        // Fetch program name from database
+        const allPrograms = await this.db.getPrograms();
+        const programMap = {};
+        if (allPrograms && Array.isArray(allPrograms)) {
+            allPrograms.forEach(program => {
+                programMap[program.id] = program.name;
+            });
+        }
+        
+        const programName = student.program 
+            ? (programMap[student.program] || student.program)
+            : 'Not assigned';
+        
+        // Format dates
+        const formatDate = (dateString) => {
+            if (!dateString) return '';
+            try {
+                return new Date(dateString).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+            } catch (e) {
+                return dateString;
+            }
+        };
+        
+        // Create modal content with proper structure
         const modalContent = `
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3>Student Details</h3>
+                    <h3><i class="fas fa-user-graduate"></i> Student Details</h3>
                     <span class="close" data-modal-close>&times;</span>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
                     <div class="student-profile">
-                        <div class="student-header">
+                        <!-- Student Header -->
+                        <div class="student-header" style="display: flex; align-items: center; gap: 20px; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 2px solid #f0f0f0;">
                             <div class="student-avatar-large">
                                 <div style="background-color: ${this._getAvatarColor(student.full_name)}; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
                                     <i class="fas fa-user fa-2x" style="color: white;"></i>
                                 </div>
                             </div>
-                            <div class="student-info-header">
-                                <h2>${this._escapeHtml(student.full_name)}</h2>
-                                <p class="student-reg">${this._escapeHtml(student.reg_number)}</p>
-                                <span class="status-badge ${student.status}">
+                            <div class="student-info-header" style="flex: 1;">
+                                <h2 style="margin: 0 0 5px 0; color: #333;">${this._escapeHtml(student.full_name)}</h2>
+                                <p class="student-reg" style="margin: 0 0 10px 0; color: #666;">
+                                    <i class="fas fa-id-card"></i> ${this._escapeHtml(student.reg_number)}
+                                </p>
+                                <span class="status-badge ${student.status}" style="display: inline-block; padding: 4px 12px; background: ${student.status === 'active' ? '#d1fae5' : '#fee2e2'}; color: ${student.status === 'active' ? '#065f46' : '#991b1b'}; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
                                     ${this._escapeHtml(student.status.toUpperCase())}
                                 </span>
                             </div>
                         </div>
                         
-                        <div class="student-details-grid">
-                            <div class="detail-section">
-                                <h4><i class="fas fa-user"></i> Personal Information</h4>
-                                <div class="detail-row">
-                                    <span class="detail-label">Email:</span>
-                                    <span class="detail-value">${this._escapeHtml(student.email)}</span>
+                        <!-- Details Grid -->
+                        <div class="student-details-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                            
+                            <!-- Personal Information -->
+                            <div class="detail-section" style="background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0;">
+                                <h4 style="margin: 0 0 15px 0; color: #4f46e5; display: flex; align-items: center; gap: 8px;">
+                                    <i class="fas fa-user"></i> Personal Information
+                                </h4>
+                                <div style="display: flex; flex-direction: column; gap: 12px;">
+                                    ${student.email ? `
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <span style="font-weight: 600; color: #555; min-width: 120px;">Email:</span>
+                                        <span style="color: #333; text-align: right; flex: 1; word-break: break-word;">
+                                            <i class="fas fa-envelope" style="margin-right: 5px;"></i>
+                                            ${this._escapeHtml(student.email)}
+                                        </span>
+                                    </div>` : ''}
+                                    
+                                    ${student.phone ? `
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <span style="font-weight: 600; color: #555; min-width: 120px;">Phone:</span>
+                                        <span style="color: #333; text-align: right; flex: 1;">
+                                            <i class="fas fa-phone" style="margin-right: 5px;"></i>
+                                            ${this._escapeHtml(student.phone)}
+                                        </span>
+                                    </div>` : ''}
+                                    
+                                    ${student.date_of_birth ? `
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <span style="font-weight: 600; color: #555; min-width: 120px;">Date of Birth:</span>
+                                        <span style="color: #333; text-align: right; flex: 1;">
+                                            <i class="fas fa-calendar" style="margin-right: 5px;"></i>
+                                            ${formatDate(student.date_of_birth)}
+                                        </span>
+                                    </div>` : ''}
+                                    
+                                    ${student.gender ? `
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <span style="font-weight: 600; color: #555; min-width: 120px;">Gender:</span>
+                                        <span style="color: #333; text-align: right; flex: 1;">
+                                            <i class="fas fa-venus-mars" style="margin-right: 5px;"></i>
+                                            ${this._escapeHtml(student.gender)}
+                                        </span>
+                                    </div>` : ''}
                                 </div>
-                                <div class="detail-row">
-                                    <span class="detail-label">Phone:</span>
-                                    <span class="detail-value">${this._escapeHtml(student.phone)}</span>
-                                </div>
-                                ${student.date_of_birth ? `
-                                <div class="detail-row">
-                                    <span class="detail-label">Date of Birth:</span>
-                                    <span class="detail-value">${new Date(student.date_of_birth).toLocaleDateString()}</span>
-                                </div>` : ''}
-                                ${student.gender ? `
-                                <div class="detail-row">
-                                    <span class="detail-label">Gender:</span>
-                                    <span class="detail-value">${this._escapeHtml(student.gender)}</span>
-                                </div>` : ''}
                             </div>
                             
-                            <div class="detail-section">
-                                <h4><i class="fas fa-graduation-cap"></i> Academic Information</h4>
-                                <div class="detail-row">
-                                    <span class="detail-label">Program:</span>
-                                    <span class="detail-value">${this._escapeHtml(student.program)}</span>
+                            <!-- Academic Information -->
+                            <div class="detail-section" style="background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0;">
+                                <h4 style="margin: 0 0 15px 0; color: #4f46e5; display: flex; align-items: center; gap: 8px;">
+                                    <i class="fas fa-graduation-cap"></i> Academic Information
+                                </h4>
+                                <div style="display: flex; flex-direction: column; gap: 12px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <span style="font-weight: 600; color: #555; min-width: 120px;">Program:</span>
+                                        <span style="color: #333; text-align: right; flex: 1; word-break: break-word;">
+                                            <i class="fas fa-book" style="margin-right: 5px;"></i>
+                                            ${this._escapeHtml(programName)}
+                                        </span>
+                                    </div>
+                                    
+                                    ${student.centre ? `
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <span style="font-weight: 600; color: #555; min-width: 120px;">Centre:</span>
+                                        <span style="color: #333; text-align: right; flex: 1;">
+                                            <i class="fas fa-school" style="margin-right: 5px;"></i>
+                                            ${this._escapeHtml(student.centre)}
+                                        </span>
+                                    </div>` : ''}
+                                    
+                                    ${student.intake_year ? `
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <span style="font-weight: 600; color: #555; min-width: 120px;">Intake Year:</span>
+                                        <span style="color: #333; text-align: right; flex: 1;">
+                                            <i class="fas fa-calendar-alt" style="margin-right: 5px;"></i>
+                                            ${this._escapeHtml(student.intake_year)}
+                                        </span>
+                                    </div>` : ''}
+                                    
+                                    ${student.study_mode ? `
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <span style="font-weight: 600; color: #555; min-width: 120px;">Study Mode:</span>
+                                        <span style="color: #333; text-align: right; flex: 1;">
+                                            <i class="fas fa-clock" style="margin-right: 5px;"></i>
+                                            ${this._escapeHtml(student.study_mode)}
+                                        </span>
+                                    </div>` : ''}
                                 </div>
-                                <div class="detail-row">
-                                    <span class="detail-label">Centre:</span>
-                                    <span class="detail-value">${this._escapeHtml(student.centre)}</span>
-                                </div>
-                                <div class="detail-row">
-                                    <span class="detail-label">Intake Year:</span>
-                                    <span class="detail-value">${this._escapeHtml(student.intake_year)}</span>
-                                </div>
-                                ${student.study_mode ? `
-                                <div class="detail-row">
-                                    <span class="detail-label">Study Mode:</span>
-                                    <span class="detail-value">${this._escapeHtml(student.study_mode)}</span>
-                                </div>` : ''}
                             </div>
                             
-                            <div class="detail-section">
-                                <h4><i class="fas fa-map-marker-alt"></i> Location Information</h4>
-                                <div class="detail-row">
-                                    <span class="detail-label">County:</span>
-                                    <span class="detail-value">${this._escapeHtml(student.county)}</span>
+                            <!-- Location Information -->
+                            <div class="detail-section" style="background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0;">
+                                <h4 style="margin: 0 0 15px 0; color: #4f46e5; display: flex; align-items: center; gap: 8px;">
+                                    <i class="fas fa-map-marker-alt"></i> Location Information
+                                </h4>
+                                <div style="display: flex; flex-direction: column; gap: 12px;">
+                                    ${student.county ? `
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <span style="font-weight: 600; color: #555; min-width: 120px;">County:</span>
+                                        <span style="color: #333; text-align: right; flex: 1;">
+                                            <i class="fas fa-map" style="margin-right: 5px;"></i>
+                                            ${this._escapeHtml(student.county)}
+                                        </span>
+                                    </div>` : ''}
+                                    
+                                    ${student.sub_county ? `
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <span style="font-weight: 600; color: #555; min-width: 120px;">Sub-County:</span>
+                                        <span style="color: #333; text-align: right; flex: 1;">
+                                            <i class="fas fa-map-pin" style="margin-right: 5px;"></i>
+                                            ${this._escapeHtml(student.sub_county)}
+                                        </span>
+                                    </div>` : ''}
+                                    
+                                    ${student.ward ? `
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <span style="font-weight: 600; color: #555; min-width: 120px;">Ward:</span>
+                                        <span style="color: #333; text-align: right; flex: 1;">
+                                            <i class="fas fa-location-dot" style="margin-right: 5px;"></i>
+                                            ${this._escapeHtml(student.ward)}
+                                        </span>
+                                    </div>` : ''}
+                                    
+                                    ${student.village ? `
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <span style="font-weight: 600; color: #555; min-width: 120px;">Village/Estate:</span>
+                                        <span style="color: #333; text-align: right; flex: 1;">
+                                            <i class="fas fa-home" style="margin-right: 5px;"></i>
+                                            ${this._escapeHtml(student.village)}
+                                        </span>
+                                    </div>` : ''}
                                 </div>
-                                ${student.sub_county ? `
-                                <div class="detail-row">
-                                    <span class="detail-label">Sub-County:</span>
-                                    <span class="detail-value">${this._escapeHtml(student.sub_county)}</span>
-                                </div>` : ''}
-                                ${student.ward ? `
-                                <div class="detail-row">
-                                    <span class="detail-label">Ward:</span>
-                                    <span class="detail-value">${this._escapeHtml(student.ward)}</span>
-                                </div>` : ''}
-                                ${student.village ? `
-                                <div class="detail-row">
-                                    <span class="detail-label">Village/Estate:</span>
-                                    <span class="detail-value">${this._escapeHtml(student.village)}</span>
-                                </div>` : ''}
                             </div>
                             
-                            ${student.employment_status ? `
-                            <div class="detail-section">
-                                <h4><i class="fas fa-briefcase"></i> Employment Information</h4>
-                                <div class="detail-row">
-                                    <span class="detail-label">Employment Status:</span>
-                                    <span class="detail-value">${this._escapeHtml(student.employment_status)}</span>
+                            <!-- Employment Information (if exists) -->
+                            ${student.employment_status || student.employer || student.job_title ? `
+                            <div class="detail-section" style="background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0;">
+                                <h4 style="margin: 0 0 15px 0; color: #4f46e5; display: flex; align-items: center; gap: 8px;">
+                                    <i class="fas fa-briefcase"></i> Employment Information
+                                </h4>
+                                <div style="display: flex; flex-direction: column; gap: 12px;">
+                                    ${student.employment_status ? `
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <span style="font-weight: 600; color: #555; min-width: 120px;">Employment Status:</span>
+                                        <span style="color: #333; text-align: right; flex: 1;">
+                                            <i class="fas fa-user-tie" style="margin-right: 5px;"></i>
+                                            ${this._escapeHtml(student.employment_status)}
+                                        </span>
+                                    </div>` : ''}
+                                    
+                                    ${student.employer ? `
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <span style="font-weight: 600; color: #555; min-width: 120px;">Employer:</span>
+                                        <span style="color: #333; text-align: right; flex: 1;">
+                                            <i class="fas fa-building" style="margin-right: 5px;"></i>
+                                            ${this._escapeHtml(student.employer)}
+                                        </span>
+                                    </div>` : ''}
+                                    
+                                    ${student.job_title ? `
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <span style="font-weight: 600; color: #555; min-width: 120px;">Job Title:</span>
+                                        <span style="color: #333; text-align: right; flex: 1;">
+                                            <i class="fas fa-suitcase" style="margin-right: 5px;"></i>
+                                            ${this._escapeHtml(student.job_title)}
+                                        </span>
+                                    </div>` : ''}
+                                    
+                                    ${student.years_experience ? `
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <span style="font-weight: 600; color: #555; min-width: 120px;">Experience:</span>
+                                        <span style="color: #333; text-align: right; flex: 1;">
+                                            <i class="fas fa-clock-rotate-left" style="margin-right: 5px;"></i>
+                                            ${student.years_experience} years
+                                        </span>
+                                    </div>` : ''}
                                 </div>
-                                ${student.employer ? `
-                                <div class="detail-row">
-                                    <span class="detail-label">Employer:</span>
-                                    <span class="detail-value">${this._escapeHtml(student.employer)}</span>
-                                </div>` : ''}
-                                ${student.job_title ? `
-                                <div class="detail-row">
-                                    <span class="detail-label">Job Title:</span>
-                                    <span class="detail-value">${this._escapeHtml(student.job_title)}</span>
-                                </div>` : ''}
-                                ${student.years_experience ? `
-                                <div class="detail-row">
-                                    <span class="detail-label">Experience:</span>
-                                    <span class="detail-value">${student.years_experience} years</span>
-                                </div>` : ''}
                             </div>` : ''}
+                            
                         </div>
+                        
+                        <!-- Additional Information -->
+                        ${student.notes || student.address ? `
+                        <div class="additional-info" style="margin-top: 25px; padding: 20px; background: #f0f7ff; border-radius: 8px; border-left: 4px solid #4f46e5;">
+                            <h4 style="margin: 0 0 15px 0; color: #4f46e5;">
+                                <i class="fas fa-info-circle"></i> Additional Information
+                            </h4>
+                            <div style="display: flex; flex-direction: column; gap: 15px;">
+                                ${student.address ? `
+                                <div>
+                                    <h5 style="margin: 0 0 8px 0; color: #666; font-size: 0.95rem;">
+                                        <i class="fas fa-map-marker"></i> Address:
+                                    </h5>
+                                    <p style="margin: 0; color: #333; line-height: 1.5;">
+                                        ${this._escapeHtml(student.address)}
+                                    </p>
+                                </div>` : ''}
+                                
+                                ${student.notes ? `
+                                <div>
+                                    <h5 style="margin: 0 0 8px 0; color: #666; font-size: 0.95rem;">
+                                        <i class="fas fa-sticky-note"></i> Notes:
+                                    </h5>
+                                    <p style="margin: 0; color: #333; line-height: 1.5; white-space: pre-wrap;">
+                                        ${this._escapeHtml(student.notes)}
+                                    </p>
+                                </div>` : ''}
+                            </div>
+                        </div>` : ''}
+                        
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-modal-close>Close</button>
-                    <button type="button" class="btn btn-primary" onclick="app.students.editStudent('${studentId}')">
+                <div class="modal-footer" style="padding: 20px; background: #f8f9fa; border-top: 1px solid #dee2e6; display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn btn-secondary" data-modal-close style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        <i class="fas fa-times"></i> Close
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="app.students.editStudent('${studentId}')" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
                         <i class="fas fa-edit"></i> Edit Student
                     </button>
                 </div>
             </div>
         `;
         
-        // Create modal container
+        // Create modal
         const modalId = 'viewStudentModal';
         let modal = document.getElementById(modalId);
         
@@ -935,16 +1252,138 @@ async viewStudent(studentId) {
             modal = document.createElement('div');
             modal.id = modalId;
             modal.className = 'modal';
+            modal.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto;';
             document.body.appendChild(modal);
+            
+            // Add close handlers
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal || e.target.closest('[data-modal-close]')) {
+                    modal.style.display = 'none';
+                    document.body.style.overflow = 'auto';
+                }
+            });
+            
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modal.style.display === 'block') {
+                    modal.style.display = 'none';
+                    document.body.style.overflow = 'auto';
+                }
+            });
         }
         
         modal.innerHTML = modalContent;
-        this.ui.openModal(modalId);
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+        
+        // Scroll to top of modal
+        setTimeout(() => {
+            modal.scrollTop = 0;
+        }, 10);
         
     } catch (error) {
         console.error('Error viewing student:', error);
         this.ui.showToast('Error loading student details', 'error');
     }
+}
+    /**
+ * Enter marks for a student
+ */
+async enterMarks(studentId) {
+    try {
+        console.log(`📝 Entering marks for student ${studentId}...`);
+        
+        // Get student details
+        const student = await this.db.getStudent(studentId);
+        if (!student) {
+            this.ui.showToast('Student not found', 'error');
+            return;
+        }
+        
+        // Check if marks manager exists in the app
+        if (this.app && this.app.marks && typeof this.app.marks.openMarksModal === 'function') {
+            // Use the marks module if available
+            this.app.marks.openMarksModal(studentId);
+        } else if (window.app && window.app.marks && typeof window.app.marks.openMarksModal === 'function') {
+            // Try global app instance
+            window.app.marks.openMarksModal(studentId);
+        } else {
+            // Show message to use marks page
+            this.ui.showToast('Please use the Marks page to enter marks for students.', 'info');
+            
+            // Optionally redirect to marks page
+            // window.location.hash = '#marks';
+            
+            // Or open a simple modal
+            this._openSimpleMarksInfoModal(studentId);
+        }
+        
+    } catch (error) {
+        console.error('Error entering marks:', error);
+        this.ui.showToast('Error opening marks entry', 'error');
+    }
+}
+
+/**
+ * Simple fallback modal for marks entry
+ */
+_openSimpleMarksInfoModal(studentId) {
+    const modalId = 'simpleMarksModal';
+    let modal = document.getElementById(modalId);
+    
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = modalId;
+        modal.className = 'modal';
+        modal.style.cssText = `
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    modal.innerHTML = `
+        <div class="modal-content" style="background: white; margin: 100px auto; max-width: 500px; padding: 20px; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0;">Enter Marks</h3>
+                <span onclick="document.getElementById('${modalId}').style.display='none'" 
+                      style="cursor: pointer; font-size: 24px;">&times;</span>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <p>To enter marks for this student:</p>
+                <ol style="margin-left: 20px;">
+                    <li>Go to the <strong>Marks</strong> page</li>
+                    <li>Click <strong>Add Marks</strong></li>
+                    <li>Select the student and course</li>
+                    <li>Enter the marks</li>
+                </ol>
+            </div>
+            <div style="text-align: right;">
+                <button onclick="document.getElementById('${modalId}').style.display='none'" 
+                        style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+                    Close
+                </button>
+                <button onclick="window.location.hash = '#marks'" 
+                        style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    Go to Marks Page
+                </button>
+            </div>
+        </div>
+    `;
+    
+    modal.style.display = 'block';
+    
+    // Close when clicking outside
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
 }
     /**
      * Render error state
