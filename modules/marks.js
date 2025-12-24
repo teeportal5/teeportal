@@ -938,118 +938,121 @@ clearFieldErrors() {
         this.updateSelectedCounts();
     }
     
-    renderTableView() {
-        const tbody = document.querySelector('#marksTableBody');
-        if (!tbody) return;
-        
-        const startIndex = (this.currentPage - 1) * this.pageSize;
-        const endIndex = startIndex + this.pageSize;
-        const pageData = this.filteredData.slice(startIndex, endIndex);
-        
-        if (pageData.length === 0) {
-            tbody.innerHTML = this.getEmptyStateHTML();
-            return;
-        }
-        
-        let html = '';
-        
-        pageData.forEach((mark) => {
-            const isSelected = this.selectedMarks.has(mark.id);
-            const student = mark.students || {};
-            const course = mark.courses || {};
-            
-            const score = mark.score || 0;
-            const maxScore = mark.max_score || 100;
-            let percentage = mark.percentage;
-            if (!percentage && maxScore > 0) {
-                percentage = (score / maxScore) * 100;
-            }
-            
-            let grade = mark.grade;
-            if (!grade && percentage !== undefined) {
-                grade = this.calculateGrade(parseFloat(percentage));
-            }
-            
-            const gradeCSSClass = this.getGradeCSSClass(grade);
-            const status = mark.visible_to_student ? 'published' : 'hidden';
-            
-            const escapeHTML = (str) => {
-                if (!str) return '';
-                const div = document.createElement('div');
-                div.textContent = str;
-                return div.innerHTML;
-            };
-            
-            html += `
-                <tr data-mark-id="${mark.id}" class="${isSelected ? 'selected' : ''}">
-                    <td class="select-col">
-                        <input type="checkbox" 
-                               ${isSelected ? 'checked' : ''}
-                               onchange="window.app.marks.toggleSelection('${mark.id}')">
-                    </td>
-                    <td class="student-col">
-                        <div class="student-cell">
-                            <div class="student-avatar-small">
-                                ${this.getInitials(student.full_name || 'N/A')}
-                            </div>
-                            <div class="student-details">
-                                <div class="student-name">${escapeHTML(student.full_name || 'N/A')}</div>
-                                <div class="student-id">${escapeHTML(student.reg_number || 'N/A')}</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td class="course-col">
-                        <div class="course-code">${escapeHTML(course.course_code || 'N/A')}</div>
-                        <div class="course-name">${escapeHTML(course.course_name || '')}</div>
-                    </td>
-                    <td class="assessment-col">
-                        <div class="assessment-type">${escapeHTML(mark.assessment_type || 'N/A')}</div>
-                        <div class="assessment-name">${escapeHTML(mark.assessment_name || '')}</div>
-                    </td>
-                    <td class="score-col">
-                        <div class="score-display">
-                            <div class="score-value">${score}/${maxScore}</div>
-                            <div class="score-percentage">${percentage ? percentage.toFixed(1) : '0.0'}%</div>
-                        </div>
-                    </td>
-                    <td class="grade-col">
-                        <span class="grade-badge-table ${gradeCSSClass}" 
-                              title="${this.getGradeDescription(grade)}">
-                            ${grade || 'FAIL'}
-                        </span>
-                    </td>
-                    <td class="date-col">
-                        ${mark.created_at ? this.formatDate(mark.created_at) : 'N/A'}
-                    </td>
-                    <td class="status-col">
-                        <span class="status-indicator ${status}">
-                            <i class="fas fa-${status === 'published' ? 'eye' : 'eye-slash'}"></i>
-                            ${status}
-                        </span>
-                    </td>
-                    <td class="actions-col">
-                        <div class="table-actions">
-                            <button class="action-btn btn-edit" data-mark-id="${mark.id}" title="Edit">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="action-btn btn-view" data-mark-id="${mark.id}" title="View Details">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="action-btn btn-delete" data-mark-id="${mark.id}" title="Delete">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        });
-        
-        tbody.innerHTML = html;
-        
-        // Attach event listeners to table buttons
-        this.attachTableButtonListeners();
+   renderTableView() {
+    const tbody = document.querySelector('#marksTableBody');
+    if (!tbody) return;
+    
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    const endIndex = startIndex + this.pageSize;
+    const pageData = this.filteredData.slice(startIndex, endIndex);
+    
+    if (pageData.length === 0) {
+        tbody.innerHTML = this.getEmptyStateHTML();
+        return;
     }
     
+    let html = '';
+    
+    pageData.forEach((mark) => {
+        const student = mark.students || {};
+        const course = mark.courses || {};
+        
+        const score = mark.score || 0;
+        const maxScore = mark.max_score || 100;
+        let percentage = mark.percentage;
+        if (!percentage && maxScore > 0) {
+            percentage = (score / maxScore) * 100;
+        }
+        
+        let grade = mark.grade;
+        if (!grade && percentage !== undefined) {
+            grade = this.calculateGrade(parseFloat(percentage));
+        }
+        
+        const gradeCSSClass = this.getGradeCSSClass(grade);
+        const status = mark.visible_to_student ? 'published' : 'hidden';
+        const statusIcon = status === 'published' ? 'fa-eye' : 'fa-eye-slash';
+        const statusText = status === 'published' ? 'Visible' : 'Hidden';
+        
+        // Get student centre
+        const studentCentre = student.centre || student.centre_name || 'Main Campus';
+        
+        // Format date
+        const formattedDate = mark.created_at ? this.formatDate(mark.created_at) : 'N/A';
+        
+        html += `
+            <tr data-mark-id="${mark.id}">
+                <!-- Student Column (Name + Reg No combined) -->
+                <td>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 36px; height: 36px; border-radius: 50%; background: #3b82f6; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.875rem; flex-shrink: 0;">
+                            ${this.getInitials(student.full_name || 'N/A')}
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: #1f2937; margin-bottom: 2px;">${this.escapeHTML(student.full_name || 'N/A')}</div>
+                            <div style="font-size: 0.75rem; color: #6b7280; font-family: monospace;">${this.escapeHTML(student.reg_number || 'N/A')}</div>
+                        </div>
+                    </div>
+                </td>
+                
+                <!-- Course Column -->
+                <td>
+                    <div style="font-weight: 600; color: #1f2937; margin-bottom: 2px;">${this.escapeHTML(course.course_code || 'N/A')}</div>
+                    <div style="font-size: 0.75rem; color: #6b7280;">${this.escapeHTML(course.course_name || '')}</div>
+                </td>
+                
+                <!-- Centre Column -->
+                <td>
+                    <div style="font-weight: 600; color: #1f2937;">${this.escapeHTML(studentCentre)}</div>
+                    <div style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: ${status === 'published' ? '#d1fae5' : '#f3f4f6'}; color: ${status === 'published' ? '#065f46' : '#6b7280'}; margin-top: 4px;">
+                        <i class="fas ${statusIcon}"></i>
+                        ${statusText}
+                    </div>
+                </td>
+                
+                <!-- Score Column -->
+                <td>
+                    <div style="text-align: center;">
+                        <div style="font-weight: 700; color: #1f2937; font-size: 1rem;">${score}/${maxScore}</div>
+                        <div style="font-size: 0.75rem; color: #6b7280; font-weight: 600;">${percentage ? percentage.toFixed(1) : '0.0'}%</div>
+                    </div>
+                </td>
+                
+                <!-- Grade Column -->
+                <td>
+                    <span style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; ${gradeCSSClass === 'grade-distinction' ? 'background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;' : gradeCSSClass === 'grade-credit' ? 'background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white;' : gradeCSSClass === 'grade-pass' ? 'background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;' : 'background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white;'}">
+                        ${grade || 'FAIL'}
+                    </span>
+                </td>
+                
+                <!-- Date Column -->
+                <td style="color: #6b7280; font-size: 0.875rem;">
+                    ${formattedDate}
+                </td>
+                
+                <!-- Actions Column -->
+                <td>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="action-btn btn-edit" data-mark-id="${mark.id}" title="Edit" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid #d1d5db; background: white; color: #6b7280; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="action-btn btn-view" data-mark-id="${mark.id}" title="View Details" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid #d1d5db; background: white; color: #6b7280; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="action-btn btn-delete" data-mark-id="${mark.id}" title="Delete" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid #d1d5db; background: white; color: #6b7280; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+    
+    // Attach event listeners to table buttons
+    this.attachTableButtonListeners();
+}
     attachTableButtonListeners() {
         // Edit buttons
         document.querySelectorAll('.btn-edit').forEach(btn => {
