@@ -682,7 +682,7 @@ getGradeColor(grade) {
             percentage: percentage,
             grade: grade,
             grade_points: gradePoints,
-             visible_to_student: visibleToStudent,
+            visible_to_student: visibleToStudent, // ✅ FIXED: Now defined
             entered_by: this.app.user?.id || 'system',
             assessment_date: assessmentDate
         };
@@ -1463,48 +1463,110 @@ getGradeColor(grade) {
     }
     
     async populateStudentDropdown() {
-        const select = document.getElementById('marksStudent');
-        if (!select) return;
+    const select = document.getElementById('marksStudent');
+    if (!select) return;
+    
+    try {
+        console.log('📋 Fetching students for dropdown...');
+        const students = await this.db.getStudents();
+        console.log('📊 Students data received:', students);
         
-        try {
-            const students = await this.db.getStudents();
-            select.innerHTML = '<option value="">Select student...</option>';
-            
-            students.forEach(student => {
-                if (student.status === 'active') {
-                    const option = document.createElement('option');
-                    option.value = student.id;
-                    option.textContent = `${student.registration_number} - ${student.name}`;
-                    select.appendChild(option);
-                }
-            });
-        } catch (error) {
-            console.error('Error populating student dropdown:', error);
-            select.innerHTML = '<option value="">Error loading students</option>';
+        select.innerHTML = '<option value="">Select student...</option>';
+        
+        if (!students || !Array.isArray(students)) {
+            console.error('❌ Invalid students data:', students);
+            select.innerHTML += '<option value="">Error loading students</option>';
+            return;
         }
+        
+        // Debug: Check first student's properties
+        if (students.length > 0) {
+            console.log('🔍 First student object keys:', Object.keys(students[0]));
+            console.log('🔍 First student:', students[0]);
+        }
+        
+        students.forEach((student, index) => {
+            // Try multiple possible property names
+            const studentId = student.id || student.student_id || student.ID;
+            const regNumber = student.registration_number || student.reg_number || student.reg_no || student.regNumber || `STU${index + 1000}`;
+            const fullName = student.name || student.full_name || student.fullName || 
+                           `${student.first_name || ''} ${student.last_name || ''}`.trim() || 
+                           student.student_name || `Student ${index + 1}`;
+            const status = student.status || student.active || 'active';
+            
+            if (studentId && (status === 'active' || status === true || status === 1)) {
+                const option = document.createElement('option');
+                option.value = studentId;
+                option.textContent = `${regNumber} - ${fullName}`;
+                select.appendChild(option);
+            }
+        });
+        
+        // If no students were added
+        if (select.options.length === 1) {
+            console.warn('⚠️ No active students found in data');
+            select.innerHTML += '<option value="">No active students available</option>';
+        }
+        
+        console.log(`✅ Populated ${select.options.length - 1} students`);
+        
+    } catch (error) {
+        console.error('❌ Error populating student dropdown:', error);
+        select.innerHTML = '<option value="">Error loading students</option>';
     }
+}
     
     async populateCourseDropdown() {
-        const select = document.getElementById('marksCourse');
-        if (!select) return;
+    const select = document.getElementById('marksCourse');
+    if (!select) return;
+    
+    try {
+        console.log('📚 Fetching courses for dropdown...');
+        const courses = await this.db.getCourses();
+        console.log('📊 Courses data received:', courses);
         
-        try {
-            const courses = await this.db.getCourses();
-            const activeCourses = courses.filter(c => !c.status || c.status === 'active');
-            
-            select.innerHTML = '<option value="">Select course...</option>';
-            
-            activeCourses.forEach(course => {
-                const option = document.createElement('option');
-                option.value = course.id;
-                option.textContent = `${course.code} - ${course.name}`;
-                select.appendChild(option);
-            });
-        } catch (error) {
-            console.error('Error populating course dropdown:', error);
-            select.innerHTML = '<option value="">Error loading courses</option>';
+        select.innerHTML = '<option value="">Select course...</option>';
+        
+        if (!courses || !Array.isArray(courses)) {
+            console.error('❌ Invalid courses data:', courses);
+            select.innerHTML += '<option value="">Error loading courses</option>';
+            return;
         }
+        
+        // Debug: Check first course's properties
+        if (courses.length > 0) {
+            console.log('🔍 First course object keys:', Object.keys(courses[0]));
+            console.log('🔍 First course:', courses[0]);
+        }
+        
+        courses.forEach((course, index) => {
+            // Try multiple possible property names
+            const courseId = course.id || course.course_id || course.ID;
+            const courseCode = course.code || course.course_code || course.courseCode || course.Code || `CRS${index + 100}`;
+            const courseName = course.name || course.course_name || course.courseName || course.title || `Course ${index + 1}`;
+            const status = course.status || course.active || 'active';
+            
+            if (courseId && (status === 'active' || status === true || status === 1)) {
+                const option = document.createElement('option');
+                option.value = courseId;
+                option.textContent = `${courseCode} - ${courseName}`;
+                select.appendChild(option);
+            }
+        });
+        
+        // If no courses were added
+        if (select.options.length === 1) {
+            console.warn('⚠️ No active courses found in data');
+            select.innerHTML += '<option value="">No active courses available</option>';
+        }
+        
+        console.log(`✅ Populated ${select.options.length - 1} courses`);
+        
+    } catch (error) {
+        console.error('❌ Error populating course dropdown:', error);
+        select.innerHTML = '<option value="">Error loading courses</option>';
     }
+}
     
     setupMarksModalListeners() {
         const scoreInput = document.getElementById('marksScore');
