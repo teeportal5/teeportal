@@ -1320,7 +1320,8 @@
                                 <input type="text" id="studentRegNumber" class="form-control reg-number-display" 
                                        required readonly 
                                        placeholder="Select program to generate">
-                                <button type="button" class="btn-icon" onclick="window.studentManager.generateRegNumber()" 
+                                <button type="button" class="btn-icon" 
+                                        onclick="if (window.app && window.app.students) window.app.students.generateRegNumber()" 
                                         title="Generate new number">
                                     <i class="fas fa-redo"></i>
                                 </button>
@@ -1419,7 +1420,7 @@
                         <div class="form-group">
                             <label>Program *</label>
                             <select id="studentProgram" class="form-control" required 
-                                    onchange="window.studentManager.generateRegNumber()">
+                                    onchange="if (window.app && window.app.students) window.app.students.generateRegNumber()">
                                 <option value="">Select Program</option>
                                 <!-- Programs with codes will be loaded -->
                             </select>
@@ -1429,7 +1430,7 @@
                         <div class="form-group">
                             <label>Intake Year *</label>
                             <select id="studentIntake" class="form-control" required 
-                                    onchange="window.studentManager.generateRegNumber()">
+                                    onchange="if (window.app && window.app.students) window.app.students.generateRegNumber()">
                                 <option value="">Select Intake Year</option>
                                 <!-- Years will be populated -->
                             </select>
@@ -1542,6 +1543,37 @@
     </div>
 </div>
 
+<!-- Add this JavaScript fallback -->
+<script>
+// Fallback for student manager
+if (typeof window !== 'undefined') {
+    // Try to get from app first, then fallback to global
+    window.getStudentManager = function() {
+        return window.app?.students || window.studentManager;
+    };
+    
+    // Safe function call
+    window.safeGenerateRegNumber = function() {
+        const manager = window.getStudentManager();
+        if (manager && typeof manager.generateRegNumber === 'function') {
+            manager.generateRegNumber();
+        } else {
+            console.warn('Student manager not available yet');
+            // Try to find and manually trigger generation
+            const program = document.getElementById('studentProgram')?.value;
+            const intake = document.getElementById('studentIntake')?.value;
+            if (program && intake) {
+                // Create a simple reg number as fallback
+                const programCode = program.substring(0, 3).toUpperCase();
+                const regInput = document.getElementById('studentRegNumber');
+                if (regInput) {
+                    regInput.value = `${programCode}-${intake}-001`;
+                }
+            }
+        }
+    };
+}
+</script>
     
     <!-- Program Modal -->
 <div id="programModal" class="modal">
