@@ -5,6 +5,43 @@ class CourseManager {
         this.app = app;
         this.currentCourse = null;
         this.selectedStudents = new Set();
+        
+        // Bind methods to instance
+        this.saveCourse = this.saveCourse.bind(this);
+        this.editCourse = this.editCourse.bind(this);
+        this.deleteCoursePrompt = this.deleteCoursePrompt.bind(this);
+        this.openCourseModal = this.openCourseModal.bind(this);
+        this.closeCourseModal = this.closeCourseModal.bind(this);
+        this.openBulkGradeModal = this.openBulkGradeModal.bind(this);
+        this.closeBulkGradeModal = this.closeBulkGradeModal.bind(this);
+        this.submitBulkGrades = this.submitBulkGrades.bind(this);
+        this.selectAllStudents = this.selectAllStudents.bind(this);
+        this.deselectAllStudents = this.deselectAllStudents.bind(this);
+        this.setCoursesView = this.setCoursesView.bind(this);
+        
+        // Register global functions
+        this.registerGlobalFunctions();
+    }
+
+    // Register global functions for HTML onclick handlers
+    registerGlobalFunctions() {
+        // Course modal functions
+        window.openCourseModal = () => this.openCourseModal();
+        window.closeCourseModal = () => this.closeCourseModal();
+        window.saveCourse = (e) => this.saveCourse(e);
+        
+        // Bulk grading functions
+        window.openBulkGradeModal = (courseId) => this.openBulkGradeModal(courseId);
+        window.closeBulkGradeModal = () => this.closeBulkGradeModal();
+        window.submitBulkGrades = () => this.submitBulkGrades();
+        window.selectAllStudents = () => this.selectAllStudents();
+        window.deselectAllStudents = () => this.deselectAllStudents();
+        
+        // Course actions
+        window.setCoursesView = (view) => this.setCoursesView(view);
+        
+        // Make courses instance available globally
+        window.coursesManager = this;
     }
 
     // Initialize the module
@@ -83,14 +120,14 @@ class CourseManager {
                         
                         <div class="course-actions">
                             ${canGrade ? `
-                                <button class="btn btn-sm btn-success me-2" onclick="app.courses.openBulkGradeModal('${course.id}')" title="Grade all students">
+                                <button class="btn btn-sm btn-success me-2" onclick="coursesManager.openBulkGradeModal('${course.id}')" title="Grade all students">
                                     <i class="fas fa-chart-line"></i> Grade
                                 </button>
                             ` : ''}
-                            <button class="btn btn-sm btn-outline-primary me-2" onclick="app.courses.editCourse('${course.id}')">
+                            <button class="btn btn-sm btn-outline-primary me-2" onclick="coursesManager.editCourse('${course.id}')">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="app.courses.deleteCoursePrompt('${course.id}')">
+                            <button class="btn btn-sm btn-outline-danger" onclick="coursesManager.deleteCoursePrompt('${course.id}')">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -131,14 +168,14 @@ class CourseManager {
                     <td>
                         <div class="btn-group btn-group-sm">
                             ${enrolledStudents > 0 ? `
-                                <button class="btn btn-success" onclick="app.courses.openBulkGradeModal('${course.id}')" title="Grade all students">
+                                <button class="btn btn-success" onclick="coursesManager.openBulkGradeModal('${course.id}')" title="Grade all students">
                                     <i class="fas fa-chart-line"></i>
                                 </button>
                             ` : ''}
-                            <button class="btn btn-primary" onclick="app.courses.editCourse('${course.id}')">
+                            <button class="btn btn-primary" onclick="coursesManager.editCourse('${course.id}')">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn btn-danger" onclick="app.courses.deleteCoursePrompt('${course.id}')">
+                            <button class="btn btn-danger" onclick="coursesManager.deleteCoursePrompt('${course.id}')">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -169,9 +206,11 @@ class CourseManager {
         
         // Show modal
         const modal = document.getElementById('bulkGradeModal');
-        modal.style.display = 'block';
-        modal.classList.add('active');
-        document.body.style.overflow = 'hidden';
+        if (modal) {
+            modal.style.display = 'block';
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
     }
 
     // Load students for bulk grading
@@ -209,11 +248,13 @@ class CourseManager {
                     </td>
                 </tr>
             `;
-            document.getElementById('submitBulkGradesBtn').disabled = true;
+            const submitBtn = document.getElementById('submitBulkGradesBtn');
+            if (submitBtn) submitBtn.disabled = true;
             return;
         }
 
-        document.getElementById('submitBulkGradesBtn').disabled = false;
+        const submitBtn = document.getElementById('submitBulkGradesBtn');
+        if (submitBtn) submitBtn.disabled = false;
         
         let html = '';
         students.forEach(student => {
@@ -226,7 +267,7 @@ class CourseManager {
                     <td class="text-center">
                         <input type="checkbox" class="student-checkbox" 
                                data-student-id="${studentId}"
-                               onchange="app.courses.toggleStudentSelection('${studentId}', this.checked)">
+                               onchange="coursesManager.toggleStudentSelection('${studentId}', this.checked)">
                     </td>
                     <td>
                         <div class="d-flex align-items-center">
@@ -310,19 +351,15 @@ class CourseManager {
         const centre = document.getElementById('bulkGradeCentre')?.value;
         const program = document.getElementById('bulkGradeProgram')?.value;
         
-        // In a real implementation, you would filter from the server
-        // For now, we'll filter client-side from the current list
         const rows = document.querySelectorAll('#bulkGradeStudentsList tr[data-student-id]');
         
         rows.forEach(row => {
             let shouldShow = true;
             const studentIntake = row.cells[4].textContent;
             const studentCentre = row.cells[3].textContent;
-            const studentProgram = ''; // You would need to store this data
             
             if (intake && studentIntake !== intake) shouldShow = false;
             if (centre && studentCentre !== centre) shouldShow = false;
-            if (program && studentProgram !== program) shouldShow = false;
             
             row.style.display = shouldShow ? '' : 'none';
         });
@@ -348,7 +385,6 @@ class CourseManager {
         const sameScore = document.getElementById('bulkSameScore')?.value;
         const studentsToGrade = [];
         
-        // Collect all students' scores
         this.selectedStudents.forEach(studentId => {
             const scoreInput = document.querySelector(`.student-score[data-student-id="${studentId}"]`);
             const score = sameScore || (scoreInput ? scoreInput.value : null);
@@ -377,7 +413,6 @@ class CourseManager {
         }
         
         try {
-            // Save grades in bulk
             const results = await Promise.allSettled(
                 studentsToGrade.map(gradeData => this.db.addMark(gradeData))
             );
@@ -393,9 +428,8 @@ class CourseManager {
                 console.error('Some grades failed to save:', results.filter(r => r.status === 'rejected'));
             }
             
-            // Close modal and refresh
             this.closeBulkGradeModal();
-            await this.loadCourses(); // Refresh course data
+            await this.loadCourses();
             
         } catch (error) {
             console.error('❌ Error saving bulk grades:', error);
@@ -406,9 +440,11 @@ class CourseManager {
     // Close bulk grade modal
     closeBulkGradeModal() {
         const modal = document.getElementById('bulkGradeModal');
-        modal.style.display = 'none';
-        modal.classList.remove('active');
-        document.body.style.overflow = 'auto';
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
         this.selectedStudents.clear();
         this.currentCourse = null;
     }
@@ -491,14 +527,12 @@ class CourseManager {
                 ? (courses.reduce((sum, course) => sum + (course.credits || 0), 0) / totalCourses).toFixed(1)
                 : 0;
             
-            // Update UI elements
             document.getElementById('totalCourses')?.textContent = totalCourses;
             document.getElementById('activeCourses')?.textContent = activeCourses;
             document.getElementById('totalStudentsEnrolled')?.textContent = enrolledStudents;
             document.getElementById('avgCredits')?.textContent = avgCredits;
             document.getElementById('coursesToGrade')?.textContent = courses.filter(c => (c.enrolled_count || 0) > 0).length;
             
-            // Show/hide bulk grade button
             const bulkGradeBtn = document.getElementById('bulkGradeBtn');
             if (bulkGradeBtn) {
                 bulkGradeBtn.style.display = totalCourses > 0 ? 'inline-block' : 'none';
@@ -509,7 +543,7 @@ class CourseManager {
         }
     }
 
-    // Course CRUD operations (existing functions)
+    // Course CRUD operations
     async saveCourse(event) {
         event.preventDefault();
         
@@ -530,7 +564,6 @@ class CourseManager {
                 notes: document.getElementById('courseNotes').value || null
             };
             
-            // Validation
             if (!courseData.course_code) {
                 this.app?.showToast('Please enter a course code', 'error');
                 return;
@@ -572,7 +605,6 @@ class CourseManager {
                 return;
             }
             
-            // Populate form fields
             document.getElementById('courseCode').value = course.course_code || '';
             document.getElementById('courseName').value = course.course_name || '';
             document.getElementById('courseProgram').value = course.program_code || '';
@@ -662,35 +694,50 @@ class CourseManager {
         const tableBtn = document.querySelector('[data-view="table"]');
         
         if (view === 'grid') {
-            grid.style.display = 'grid';
-            table.style.display = 'none';
-            gridBtn?.classList.add('active');
-            tableBtn?.classList.remove('active');
+            if (grid) grid.style.display = 'grid';
+            if (table) table.style.display = 'none';
+            if (gridBtn) gridBtn.classList.add('active');
+            if (tableBtn) tableBtn.classList.remove('active');
         } else {
-            grid.style.display = 'none';
-            table.style.display = 'block';
-            gridBtn?.classList.remove('active');
-            tableBtn?.classList.add('active');
+            if (grid) grid.style.display = 'none';
+            if (table) table.style.display = 'block';
+            if (gridBtn) gridBtn.classList.remove('active');
+            if (tableBtn) tableBtn.classList.add('active');
         }
     }
 
     // Modal functions
     openCourseModal() {
-        document.getElementById('courseModal').style.display = 'block';
+        const modal = document.getElementById('courseModal');
+        if (modal) {
+            modal.style.display = 'block';
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
     }
 
     closeCourseModal() {
-        document.getElementById('courseModal').style.display = 'none';
-        document.getElementById('courseForm').reset();
-        delete document.getElementById('courseForm').dataset.editId;
-        document.getElementById('courseModalTitle').textContent = 'Add New Course';
+        const modal = document.getElementById('courseModal');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+        const form = document.getElementById('courseForm');
+        if (form) {
+            form.reset();
+            delete form.dataset.editId;
+        }
+        const title = document.getElementById('courseModalTitle');
+        if (title) {
+            title.textContent = 'Add New Course';
+        }
     }
 
     // Export courses
     async exportCourses() {
         try {
             const courses = await this.db.getCourses();
-            // Export logic here
             this.app?.showToast('Export feature coming soon', 'info');
         } catch (error) {
             console.error('Error exporting courses:', error);
@@ -743,7 +790,7 @@ class CourseManager {
                 <i class="fas fa-book-open fa-3x"></i>
                 <h3>No Courses Found</h3>
                 <p>Add your first course to get started</p>
-                <button class="btn-primary" onclick="app.courses.openCourseModal()">
+                <button class="btn-primary" onclick="openCourseModal()">
                     <i class="fas fa-plus"></i> Add Course
                 </button>
             </div>
@@ -765,7 +812,8 @@ class CourseManager {
         }
         
         // Course filters
-        ['filterProgram', 'filterLevel', 'filterStatus'].forEach(id => {
+        const filterIds = ['filterProgram', 'filterLevel', 'filterStatus'];
+        filterIds.forEach(id => {
             const element = document.getElementById(id);
             if (element) {
                 element.addEventListener('change', () => this.filterCourses());
@@ -790,7 +838,8 @@ class CourseManager {
         }
         
         // Bulk grade filters
-        ['bulkGradeIntake', 'bulkGradeCentre', 'bulkGradeProgram'].forEach(id => {
+        const bulkFilterIds = ['bulkGradeIntake', 'bulkGradeCentre', 'bulkGradeProgram'];
+        bulkFilterIds.forEach(id => {
             const element = document.getElementById(id);
             if (element) {
                 element.addEventListener('change', () => this.filterStudentsForGrading());
@@ -799,7 +848,7 @@ class CourseManager {
     }
 }
 
-// Export for use in other modules
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = CourseManager;
+// Make CourseManager available globally
+if (typeof window !== 'undefined') {
+    window.CourseManager = CourseManager;
 }
