@@ -36,7 +36,8 @@ class MarksManager {
     
     initEventListeners() {
         console.log('🎯 Initializing MarksManager event listeners');
-        
+        // Add CSS styles
+    this.addDuplicateCheckingStyles();
         // Initialize modal handlers first
         this.initModalHandlers();
         
@@ -155,39 +156,77 @@ class MarksManager {
         this.setupMarksModalValidation();
     }
     
-    setupMarksModalValidation() {
-        // Student change - check for duplicates
-        const studentSelect = document.getElementById('marksStudent');
-        if (studentSelect) {
-            studentSelect.addEventListener('change', () => {
-                setTimeout(() => this.checkForDuplicateMarks(), 500);
-            });
-        }
-        
-        // Course change - check for duplicates
-        const courseSelect = document.getElementById('marksCourse');
-        if (courseSelect) {
-            courseSelect.addEventListener('change', () => {
-                setTimeout(() => this.checkForDuplicateMarks(), 500);
-            });
-        }
-        
-        // Assessment type change - check for duplicates
-        const assessmentSelect = document.getElementById('assessmentType');
-        if (assessmentSelect) {
-            assessmentSelect.addEventListener('change', () => {
-                setTimeout(() => this.checkForDuplicateMarks(), 500);
-            });
-        }
-        
-        // Date change - check for duplicates
-        const dateInput = document.getElementById('assessmentDate');
-        if (dateInput) {
-            dateInput.addEventListener('change', () => {
-                setTimeout(() => this.checkForDuplicateMarks(), 500);
-            });
-        }
+   setupMarksModalValidation() {
+    // Student change - check for duplicates IMMEDIATELY
+    const studentSelect = document.getElementById('marksStudent');
+    if (studentSelect) {
+        studentSelect.addEventListener('change', () => {
+            // Show loading state
+            this.showDuplicateChecking();
+            // Check immediately
+            this.checkForDuplicateMarks();
+        });
     }
+    
+    // Course change - check for duplicates IMMEDIATELY
+    const courseSelect = document.getElementById('marksCourse');
+    if (courseSelect) {
+        courseSelect.addEventListener('change', () => {
+            this.showDuplicateChecking();
+            this.checkForDuplicateMarks();
+        });
+    }
+    
+    // Assessment type change - check for duplicates IMMEDIATELY
+    const assessmentSelect = document.getElementById('assessmentType');
+    if (assessmentSelect) {
+        assessmentSelect.addEventListener('change', () => {
+            this.showDuplicateChecking();
+            this.checkForDuplicateMarks();
+        });
+    }
+    
+    // Date change - check for duplicates IMMEDIATELY
+    const dateInput = document.getElementById('assessmentDate');
+    if (dateInput) {
+        dateInput.addEventListener('change', () => {
+            this.showDuplicateChecking();
+            this.checkForDuplicateMarks();
+        });
+    }
+    
+    // Also add input event listeners for score fields
+    const scoreInput = document.getElementById('marksScore');
+    const maxScoreInput = document.getElementById('marksMaxScore');
+    
+    if (scoreInput) {
+        scoreInput.addEventListener('input', () => {
+            this.updateMarksGradeDisplay();
+        });
+    }
+    
+    if (maxScoreInput) {
+        maxScoreInput.addEventListener('input', () => {
+            this.updateMarksGradeDisplay();
+        });
+    }
+}
+
+// ADD THIS NEW METHOD
+showDuplicateChecking() {
+    const duplicateStatus = document.getElementById('duplicateStatus');
+    if (duplicateStatus) {
+        duplicateStatus.style.display = 'block';
+    }
+}
+
+// UPDATE THIS METHOD
+hideDuplicateChecking() {
+    const duplicateStatus = document.getElementById('duplicateStatus');
+    if (duplicateStatus) {
+        duplicateStatus.style.display = 'none';
+    }
+}
     
     initModalHandlers() {
         // Global modal close handlers
@@ -222,88 +261,127 @@ class MarksManager {
     /**
      * Handle single save marks - prevents multiple saves
      */
-    async handleSingleSaveMarks(event) {
-        event.preventDefault();
-        
-        // Check if already saving
-        if (this.isSaving) {
-            console.log('⚠️ Already saving, ignoring duplicate click');
-            return false;
-        }
-        
-        // Set saving flag
-        this.isSaving = true;
-        
-        // Disable submit button to prevent multiple clicks
-        const submitBtn = document.getElementById('saveMarksBtn');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-        submitBtn.disabled = true;
-        
-        try {
-            console.log('📝 Handling single marks submission...');
-            
-            // Get form data
-            const formData = this.getMarksFormData();
-            
-            // Validate form data
-            if (!this.validateMarksForm(formData)) {
-                this.resetSaveButton(submitBtn, originalText);
-                this.isSaving = false;
-                return false;
-            }
-            
-            // Check if this is an overwrite operation
-            const isDuplicate = document.getElementById('isDuplicate')?.value === 'true';
-            const existingId = document.getElementById('existingMarksId')?.value;
-            
-            let result;
-            
-            if (isDuplicate && existingId) {
-                // Overwrite existing marks
-                console.log(`🔄 Overwriting existing marks ID: ${existingId}`);
-                result = await this.db.updateMark(existingId, formData);
-                this.showToast('✅ Marks updated successfully!', 'success');
-            } else {
-                // Check for duplicates before saving
-                const duplicate = await this.checkForDuplicateMarks();
-                if (duplicate) {
-                    // Duplicate found, show warning and stop
-                    this.showDuplicateWarning(duplicate);
-                    this.resetSaveButton(submitBtn, originalText);
-                    this.isSaving = false;
-                    return false;
-                }
-                
-                // Save new marks - SINGLE SAVE
-                console.log('💾 Saving new marks (single save)...');
-                result = await this.db.addMark(formData);
-                this.showToast('✅ Marks saved successfully!', 'success');
-            }
-            
-            // Close modal and refresh table
-            this.closeModal('marksModal');
-            await this.loadMarksTable();
-            
-            return true;
-            
-        } catch (error) {
-            console.error('❌ Error saving marks:', error);
-            this.showToast(`Error: ${error.message || 'Failed to save marks'}`, 'error');
-            return false;
-            
-        } finally {
-            // Always reset saving flag
-            this.isSaving = false;
-            
-            // Reset button state
-            if (submitBtn) {
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-            }
-        }
+   async handleSingleSaveMarks(event) {
+    event.preventDefault();
+    
+    // Check if already saving
+    if (this.isSaving) {
+        console.log('⚠️ Already saving, ignoring duplicate click');
+        return false;
     }
     
+    // Set saving flag
+    this.isSaving = true;
+    
+    // Disable submit button to prevent multiple clicks
+    const submitBtn = document.getElementById('saveMarksBtn');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    submitBtn.disabled = true;
+    
+    try {
+        console.log('📝 Handling single marks submission...');
+        
+        // Get form data
+        const formData = this.getMarksFormData();
+        
+        // Validate form data
+        if (!this.validateMarksForm(formData)) {
+            this.resetSaveButton(submitBtn, originalText);
+            this.isSaving = false;
+            return false;
+        }
+        
+        // Check if this is an overwrite operation (from duplicate warning)
+        const isDuplicate = document.getElementById('isDuplicate')?.value === 'true';
+        const existingId = document.getElementById('existingMarksId')?.value;
+        
+        let result;
+        
+        if (isDuplicate && existingId) {
+            // Overwrite existing marks (user confirmed from duplicate warning)
+            console.log(`🔄 Overwriting existing marks ID: ${existingId}`);
+            result = await this.db.updateMark(existingId, formData);
+            this.showToast('✅ Marks updated successfully!', 'success');
+        } else {
+            // Save new marks - SINGLE SAVE
+            // NO DUPLICATE CHECK HERE - already done in real-time
+            console.log('💾 Saving new marks (single save)...');
+            result = await this.db.addMark(formData);
+            this.showToast('✅ Marks saved successfully!', 'success');
+        }
+        
+        // Close modal and refresh table
+        this.closeModal('marksModal');
+        await this.loadMarksTable();
+        
+        return true;
+        
+    } catch (error) {
+        console.error('❌ Error saving marks:', error);
+        this.showToast(`Error: ${error.message || 'Failed to save marks'}`, 'error');
+        return false;
+        
+    } finally {
+        // Always reset saving flag
+        this.isSaving = false;
+        
+        // Reset button state
+        if (submitBtn) {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    }
+}
+    addDuplicateCheckingStyles() {
+    const styleId = 'duplicate-checking-styles';
+    if (document.getElementById(styleId)) return;
+    
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+        /* Duplicate checking status */
+        #duplicateStatus {
+            transition: all 0.3s ease;
+        }
+        
+        #duplicateStatus .status-message {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            color: #1565c0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+        
+        /* Form loading states */
+        .form-loading {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+            font-size: 0.8em;
+        }
+        
+        .form-group {
+            position: relative;
+        }
+        
+        /* Real-time validation */
+        .form-control:invalid {
+            border-color: #dc3545;
+        }
+        
+        .form-control:valid {
+            border-color: #28a745;
+        }
+    `;
+    
+    document.head.appendChild(style);
+}
     /**
      * Reset save button to original state
      */
@@ -388,42 +466,55 @@ class MarksManager {
     
     // ==================== DUPLICATE VALIDATION ====================
     
-    async checkForDuplicateMarks() {
-        try {
-            const studentId = document.getElementById('marksStudent')?.value;
-            const courseId = document.getElementById('marksCourse')?.value;
-            const assessmentType = document.getElementById('assessmentType')?.value;
-            const assessmentDate = document.getElementById('assessmentDate')?.value;
-            
-            if (!studentId || !courseId || !assessmentType || !assessmentDate) {
-                this.hideDuplicateWarning();
-                return null;
-            }
-            
-            console.log('🔍 Checking for duplicate marks...');
-            
-            const existingMarks = await this.db.checkDuplicateMarks(
-                studentId, 
-                courseId, 
-                assessmentType,
-                assessmentDate
-            );
-            
-            if (existingMarks && existingMarks.length > 0) {
-                this.showDuplicateWarning(existingMarks[0]);
-                return existingMarks[0];
-            } else {
-                this.hideDuplicateWarning();
-                return null;
-            }
-            
-        } catch (error) {
-            console.error('❌ Error checking for duplicate marks:', error);
+   async checkForDuplicateMarks() {
+    try {
+        const studentId = document.getElementById('marksStudent')?.value;
+        const courseId = document.getElementById('marksCourse')?.value;
+        const assessmentType = document.getElementById('assessmentType')?.value;
+        const assessmentDate = document.getElementById('assessmentDate')?.value;
+        
+        // Hide checking status
+        this.hideDuplicateChecking();
+        
+        if (!studentId || !courseId || !assessmentType || !assessmentDate) {
             this.hideDuplicateWarning();
             return null;
         }
+        
+        console.log('🔍 Checking for duplicate marks in real-time...');
+        
+        const existingMarks = await this.db.checkDuplicateMarks(
+            studentId, 
+            courseId, 
+            assessmentType,
+            assessmentDate
+        );
+        
+        if (existingMarks && existingMarks.length > 0) {
+            // Show duplicate warning IMMEDIATELY
+            this.showDuplicateWarning(existingMarks[0]);
+            return existingMarks[0];
+        } else {
+            this.hideDuplicateWarning();
+            
+            // Update save button back to normal
+            const submitBtn = document.getElementById('saveMarksBtn');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Marks';
+                submitBtn.className = 'btn btn-primary';
+                submitBtn.disabled = false;
+            }
+            
+            return null;
+        }
+        
+    } catch (error) {
+        console.error('❌ Error checking for duplicate marks:', error);
+        this.hideDuplicateWarning();
+        this.hideDuplicateChecking();
+        return null;
     }
-    
+}
     showDuplicateWarning(existingMark) {
         this.existingMarksId = existingMark.id;
         this.isDuplicateEntry = true;
