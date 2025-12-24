@@ -974,8 +974,8 @@ clearFieldErrors() {
         const statusIcon = status === 'published' ? 'fa-eye' : 'fa-eye-slash';
         const statusText = status === 'published' ? 'Visible' : 'Hidden';
         
-        // Get student centre
-        const studentCentre = student.centre || student.centre_name || 'Main Campus';
+        // Get student centre - use the processed centre_display field
+const studentCentre = student.centre_display || student.centre || student.centre_name || 'Main Campus';
         
         // Format date
         const formattedDate = mark.created_at ? this.formatDate(mark.created_at) : 'N/A';
