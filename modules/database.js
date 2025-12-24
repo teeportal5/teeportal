@@ -1283,10 +1283,14 @@ class TEEPortalSupabaseDB {
     }
 }
     
-    async getMarksTableData() {
+   async getMarksTableData() {
     try {
         const supabase = await this.ensureConnected();
-        const { data, error } = await supabase
+        
+        console.log('📊 Fetching marks table data...');
+        
+        // Simple query without complex joins
+        const { data: marks, error } = await supabase
             .from('marks')
             .select(`
                 id,
@@ -1301,53 +1305,108 @@ class TEEPortalSupabaseDB {
                 visible_to_student,
                 created_at,
                 assessment_date,
-                students!inner (
-                    id,
-                    reg_number,
-                    full_name,
-                    program,
-                    intake_year,
-                    centre_id,
-                    centre,
-                    centre_name,
-                    county,
-                    email,
-                    phone,
-                    centres!inner (
-                        id,
-                        name,
-                        code,
-                        county
-                    )
-                ),
-                courses!inner (
-                    id,
-                    course_code,
-                    course_name,
-                    program
-                )
+                student_id,
+                course_id
             `)
             .order('created_at', { ascending: false })
             .limit(100);
             
         if (error) {
-            console.error('❌ Error in getMarksTableData:', error);
+            console.error('❌ Error fetching marks:', error);
             throw error;
         }
         
-        // Process the data to get centre name properly
-        const processedData = (data || []).map(mark => {
-            const student = mark.students || {};
-            const centreData = student.centres || {};
+        if (!marks || marks.length === 0) {
+            console.log('📭 No marks found');
+            return [];
+        }
+        
+        console.log(`✅ Found ${marks.length} marks`);
+        
+        // Get unique student and course IDs
+        const studentIds = [...new Set(marks.map(m => m.student_id).filter(Boolean))];
+        const courseIds = [...new Set(marks.map(m => m.course_id).filter(Boolean))];
+        
+        console.log(`👥 Fetching ${studentIds.length} students and ${courseIds.length} courses`);
+        
+        // Fetch students with their centres
+        const { data: students, error: studentsError } = await supabase
+            .from('students')
+            .select(`
+                id,
+                reg_number,
+                full_name,
+                program,
+                intake_year,
+                centre_id,
+                centre,
+                centre_name,
+                county
+            `)
+            .in('id', studentIds);
             
-            // Get centre name in priority order:
-            // 1. From centres table (name)
-            // 2. student.centre_name
-            // 3. student.centre
-            // 4. Default
+        if (studentsError) {
+            console.error('❌ Error fetching students:', studentsError);
+            throw studentsError;
+        }
+        
+        // Fetch courses
+        const { data: courses, error: coursesError } = await supabase
+            .from('courses')
+            .select('*')
+            .in('id', courseIds);
+            
+        if (coursesError) {
+            console.error('❌ Error fetching courses:', coursesError);
+            throw coursesError;
+        }
+        
+        // Fetch centres for students that have centre_id
+        const centreIds = [...new Set(students.map(s => s.centre_id).filter(Boolean))];
+        let centres = [];
+        
+        if (centreIds.length > 0) {
+            const { data: centresData, error: centresError } = await supabase
+                .from('centres')
+                .select('id, name, code, county')
+                .in('id', centreIds);
+                
+            if (!centresError) {
+                centres = centresData || [];
+            }
+        }
+        
+        console.log(`📍 Found ${centres.length} centres`);
+        
+        // Create lookup objects
+        const studentsMap = {};
+        const coursesMap = {};
+        const centresMap = {};
+        
+        students.forEach(student => {
+            studentsMap[student.id] = student;
+        });
+        
+        courses.forEach(course => {
+            coursesMap[course.id] = course;
+        });
+        
+        centres.forEach(centre => {
+            centresMap[centre.id] = centre;
+        });
+        
+        // Combine all data
+        const processedMarks = marks.map(mark => {
+            const student = studentsMap[mark.student_id] || {};
+            const course = coursesMap[mark.course_id] || {};
+            
+            // Get centre name
             let centreDisplay = 'Main Campus';
-            if (centreData.name) {
-                centreDisplay = centreData.name;
+            
+            if (student.centre_id && centresMap[student.centre_id]) {
+                centreDisplay = centresMap[student.centre_id].name || 
+                               centresMap[student.centre_id].code || 
+                               'Main Campus';
             } else if (student.centre_name) {
                 centreDisplay = student.centre_name;
             } else if (student.centre) {
@@ -1358,24 +1417,17 @@ class TEEPortalSupabaseDB {
                 ...mark,
                 students: {
                     ...student,
-                    centre_display: centreDisplay,
-                    centres: centreData
-                }
+                    centre_display: centreDisplay
+                },
+                courses: course
             };
         });
         
-        console.log('📊 Processed marks data:', processedData.length, 'records');
-        if (processedData.length > 0) {
-            console.log('🔍 First mark centre info:', {
-                centre_display: processedData[0].students.centre_display,
-                hasCentresTable: !!processedData[0].students.centres,
-                centreName: processedData[0].students.centres?.name
-            });
-        }
+        console.log('✅ Successfully processed marks data');
+        return processedMarks;
         
-        return processedData;
     } catch (error) {
-        console.error('Error fetching marks table data:', error);
+        console.error('❌ Error in getMarksTableData:', error);
         throw error;
     }
 }
