@@ -1300,7 +1300,7 @@
     </div>
     
    <!-- ============ MODALS ============ -->
-<!-- Student Modal with Location Fields - FIXED VERSION -->
+<!-- Student Modal with Program-based Auto-generated Registration Number -->
 <div id="studentModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -1309,6 +1309,33 @@
         </div>
         <form id="studentForm">
             <div class="modal-body">
+                <!-- Registration Number (Top) -->
+                <div class="form-section highlight-section">
+                    <h4><i class="fas fa-id-card"></i> Registration Details</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Registration Number *</label>
+                            <div class="input-with-button">
+                                <input type="text" id="studentRegNumber" class="form-control reg-number-display" 
+                                       required readonly 
+                                       placeholder="Select program to generate">
+                                <button type="button" class="btn-icon" onclick="window.studentManager.generateRegNumber()" 
+                                        title="Generate new number">
+                                    <i class="fas fa-redo"></i>
+                                </button>
+                            </div>
+                            <small class="form-hint">
+                                Format: <span id="regNumberFormat">[Program]-[Year]-[Sequence]</span>
+                            </small>
+                        </div>
+                        <div class="form-group">
+                            <label>Registration Date</label>
+                            <input type="date" id="studentRegDate" class="form-control" 
+                                   value="<?php echo date('Y-m-d'); ?>">
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Personal Information -->
                 <div class="form-section">
                     <h4><i class="fas fa-user"></i> Personal Information</h4>
@@ -1324,8 +1351,8 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Phone Number *</label>
-                            <input type="tel" id="studentPhone" class="form-control" required>
+                            <label>Phone Number</label>
+                            <input type="tel" id="studentPhone" class="form-control">
                         </div>
                         <div class="form-group">
                             <label>Date of Birth</label>
@@ -1343,6 +1370,7 @@
                                 <option value="">Select Gender</option>
                                 <option value="male">Male</option>
                                 <option value="female">Female</option>
+                                <option value="other">Other</option>
                             </select>
                         </div>
                     </div>
@@ -1353,8 +1381,8 @@
                     <h4><i class="fas fa-map-marker-alt"></i> Location Information</h4>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>County *</label>
-                            <select id="studentCounty" class="form-control" required>
+                            <label>County</label>
+                            <select id="studentCounty" class="form-control">
                                 <option value="">Select County</option>
                                 <!-- Kenya counties will be loaded -->
                             </select>
@@ -1389,16 +1417,20 @@
                         </div>
                         <div class="form-group">
                             <label>Program *</label>
-                            <select id="studentProgram" class="form-control" required>
+                            <select id="studentProgram" class="form-control" required 
+                                    onchange="window.studentManager.generateRegNumber()">
                                 <option value="">Select Program</option>
+                                <!-- Programs with codes will be loaded -->
                             </select>
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Intake Year *</label>
-                            <select id="studentIntake" class="form-control" required>
+                            <select id="studentIntake" class="form-control" required 
+                                    onchange="window.studentManager.generateRegNumber()">
                                 <option value="">Select Intake Year</option>
+                                <!-- Years will be populated -->
                             </select>
                         </div>
                         <div class="form-group">
@@ -1407,23 +1439,22 @@
                                 <option value="fulltime">Full-time</option>
                                 <option value="parttime">Part-time</option>
                                 <option value="distance">Distance Learning</option>
+                                <option value="online">Online</option>
                             </select>
                         </div>
                     </div>
-                    <!-- ADDED: Status Field -->
                     <div class="form-row">
                         <div class="form-group">
                             <label>Status *</label>
                             <select id="studentStatus" class="form-control" required>
-                                <option value="">Select Status</option>
                                 <option value="active">Active</option>
                                 <option value="inactive">Inactive</option>
                                 <option value="suspended">Suspended</option>
                                 <option value="graduated">Graduated</option>
                                 <option value="withdrawn">Withdrawn</option>
+                                <option value="deferred">Deferred</option>
                             </select>
                         </div>
-                        <!-- ADDED: Address Field -->
                         <div class="form-group">
                             <label>Address</label>
                             <textarea id="studentAddress" class="form-control" rows="2"></textarea>
@@ -1443,6 +1474,7 @@
                                 <option value="self-employed">Self-employed</option>
                                 <option value="unemployed">Unemployed</option>
                                 <option value="student">Student</option>
+                                <option value="retired">Retired</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -1457,7 +1489,7 @@
                         </div>
                         <div class="form-group">
                             <label>Years of Experience</label>
-                            <input type="number" id="studentExperience" class="form-control" min="0">
+                            <input type="number" id="studentExperience" class="form-control" min="0" value="0">
                         </div>
                     </div>
                 </div>
@@ -1467,8 +1499,21 @@
                     <h4><i class="fas fa-phone-alt"></i> Emergency Contact</h4>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Emergency Contact Details</label>
-                            <textarea id="studentEmergencyContact" class="form-control" rows="2"></textarea>
+                            <label>Emergency Contact Person</label>
+                            <input type="text" id="studentEmergencyName" class="form-control" 
+                                   placeholder="Full name">
+                        </div>
+                        <div class="form-group">
+                            <label>Emergency Phone Number</label>
+                            <input type="tel" id="studentEmergencyPhone" class="form-control" 
+                                   placeholder="Phone number">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group full-width">
+                            <label>Relationship & Additional Info</label>
+                            <textarea id="studentEmergencyContact" class="form-control" rows="2" 
+                                      placeholder="Relationship and other contact details"></textarea>
                         </div>
                     </div>
                 </div>
@@ -1477,9 +1522,10 @@
                 <div class="form-section">
                     <h4><i class="fas fa-sticky-note"></i> Additional Information</h4>
                     <div class="form-row">
-                        <div class="form-group">
-                            <label>Notes</label>
-                            <textarea id="studentNotes" class="form-control" rows="3"></textarea>
+                        <div class="form-group full-width">
+                            <label>Notes / Remarks</label>
+                            <textarea id="studentNotes" class="form-control" rows="3" 
+                                      placeholder="Any additional notes or remarks"></textarea>
                         </div>
                     </div>
                 </div>
@@ -1493,6 +1539,7 @@
         </form>
     </div>
 </div>
+    
     <!-- Program Modal -->
 <div id="programModal" class="modal">
     <div class="modal-content">
