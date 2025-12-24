@@ -162,170 +162,173 @@
         
         <!-- Main Content Area -->
         <main class="main-content">
-            <!-- Dashboard Section -->
-            <section id="dashboard" class="content-section active">
-                <header class="main-header">
-                    <h1 id="section-title">Dashboard Overview</h1>
-                    <div class="header-actions">
-                        <button class="btn btn-primary" onclick="app.refreshDashboard()">
-                            <i class="fas fa-sync-alt"></i> Refresh
-                        </button>
-                        <button class="btn btn-primary" data-open-modal="studentModal">
-    <i class="fas fa-user-plus"></i> Add Student
-</button>
-                    </div>
-                </header>
-                
-             <!-- Dashboard Stats -->
-<!-- In your dashboard section -->
-<div class="stats-grid">
-    <!-- Card 1: Total Students -->
-    <div class="stat-card">
-        <div class="stat-icon students">
-            <i class="fas fa-users"></i>
-        </div>
-        <div class="stat-info">
-            <h3 id="totalStudents">0</h3>
-            <p>Total Students</p>
+           <!-- In your dashboard.html -->
+<section id="dashboard" class="content-section">
+    <!-- Welcome Section -->
+    <div class="dashboard-welcome">
+        <div class="dashboard-welcome-content">
+            <h2>Welcome Back, Administrator!</h2>
+            <p>Here's what's happening with your TEE College today.</p>
+            <div class="dashboard-date">
+                <i class="fas fa-calendar-alt"></i>
+                <span id="currentDate"></span>
+            </div>
         </div>
     </div>
     
-    <!-- Card 2: Active Centres (UPDATED) -->
-    <div class="stat-card">
-        <div class="stat-icon centres">
-            <i class="fas fa-map-marker-alt"></i>
+    <!-- Statistics Grid -->
+    <div class="dashboard-stats-grid">
+        <!-- Card 1: Total Students -->
+        <div class="stat-card-modern">
+            <div class="stat-card-header">
+                <div class="stat-info">
+                    <div class="stat-card-title">Total Students</div>
+                    <div class="stat-card-value" id="totalStudents">0</div>
+                    <div class="stat-card-subtitle">Registered across all centres</div>
+                </div>
+                <div class="stat-icon-modern students">
+                    <i class="fas fa-users"></i>
+                </div>
+            </div>
         </div>
-        <div class="stat-info">
-            <h3 id="activeCentres">0</h3>
-            <p>Active Centres</p>
-            <small>From database</small>
-        </div>
-    </div>
-    
-    <!-- Card 3: Active Programs -->
-    <div class="stat-card">
-        <div class="stat-icon programs">
-            <i class="fas fa-graduation-cap"></i>
-        </div>
-        <div class="stat-info">
-            <h3 id="activePrograms">0</h3>
-            <p>Active Programs</p>
-            <div id="programList" class="program-tags"></div>
-        </div>
-    </div>
-    
-    <!-- Card 4: Counties Covered (UPDATED) -->
-    <div class="stat-card">
-        <div class="stat-icon counties">
-            <i class="fas fa-map"></i>
-        </div>
-        <div class="stat-info">
-            <h3 id="countiesCovered">0</h3>
-            <p>Counties Covered</p>
-            <small>From database</small>
-        </div>
-    </div>
-    
-    <!-- Card 5: Total Courses -->
-    <div class="stat-card">
-        <div class="stat-icon courses">
-            <i class="fas fa-book"></i>
-        </div>
-        <div class="stat-info">
-            <h3 id="totalCourses">0</h3>
-            <p>Total Courses</p>
-        </div>
-    </div>
-    
-    <!-- Card 6: Total Marks -->
-    <div class="stat-card">
-        <div class="stat-icon marks">
-            <i class="fas fa-chart-bar"></i>
-        </div>
-        <div class="stat-info">
-            <h3 id="totalMarks">0</h3>
-            <p>Total Marks</p>
-        </div>
-    </div>
-</div>
-
-<!-- Charts section -->
-<div class="charts-grid">
-    <!-- County Chart -->
-    <div class="chart-card">
-        <h3><i class="fas fa-map"></i> County Distribution</h3>
-        <div class="chart-container">
-            <canvas id="countyChart"></canvas>
-        </div>
-    </div>
-    
-    <!-- Centre Chart (UPDATED) -->
-    <div class="chart-card">
-        <h3><i class="fas fa-building"></i> Centre Enrollment</h3>
-        <div class="chart-container">
-            <canvas id="centreChart"></canvas>
-        </div>
-        <small>Shows real centres from database</small>
-    </div>
-    
-    <!-- Program Chart -->
-    <div class="chart-card">
-        <h3><i class="fas fa-graduation-cap"></i> Program Distribution</h3>
-        <div class="chart-container">
-            <canvas id="programChart"></canvas>
-        </div>
-    </div>
-</div>
-
-<!-- Recent Activities -->
-<div class="recent-activities">
-    <h3>Recent Activities</h3>
-    <div class="activity-list" id="activityList">
-        <!-- Activities will be loaded here -->
-    </div>
-</div>
-                </section>
-            <!-- Students Section -->
-            <section id="students" class="content-section">
-                <div class="section-header">
-                    <h2>Student Management</h2>
-                    <div class="action-buttons">
-                        <button class="btn btn-primary" onclick="openStudentModal()">
-                            <i class="fas fa-user-plus"></i> Add Student
-                        </button>
-                        <button class="btn btn-secondary" onclick="app.students.exportStudents()">
-                            <i class="fas fa-download"></i> Export
-                        </button>
-                        <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">
-                            <i class="fas fa-upload"></i> Import
-                        </button>
-                        <input type="file" id="importFile" accept=".csv" style="display: none;">
+        
+        <!-- Card 2: Active Centres -->
+        <div class="stat-card-modern">
+            <div class="stat-card-header">
+                <div class="stat-info">
+                    <div class="stat-card-title">Active Centres</div>
+                    <div class="stat-card-value" id="activeCentres">0</div>
+                    <div class="stat-card-subtitle">Operating centres</div>
+                    <div class="stat-card-trend trend-up">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>From database</span>
                     </div>
                 </div>
-                
-                <!-- Filter Bar -->
-                <div class="filter-bar">
-                    <input type="text" id="studentSearch" placeholder="Search students..." class="search-input">
-                    <select id="filterCounty" class="filter-select">
-                        <option value="">All Counties</option>
-                        <!-- Counties will be loaded dynamically -->
-                    </select>
-                    <select id="filterCentre" class="filter-select">
-                        <option value="">All Centres</option>
-                        <!-- Centres will be loaded dynamically -->
-                    </select>
-                    <select id="filterProgram" class="filter-select">
-                        <option value="">All Programs</option>
-                        <!-- Programs will be loaded dynamically -->
-                    </select>
-                    <select id="filterStatus" class="filter-select">
-                        <option value="">All Status</option>
-                        <option value="active">Active</option>
-                        <option value="graduated">Graduated</option>
-                        <option value="withdrawn">Withdrawn</option>
-                    </select>
+                <div class="stat-icon-modern centres">
+                    <i class="fas fa-map-marker-alt"></i>
                 </div>
-                
+            </div>
+        </div>
+        
+        <!-- Card 3: Active Programs -->
+        <div class="stat-card-modern">
+            <div class="stat-card-header">
+                <div class="stat-info">
+                    <div class="stat-card-title">Active Programs</div>
+                    <div class="stat-card-value" id="activePrograms">0</div>
+                    <div class="stat-card-subtitle">Programs with enrolled students</div>
+                    <div class="program-tags-modern" id="programList"></div>
+                </div>
+                <div class="stat-icon-modern programs">
+                    <i class="fas fa-graduation-cap"></i>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Card 4: Counties Covered -->
+        <div class="stat-card-modern">
+            <div class="stat-card-header">
+                <div class="stat-info">
+                    <div class="stat-card-title">Counties Covered</div>
+                    <div class="stat-card-value" id="countiesCovered">0</div>
+                    <div class="stat-card-subtitle">Counties with centres</div>
+                </div>
+                <div class="stat-icon-modern counties">
+                    <i class="fas fa-map"></i>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Card 5: Total Courses -->
+        <div class="stat-card-modern">
+            <div class="stat-card-header">
+                <div class="stat-info">
+                    <div class="stat-card-title">Total Courses</div>
+                    <div class="stat-card-value" id="totalCourses">0</div>
+                    <div class="stat-card-subtitle">Courses available</div>
+                </div>
+                <div class="stat-icon-modern courses">
+                    <i class="fas fa-book"></i>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Card 6: Total Marks -->
+        <div class="stat-card-modern">
+            <div class="stat-card-header">
+                <div class="stat-info">
+                    <div class="stat-card-title">Total Marks</div>
+                    <div class="stat-card-value" id="totalMarks">0</div>
+                    <div class="stat-card-subtitle">Marks entered</div>
+                </div>
+                <div class="stat-icon-modern marks">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Charts Grid -->
+    <div class="dashboard-charts-grid">
+        <!-- County Distribution Chart -->
+        <div class="chart-card-modern">
+            <div class="chart-card-header">
+                <h3><i class="fas fa-map"></i> County Distribution</h3>
+                <div class="chart-actions">
+                    <button class="chart-action-btn active">Bar</button>
+                    <button class="chart-action-btn">Pie</button>
+                </div>
+            </div>
+            <div class="chart-container-modern">
+                <canvas id="countyChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Centre Enrollment Chart -->
+        <div class="chart-card-modern">
+            <div class="chart-card-header">
+                <h3><i class="fas fa-building"></i> Centre Enrollment</h3>
+                <div class="chart-actions">
+                    <button class="chart-action-btn active">Doughnut</button>
+                    <button class="chart-action-btn">Bar</button>
+                </div>
+            </div>
+            <div class="chart-container-modern">
+                <canvas id="centreChart"></canvas>
+            </div>
+            <div class="chart-note">
+                <small><i class="fas fa-info-circle"></i> Shows real centres from database</small>
+            </div>
+        </div>
+        
+        <!-- Program Distribution Chart -->
+        <div class="chart-card-modern">
+            <div class="chart-card-header">
+                <h3><i class="fas fa-graduation-cap"></i> Program Distribution</h3>
+                <div class="chart-actions">
+                    <button class="chart-action-btn active">Pie</button>
+                    <button class="chart-action-btn">Bar</button>
+                </div>
+            </div>
+            <div class="chart-container-modern">
+                <canvas id="programChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Activities -->
+    <div class="recent-activities-modern">
+        <div class="recent-activities-header">
+            <h3><i class="fas fa-history"></i> Recent Activities</h3>
+            <button class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+        <div class="activity-list-modern" id="activityList">
+            <!-- Activities will be loaded here -->
+        </div>
+    </div>
+</section>
                 <!-- Students Table -->
                 <div class="table-container">
                     <table class="data-table" id="studentsTable">
