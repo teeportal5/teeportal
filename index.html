@@ -508,20 +508,22 @@
                         <input type="text" id="centreCode" class="form-control">
                     </div>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>County *</label>
-                        <!-- Added required attribute -->
-                        <select id="centreCounty" class="form-control" required>
-                            <option value="">Select County</option>
-                            <!-- Counties will be populated by JavaScript -->
-                        </select>
-                    </div>
-                    <div class="form-group">
-                         <label>Region</label>
-                        <input type="text" id="centreRegion" class="form-control">
-                    </div>
-                </div>
+               <div class="form-row">
+    <div class="form-group">
+        <label>County *</label>
+        <!-- Change from select to input -->
+        <input type="text" id="centreCounty" class="form-control" 
+               placeholder="Enter county name (e.g., Nairobi, Nakuru, Mombasa)"
+               required>
+        <!-- Optional: Add small hint -->
+        <small class="form-hint">Type the county name (Kenyan counties)</small>
+    </div>
+    <div class="form-group">
+        <label>Region</label>
+        <input type="text" id="centreRegion" class="form-control" 
+               placeholder="Enter region (e.g., Rift Valley, Central, Coast)">
+    </div>
+</div>
                 <div class="form-row">
                     <div class="form-group">
                         <label>Address</label>
