@@ -225,40 +225,194 @@ class TEEPortalApp {
                 return [];
             }
             
-            // Other data methods
-            async getPrograms() {
-                console.log('🎓 Fallback: Getting programs');
-                return [
-                    { id: 'basic', code: 'TEE', name: 'Basic TEE', duration: '2 years', max_credits: 60 },
-                    { id: 'hnc', code: 'HNC', name: 'Higher National Certificate', duration: '3 years', max_credits: 90 },
-                    { id: 'advanced', code: 'ATE', name: 'Advanced TEE', duration: '4 years', max_credits: 120 }
-                ];
-            }
-            
-            async getCourses() {
-                console.log('📚 Fallback: Getting courses');
-                return [];
-            }
-            
-            async getCentres() {
-                console.log('📍 Fallback: Getting centres');
-                return [
-                    { id: 1, name: 'Nairobi Main Campus', code: 'NBO001', county: 'Nairobi' },
-                    { id: 2, name: 'Mombasa Branch', code: 'MBA001', county: 'Mombasa' },
-                    { id: 3, name: 'Kisumu Centre', code: 'KSM001', county: 'Kisumu' }
-                ];
-            }
-            
-            async getCounties() {
-                console.log('🗺️ Fallback: Getting counties');
-                return [
-                    { id: 1, name: 'Nairobi', code: '001' },
-                    { id: 2, name: 'Mombasa', code: '002' },
-                    { id: 3, name: 'Kisumu', code: '003' },
-                    { id: 4, name: 'Nakuru', code: '004' },
-                    { id: 5, name: 'Eldoret', code: '005' }
-                ];
-            }
+           // Other data methods
+async getPrograms() {
+    console.log('🎓 Fallback: Getting programs');
+    return [
+        { 
+            id: 'basic', 
+            code: 'TEE', 
+            name: 'Basic TEE', 
+            duration: '2 years', 
+            max_credits: 60 
+        },
+        { 
+            id: 'hnc', 
+            code: 'HNC', 
+            name: 'Higher National Certificate', 
+            duration: '3 years', 
+            max_credits: 90 
+        },
+        { 
+            id: 'advanced', 
+            code: 'ATE', 
+            name: 'Advanced TEE', 
+            duration: '4 years', 
+            max_credits: 120 
+        }
+    ];
+}
+
+async getCourses() {
+    console.log('📚 Fallback: Getting courses');
+    return [
+        {
+            id: '1',
+            course_code: 'MATH101',
+            course_name: 'Introduction to Mathematics',
+            program: 'basic',
+            level: 'basic',
+            credits: 3,
+            description: 'Basic mathematics concepts and operations',
+            status: 'active',
+            enrolled_count: 15,
+            created_at: new Date().toISOString()
+        },
+        {
+            id: '2',
+            course_code: 'ENG201',
+            course_name: 'Advanced English',
+            program: 'advanced',
+            level: 'advanced',
+            credits: 4,
+            description: 'Advanced English composition and literature',
+            status: 'active',
+            enrolled_count: 12,
+            created_at: new Date().toISOString()
+        },
+        {
+            id: '3',
+            course_code: 'BIB101',
+            course_name: 'Biblical Studies',
+            program: 'hnc',
+            level: 'intermediate',
+            credits: 3,
+            description: 'Introduction to biblical studies',
+            status: 'active',
+            enrolled_count: 8,
+            created_at: new Date().toISOString()
+        }
+    ];
+}
+
+// Add these missing course methods:
+async addCourse(data) {
+    console.log('📚 Fallback: Adding course');
+    const courseId = 'C-' + Date.now();
+    return {
+        id: courseId,
+        course_code: data.code,
+        course_name: data.name,
+        program: data.program,
+        level: data.level || 'basic',
+        credits: data.credits || 3,
+        description: data.description || '',
+        status: data.status || 'active',
+        enrolled_count: 0,
+        created_at: new Date().toISOString()
+    };
+}
+
+async updateCourse(id, data) {
+    console.log('📚 Fallback: Updating course', id);
+    return {
+        id: id,
+        course_code: data.code,
+        course_name: data.name,
+        program: data.program,
+        level: data.level || 'basic',
+        credits: data.credits || 3,
+        description: data.description || '',
+        status: data.status || 'active',
+        enrolled_count: 0,
+        created_at: new Date().toISOString()
+    };
+}
+
+async deleteCourse(id) {
+    console.log('📚 Fallback: Deleting course', id);
+    return { success: true, id: id };
+}
+
+async getCourse(id) {
+    console.log('📚 Fallback: Getting course', id);
+    const courses = await this.getCourses();
+    return courses.find(c => c.id === id) || null;
+}
+
+// Add this method for getting students by course (needed for grading)
+async getStudentsByCourse(courseId) {
+    console.log('👥 Fallback: Getting students for course', courseId);
+    return [
+        {
+            id: 'S1',
+            student_id: 'S1',
+            full_name: 'John Doe',
+            reg_number: 'TEE-2023-001',
+            email: 'john@example.com',
+            centre_name: 'Nairobi Main Campus',
+            centre: 'Nairobi Main Campus',
+            intake_year: 2023,
+            existing_grade: '-',
+            existing_score: '-'
+        },
+        {
+            id: 'S2',
+            student_id: 'S2',
+            full_name: 'Jane Smith',
+            reg_number: 'TEE-2023-002',
+            email: 'jane@example.com',
+            centre_name: 'Mombasa Branch',
+            centre: 'Mombasa Branch',
+            intake_year: 2023,
+            existing_grade: 'PASS',
+            existing_score: '65'
+        },
+        {
+            id: 'S3',
+            student_id: 'S3',
+            full_name: 'Robert Johnson',
+            reg_number: 'HNC-2023-001',
+            email: 'robert@example.com',
+            centre_name: 'Kisumu Centre',
+            centre: 'Kisumu Centre',
+            intake_year: 2023,
+            existing_grade: 'CREDIT',
+            existing_score: '78'
+        }
+    ];
+}
+
+async getCentres() {
+    console.log('📍 Fallback: Getting centres');
+    return [
+        { id: 1, name: 'Nairobi Main Campus', code: 'NBO001', county: 'Nairobi' },
+        { id: 2, name: 'Mombasa Branch', code: 'MBA001', county: 'Mombasa' },
+        { id: 3, name: 'Kisumu Centre', code: 'KSM001', county: 'Kisumu' }
+    ];
+}
+
+async getCounties() {
+    console.log('🗺️ Fallback: Getting counties');
+    return [
+        { id: 1, name: 'Nairobi', code: '001' },
+        { id: 2, name: 'Mombasa', code: '002' },
+        { id: 3, name: 'Kisumu', code: '003' },
+        { id: 4, name: 'Nakuru', code: '004' },
+        { id: 5, name: 'Eldoret', code: '005' }
+    ];
+}
+
+// Add this method for adding marks (needed for grading)
+async addMark(data) {
+    console.log('📊 Fallback: Adding mark', data);
+    return {
+        id: 'M-' + Date.now(),
+        ...data,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+    };
+}
             
             // Settings methods
             getDefaultSettings() {
@@ -324,54 +478,125 @@ class TEEPortalApp {
         console.log('✅ Fallback database class created');
     }
     
-    initializeModules() {
-        try {
-            console.log('🔄 Initializing modules...');
-            
-            // Initialize student manager
-            if (typeof StudentManager !== 'undefined') {
-                this.students = new StudentManager(this.db, this);
-                console.log('✅ StudentManager initialized');
-            }
-            
-            // Initialize marks manager
-            if (typeof MarksManager !== 'undefined') {
-                this.marks = new MarksManager(this.db, this);
-                console.log('✅ MarksManager initialized');
-            }
-            
-            // Initialize other managers as they become available
-            if (typeof CourseManager !== 'undefined') {
-                this.courses = new CourseManager(this.db, this);
-                console.log('✅ CourseManager initialized');
-            }
-            
-            if (typeof ProgramManager !== 'undefined') {
-                this.programs = new ProgramManager(this.db, this);
-                console.log('✅ ProgramManager initialized');
-            }
-            
-            if (typeof CentreManager !== 'undefined') {
-                this.centres = new CentreManager(this.db, this);
-                console.log('✅ CentreManager initialized');
-            }
-            
-            if (typeof CountyManager !== 'undefined') {
-                this.counties = new CountyManager(this.db, this);
-                console.log('✅ CountyManager initialized');
-            }
-            
-            if (typeof DashboardManager !== 'undefined') {
-                this.dashboard = new DashboardManager(this.db, this);
-                console.log('✅ DashboardManager initialized');
-            }
-            
-            console.log('✅ All modules initialized');
-            
-        } catch (error) {
-            console.error('❌ Error initializing modules:', error);
+   initializeModules() {
+    try {
+        console.log('🔄 Initializing modules...');
+        
+        // Initialize student manager
+        if (typeof StudentManager !== 'undefined') {
+            this.students = new StudentManager(this.db, this);
+            console.log('✅ StudentManager initialized');
+        } else {
+            console.warn('⚠️ StudentManager not loaded');
         }
+        
+        // Initialize marks manager
+        if (typeof MarksManager !== 'undefined') {
+            this.marks = new MarksManager(this.db, this);
+            console.log('✅ MarksManager initialized');
+        } else {
+            console.warn('⚠️ MarksManager not loaded');
+        }
+        
+        // Initialize course manager
+        if (typeof CourseManager !== 'undefined') {
+            this.courses = new CourseManager(this.db, this);
+            console.log('✅ CourseManager initialized');
+            
+            // Load courses after a short delay
+            setTimeout(() => {
+                if (this.courses && this.courses.loadCourses) {
+                    this.courses.loadCourses();
+                    this.courses.updateStatistics();
+                    console.log('📚 Courses loaded');
+                }
+            }, 1500);
+        } else {
+            console.warn('⚠️ CourseManager not loaded - will try to load it dynamically');
+            this.loadCourseManagerScript();
+        }
+        
+        // Initialize program manager
+        if (typeof ProgramManager !== 'undefined') {
+            this.programs = new ProgramManager(this.db, this);
+            console.log('✅ ProgramManager initialized');
+        } else {
+            console.warn('⚠️ ProgramManager not loaded');
+        }
+        
+        // Initialize centre manager
+        if (typeof CentreManager !== 'undefined') {
+            this.centres = new CentreManager(this.db, this);
+            console.log('✅ CentreManager initialized');
+        } else {
+            console.warn('⚠️ CentreManager not loaded');
+        }
+        
+        // Initialize county manager
+        if (typeof CountyManager !== 'undefined') {
+            this.counties = new CountyManager(this.db, this);
+            console.log('✅ CountyManager initialized');
+        } else {
+            console.warn('⚠️ CountyManager not loaded');
+        }
+        
+        // Initialize dashboard manager
+        if (typeof DashboardManager !== 'undefined') {
+            this.dashboard = new DashboardManager(this.db, this);
+            console.log('✅ DashboardManager initialized');
+        } else {
+            console.warn('⚠️ DashboardManager not loaded');
+        }
+        
+        console.log('✅ All modules initialized');
+        
+    } catch (error) {
+        console.error('❌ Error initializing modules:', error);
+        this.showToast('Error initializing modules', 'error');
     }
+}
+
+// Add this method to load CourseManager script dynamically
+loadCourseManagerScript() {
+    // Check if already loaded
+    if (typeof CourseManager !== 'undefined') {
+        this.courses = new CourseManager(this.db, this);
+        console.log('✅ CourseManager initialized from dynamic check');
+        return;
+    }
+    
+    console.log('📦 Loading CourseManager script...');
+    
+    const script = document.createElement('script');
+    script.src = 'modules/courses.js';
+    script.async = true;
+    
+    script.onload = () => {
+        console.log('✅ CourseManager script loaded');
+        if (typeof CourseManager !== 'undefined') {
+            this.courses = new CourseManager(this.db, this);
+            console.log('✅ CourseManager initialized');
+            
+            // Load courses after initialization
+            setTimeout(() => {
+                if (this.courses && this.courses.loadCourses) {
+                    this.courses.loadCourses();
+                    this.courses.updateStatistics();
+                    console.log('📚 Courses loaded dynamically');
+                }
+            }, 500);
+        } else {
+            console.error('❌ CourseManager still not defined after loading script');
+        }
+    };
+    
+    script.onerror = (error) => {
+        console.error('❌ Failed to load CourseManager:', error);
+        this.showToast('Courses module failed to load', 'error');
+    };
+    
+    document.head.appendChild(script);
+}
     
     async loadInitialData() {
         try {
