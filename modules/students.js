@@ -533,9 +533,7 @@ class StudentManager {
             submitBtn.disabled = false;
         }
     }
-}
-    }
-    
+} 
     /**
      * Edit student - FIXED FOR YOUR SCHEMA
      */
