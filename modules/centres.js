@@ -4,7 +4,7 @@ class CentreManager {
         this.db = db; // This is your TEEPortalSupabaseDB instance
         this.app = app;
         this.currentEditId = null;
-        this.counties = [];
+        this.counties = []; 
         this.centres = [];
         this.countiesLoaded = false;
         this.isLoading = false;
