@@ -1698,22 +1698,20 @@
             </div>
             
             <!-- TRANSCRIPT CONTROLS -->
-            <div class="transcript-controls mt-4 text-center">
-                <button class="btn btn-outline-primary" onclick="window.print()">
-                    <i class="fas fa-print"></i> Print Transcript
-                </button>
-                <button class="btn btn-outline-success" onclick="app.reports.downloadTranscript()">
-                    <i class="fas fa-download"></i> Download PDF
-                </button>
-                <button class="btn btn-outline-info" onclick="app.reports.emailTranscript()">
-                    <i class="fas fa-envelope"></i> Email to Student
-                </button>
-                <button class="btn btn-outline-secondary" onclick="document.getElementById('transcriptPreview').style.display='none'">
-                    <i class="fas fa-times"></i> Close Preview
-                </button>
-            </div>
-        </div>
-    </div>
+<div class="transcript-controls mt-4 text-center">
+    <button class="btn btn-outline-primary" onclick="window.print()">
+        <i class="fas fa-print"></i> Print
+    </button>
+    <button class="btn btn-outline-success" onclick="app.transcripts?.downloadCurrentTranscript()">
+        <i class="fas fa-download"></i> Download
+    </button>
+    <button class="btn btn-outline-info" onclick="app.transcripts?.emailTranscript()">
+        <i class="fas fa-envelope"></i> Email
+    </button>
+    <button class="btn btn-outline-secondary" onclick="hideTranscriptPreview()">
+        <i class="fas fa-times"></i> Close Preview
+    </button>
+</div>
 </div>
     
     <!-- Bulk Export -->
