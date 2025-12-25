@@ -1036,14 +1036,50 @@ class TEEPortalApp {
                 console.log(`✅ Loaded ${counties.length} counties`);
             }
             
-            // Load centres - using centre_id as UUID value
-            if (this.db.getCentres) {
-                const centres = await this.db.getCentres();
-                // Students store centre_id as UUID (proper foreign key)
-                this.populateSelect('studentCentre', centres, 'id', 'name', 'Select Centre', 'code');
-                this.populateSelect('filterCentre', centres, 'id', 'name', 'All Centres', 'code');
-                console.log(`✅ Loaded ${centres.length} centres`);
-            }
+            // Load centres
+if (this.db.getCentres) {
+    const centres = await this.db.getCentres();
+    
+    // EXTRA DEBUGGING
+    console.log('📍 Centres from database:', centres);
+    console.log('📍 First centre full object:', centres[0]);
+    console.log('📍 Checking fields in first centre:');
+    console.log('  - Has id?', centres[0].id);
+    console.log('  - Has name?', centres[0].name);
+    console.log('  - Has code?', centres[0].code);
+    console.log('  - Has county?', centres[0].county);
+    console.log('  - Has region?', centres[0].region);
+    
+    // Force test with sample data
+    const testCentres = [
+        {
+            id: "ab5aef9e-816b-4208-bc20-c3e066e7a1ce",
+            name: "PUEA HEADQUATERS ",
+            code: "PUEA-HQ",
+            county: "Nairobi",
+            region: "Central",
+            status: "active"
+        },
+        {
+            id: "b3dec280-63fd-483d-9b22-781153a64888",
+            name: "DR ArTHUR",
+            code: "NKR",
+            county: "Nakuru",
+            region: "Nakuru Town East",
+            status: "active"
+        }
+    ];
+    
+    // Try with real data first
+    this.populateSelect('studentCentre', centres, 'id', 'name', 'Select Centre');
+    this.populateSelect('filterCentre', centres, 'id', 'name', 'All Centres');
+    
+    // If that doesn't work, try with test data
+    // this.populateSelect('studentCentre', testCentres, 'id', 'name', 'Select Centre');
+    // this.populateSelect('filterCentre', testCentres, 'id', 'name', 'All Centres');
+    
+    console.log(`✅ Loaded ${centres.length} centres`);
+}
             
             // Load programs - using program code as text value (NOT UUID!)
             if (this.db.getPrograms) {
@@ -1075,7 +1111,7 @@ class TEEPortalApp {
     /**
      * Populate select dropdown - UPDATED FOR YOUR SCHEMA
      */
-   populateSelect(selectId, data, valueKey, textKey, defaultText, extraTextKey = null) {
+  populateSelect(selectId, data, valueKey, textKey, defaultText, extraTextKey = null) {
     const select = document.getElementById(selectId);
     if (!select) {
         console.warn(`⚠️ Select element ${selectId} not found`);
@@ -1089,30 +1125,74 @@ class TEEPortalApp {
         return;
     }
     
-    data.forEach(item => {
+    console.log(`🔍 Populating ${selectId} with ${data.length} items`);
+    console.log(`🔍 First item keys:`, Object.keys(data[0]));
+    console.log(`🔍 First item values:`, data[0]);
+    
+    data.forEach((item, index) => {
         const option = document.createElement('option');
-        option.value = item[valueKey];
         
-        // Build display text - SIMPLIFIED
+        // Get the value - handle missing values
+        let value = item[valueKey];
+        if (value === undefined || value === null) {
+            console.warn(`⚠️ Item ${index} missing value key "${valueKey}":`, item);
+            value = '';
+        }
+        option.value = value;
+        
+        // Build display text based on select type
         let displayText = '';
         
-        // For programs: "CODE - NAME (duration years)"
-        if ((selectId.includes('Program') || selectId.includes('program')) && item.code) {
-            const duration = item.duration ? ` (${item.duration} year${item.duration > 1 ? 's' : ''})` : '';
-            displayText = `${item.code} - ${item.name || ''}${duration}`.trim();
+        // FOR CENTRES: "NAME (CODE) - COUNTY"
+        if (selectId.includes('Centre') || selectId.includes('centre')) {
+            const name = item.name || '';
+            const code = item.code || '';
+            const county = item.county || '';
+            
+            if (name && code) {
+                displayText = `${name} (${code})`;
+            } else if (name) {
+                displayText = name;
+            } else if (code) {
+                displayText = `Centre ${code}`;
+            }
+            
+            if (county && displayText) {
+                displayText += ` - ${county}`;
+            }
+            
+            console.log(`🔍 Centre ${index}: name="${name}", code="${code}", county="${county}", display="${displayText}"`);
         }
-        // For centres: "NAME (CODE) - COUNTY"
-        else if ((selectId.includes('Centre') || selectId.includes('centre'))) {
-            const codePart = item.code ? ` (${item.code})` : '';
-            const countyPart = item.county ? ` - ${item.county}` : '';
-            displayText = `${item.name || ''}${codePart}${countyPart}`.trim();
+        // FOR PROGRAMS: "CODE - NAME (duration)"
+        else if (selectId.includes('Program') || selectId.includes('program')) {
+            const code = item.code || '';
+            const name = item.name || '';
+            const duration = item.duration || '';
+            
+            if (code && name) {
+                displayText = `${code} - ${name}`;
+            } else if (code) {
+                displayText = code;
+            } else if (name) {
+                displayText = name;
+            }
+            
+            if (duration && displayText) {
+                displayText += ` (${duration} year${duration > 1 ? 's' : ''})`;
+            }
         }
-        // For counties: "NAME (REGION)"
-        else if ((selectId.includes('County') || selectId.includes('county'))) {
-            const regionPart = item.region ? ` (${item.region})` : '';
-            displayText = `${item.name || ''}${regionPart}`.trim();
+        // FOR COUNTIES: "NAME (REGION)"
+        else if (selectId.includes('County') || selectId.includes('county')) {
+            const name = item.name || '';
+            const region = item.region || '';
+            
+            if (name && region) {
+                displayText = `${name} (${region})`;
+            } else if (name) {
+                displayText = name;
+            }
         }
-        // Default: Use textKey + extraTextKey
+        // DEFAULT: Use textKey + extraTextKey
         else {
             displayText = item[textKey] || '';
             if (extraTextKey && item[extraTextKey]) {
@@ -1121,8 +1201,9 @@ class TEEPortalApp {
         }
         
         // Final fallback
-        if (!displayText) {
-            displayText = item[valueKey] || 'Unknown';
+        if (!displayText || displayText.trim() === '') {
+            displayText = value || `Item ${index}`;
+            console.warn(`⚠️ Empty display text for item ${index}, using: "${displayText}"`);
         }
         
         option.textContent = this.escapeHtml(displayText);
@@ -1130,6 +1211,15 @@ class TEEPortalApp {
     });
     
     console.log(`✅ Populated ${selectId} with ${data.length} items`);
+    
+    // Debug: Check what's in the dropdown
+    setTimeout(() => {
+        const options = Array.from(select.options).map(opt => ({
+            value: opt.value,
+            text: opt.text
+        }));
+        console.log(`🔍 ${selectId} options:`, options);
+    }, 100);
 }
     
     initializeUI() {
