@@ -477,8 +477,7 @@ async addMark(data) {
         window.TEEPortalSupabaseDB = FallbackDB;
         console.log('✅ Fallback database class created');
     }
-    
-   initializeModules() {
+  initializeModules() {
     try {
         console.log('🔄 Initializing modules...');
         
@@ -549,45 +548,7 @@ async addMark(data) {
         }
         
         // ✅ ✅ ✅ ADD THIS: Initialize Report Manager
-        if (typeof ReportManager !== 'undefined') {
-            this.reports = new ReportManager(this.db, this);
-            console.log('✅ ReportManager initialized');
-            
-            // Optional: Pre-load report data in background
-            setTimeout(async () => {
-                if (this.reports && this.reports.initialize) {
-                    try {
-                        await this.reports.initialize();
-                        console.log('📊 Reports pre-initialized in background');
-                        
-                        // Pre-populate filters
-                        if (this.reports.populateAllFilters) {
-                            await this.reports.populateAllFilters();
-                        }
-                    } catch (error) {
-                        console.warn('⚠️ Background report initialization failed:', error);
-                    }
-                }
-            }, 2000);
-        } else if (typeof ReportsManager !== 'undefined') {
-            // Some systems use ReportsManager instead of ReportManager
-            this.reports = new ReportsManager(this.db, this);
-            console.log('✅ ReportsManager initialized (alternative class name)');
-            
-            // Optional: Pre-load
-            setTimeout(async () => {
-                if (this.reports && this.reports.initialize) {
-                    try {
-                        await this.reports.initialize();
-                        console.log('📊 Reports pre-initialized in background');
-                    } catch (error) {
-                        console.warn('⚠️ Background report initialization failed:', error);
-                    }
-                }
-            }, 2000);
-        } else {
-            console.warn('⚠️ ReportManager/ReportsManager not loaded - Reports section will not work');
-        }
+        this.initializeReportsManager();
         
         // Initialize settings manager (if exists)
         if (typeof SettingsManager !== 'undefined') {
@@ -615,15 +576,277 @@ async addMark(data) {
         
         console.log('✅ All modules initialized');
         
+        // Setup button listeners for all modules
+        setTimeout(() => this.setupAllButtonListeners(), 2000);
+        
     } catch (error) {
         console.error('❌ Error initializing modules:', error);
         this.showToast('Error initializing modules', 'error');
     }
 }
 
-// Add this method to load CourseManager script dynamically
+/**
+ * Initialize Reports Manager with proper checks
+ */
+initializeReportsManager() {
+    try {
+        // First try ReportsManager (with 's')
+        if (typeof ReportsManager !== 'undefined') {
+            this.reports = new ReportsManager(this.db, this);
+            console.log('✅ ReportsManager initialized');
+            
+            // Initialize in background
+            setTimeout(async () => {
+                try {
+                    if (this.reports?.initialize) {
+                        await this.reports.initialize();
+                        console.log('📊 ReportsManager fully initialized');
+                        
+                        // Pre-populate data
+                        if (this.reports.populateReportDropdowns) {
+                            await this.reports.populateReportDropdowns();
+                        }
+                    }
+                } catch (error) {
+                    console.warn('⚠️ ReportsManager background init failed:', error);
+                }
+            }, 1000);
+            
+            return;
+        }
+        
+        // Fallback: try ReportManager (without 's')
+        if (typeof ReportManager !== 'undefined') {
+            this.reports = new ReportManager(this.db, this);
+            console.log('✅ ReportManager initialized (alternative)');
+            return;
+        }
+        
+        // If not loaded, try dynamic loading
+        console.warn('⚠️ ReportsManager not loaded, attempting dynamic load');
+        this.loadReportsManagerScript();
+        
+    } catch (error) {
+        console.error('❌ Error initializing ReportsManager:', error);
+    }
+}
+
+/**
+ * Load ReportsManager script dynamically
+ */
+loadReportsManagerScript() {
+    console.log('📦 Loading ReportsManager script...');
+    
+    const script = document.createElement('script');
+    script.src = 'modules/reports.js';
+    script.async = true;
+    
+    script.onload = () => {
+        console.log('✅ ReportsManager script loaded');
+        
+        if (typeof ReportsManager !== 'undefined') {
+            this.reports = new ReportsManager(this.db, this);
+            console.log('✅ ReportsManager initialized dynamically');
+            
+            // Initialize after a short delay
+            setTimeout(async () => {
+                try {
+                    if (this.reports?.initialize) {
+                        await this.reports.initialize();
+                        console.log('📊 ReportsManager initialized after dynamic load');
+                        
+                        // Setup button listeners for reports
+                        this.setupReportsButtonListeners();
+                        
+                        this.showToast('Reports module loaded successfully', 'success');
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Dynamic ReportsManager init failed:', error);
+                }
+            }, 1500);
+        } else {
+            console.error('❌ ReportsManager still undefined after script load');
+            this.showToast('Reports module failed to load completely', 'warning');
+        }
+    };
+    
+    script.onerror = (error) => {
+        console.error('❌ Failed to load ReportsManager script:', error);
+        this.showToast('Could not load reports module', 'error');
+        
+        // Create a fallback reports object to prevent errors
+        this.createReportsFallback();
+    };
+    
+    document.head.appendChild(script);
+}
+
+/**
+ * Create fallback reports object to prevent errors
+ */
+createReportsFallback() {
+    console.log('🛡️ Creating reports fallback...');
+    
+    this.reports = {
+        // Safe methods that won't crash
+        initialize: async () => {
+            console.log('📊 Reports fallback initialized');
+            return true;
+        },
+        
+        debugDropdowns: () => {
+            console.log('🔍 Debug reports fallback');
+            alert('Reports module is loading... Please wait a moment and try again.');
+        },
+        
+        refreshReports: () => {
+            console.log('🔄 Refresh reports fallback');
+            alert('Reports module is loading... Please wait.');
+        },
+        
+        populateReportDropdowns: () => {
+            console.log('📋 Populate dropdowns fallback');
+            alert('Reports data is being loaded...');
+        },
+        
+        generateSummaryReport: () => {
+            console.log('📄 Generate summary fallback');
+            alert('Reports module not ready yet. Try clicking "Refresh Data" first.');
+        },
+        
+        studentReport: () => {
+            alert('Student reports not ready yet.');
+        },
+        
+        academicReport: () => {
+            alert('Academic reports not ready yet.');
+        },
+        
+        generateCentreReport: () => {
+            alert('Centre reports not ready yet.');
+        },
+        
+        // Add other required methods...
+        showToast: (message, type = 'info') => {
+            alert(`${type.toUpperCase()}: ${message}`);
+        }
+    };
+    
+    console.log('✅ Reports fallback created');
+}
+
+/**
+ * Setup all button listeners
+ */
+setupAllButtonListeners() {
+    console.log('🔗 Setting up all button listeners...');
+    
+    // Setup reports button listeners
+    this.setupReportsButtonListeners();
+    
+    // Setup other module button listeners if needed
+    this.setupOtherButtonListeners();
+    
+    console.log('✅ All button listeners setup');
+}
+
+/**
+ * Setup safe button listeners for reports section
+ */
+setupReportsButtonListeners() {
+    console.log('🔗 Setting up reports button listeners...');
+    
+    // Wait for DOM to be ready
+    setTimeout(() => {
+        // Define button mappings - match your HTML button IDs
+        const buttonMappings = [
+            { id: 'summaryReportBtn', method: 'generateSummaryReport', fallback: 'Summary report not ready' },
+            { id: 'refreshReportsBtn', method: 'refreshReports', fallback: 'Refreshing reports...' },
+            { id: 'refreshDataBtn', method: 'populateReportDropdowns', fallback: 'Refreshing data...' },
+            { id: 'debugReportsBtn', method: 'debugDropdowns', fallback: 'Debugging...' },
+            { id: 'studentReportBtn', method: 'studentReport', fallback: 'Student reports not ready' },
+            { id: 'academicReportBtn', method: 'academicReport', fallback: 'Academic reports not ready' },
+            { id: 'centreReportBtn', method: 'generateCentreReport', fallback: 'Centre reports not ready' },
+            { id: 'applyFiltersBtn', method: 'applyFilters', fallback: 'Applying filters...' },
+            { id: 'clearFiltersBtn', method: 'clearFilters', fallback: 'Clearing filters...' },
+            { id: 'previewTranscriptBtn', method: 'previewTranscript', fallback: 'Transcript preview not ready' },
+            { id: 'generateTranscriptBtn', method: 'generateTranscript', fallback: 'Transcript generation not ready' }
+        ];
+        
+        // Setup each button
+        buttonMappings.forEach(({ id, method, fallback }) => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    if (this.reports && typeof this.reports[method] === 'function') {
+                        console.log(`📊 Calling reports.${method}()`);
+                        return this.reports[method]();
+                    } else {
+                        console.warn(`⚠️ Reports method ${method} not available`);
+                        alert(fallback || 'Reports module not ready yet');
+                        
+                        // Try to initialize if not ready
+                        if (!this.reports && this.loadReportsManagerScript) {
+                            this.loadReportsManagerScript();
+                            alert('Reports module is loading. Please try again in a moment.');
+                        }
+                    }
+                };
+                console.log(`✅ Button ${id} bound to reports.${method}`);
+            } else {
+                console.log(`⚠️ Button ${id} not found in DOM`);
+            }
+        });
+        
+        // Also update onclick handlers in the DOM
+        this.updateReportsOnclickHandlers();
+        
+        console.log('✅ Reports button listeners setup complete');
+        
+    }, 1000); // Delay to ensure DOM is ready
+}
+
+/**
+ * Update onclick handlers in the DOM for reports section
+ */
+updateReportsOnclickHandlers() {
+    // Update all onclick attributes that reference app.reports
+    document.querySelectorAll('[onclick*="app.reports"]').forEach(element => {
+        const onclickAttr = element.getAttribute('onclick');
+        if (onclickAttr) {
+            // Extract method name from onclick
+            const match = onclickAttr.match(/app\.reports\.(\w+)\(/);
+            if (match) {
+                const methodName = match[1];
+                element.onclick = (e) => {
+                    e.preventDefault();
+                    if (this.reports && this.reports[methodName]) {
+                        return this.reports[methodName]();
+                    } else {
+                        alert(`Reports function ${methodName} not ready`);
+                    }
+                };
+                console.log(`✅ Updated onclick for ${methodName}`);
+            }
+        }
+    });
+}
+
+/**
+ * Setup other button listeners
+ */
+setupOtherButtonListeners() {
+    // Add other module button setups here if needed
+    console.log('🔗 Other button listeners setup');
+}
+
+/**
+ * Load CourseManager script dynamically
+ */
 loadCourseManagerScript() {
-    // Check if already loaded
     if (typeof CourseManager !== 'undefined') {
         this.courses = new CourseManager(this.db, this);
         console.log('✅ CourseManager initialized from dynamic check');
@@ -642,16 +865,15 @@ loadCourseManagerScript() {
             this.courses = new CourseManager(this.db, this);
             console.log('✅ CourseManager initialized');
             
-            // Load courses after initialization
             setTimeout(() => {
-                if (this.courses && this.courses.loadCourses) {
+                if (this.courses?.loadCourses) {
                     this.courses.loadCourses();
                     this.courses.updateStatistics();
                     console.log('📚 Courses loaded dynamically');
                 }
             }, 500);
         } else {
-            console.error('❌ CourseManager still not defined after loading script');
+            console.error('❌ CourseManager still undefined');
         }
     };
     
@@ -662,7 +884,6 @@ loadCourseManagerScript() {
     
     document.head.appendChild(script);
 }
-    
     async loadInitialData() {
         try {
             console.log('📊 Loading initial data...');
