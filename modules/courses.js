@@ -1,41 +1,34 @@
-console.log('🚀 courses.js STARTING LOAD...');
-// modules/courses.js - UPDATED FOR YOUR POSTGRESQL DATABASE
-class CourseManager {
-    constructor(db, app) {
-        // FIX: Use TEEPortalSupabaseDB if db not provided
-        this.db = db || window.TEEPortalSupabaseDB;
-        this.app = app || window.app;
-        
-        console.log('🔍 CourseManager initialized with:', {
-            db: this.db ? '✅ Found' : '❌ Missing',
-            app: this.app ? '✅ Found' : '❌ Missing',
-            dbType: this.db?.constructor?.name
-        });
-        
-        if (!this.db) {
-            console.error('❌ ERROR: No database found!');
-            console.log('Available global objects:', Object.keys(window).filter(k => 
-                k.includes('DB') || k.includes('Database') || k.toLowerCase().includes('db')
-            ));
-            return;
-        }
-        
-        // Check if database has required methods
-        console.log('📋 Checking database methods...');
-        console.log('- getPrograms:', typeof this.db.getPrograms);
-        console.log('- getStudyCenters:', typeof this.db.getStudyCenters);
-        console.log('- getCourses:', typeof this.db.getCourses);
-        
-        this.currentCourse = null;
-        this.selectedStudents = new Set();
-        this.currentView = 'grid';
-        this.programs = [];
-        this.centres = [];
-        this.intakeYears = [];
-        
-        this.registerGlobalFunctions();
-        this.initializeData();
+constructor(db, app) {
+    console.log('🔍 CourseManager constructor called');
+    
+    // Get database from app if not provided
+    this.db = db || window.app?.db;
+    this.app = app || window.app;
+    
+    console.log('Initialized with:', {
+        db: this.db ? `✅ ${this.db.constructor.name}` : '❌ Missing',
+        app: this.app ? `✅ ${this.app.constructor.name}` : '❌ Missing',
+        hasGetPrograms: typeof this.db?.getPrograms === 'function'
+    });
+    
+    if (!this.db || !this.app) {
+        console.error('❌ Missing database or app');
+        console.log('window.app:', window.app);
+        console.log('window.app.db:', window.app?.db);
+        return;
     }
+    
+    // Initialize state
+    this.currentCourse = null;
+    this.selectedStudents = new Set();
+    this.currentView = 'grid';
+    this.programs = [];
+    this.centres = [];
+    this.intakeYears = [];
+    
+    this.registerGlobalFunctions();
+    this.initializeData();
+}
     
     
   async initializeData() {
