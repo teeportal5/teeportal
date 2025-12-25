@@ -1,8 +1,9 @@
-// modules/transcripts.js - Transcript management module
+// modules/transcripts.js - COMPLETE VERSION WITH HTML INTEGRATION
 class TranscriptsManager {
     constructor(db) {
         this.db = db;
         this.cachedStudents = null;
+        this.currentTranscriptData = null;
     }
 
     // ==================== INITIALIZATION ====================
@@ -11,15 +12,572 @@ class TranscriptsManager {
         try {
             console.log('📄 Initializing Transcripts UI...');
             
-            // Update button in HTML to call this method
-            const transcriptBtn = document.querySelector('[onclick*="generateStudentTranscriptPrompt"]');
-            if (transcriptBtn) {
-                transcriptBtn.onclick = () => this.generateStudentTranscriptPrompt();
-            }
+            // Initialize event listeners for HTML buttons
+            this.setupTranscriptButtons();
+            
+            // Populate dropdowns
+            await this.populateTranscriptDropdowns();
             
             console.log('✅ Transcripts UI initialized');
         } catch (error) {
             console.error('Error initializing transcripts UI:', error);
+        }
+    }
+    
+    setupTranscriptButtons() {
+        // Connect HTML buttons to our methods
+        const buttons = {
+            'loadSampleTranscript': () => this.loadSampleTranscript(),
+            'previewTranscript': () => this.previewTranscript(),
+            'generateTranscript': () => this.generateTranscriptFromUI(),
+            'bulkTranscripts': () => this.generateStudentTranscriptPrompt(),
+            'downloadTranscript': () => this.downloadCurrentTranscript(),
+            'emailTranscript': () => this.emailTranscript()
+        };
+        
+        // Add event listeners if elements exist
+        Object.keys(buttons).forEach(buttonId => {
+            const element = document.querySelector(`[onclick*="${buttonId}"]`);
+            if (element) {
+                element.onclick = buttons[buttonId];
+            }
+        });
+        
+        // Also add event listeners for filter dropdowns
+        const centreFilter = document.getElementById('transcriptCenterFilter');
+        if (centreFilter) {
+            centreFilter.onchange = () => this.filterTranscriptStudentsByCenter();
+        }
+    }
+    
+    async populateTranscriptDropdowns() {
+        try {
+            // Populate centre filter
+            const centres = await this.db.getCentres();
+            const centreSelect = document.getElementById('transcriptCenterFilter');
+            if (centreSelect) {
+                centreSelect.innerHTML = '<option value="all">All Centres</option>';
+                centres.forEach(centre => {
+                    const option = document.createElement('option');
+                    option.value = centre.id;
+                    option.textContent = centre.name;
+                    centreSelect.appendChild(option);
+                });
+            }
+            
+            // Populate program filter
+            const programs = await this.db.getPrograms();
+            const programSelect = document.getElementById('transcriptProgram');
+            if (programSelect) {
+                programSelect.innerHTML = '<option value="all">All Programs</option>';
+                programs.forEach(program => {
+                    const option = document.createElement('option');
+                    option.value = program.id;
+                    option.textContent = program.name || program.code;
+                    programSelect.appendChild(option);
+                });
+            }
+            
+            // Populate student dropdown
+            await this.populateStudentDropdown();
+            
+        } catch (error) {
+            console.error('Error populating dropdowns:', error);
+        }
+    }
+
+    // ==================== HTML INTEGRATION METHODS ====================
+    
+    async loadSampleTranscript() {
+        try {
+            console.log('📄 Loading sample transcript...');
+            
+            // Get the first student from database for sample
+            const students = await this.db.getStudents();
+            if (!students || students.length === 0) {
+                this.showToast('No students found in database', 'warning');
+                return;
+            }
+            
+            const student = students[0];
+            const transcriptData = await this.prepareTranscriptData(student.id, {
+                includeAllAssessments: true,
+                includeGPA: true,
+                includeRemarks: true
+            });
+            
+            // Store the data
+            this.currentTranscriptData = transcriptData;
+            
+            // Display the transcript in HTML
+            this.displayTranscriptInHTML(transcriptData);
+            
+            this.showToast('Sample transcript loaded', 'success');
+            
+        } catch (error) {
+            console.error('Error loading sample transcript:', error);
+            this.showToast('Error loading sample: ' + error.message, 'error');
+        }
+    }
+    
+    async previewTranscript() {
+        try {
+            // Get selected student from dropdown
+            const studentSelect = document.getElementById('transcriptStudent');
+            const studentId = studentSelect?.value;
+            
+            if (!studentId || studentId === '') {
+                this.showToast('Please select a student first', 'warning');
+                return;
+            }
+            
+            // Get options from checkboxes
+            const options = {
+                includeAllAssessments: document.getElementById('includeGrades')?.checked || true,
+                includeGPA: document.getElementById('includeGPA')?.checked || true,
+                includeRemarks: document.getElementById('includeSignatures')?.checked || true
+            };
+            
+            // Prepare transcript data
+            const transcriptData = await this.prepareTranscriptData(studentId, options);
+            this.currentTranscriptData = transcriptData;
+            
+            // Display in HTML
+            this.displayTranscriptInHTML(transcriptData);
+            
+            this.showToast('Transcript preview loaded', 'success');
+            
+        } catch (error) {
+            console.error('Error previewing transcript:', error);
+            this.showToast('Error: ' + error.message, 'error');
+        }
+    }
+    
+    displayTranscriptInHTML(transcriptData) {
+        try {
+            // Get the preview container
+            const previewContainer = document.getElementById('transcriptPreview');
+            const contentDiv = document.getElementById('transcriptPreviewContent');
+            
+            if (!previewContainer || !contentDiv) {
+                console.error('Transcript preview elements not found');
+                return;
+            }
+            
+            // Generate transcript HTML
+            const html = this.generateTranscriptHTML(transcriptData);
+            contentDiv.innerHTML = html;
+            
+            // Show the preview
+            previewContainer.style.display = 'block';
+            
+            // Scroll to preview
+            previewContainer.scrollIntoView({ behavior: 'smooth' });
+            
+        } catch (error) {
+            console.error('Error displaying transcript:', error);
+            throw error;
+        }
+    }
+    
+    generateTranscriptHTML(data) {
+        // Calculate overall statistics
+        const totalCredits = data.courses.reduce((sum, course) => sum + (course.credits || 3), 0);
+        const earnedCredits = data.courses.filter(course => 
+            course.finalGrade && course.finalGrade !== 'FAIL'
+        ).reduce((sum, course) => sum + (course.credits || 3), 0);
+        
+        // Calculate average percentage
+        const percentages = data.courses
+            .filter(course => course.assessments && course.assessments.length > 0)
+            .map(course => {
+                const total = course.assessments.reduce((sum, a) => sum + (a.percentage || 0), 0);
+                return course.assessments.length > 0 ? total / course.assessments.length : 0;
+            });
+        
+        const avgPercentage = percentages.length > 0 ? 
+            percentages.reduce((a, b) => a + b, 0) / percentages.length : 0;
+        
+        // Determine overall grade
+        let overallGrade = 'PASS';
+        if (avgPercentage >= 80) overallGrade = 'DISTINCTION';
+        else if (avgPercentage >= 70) overallGrade = 'CREDIT';
+        else if (avgPercentage < 60) overallGrade = 'FAIL';
+        
+        // Get current date
+        const currentDate = new Date();
+        const issueDate = currentDate.toLocaleDateString('en-GB');
+        const issuedOn = currentDate.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        });
+        const transcriptId = `TRX-${currentDate.getFullYear()}${String(currentDate.getMonth() + 1).padStart(2, '0')}${String(currentDate.getDate()).padStart(2, '0')}-001`;
+        
+        // Generate course rows
+        let courseRows = '';
+        data.courses.forEach((course, index) => {
+            let gradeClass = '';
+            if (course.finalGrade === 'DISTINCTION') gradeClass = 'bg-success';
+            else if (course.finalGrade === 'CREDIT') gradeClass = 'bg-primary';
+            else if (course.finalGrade === 'PASS') gradeClass = 'bg-warning';
+            else if (course.finalGrade === 'FAIL') gradeClass = 'bg-danger';
+            
+            // Calculate course percentage
+            let coursePercentage = 0;
+            if (course.assessments && course.assessments.length > 0) {
+                const total = course.assessments.reduce((sum, a) => sum + (a.percentage || 0), 0);
+                coursePercentage = Math.round(total / course.assessments.length);
+            }
+            
+            courseRows += `
+                <tr style="border-bottom: 1px solid #e5e7eb;">
+                    <td style="padding: 10px; text-align: center;">${index + 1}</td>
+                    <td style="padding: 10px;">${course.courseCode}</td>
+                    <td style="padding: 10px;">${course.courseName}</td>
+                    <td style="padding: 10px; text-align: center;">${course.credits || 3}</td>
+                    <td style="padding: 10px; text-align: center;">${coursePercentage}%</td>
+                    <td style="padding: 10px; text-align: center;">
+                        <span class="badge ${gradeClass}" style="padding: 5px 10px; font-weight: bold;">
+                            ${course.finalGrade || 'N/A'}
+                        </span>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        // Generate the HTML
+        return `
+            <div id="transcriptModel" style="background: white; padding: 30px; border: 2px solid #1e3a8a; border-radius: 8px; max-width: 800px; margin: 0 auto; font-family: 'Georgia', serif;">
+                
+                <!-- HEADER WITH SEAL -->
+                <div class="text-center mb-4 position-relative">
+                    <div style="position: absolute; left: 0; top: 0; width: 80px; height: 80px; border: 2px solid #1e3a8a; border-radius: 50%; text-align: center; line-height: 80px; color: #1e3a8a; font-size: 12px;">
+                        OFFICIAL SEAL
+                    </div>
+                    
+                    <h1 style="color: #1e3a8a; font-size: 28px; margin-bottom: 5px;">THEOLOGICAL EXTENSION BY EDUCATION</h1>
+                    <h2 style="color: #3b82f6; font-size: 20px; margin-bottom: 5px;">TEE COLLEGE</h2>
+                    <h3 style="color: #666; font-size: 16px; margin-bottom: 15px;">Accredited Theological Institution</h3>
+                    <h4 style="color: #1e3a8a; font-size: 22px; font-weight: bold; border-top: 2px solid #1e3a8a; border-bottom: 2px solid #1e3a8a; padding: 10px 0; display: inline-block; padding: 10px 40px;">
+                        OFFICIAL ACADEMIC TRANSCRIPT
+                    </h4>
+                </div>
+                
+                <!-- STUDENT INFORMATION -->
+                <div class="student-info mb-4" style="background: #f8fafc; padding: 20px; border-radius: 5px;">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <table style="width: 100%;">
+                                <tr>
+                                    <td style="width: 35%; padding: 5px 0;"><strong>FULL NAME:</strong></td>
+                                    <td style="padding: 5px 0;" id="modelStudentName">${data.student.full_name}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px 0;"><strong>REGISTRATION NO:</strong></td>
+                                    <td style="padding: 5px 0;" id="modelRegNumber">${data.student.reg_number}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px 0;"><strong>PROGRAM:</strong></td>
+                                    <td style="padding: 5px 0;" id="modelProgram">${data.student.program}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px 0;"><strong>STUDY CENTRE:</strong></td>
+                                    <td style="padding: 5px 0;" id="modelCentre">${data.student.centre || 'Main Campus'}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px 0;"><strong>COUNTY:</strong></td>
+                                    <td style="padding: 5px 0;" id="modelCounty">${data.student.county || 'N/A'}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div style="border: 1px solid #ccc; padding: 10px; display: inline-block;">
+                                <div style="width: 120px; height: 150px; background: #f8f9fa; line-height: 150px; color: #666; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-user-graduate fa-3x"></i>
+                                </div>
+                                <div style="font-size: 12px; color: #666; margin-top: 5px;">Student Photo</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- PROGRAM DETAILS -->
+                <div class="program-details mb-4">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div style="background: #1e3a8a; color: white; padding: 10px; border-radius: 5px;">
+                                <div style="font-size: 12px;">INTAKE DATE</div>
+                                <div style="font-size: 16px; font-weight: bold;" id="modelIntakeDate">${data.student.intake_year || 'N/A'}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div style="background: #3b82f6; color: white; padding: 10px; border-radius: 5px;">
+                                <div style="font-size: 12px;">COMPLETION DATE</div>
+                                <div style="font-size: 16px; font-weight: bold;" id="modelCompletionDate">${data.student.completion_date || 'In Progress'}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div style="background: #10b981; color: white; padding: 10px; border-radius: 5px;">
+                                <div style="font-size: 12px;">DURATION</div>
+                                <div style="font-size: 16px; font-weight: bold;" id="modelDuration">${data.student.duration || 'N/A'}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div style="background: #8b5cf6; color: white; padding: 10px; border-radius: 5px;">
+                                <div style="font-size: 12px;">MODE OF STUDY</div>
+                                <div style="font-size: 16px; font-weight: bold;" id="modelStudyMode">${data.student.study_mode || 'Full-time'}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ACADEMIC PERFORMANCE TABLE -->
+                <div class="academic-table mb-4">
+                    <h5 style="color: #1e3a8a; border-bottom: 2px solid #1e3a8a; padding-bottom: 8px; margin-bottom: 15px;">
+                        <i class="fas fa-graduation-cap"></i> ACADEMIC PERFORMANCE RECORD
+                    </h5>
+                    
+                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                        <thead>
+                            <tr style="background: #1e3a8a; color: white;">
+                                <th style="padding: 12px; text-align: left; width: 8%;">NO.</th>
+                                <th style="padding: 12px; text-align: left; width: 12%;">CODE</th>
+                                <th style="padding: 12px; text-align: left; width: 40%;">COURSE TITLE</th>
+                                <th style="padding: 12px; text-align: center; width: 10%;">CREDITS</th>
+                                <th style="padding: 12px; text-align: center; width: 12%;">SCORE %</th>
+                                <th style="padding: 12px; text-align: center; width: 18%;">GRADE</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modelCoursesTable">
+                            ${courseRows}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- SUMMARY & GRADING SCALE -->
+                <div class="summary-section mb-4">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div style="background: #f0f9ff; padding: 15px; border-radius: 5px; border-left: 4px solid #3b82f6;">
+                                <h6 style="color: #1e3a8a; margin-bottom: 10px;"><i class="fas fa-calculator"></i> ACADEMIC SUMMARY</h6>
+                                <table style="width: 100%;">
+                                    <tr>
+                                        <td style="padding: 5px 0;"><strong>Total Credits Attempted:</strong></td>
+                                        <td style="padding: 5px 0; text-align: right;">${totalCredits}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 5px 0;"><strong>Total Credits Earned:</strong></td>
+                                        <td style="padding: 5px 0; text-align: right;">${earnedCredits}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 5px 0;"><strong>Overall Percentage:</strong></td>
+                                        <td style="padding: 5px 0; text-align: right;">${Math.round(avgPercentage)}%</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 5px 0;"><strong>Cumulative GPA:</strong></td>
+                                        <td style="padding: 5px 0; text-align: right;">${data.gpa ? data.gpa.toFixed(2) : 'N/A'}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 5px 0;"><strong>Final Grade:</strong></td>
+                                        <td style="padding: 5px 0; text-align: right;">
+                                            <span class="badge ${overallGrade === 'DISTINCTION' ? 'bg-success' : overallGrade === 'CREDIT' ? 'bg-primary' : overallGrade === 'PASS' ? 'bg-warning' : 'bg-danger'}" style="font-size: 14px; padding: 5px 10px;">
+                                                ${overallGrade}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div style="background: #f0fdf4; padding: 15px; border-radius: 5px; border-left: 4px solid #10b981;">
+                                <h6 style="color: #1e3a8a; margin-bottom: 10px;"><i class="fas fa-scale-balanced"></i> GRADING SYSTEM</h6>
+                                <table style="width: 100%; font-size: 13px;">
+                                    <tr>
+                                        <td style="padding: 3px 0;">80% - 100%</td>
+                                        <td style="padding: 3px 0; font-weight: bold;">DISTINCTION</td>
+                                        <td style="padding: 3px 0; text-align: right;">
+                                            <span class="badge bg-success" style="padding: 3px 8px;">Excellent</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 3px 0;">70% - 79%</td>
+                                        <td style="padding: 3px 0; font-weight: bold;">CREDIT</td>
+                                        <td style="padding: 3px 0; text-align: right;">
+                                            <span class="badge bg-primary" style="padding: 3px 8px;">Good</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 3px 0;">60% - 69%</td>
+                                        <td style="padding: 3px 0; font-weight: bold;">PASS</td>
+                                        <td style="padding: 3px 0; text-align: right;">
+                                            <span class="badge bg-warning" style="padding: 3px 8px;">Satisfactory</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 3px 0;">Below 60%</td>
+                                        <td style="padding: 3px 0; font-weight: bold;">FAIL</td>
+                                        <td style="padding: 3px 0; text-align: right;">
+                                            <span class="badge bg-danger" style="padding: 3px 8px;">Repeat</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FOOTER WITH SIGNATURES -->
+                <div class="transcript-footer mt-4 pt-4" style="border-top: 2px solid #1e3a8a;">
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto; padding-top: 10px;">
+                                <div style="font-weight: bold;">REGISTRAR</div>
+                                <div style="color: #666; font-size: 14px;">TEE College</div>
+                                <div style="color: #666; font-size: 12px;">Date: <span id="issueDate">${issueDate}</span></div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto; padding-top: 10px;">
+                                <div style="font-weight: bold;">ACADEMIC DEAN</div>
+                                <div style="color: #666; font-size: 14px;">TEE College</div>
+                                <div style="color: #666; font-size: 12px;">Stamp & Seal</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto; padding-top: 10px;">
+                                <div style="font-weight: bold;">CENTRE DIRECTOR</div>
+                                <div style="color: #666; font-size: 14px;">${data.student.centre || 'Main Campus'}</div>
+                                <div style="color: #666; font-size: 12px;">Official Stamp</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- OFFICIAL NOTES -->
+                    <div class="official-notes mt-4" style="background: #fef2f2; padding: 10px; border-radius: 5px; font-size: 12px; color: #666;">
+                        <p style="margin: 0;"><strong>OFFICIAL NOTES:</strong> This is an official transcript issued by TEE College. Any alteration renders this document invalid. For verification, contact the Registrar's Office.</p>
+                        <p style="margin: 5px 0 0 0;"><strong>TRANSCRIPT ID:</strong> <span id="transcriptId">${transcriptId}</span> | <strong>ISSUED ON:</strong> ${issuedOn}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    async generateTranscriptFromUI() {
+        try {
+            // Get selected student
+            const studentSelect = document.getElementById('transcriptStudent');
+            const studentId = studentSelect?.value;
+            
+            if (!studentId || studentId === '') {
+                this.showToast('Please select a student first', 'warning');
+                return;
+            }
+            
+            // Get format
+            const formatSelect = document.getElementById('transcriptFormat');
+            const format = formatSelect?.value || 'pdf';
+            
+            // Get options
+            const options = {
+                includeAllAssessments: document.getElementById('includeGrades')?.checked || true,
+                includeGPA: document.getElementById('includeGPA')?.checked || true,
+                includeRemarks: document.getElementById('includeSignatures')?.checked || true
+            };
+            
+            // Generate the transcript
+            await this.generateStudentTranscript(studentId, format, options);
+            
+        } catch (error) {
+            console.error('Error generating transcript from UI:', error);
+            this.showToast('Error: ' + error.message, 'error');
+        }
+    }
+    
+    downloadCurrentTranscript() {
+        if (!this.currentTranscriptData) {
+            this.showToast('No transcript loaded to download', 'warning');
+            return;
+        }
+        
+        // Get format
+        const formatSelect = document.getElementById('transcriptFormat');
+        const format = formatSelect?.value || 'pdf';
+        
+        // Generate and download
+        this.generateStudentTranscript(this.currentTranscriptData.student.id, format, {
+            includeAllAssessments: true,
+            includeGPA: true,
+            includeRemarks: true
+        });
+    }
+    
+    emailTranscript() {
+        if (!this.currentTranscriptData) {
+            this.showToast('No transcript loaded to email', 'warning');
+            return;
+        }
+        
+        const student = this.currentTranscriptData.student;
+        const email = student.email;
+        
+        if (!email) {
+            this.showToast('Student has no email address', 'warning');
+            return;
+        }
+        
+        // In a real app, you would send an API request to email the transcript
+        this.showToast(`Email would be sent to ${email}`, 'info');
+    }
+    
+    async filterTranscriptStudentsByCenter() {
+        try {
+            const centreSelect = document.getElementById('transcriptCenterFilter');
+            const studentSelect = document.getElementById('transcriptStudent');
+            const centreId = centreSelect?.value;
+            
+            if (!centreId || centreId === 'all') {
+                // Show all students
+                await this.populateStudentDropdown();
+                return;
+            }
+            
+            // Get students for this centre
+            const students = await this.db.getStudents();
+            const filteredStudents = students.filter(student => 
+                student.centre_id === centreId || student.centre === centreId
+            );
+            
+            // Update student dropdown
+            studentSelect.innerHTML = '<option value="">Select Student</option>';
+            filteredStudents.forEach(student => {
+                const option = document.createElement('option');
+                option.value = student.id;
+                option.textContent = `${student.full_name} (${student.reg_number})`;
+                studentSelect.appendChild(option);
+            });
+            
+        } catch (error) {
+            console.error('Error filtering students:', error);
+        }
+    }
+    
+    async populateStudentDropdown() {
+        try {
+            const students = await this.db.getStudents();
+            const studentSelect = document.getElementById('transcriptStudent');
+            
+            if (studentSelect) {
+                studentSelect.innerHTML = '<option value="">Select Student</option>';
+                students.forEach(student => {
+                    const option = document.createElement('option');
+                    option.value = student.id;
+                    option.textContent = `${student.full_name} (${student.reg_number})`;
+                    studentSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error populating student dropdown:', error);
         }
     }
 
@@ -94,7 +652,7 @@ class TranscriptsManager {
                                 <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #2c3e50;">
                                     <i class="fas fa-filter"></i> Filter by Program
                                 </label>
-                                <select id="transcriptProgramFilter" style="
+                                <select id="modalProgramFilter" style="
                                     width: 100%;
                                     padding: 8px 12px;
                                     border: 1px solid #ddd;
@@ -112,7 +670,7 @@ class TranscriptsManager {
                                 <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #2c3e50;">
                                     <i class="fas fa-calendar"></i> Filter by Intake
                                 </label>
-                                <select id="transcriptIntakeFilter" style="
+                                <select id="modalIntakeFilter" style="
                                     width: 100%;
                                     padding: 8px 12px;
                                     border: 1px solid #ddd;
@@ -131,7 +689,7 @@ class TranscriptsManager {
                                 <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #2c3e50;">
                                     <i class="fas fa-search"></i> Search Student
                                 </label>
-                                <input type="text" id="transcriptSearch" placeholder="Search by name or reg number" style="
+                                <input type="text" id="modalSearch" placeholder="Search by name or reg number" style="
                                     width: 100%;
                                     padding: 8px 12px;
                                     border: 1px solid #ddd;
@@ -162,7 +720,7 @@ class TranscriptsManager {
                                         <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #2c3e50;">
                                             Export Format
                                         </label>
-                                        <select id="transcriptFormat" style="
+                                        <select id="modalFormat" style="
                                             width: 100%;
                                             padding: 8px 12px;
                                             border: 1px solid #ddd;
@@ -181,15 +739,15 @@ class TranscriptsManager {
                                         </label>
                                         <div style="display: flex; flex-direction: column; gap: 10px;">
                                             <label style="display: flex; align-items: center; gap: 8px;">
-                                                <input type="checkbox" id="includeAllAssessments" checked>
+                                                <input type="checkbox" id="modalIncludeAllAssessments" checked>
                                                 <span>All assessment details</span>
                                             </label>
                                             <label style="display: flex; align-items: center; gap: 8px;">
-                                                <input type="checkbox" id="includeGPA" checked>
+                                                <input type="checkbox" id="modalIncludeGPA" checked>
                                                 <span>GPA calculation</span>
                                             </label>
                                             <label style="display: flex; align-items: center; gap: 8px;">
-                                                <input type="checkbox" id="includeRemarks" checked>
+                                                <input type="checkbox" id="modalIncludeRemarks" checked>
                                                 <span>Remarks</span>
                                             </label>
                                         </div>
@@ -208,7 +766,7 @@ class TranscriptsManager {
                             ">
                                 <h4 style="margin: 0; color: #2c3e50;">Select Students</h4>
                                 <div style="display: flex; gap: 10px;">
-                                    <button id="selectAllStudents" style="
+                                    <button id="modalSelectAll" style="
                                         padding: 6px 12px;
                                         background: #3498db;
                                         color: white;
@@ -219,7 +777,7 @@ class TranscriptsManager {
                                     ">
                                         <i class="fas fa-check-square"></i> Select All
                                     </button>
-                                    <button id="deselectAllStudents" style="
+                                    <button id="modalDeselectAll" style="
                                         padding: 6px 12px;
                                         background: #e74c3c;
                                         color: white;
@@ -243,7 +801,7 @@ class TranscriptsManager {
                                     <thead style="background: #f8f9fa; position: sticky; top: 0;">
                                         <tr>
                                             <th style="padding: 12px; text-align: left; width: 50px;">
-                                                <input type="checkbox" id="masterCheckbox" style="cursor: pointer;">
+                                                <input type="checkbox" id="modalMasterCheckbox" style="cursor: pointer;">
                                             </th>
                                             <th style="padding: 12px; text-align: left;">Reg Number</th>
                                             <th style="padding: 12px; text-align: left;">Student Name</th>
@@ -252,7 +810,7 @@ class TranscriptsManager {
                                             <th style="padding: 12px; text-align: left;">Status</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="transcriptStudentList">
+                                    <tbody id="modalStudentList">
                                         <tr>
                                             <td colspan="6" style="padding: 40px; text-align: center; color: #7f8c8d;">
                                                 <i class="fas fa-spinner fa-spin"></i> Loading students...
@@ -263,7 +821,7 @@ class TranscriptsManager {
                             </div>
                             
                             <div style="margin-top: 10px; font-size: 13px; color: #7f8c8d; text-align: right;">
-                                <span id="selectedCount">0</span> students selected
+                                <span id="modalSelectedCount">0</span> students selected
                             </div>
                         </div>
                     </div>
@@ -275,7 +833,7 @@ class TranscriptsManager {
                         justify-content: space-between;
                         align-items: center;
                     ">
-                        <button id="cancelTranscript" style="
+                        <button id="modalCancel" style="
                             padding: 10px 20px;
                             background: #95a5a6;
                             color: white;
@@ -286,7 +844,7 @@ class TranscriptsManager {
                         ">
                             <i class="fas fa-times"></i> Cancel
                         </button>
-                        <button id="generateTranscriptsBtn" style="
+                        <button id="modalGenerate" style="
                             padding: 10px 20px;
                             background: #27ae60;
                             color: white;
@@ -306,8 +864,8 @@ class TranscriptsManager {
             
             document.body.appendChild(modal);
             
-            await this.loadTranscriptStudents();
-            this.setupTranscriptModalEvents();
+            await this.loadModalStudents();
+            this.setupModalEvents();
             
         } catch (error) {
             console.error('Error creating transcript modal:', error);
@@ -315,14 +873,12 @@ class TranscriptsManager {
         }
     }
     
-    // ==================== STUDENT MANAGEMENT ====================
-    
-    async loadTranscriptStudents() {
+    async loadModalStudents() {
         try {
-            const tbody = document.getElementById('transcriptStudentList');
+            const tbody = document.getElementById('modalStudentList');
             
             if (this.cachedStudents) {
-                this.renderStudentTable(this.cachedStudents);
+                this.renderModalStudentTable(this.cachedStudents);
                 return;
             }
             
@@ -341,11 +897,11 @@ class TranscriptsManager {
                 return;
             }
             
-            this.renderStudentTable(students);
+            this.renderModalStudentTable(students);
             
         } catch (error) {
-            console.error('Error loading students for transcript:', error);
-            const tbody = document.getElementById('transcriptStudentList');
+            console.error('Error loading students for modal:', error);
+            const tbody = document.getElementById('modalStudentList');
             tbody.innerHTML = `
                 <tr>
                     <td colspan="6" style="padding: 40px; text-align: center; color: #e74c3c;">
@@ -357,18 +913,14 @@ class TranscriptsManager {
         }
     }
     
-    renderStudentTable(students) {
-        const tbody = document.getElementById('transcriptStudentList');
-        const settings = this.db.settings || {};
+    renderModalStudentTable(students) {
+        const tbody = document.getElementById('modalStudentList');
         
         let html = '';
         
         students.forEach((student) => {
-            const programName = settings.programs && settings.programs[student.program] ? 
-                settings.programs[student.program].name : student.program;
-            
             html += `
-                <tr class="student-row" 
+                <tr class="modal-student-row" 
                     data-id="${student.id}" 
                     data-reg="${student.reg_number}"
                     data-program="${student.program}" 
@@ -377,7 +929,7 @@ class TranscriptsManager {
                     data-reg-lower="${student.reg_number.toLowerCase()}">
                     <td style="padding: 12px;">
                         <input type="checkbox" 
-                               class="student-checkbox" 
+                               class="modal-student-checkbox" 
                                value="${student.id}"
                                data-reg="${student.reg_number}">
                     </td>
@@ -395,7 +947,7 @@ class TranscriptsManager {
                             </div>
                         </div>
                     </td>
-                    <td style="padding: 12px;">${programName}</td>
+                    <td style="padding: 12px;">${student.program}</td>
                     <td style="padding: 12px;">${student.intake_year}</td>
                     <td style="padding: 12px;">
                         <span style="
@@ -415,60 +967,60 @@ class TranscriptsManager {
         });
         
         tbody.innerHTML = html;
-        this.updateSelectedCount();
+        this.updateModalSelectedCount();
     }
     
-    setupTranscriptModalEvents() {
+    setupModalEvents() {
         // Close modal
         document.getElementById('closeTranscriptModal').addEventListener('click', () => {
             document.getElementById('transcriptModal').remove();
         });
         
-        document.getElementById('cancelTranscript').addEventListener('click', () => {
+        document.getElementById('modalCancel').addEventListener('click', () => {
             document.getElementById('transcriptModal').remove();
         });
         
         // Master checkbox
-        document.getElementById('masterCheckbox').addEventListener('change', (e) => {
-            const checkboxes = document.querySelectorAll('.student-checkbox:not(:disabled)');
+        document.getElementById('modalMasterCheckbox').addEventListener('change', (e) => {
+            const checkboxes = document.querySelectorAll('.modal-student-checkbox:not(:disabled)');
             checkboxes.forEach(cb => cb.checked = e.target.checked);
-            this.updateSelectedCount();
+            this.updateModalSelectedCount();
         });
         
         // Select all button
-        document.getElementById('selectAllStudents').addEventListener('click', () => {
-            const checkboxes = document.querySelectorAll('.student-checkbox:not(:disabled)');
+        document.getElementById('modalSelectAll').addEventListener('click', () => {
+            const checkboxes = document.querySelectorAll('.modal-student-checkbox:not(:disabled)');
             checkboxes.forEach(cb => cb.checked = true);
-            document.getElementById('masterCheckbox').checked = true;
-            this.updateSelectedCount();
+            document.getElementById('modalMasterCheckbox').checked = true;
+            this.updateModalSelectedCount();
         });
         
         // Deselect all button
-        document.getElementById('deselectAllStudents').addEventListener('click', () => {
-            const checkboxes = document.querySelectorAll('.student-checkbox');
+        document.getElementById('modalDeselectAll').addEventListener('click', () => {
+            const checkboxes = document.querySelectorAll('.modal-student-checkbox');
             checkboxes.forEach(cb => cb.checked = false);
-            document.getElementById('masterCheckbox').checked = false;
-            this.updateSelectedCount();
+            document.getElementById('modalMasterCheckbox').checked = false;
+            this.updateModalSelectedCount();
         });
         
         // Individual checkboxes
         document.addEventListener('change', (e) => {
-            if (e.target.classList.contains('student-checkbox')) {
-                this.updateSelectedCount();
+            if (e.target.classList.contains('modal-student-checkbox')) {
+                this.updateModalSelectedCount();
             }
         });
         
         // Filters
-        const filterInputs = ['transcriptProgramFilter', 'transcriptIntakeFilter', 'transcriptSearch'];
+        const filterInputs = ['modalProgramFilter', 'modalIntakeFilter', 'modalSearch'];
         filterInputs.forEach(inputId => {
             const element = document.getElementById(inputId);
             if (element) {
-                element.addEventListener('change', () => this.filterTranscriptStudents());
-                if (inputId === 'transcriptSearch') {
+                element.addEventListener('change', () => this.filterModalStudents());
+                if (inputId === 'modalSearch') {
                     element.addEventListener('input', () => {
-                        clearTimeout(this.searchTimeout);
-                        this.searchTimeout = setTimeout(() => {
-                            this.filterTranscriptStudents();
+                        clearTimeout(this.modalSearchTimeout);
+                        this.modalSearchTimeout = setTimeout(() => {
+                            this.filterModalStudents();
                         }, 300);
                     });
                 }
@@ -476,8 +1028,8 @@ class TranscriptsManager {
         });
         
         // Generate button
-        document.getElementById('generateTranscriptsBtn').addEventListener('click', async () => {
-            const selectedStudents = Array.from(document.querySelectorAll('.student-checkbox:checked'))
+        document.getElementById('modalGenerate').addEventListener('click', async () => {
+            const selectedStudents = Array.from(document.querySelectorAll('.modal-student-checkbox:checked'))
                 .map(cb => ({ id: cb.value, reg: cb.dataset.reg }));
             
             if (selectedStudents.length === 0) {
@@ -485,14 +1037,14 @@ class TranscriptsManager {
                 return;
             }
             
-            const format = document.getElementById('transcriptFormat').value;
+            const format = document.getElementById('modalFormat').value;
             const options = {
-                includeAllAssessments: document.getElementById('includeAllAssessments').checked,
-                includeGPA: document.getElementById('includeGPA').checked,
-                includeRemarks: document.getElementById('includeRemarks').checked
+                includeAllAssessments: document.getElementById('modalIncludeAllAssessments').checked,
+                includeGPA: document.getElementById('modalIncludeGPA').checked,
+                includeRemarks: document.getElementById('modalIncludeRemarks').checked
             };
             
-            const btn = document.getElementById('generateTranscriptsBtn');
+            const btn = document.getElementById('modalGenerate');
             const originalText = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
             btn.disabled = true;
@@ -519,12 +1071,12 @@ class TranscriptsManager {
         });
     }
     
-    filterTranscriptStudents() {
-        const programFilter = document.getElementById('transcriptProgramFilter').value;
-        const intakeFilter = document.getElementById('transcriptIntakeFilter').value;
-        const searchTerm = document.getElementById('transcriptSearch').value.toLowerCase();
+    filterModalStudents() {
+        const programFilter = document.getElementById('modalProgramFilter').value;
+        const intakeFilter = document.getElementById('modalIntakeFilter').value;
+        const searchTerm = document.getElementById('modalSearch').value.toLowerCase();
         
-        const rows = document.querySelectorAll('.student-row');
+        const rows = document.querySelectorAll('.modal-student-row');
         
         rows.forEach(row => {
             const program = row.dataset.program;
@@ -548,29 +1100,29 @@ class TranscriptsManager {
             
             if (shouldShow) {
                 row.style.display = '';
-                const checkbox = row.querySelector('.student-checkbox');
+                const checkbox = row.querySelector('.modal-student-checkbox');
                 checkbox.disabled = false;
             } else {
                 row.style.display = 'none';
-                const checkbox = row.querySelector('.student-checkbox');
+                const checkbox = row.querySelector('.modal-student-checkbox');
                 checkbox.disabled = true;
                 checkbox.checked = false;
             }
         });
         
-        const visibleCheckboxes = document.querySelectorAll('.student-checkbox:not(:disabled)');
+        const visibleCheckboxes = document.querySelectorAll('.modal-student-checkbox:not(:disabled)');
         const allChecked = visibleCheckboxes.length > 0 && 
             Array.from(visibleCheckboxes).every(cb => cb.checked);
-        document.getElementById('masterCheckbox').checked = allChecked;
+        document.getElementById('modalMasterCheckbox').checked = allChecked;
         
-        this.updateSelectedCount();
+        this.updateModalSelectedCount();
     }
     
-    updateSelectedCount() {
-        const selectedCount = document.querySelectorAll('.student-checkbox:checked').length;
-        document.getElementById('selectedCount').textContent = selectedCount;
+    updateModalSelectedCount() {
+        const selectedCount = document.querySelectorAll('.modal-student-checkbox:checked').length;
+        document.getElementById('modalSelectedCount').textContent = selectedCount;
         
-        const btn = document.getElementById('generateTranscriptsBtn');
+        const btn = document.getElementById('modalGenerate');
         if (selectedCount === 0) {
             btn.innerHTML = '<i class="fas fa-download"></i> Generate Transcripts';
         } else if (selectedCount === 1) {
@@ -579,7 +1131,7 @@ class TranscriptsManager {
             btn.innerHTML = `<i class="fas fa-download"></i> Generate ${selectedCount} Transcripts`;
         }
     }
-    
+
     // ==================== TRANSCRIPT GENERATION ====================
     
     async generateStudentTranscript(studentId, format = 'pdf', options = {}) {
@@ -606,9 +1158,17 @@ class TranscriptsManager {
             }
             
             const transcriptData = await this.prepareTranscriptData(studentId, options);
-            await this.exportTranscript(transcriptData, format, options);
+            this.currentTranscriptData = transcriptData;
             
-            this.showToast(`Transcript generated for ${student.full_name}`, 'success');
+            // If format is 'print', show HTML preview instead
+            if (format === 'print' || format === 'digital') {
+                this.displayTranscriptInHTML(transcriptData);
+                this.showToast(`Transcript preview loaded for ${student.full_name}`, 'success');
+            } else {
+                await this.exportTranscript(transcriptData, format, options);
+                this.showToast(`Transcript generated for ${student.full_name}`, 'success');
+            }
+            
             await this.db.logActivity('transcript_generated', 
                 `Generated transcript for ${student.full_name} (${student.reg_number})`);
             
