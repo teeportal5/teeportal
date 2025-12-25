@@ -1,4 +1,4 @@
-// app.js - COMPLETE VERSION WITH PROPER FIELD NAMES
+// app.js - COMPLETE VERSION MATCHING YOUR EXACT DATABASE SCHEMA
 class TEEPortalApp {
     constructor() {
         this.db = null;
@@ -146,38 +146,38 @@ class TEEPortalApp {
                 console.log('📋 Fallback: Getting students');
                 return [
                     {
-                        student_id: 'S001',
-                        registration_number: 'TEE-2023-001',
+                        id: '550e8400-e29b-41d4-a716-446655440000',
+                        reg_number: 'TEE-2023-001',
                         full_name: 'John Doe',
                         email: 'john@example.com',
                         phone: '0712345678',
-                        county_id: 1,
-                        county_name: 'Nairobi',
-                        centre_id: 1,
+                        date_of_birth: '1995-05-15',
+                        gender: 'Male',
+                        program: 'TEE', // TEXT, not UUID!
+                        intake_year: 2023,
+                        status: 'active',
+                        centre_id: '550e8400-e29b-41d4-a716-446655440001',
+                        county: 'Nairobi', // TEXT, not UUID!
+                        region: 'Central',
+                        ward: 'Westlands',
+                        village: 'Kilimani',
+                        address: '123 Main Street, Nairobi',
+                        centre: 'Nairobi Main Campus',
                         centre_name: 'Nairobi Main Campus',
-                        program_id: 1,
-                        program_name: 'Basic TEE',
-                        program_code: 'TEE',
-                        intake_year: 2023,
-                        student_status: 'active',
-                        created_at: '2023-01-15T10:30:00Z'
-                    },
-                    {
-                        student_id: 'S002',
-                        registration_number: 'TEE-2023-002',
-                        full_name: 'Jane Smith',
-                        email: 'jane@example.com',
-                        phone: '0723456789',
-                        county_id: 2,
-                        county_name: 'Mombasa',
-                        centre_id: 2,
-                        centre_name: 'Mombasa Branch',
-                        program_id: 2,
-                        program_name: 'Higher National Certificate',
-                        program_code: 'HNC',
-                        intake_year: 2023,
-                        student_status: 'active',
-                        created_at: '2023-02-20T14:45:00Z'
+                        emergency_contact: '0712345679',
+                        notes: 'Good student',
+                        emergency_contact_name: 'Jane Doe',
+                        emergency_contact_phone: '0712345679',
+                        employer: 'ABC Company',
+                        employment_status: 'Employed',
+                        id_number: '12345678',
+                        job_title: 'Manager',
+                        years_experience: 5,
+                        emergency_contact_relationship: 'Spouse',
+                        study_mode: 'Full-time',
+                        registration_date: '2023-01-15',
+                        created_at: '2023-01-15T10:30:00Z',
+                        updated_at: '2023-01-15T10:30:00Z'
                     }
                 ];
             }
@@ -185,36 +185,54 @@ class TEEPortalApp {
             async getStudent(id) {
                 console.log('📋 Fallback: Getting student', id);
                 return {
-                    student_id: id,
-                    registration_number: 'TEE-2023-001',
+                    id: id,
+                    reg_number: 'TEE-2023-001',
                     full_name: 'Unknown Student',
                     email: '',
                     phone: '',
-                    county_id: 1,
-                    county_name: 'Nairobi',
-                    centre_id: 1,
-                    centre_name: 'Main Campus',
-                    program_id: 1,
-                    program_name: 'Basic TEE',
-                    program_code: 'TEE',
+                    date_of_birth: '1990-01-01',
+                    gender: 'Male',
+                    program: 'TEE', // TEXT, not UUID!
                     intake_year: new Date().getFullYear(),
-                    student_status: 'active'
+                    status: 'active',
+                    centre_id: '550e8400-e29b-41d4-a716-446655440001',
+                    county: 'Nairobi', // TEXT, not UUID!
+                    region: 'Central',
+                    ward: '',
+                    village: '',
+                    address: '',
+                    centre: 'Main Campus',
+                    centre_name: 'Main Campus',
+                    emergency_contact: '',
+                    notes: '',
+                    emergency_contact_name: '',
+                    emergency_contact_phone: '',
+                    employer: '',
+                    employment_status: '',
+                    id_number: '',
+                    job_title: '',
+                    years_experience: 0,
+                    emergency_contact_relationship: '',
+                    study_mode: 'Full-time',
+                    registration_date: new Date().toISOString().split('T')[0],
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
                 };
             }
             
             async addStudent(data) {
                 console.log('📋 Fallback: Adding student');
-                const studentId = 'FB-' + Date.now();
+                const studentId = '550e8400-e29b-41d4-a716-' + Date.now().toString().slice(-12);
                 return { 
-                    student_id: studentId,
+                    id: studentId,
                     ...data,
-                    registration_number: data.registration_number || studentId
+                    reg_number: data.reg_number || 'FB-' + Date.now()
                 };
             }
             
             async updateStudent(id, data) {
                 console.log('📋 Fallback: Updating student');
-                return { student_id: id, ...data };
+                return { id: id, ...data };
             }
             
             async deleteStudent(id) {
@@ -222,94 +240,48 @@ class TEEPortalApp {
                 return { success: true };
             }
             
-            // ========== MARKS METHODS ==========
-            async getMarksTableData() {
-                console.log('📊 Fallback: Getting marks');
-                return [
-                    {
-                        mark_id: 'M001',
-                        student_id: 'S001',
-                        student_name: 'John Doe',
-                        registration_number: 'TEE-2023-001',
-                        course_id: 'C001',
-                        course_code: 'MATH101',
-                        course_name: 'Introduction to Mathematics',
-                        assessment_type: 'Final Exam',
-                        assessment_date: '2023-06-15',
-                        score: 85,
-                        percentage: 85,
-                        grade: 'DISTINCTION',
-                        grade_points: 4.0,
-                        remarks: 'Excellent performance'
-                    }
-                ];
-            }
-            
-            async getMarks() {
-                return [];
-            }
-            
-            async addMark(data) {
-                console.log('📊 Fallback: Adding mark');
-                return { 
-                    mark_id: 'M-' + Date.now(),
-                    ...data,
-                    percentage: data.percentage || 0,
-                    grade: data.grade || 'FAIL',
-                    grade_points: data.grade_points || 0
-                };
-            }
-            
-            async updateMark(id, data) {
-                console.log('📊 Fallback: Updating mark');
-                return { mark_id: id, ...data };
-            }
-            
-            async deleteMark(id) {
-                console.log('📊 Fallback: Deleting mark');
-                return true;
-            }
-            
-            async getMarkById(id) {
-                console.log('📊 Fallback: Getting mark');
-                return null;
-            }
-            
-            async checkDuplicateMarks(studentId, courseId, assessmentType, assessmentDate) {
-                console.log('🔍 Fallback: Checking duplicate marks');
-                return [];
-            }
-            
             // ========== PROGRAM METHODS ==========
             async getPrograms() {
                 console.log('🎓 Fallback: Getting programs');
                 return [
                     { 
-                        program_id: 1, 
-                        program_code: 'TEE', 
-                        program_name: 'Basic TEE', 
-                        duration: '2 years', 
-                        max_credits: 60,
+                        id: '550e8400-e29b-41d4-a716-446655440100',
+                        code: 'TEE', 
+                        name: 'Basic TEE', 
+                        level: 'Certificate',
+                        duration: 2, // Years
+                        credits: 60,
+                        max_credits: 72,
                         description: 'Basic theological education program',
-                        status: 'active'
+                        status: 'active',
+                        created_at: '2023-01-01T00:00:00Z',
+                        updated_at: '2023-01-01T00:00:00Z'
                     },
                     { 
-                        program_id: 2, 
-                        program_code: 'HNC', 
-                        program_name: 'Higher National Certificate', 
-                        duration: '3 years', 
-                        max_credits: 90,
+                        id: '550e8400-e29b-41d4-a716-446655440101',
+                        code: 'HNC', 
+                        name: 'Higher National Certificate', 
+                        level: 'Diploma',
+                        duration: 3,
+                        credits: 90,
+                        max_credits: 108,
                         description: 'Advanced theological studies',
-                        status: 'active'
+                        status: 'active',
+                        created_at: '2023-01-01T00:00:00Z',
+                        updated_at: '2023-01-01T00:00:00Z'
                     },
                     { 
-                        program_id: 3, 
-                        program_code: 'ATE', 
-                        program_name: 'Advanced TEE', 
-                        duration: '4 years', 
-                        max_credits: 120,
+                        id: '550e8400-e29b-41d4-a716-446655440102',
+                        code: 'ATE', 
+                        name: 'Advanced TEE', 
+                        level: 'Advanced Diploma',
+                        duration: 4,
+                        credits: 120,
+                        max_credits: 144,
                         description: 'Advanced theological education',
-                        status: 'active'
+                        status: 'active',
+                        created_at: '2023-01-01T00:00:00Z',
+                        updated_at: '2023-01-01T00:00:00Z'
                     }
                 ];
             }
@@ -319,115 +291,93 @@ class TEEPortalApp {
                 console.log('📚 Fallback: Getting courses');
                 return [
                     {
-                        course_id: 'C001',
+                        id: '550e8400-e29b-41d4-a716-446655440200',
                         course_code: 'MATH101',
                         course_name: 'Introduction to Mathematics',
-                        program_id: 1,
-                        program_name: 'Basic TEE',
-                        level: 'basic',
+                        program: 'TEE', // TEXT, not UUID!
                         credits: 3,
                         description: 'Basic mathematics concepts and operations',
                         status: 'active',
-                        enrolled_count: 15,
-                        created_at: new Date().toISOString()
+                        created_at: '2023-01-01T00:00:00Z',
+                        updated_at: '2023-01-01T00:00:00Z',
+                        academic_year: '2023/2024',
+                        semester: 'Semester 1'
                     },
                     {
-                        course_id: 'C002',
+                        id: '550e8400-e29b-41d4-a716-446655440201',
                         course_code: 'ENG201',
                         course_name: 'Advanced English',
-                        program_id: 3,
-                        program_name: 'Advanced TEE',
-                        level: 'advanced',
+                        program: 'ATE', // TEXT, not UUID!
                         credits: 4,
                         description: 'Advanced English composition and literature',
                         status: 'active',
-                        enrolled_count: 12,
-                        created_at: new Date().toISOString()
-                    },
-                    {
-                        course_id: 'C003',
-                        course_code: 'BIB101',
-                        course_name: 'Biblical Studies',
-                        program_id: 2,
-                        program_name: 'Higher National Certificate',
-                        level: 'intermediate',
-                        credits: 3,
-                        description: 'Introduction to biblical studies',
-                        status: 'active',
-                        enrolled_count: 8,
-                        created_at: new Date().toISOString()
+                        created_at: '2023-01-01T00:00:00Z',
+                        updated_at: '2023-01-01T00:00:00Z',
+                        academic_year: '2023/2024',
+                        semester: 'Semester 2'
                     }
                 ];
             }
 
             async addCourse(data) {
                 console.log('📚 Fallback: Adding course');
-                const courseId = 'C-' + Date.now();
+                const courseId = '550e8400-e29b-41d4-a716-' + Date.now().toString().slice(-12);
                 return {
-                    course_id: courseId,
+                    id: courseId,
                     course_code: data.course_code,
                     course_name: data.course_name,
-                    program_id: data.program_id,
-                    level: data.level || 'basic',
+                    program: data.program, // TEXT, not UUID!
                     credits: data.credits || 3,
                     description: data.description || '',
                     status: data.status || 'active',
-                    enrolled_count: 0,
-                    created_at: new Date().toISOString()
+                    academic_year: data.academic_year || '2023/2024',
+                    semester: data.semester || 'Semester 1',
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
                 };
             }
 
             async updateCourse(id, data) {
                 console.log('📚 Fallback: Updating course', id);
                 return {
-                    course_id: id,
+                    id: id,
                     course_code: data.course_code,
                     course_name: data.course_name,
-                    program_id: data.program_id,
-                    level: data.level || 'basic',
+                    program: data.program, // TEXT, not UUID!
                     credits: data.credits || 3,
                     description: data.description || '',
                     status: data.status || 'active',
-                    enrolled_count: 0,
-                    created_at: new Date().toISOString()
+                    academic_year: data.academic_year || '2023/2024',
+                    semester: data.semester || 'Semester 1',
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
                 };
             }
 
             async deleteCourse(id) {
                 console.log('📚 Fallback: Deleting course', id);
-                return { success: true, course_id: id };
+                return { success: true, id: id };
             }
 
             async getCourse(id) {
                 console.log('📚 Fallback: Getting course', id);
                 const courses = await this.getCourses();
-                return courses.find(c => c.course_id === id) || null;
+                return courses.find(c => c.id === id) || null;
             }
 
             async getStudentsByCourse(courseId) {
                 console.log('👥 Fallback: Getting students for course', courseId);
                 return [
                     {
-                        student_id: 'S001',
-                        registration_number: 'TEE-2023-001',
+                        id: '550e8400-e29b-41d4-a716-446655440000',
+                        reg_number: 'TEE-2023-001',
                         full_name: 'John Doe',
                         email: 'john@example.com',
                         centre_name: 'Nairobi Main Campus',
-                        county_name: 'Nairobi',
+                        county: 'Nairobi',
                         intake_year: 2023,
                         existing_grade: '-',
                         existing_score: '-'
-                    },
-                    {
-                        student_id: 'S002',
-                        registration_number: 'TEE-2023-002',
-                        full_name: 'Jane Smith',
-                        email: 'jane@example.com',
-                        centre_name: 'Mombasa Branch',
-                        county_name: 'Mombasa',
-                        intake_year: 2023,
-                        existing_grade: 'PASS',
-                        existing_score: '65'
                     }
                 ];
             }
@@ -437,37 +387,36 @@ class TEEPortalApp {
                 console.log('📍 Fallback: Getting centres');
                 return [
                     { 
-                        centre_id: 1, 
-                        centre_name: 'Nairobi Main Campus', 
-                        centre_code: 'NBO001', 
-                        county_id: 1,
-                        county_name: 'Nairobi',
+                        id: '550e8400-e29b-41d4-a716-446655440001',
+                        name: 'Nairobi Main Campus', 
+                        code: 'NBO001', 
+                        county: 'Nairobi', // TEXT, not UUID!
+                        region: 'Central',
                         address: '123 Main Street, Nairobi',
+                        contact_person: 'John Manager',
                         phone: '020-1234567',
                         email: 'nairobi@teecollege.ac.ke',
-                        status: 'active'
+                        status: 'active',
+                        description: 'Main campus in Nairobi',
+                        sub_county: 'Westlands',
+                        created_at: '2023-01-01T00:00:00Z',
+                        updated_at: '2023-01-01T00:00:00Z'
                     },
                     { 
-                        centre_id: 2, 
-                        centre_name: 'Mombasa Branch', 
-                        centre_code: 'MBA001', 
-                        county_id: 2,
-                        county_name: 'Mombasa',
+                        id: '550e8400-e29b-41d4-a716-446655440002',
+                        name: 'Mombasa Branch', 
+                        code: 'MBA001', 
+                        county: 'Mombasa', // TEXT, not UUID!
+                        region: 'Coast',
                         address: '456 Coast Road, Mombasa',
+                        contact_person: 'Jane Director',
                         phone: '041-2345678',
                         email: 'mombasa@teecollege.ac.ke',
-                        status: 'active'
-                    },
-                    { 
-                        centre_id: 3, 
-                        centre_name: 'Kisumu Centre', 
-                        centre_code: 'KSM001', 
-                        county_id: 3,
-                        county_name: 'Kisumu',
-                        address: '789 Lake Road, Kisumu',
-                        phone: '057-3456789',
-                        email: 'kisumu@teecollege.ac.ke',
-                        status: 'active'
+                        status: 'active',
+                        description: 'Coast region branch',
+                        sub_county: 'Mvita',
+                        created_at: '2023-01-01T00:00:00Z',
+                        updated_at: '2023-01-01T00:00:00Z'
                     }
                 ];
             }
@@ -477,49 +426,119 @@ class TEEPortalApp {
                 console.log('🗺️ Fallback: Getting counties');
                 return [
                     { 
-                        county_id: 1, 
-                        county_name: 'Nairobi', 
-                        county_code: '001',
-                        region: 'Central'
+                        id: '550e8400-e29b-41d4-a716-446655440010',
+                        code: '001',
+                        name: 'Nairobi', 
+                        region: 'Central',
+                        created_at: '2023-01-01T00:00:00Z'
                     },
                     { 
-                        county_id: 2, 
-                        county_name: 'Mombasa', 
-                        county_code: '002',
-                        region: 'Coast'
+                        id: '550e8400-e29b-41d4-a716-446655440011',
+                        code: '002',
+                        name: 'Mombasa', 
+                        region: 'Coast',
+                        created_at: '2023-01-01T00:00:00Z'
                     },
                     { 
-                        county_id: 3, 
-                        county_name: 'Kisumu', 
-                        county_code: '003',
-                        region: 'Nyanza'
-                    },
-                    { 
-                        county_id: 4, 
-                        county_name: 'Nakuru', 
-                        county_code: '004',
-                        region: 'Rift Valley'
-                    },
-                    { 
-                        county_id: 5, 
-                        county_name: 'Eldoret', 
-                        county_code: '005',
-                        region: 'Rift Valley'
+                        id: '550e8400-e29b-41d4-a716-446655440012',
+                        code: '003',
+                        name: 'Kisumu', 
+                        region: 'Nyanza',
+                        created_at: '2023-01-01T00:00:00Z'
                     }
                 ];
             }
 
-            // Add this method for adding marks (needed for grading)
+            // ========== MARK METHODS ==========
+            async getMarksTableData() {
+                console.log('📊 Fallback: Getting marks');
+                return [
+                    {
+                        id: '550e8400-e29b-41d4-a716-446655440300',
+                        student_id: '550e8400-e29b-41d4-a716-446655440000',
+                        course_id: '550e8400-e29b-41d4-a716-446655440200',
+                        centre_id: '550e8400-e29b-41d4-a716-446655440001',
+                        assessment_type: 'Final Exam',
+                        assessment_name: 'Mathematics Final',
+                        score: 85,
+                        max_score: 100,
+                        percentage: 85.0,
+                        grade: 'DISTINCTION',
+                        grade_points: 4.0,
+                        remarks: 'Excellent performance',
+                        visible_to_student: true,
+                        entered_by: 'admin',
+                        assessment_date: '2023-06-15',
+                        created_at: '2023-06-15T10:30:00Z',
+                        updated_at: '2023-06-15T10:30:00Z'
+                    }
+                ];
+            }
+
+            async getMarks() {
+                return await this.getMarksTableData();
+            }
+
             async addMark(data) {
                 console.log('📊 Fallback: Adding mark', data);
                 return {
-                    mark_id: 'M-' + Date.now(),
+                    id: '550e8400-e29b-41d4-a716-' + Date.now().toString().slice(-12),
                     ...data,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
                 };
             }
-            
+
+            async updateMark(id, data) {
+                console.log('📊 Fallback: Updating mark');
+                return { id: id, ...data };
+            }
+
+            async deleteMark(id) {
+                console.log('📊 Fallback: Deleting mark');
+                return true;
+            }
+
+            async getMarkById(id) {
+                console.log('📊 Fallback: Getting mark');
+                return null;
+            }
+
+            async checkDuplicateMarks(studentId, courseId, assessmentType, assessmentDate) {
+                console.log('🔍 Fallback: Checking duplicate marks');
+                return [];
+            }
+
+            async getStudentMarks(studentId) {
+                return [];
+            }
+
+            // ========== ENROLLMENT METHODS ==========
+            async getEnrollments() {
+                console.log('📝 Fallback: Getting enrollments');
+                return [
+                    {
+                        id: '550e8400-e29b-41d4-a716-446655440400',
+                        student_id: '550e8400-e29b-41d4-a716-446655440000',
+                        course_id: '550e8400-e29b-41d4-a716-446655440200',
+                        program_id: '550e8400-e29b-41d4-a716-446655440100',
+                        academic_year: 2023,
+                        semester: 'Semester 1',
+                        enrollment_date: '2023-01-15',
+                        enrollment_status: 'Active',
+                        enrollment_type: 'Regular',
+                        final_grade: null,
+                        completion_date: null,
+                        credits_attempted: 3,
+                        credits_earned: 3,
+                        is_active: true,
+                        notes: 'Regular enrollment',
+                        created_at: '2023-01-15T10:30:00Z',
+                        updated_at: '2023-01-15T10:30:00Z'
+                    }
+                ];
+            }
+
             // ========== SETTINGS METHODS ==========
             getDefaultSettings() {
                 return {
@@ -540,14 +559,15 @@ class TEEPortalApp {
             }
             
             // ========== UTILITY METHODS ==========
-            async generateRegistrationNumber(programId, intakeYear) {
+            async generateRegistrationNumber(programCode, intakeYear) {
                 console.log('🔢 Fallback: Generating registration number');
-                const programCode = programId?.substring(0, 3).toUpperCase() || 'TEE';
+                // Your database stores program as TEXT (program code), not UUID
+                const program = programCode || 'TEE';
                 const timestamp = Date.now().toString().slice(-6);
-                return `${programCode}-${intakeYear}-${timestamp}`;
+                return `${program}-${intakeYear}-${timestamp}`;
             }
             
-            async getLastStudentForProgramYear(programId, intakeYear) {
+            async getLastStudentForProgramYear(programCode, intakeYear) {
                 console.log('📅 Fallback: Getting last student');
                 return null;
             }
@@ -560,10 +580,6 @@ class TEEPortalApp {
                 if (percentage >= 70) return { grade: 'CREDIT', points: 3.0 };
                 if (percentage >= 50) return { grade: 'PASS', points: 2.0 };
                 return { grade: 'FAIL', points: 0.0 };
-            }
-            
-            async getStudentMarks(studentId) {
-                return [];
             }
             
             async calculateStudentGPA(studentId) {
@@ -667,14 +683,6 @@ class TEEPortalApp {
                 console.log('✅ TranscriptsManager initialized');
             } else {
                 console.warn('⚠️ TranscriptsManager not loaded');
-            }
-            
-            // Initialize profile manager (if exists)
-            if (typeof ProfileManager !== 'undefined') {
-                this.profile = new ProfileManager(this.db, this);
-                console.log('✅ ProfileManager initialized');
-            } else {
-                console.warn('⚠️ ProfileManager not loaded');
             }
             
             console.log('✅ All modules initialized');
@@ -1019,38 +1027,41 @@ class TEEPortalApp {
         try {
             console.log('📊 Loading dropdown data...');
             
-            // Load counties using proper field names
+            // Load counties - using county_name as text value
             if (this.db.getCounties) {
                 const counties = await this.db.getCounties();
-                this.populateSelect('studentCounty', counties, 'county_id', 'county_name', 'Select County');
-                this.populateSelect('filterCounty', counties, 'county_id', 'county_name', 'All Counties');
+                // Students store county as TEXT (county name), not UUID
+                this.populateSelect('studentCounty', counties, 'name', 'name', 'Select County', 'region');
+                this.populateSelect('filterCounty', counties, 'name', 'name', 'All Counties', 'region');
                 console.log(`✅ Loaded ${counties.length} counties`);
             }
             
-            // Load centres using proper field names
+            // Load centres - using centre_id as UUID value
             if (this.db.getCentres) {
                 const centres = await this.db.getCentres();
-                this.populateSelect('studentCentre', centres, 'centre_id', 'centre_name', 'Select Centre');
-                this.populateSelect('filterCentre', centres, 'centre_id', 'centre_name', 'All Centres');
+                // Students store centre_id as UUID (proper foreign key)
+                this.populateSelect('studentCentre', centres, 'id', 'name', 'Select Centre', 'code');
+                this.populateSelect('filterCentre', centres, 'id', 'name', 'All Centres', 'code');
                 console.log(`✅ Loaded ${centres.length} centres`);
             }
             
-            // Load programs using proper field names
+            // Load programs - using program code as text value (NOT UUID!)
             if (this.db.getPrograms) {
                 const programs = await this.db.getPrograms();
                 
-                console.log('📋 Programs loaded:', programs);
-                
+                console.log('📋 Programs loaded:', programs.length);
                 if (programs.length > 0) {
-                    console.log('🔍 Sample program structure:', programs[0]);
-                    console.log('🔍 Program fields:', Object.keys(programs[0]));
-                    
-                    // Use proper field names from database
-                    this.populateSelect('studentProgram', programs, 'program_id', 'program_code', 'Select Program', 'program_name');
-                    this.populateSelect('filterProgram', programs, 'program_id', 'program_code', 'All Programs', 'program_name');
+                    console.log('🔍 First program:', programs[0]);
+                    console.log('🔍 Program has code field:', programs[0].code);
+                    console.log('🔍 Program has name field:', programs[0].name);
                 }
                 
-                console.log(`✅ Loaded ${programs.length} programs`);
+                // CRITICAL FIX: Students store program as TEXT (program code), not UUID!
+                // So we need to use 'code' as the value, not 'id'
+                this.populateSelect('studentProgram', programs, 'code', 'code', 'Select Program', 'name');
+                this.populateSelect('filterProgram', programs, 'code', 'code', 'All Programs', 'name');
+                
+                console.log(`✅ Loaded ${programs.length} programs (using code as value)`);
             }
             
             console.log('✅ All dropdown data loaded');
@@ -1062,7 +1073,7 @@ class TEEPortalApp {
     }
     
     /**
-     * Populate select dropdown with proper field names
+     * Populate select dropdown - UPDATED FOR YOUR SCHEMA
      */
     populateSelect(selectId, data, valueKey, textKey, defaultText, extraTextKey = null) {
         const select = document.getElementById(selectId);
@@ -1081,7 +1092,7 @@ class TEEPortalApp {
         data.forEach(item => {
             const option = document.createElement('option');
             
-            // Use the actual value key from the data
+            // Get the value - CRITICAL: For programs, this should be 'code' not 'id'
             const value = item[valueKey];
             if (value === undefined || value === null) {
                 console.warn(`⚠️ Missing value key ${valueKey} in item:`, item);
@@ -1092,10 +1103,12 @@ class TEEPortalApp {
             // Build display text
             let displayText = item[textKey] || '';
             
-            // For programs, show "CODE - NAME" format
-            if ((selectId.includes('Program') || selectId.includes('program')) && extraTextKey) {
-                const programCode = item[textKey] || '';
-                const programName = item[extraTextKey] || '';
+            // SPECIAL HANDLING FOR PROGRAMS
+            if ((selectId.includes('Program') || selectId.includes('program')) && item.code) {
+                // For programs, show "CODE - NAME (duration years)"
+                const programCode = item.code || '';
+                const programName = item.name || '';
+                const duration = item.duration || '';
                 
                 if (programCode && programName) {
                     displayText = `${programCode} - ${programName}`;
@@ -1106,27 +1119,28 @@ class TEEPortalApp {
                 }
                 
                 // Add duration if available
-                if (item.duration) {
-                    displayText += ` (${item.duration})`;
+                if (duration) {
+                    displayText += ` (${duration} year${duration > 1 ? 's' : ''})`;
                 }
             } 
-            // For centres, show "NAME (CODE)" format
-            else if ((selectId.includes('Centre') || selectId.includes('centre')) && item.centre_code) {
-                const centreName = item[textKey] || '';
-                const centreCode = item.centre_code || '';
+            // For centres, show "NAME (CODE) - COUNTY"
+            else if ((selectId.includes('Centre') || selectId.includes('centre')) && item.code) {
+                const centreName = item.name || '';
+                const centreCode = item.code || '';
+                const county = item.county || '';
                 
                 if (centreName && centreCode) {
                     displayText = `${centreName} (${centreCode})`;
                 }
                 
                 // Add county if available
-                if (item.county_name) {
-                    displayText += ` - ${item.county_name}`;
+                if (county) {
+                    displayText += ` - ${county}`;
                 }
             }
-            // For counties, show name with region
+            // For counties, show "NAME (REGION)"
             else if ((selectId.includes('County') || selectId.includes('county')) && item.region) {
-                const countyName = item[textKey] || '';
+                const countyName = item.name || '';
                 const region = item.region || '';
                 
                 if (countyName && region) {
@@ -1150,7 +1164,7 @@ class TEEPortalApp {
             select.appendChild(option);
         });
         
-        console.log(`✅ Populated ${selectId} with ${data.length} items`);
+        console.log(`✅ Populated ${selectId} with ${data.length} items (valueKey: ${valueKey}, textKey: ${textKey})`);
     }
     
     initializeUI() {
@@ -1248,16 +1262,24 @@ class TEEPortalApp {
                 });
             }
             
-            // Registration number generation triggers
+            // Registration number generation triggers - UPDATED FOR TEXT PROGRAM
             const programSelect = document.getElementById('studentProgram');
             const intakeSelect = document.getElementById('studentIntake');
             
             if (programSelect && this.students && this.students.generateRegNumber) {
-                programSelect.addEventListener('change', () => this.students.generateRegNumber());
+                programSelect.addEventListener('change', () => {
+                    // Get the selected program CODE (not UUID)
+                    const programCode = programSelect.value;
+                    this.students.generateRegNumber(programCode);
+                });
             }
             
             if (intakeSelect && this.students && this.students.generateRegNumber) {
-                intakeSelect.addEventListener('change', () => this.students.generateRegNumber());
+                intakeSelect.addEventListener('change', () => {
+                    const programCode = programSelect ? programSelect.value : '';
+                    const intakeYear = intakeSelect.value;
+                    this.students.generateRegNumber(programCode, intakeYear);
+                });
             }
             
             console.log('✅ Event listeners setup complete');
