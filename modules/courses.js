@@ -53,7 +53,7 @@ constructor(db, app) {
         
         // 2. Load centres
         console.log('2. Loading centres...');
-        this.centres = await this.db.getStudyCenters();
+        this.centres = await this.db.getCentres();
         console.log('Centres loaded:', this.centres);
         console.log('Number of centres:', this.centres.length);
         
