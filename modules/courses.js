@@ -1,95 +1,73 @@
-constructor(db, app) {
-    console.log('🔍 CourseManager constructor called');
-    
-    // Get database from app if not provided
-    this.db = db || window.app?.db;
-    this.app = app || window.app;
-    
-    console.log('Initialized with:', {
-        db: this.db ? `✅ ${this.db.constructor.name}` : '❌ Missing',
-        app: this.app ? `✅ ${this.app.constructor.name}` : '❌ Missing',
-        hasGetPrograms: typeof this.db?.getPrograms === 'function'
-    });
-    
-    if (!this.db || !this.app) {
-        console.error('❌ Missing database or app');
-        console.log('window.app:', window.app);
-        console.log('window.app.db:', window.app?.db);
-        return;
-    }
-    
-    // Initialize state
-    this.currentCourse = null;
-    this.selectedStudents = new Set();
-    this.currentView = 'grid';
-    this.programs = [];
-    this.centres = [];
-    this.intakeYears = [];
-    
-    this.registerGlobalFunctions();
-    this.initializeData();
-}
-    
-    
-  async initializeData() {
-    try {
-        console.log('=== DEBUG AUTO-POPULATION START ===');
+class CourseManager {
+    constructor(db, app) {
+        console.log('🔍 CourseManager constructor called');
         
-        // 1. Load programs
-        console.log('1. Loading programs...');
-        this.programs = await this.db.getPrograms();
-        console.log('Programs loaded:', this.programs);
-        console.log('Number of programs:', this.programs.length);
+        // Get database from app if not provided
+        this.db = db || window.app?.db;
+        this.app = app || window.app;
         
-        // Check if programs have expected structure
-        if (this.programs.length > 0) {
-            console.log('First program structure:', {
-                id: this.programs[0].id,
-                code: this.programs[0].code,
-                name: this.programs[0].name,
-                level: this.programs[0].level
-            });
+        console.log('Initialized with:', {
+            db: this.db ? `✅ ${this.db.constructor.name}` : '❌ Missing',
+            app: this.app ? `✅ ${this.app.constructor.name}` : '❌ Missing',
+            hasGetCourses: typeof this.db?.getCourses === 'function',
+            hasAddCourse: typeof this.db?.addCourse === 'function',
+            hasUpdateCourse: typeof this.db?.updateCourse === 'function',
+            hasDeleteCourse: typeof this.db?.deleteCourse === 'function'
+        });
+        
+        if (!this.db || !this.app) {
+            console.error('❌ Missing database or app');
+            return;
         }
         
-        // 2. Load centres
-        console.log('2. Loading centres...');
-        this.centres = await this.db.getCentres();
-        console.log('Centres loaded:', this.centres);
-        console.log('Number of centres:', this.centres.length);
+        // Initialize state
+        this.currentCourse = null;
+        this.selectedStudents = new Set();
+        this.currentView = 'grid';
+        this.programs = [];
+        this.centres = [];
+        this.intakeYears = [];
         
-        // 3. Generate intake years
-        console.log('3. Generating intake years...');
-        this.generateIntakeYears();
-        console.log('Intake years:', this.intakeYears);
-        
-        // 4. Check if HTML elements exist BEFORE populating
-        console.log('4. Checking HTML elements...');
-        console.log('- courseProgram:', !!document.getElementById('courseProgram'));
-        console.log('- filterProgram:', !!document.getElementById('filterProgram'));
-        console.log('- courseLevel:', !!document.getElementById('courseLevel'));
-        console.log('- filterLevel:', !!document.getElementById('filterLevel'));
-        console.log('- courseStatus:', !!document.getElementById('courseStatus'));
-        console.log('- filterStatus:', !!document.getElementById('filterStatus'));
-        console.log('- courseCredits:', !!document.getElementById('courseCredits'));
-        
-        // 5. Populate dropdowns
-        console.log('5. Populating dropdowns...');
-        this.populateDropdowns();
-        
-        // 6. Verify after population
-        console.log('6. Verifying dropdowns after population...');
-        const courseProgram = document.getElementById('courseProgram');
-        if (courseProgram) {
-            console.log('courseProgram options:', courseProgram.options.length);
-            console.log('courseProgram options HTML:', courseProgram.innerHTML);
-        }
-        
-        console.log('=== DEBUG AUTO-POPULATION END ===');
-        
-    } catch (error) {
-        console.error('❌ Error initializing data:', error);
+        this.registerGlobalFunctions();
+        this.initializeData();
     }
-}
+    
+    async initializeData() {
+        try {
+            console.log('=== DEBUG AUTO-POPULATION START ===');
+            
+            // 1. Load programs
+            console.log('1. Loading programs...');
+            this.programs = await this.db.getPrograms();
+            console.log('Programs loaded:', this.programs);
+            console.log('Number of programs:', this.programs.length);
+            
+            // 2. Load centres
+            console.log('2. Loading centres...');
+            this.centres = await this.db.getCentres();
+            console.log('Centres loaded:', this.centres);
+            console.log('Number of centres:', this.centres.length);
+            
+            // 3. Generate intake years
+            console.log('3. Generating intake years...');
+            this.generateIntakeYears();
+            console.log('Intake years:', this.intakeYears);
+            
+            // 4. Populate dropdowns
+            console.log('4. Populating dropdowns...');
+            this.populateDropdowns();
+            
+            // 5. Load courses
+            console.log('5. Loading courses...');
+            await this.loadCourses();
+            
+            console.log('=== DEBUG AUTO-POPULATION END ===');
+            
+        } catch (error) {
+            console.error('❌ Error initializing data:', error);
+            this.showToast('Error initializing data: ' + error.message, 'error');
+        }
+    }
     
     generateIntakeYears() {
         const currentYear = new Date().getFullYear();
@@ -107,75 +85,84 @@ constructor(db, app) {
         
         this.intakeYears.sort((a, b) => b - a);
     }
+    
     populateDropdowns() {
-    console.log('🔄 Starting populateDropdowns()...');
-    
-    // DEBUG: Check what data we have
-    console.log('DEBUG - this.programs:', this.programs);
-    console.log('DEBUG - Number of programs:', this.programs.length);
-    
-    if (!this.programs || this.programs.length === 0) {
-        console.error('❌ No programs data to populate!');
-        return;
+        console.log('🔄 Starting populateDropdowns()...');
+        
+        // DEBUG: Check what data we have
+        console.log('DEBUG - this.programs:', this.programs);
+        console.log('DEBUG - Number of programs:', this.programs.length);
+        
+        if (!this.programs || this.programs.length === 0) {
+            console.error('❌ No programs data to populate!');
+            // Use default options
+            this.programs = [
+                { value: 'basic', label: 'Basic TEE' },
+                { value: 'hnc', label: 'Higher National Certificate' },
+                { value: 'advanced', label: 'Advanced TEE' }
+            ];
+        }
+        
+        // Convert programs to proper format if needed
+        const programOptions = this.programs.map(program => ({
+            value: program.code || program.value || program.id || program,
+            label: program.name || program.label || program
+        }));
+        
+        // Populate program dropdowns
+        this.populateDropdown('courseProgram', programOptions, 'Select Program');
+        this.populateDropdown('filterProgram', programOptions, 'All Programs');
+        
+        // Get unique levels from programs
+        const uniqueLevels = [...new Set(this.programs.map(p => p.level).filter(Boolean))];
+        console.log('Unique levels from programs:', uniqueLevels);
+        
+        // If no levels from programs, use default levels
+        if (uniqueLevels.length === 0) {
+            uniqueLevels.push('basic', 'intermediate', 'advanced');
+        }
+        
+        const levelOptions = uniqueLevels.map(level => ({
+            value: level,
+            label: level.charAt(0).toUpperCase() + level.slice(1)
+        }));
+        
+        // Populate level dropdowns
+        this.populateDropdown('filterLevel', levelOptions, 'All Levels');
+        
+        // Populate status dropdowns
+        const statusOptions = [
+            { value: 'active', label: 'Active' },
+            { value: 'inactive', label: 'Inactive' }
+        ];
+        this.populateDropdown('filterStatus', statusOptions, 'All Status');
+        
+        console.log('✅ populateDropdowns() completed');
     }
     
-    // Populate program dropdowns
-    this.populateDropdown('courseProgram', this.programs, 'Select Program');
-    this.populateDropdown('filterProgram', this.programs, 'All Programs');
-    
-    // Get unique levels from programs
-    const uniqueLevels = [...new Set(this.programs.map(p => p.level).filter(Boolean))];
-    console.log('Unique levels from programs:', uniqueLevels);
-    
-    // If no levels from programs, use default levels
-    if (uniqueLevels.length === 0) {
-        uniqueLevels.push('basic', 'intermediate', 'advanced');
-    }
-    
-    const levelOptions = uniqueLevels.map(level => ({
-        value: level,
-        label: level.charAt(0).toUpperCase() + level.slice(1)
-    }));
-    
-    // Populate level dropdowns
-    this.populateDropdown('filterLevel', levelOptions, 'All Levels');
-    
-    // Populate status dropdowns
-    const statusOptions = [
-        { value: 'active', label: 'Active' },
-        { value: 'inactive', label: 'Inactive' }
-    ];
-    this.populateDropdown('filterStatus', statusOptions, 'All Status');
-    
-    console.log('✅ populateDropdowns() completed');
-}
-  populateDropdown(elementId, items, defaultLabel) {
-    const select = document.getElementById(elementId);
-    if (!select) {
-        console.error(`❌ Element ${elementId} not found!`);
-        return;
-    }
-    
-    console.log(`📝 Populating ${elementId} with ${items.length} items`);
-    
-    // Clear existing options (keep first if it's the default)
-    if (select.options.length > 0 && select.options[0].value === "") {
-        // Keep the default empty option
+    populateDropdown(elementId, items, defaultLabel) {
+        const select = document.getElementById(elementId);
+        if (!select) {
+            console.error(`❌ Element ${elementId} not found!`);
+            return;
+        }
+        
+        console.log(`📝 Populating ${elementId} with ${items.length} items`);
+        
+        // Clear existing options
         select.innerHTML = `<option value="">${defaultLabel}</option>`;
-    } else {
-        select.innerHTML = `<option value="">${defaultLabel}</option>`;
+        
+        // Add items
+        items.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.value;
+            option.textContent = item.label;
+            select.appendChild(option);
+        });
+        
+        console.log(`✅ ${elementId} now has ${select.options.length} options`);
     }
     
-    // Add items
-    items.forEach(item => {
-        const option = document.createElement('option');
-        option.value = item.value || item.code || item.id || item;
-        option.textContent = item.label || item.name || item.program_name || item.code || item;
-        select.appendChild(option);
-    });
-    
-    console.log(`✅ ${elementId} now has ${select.options.length} options`);
-}
     registerGlobalFunctions() {
         // Course modal functions
         window.openCourseModal = () => this.openCourseModal();
@@ -195,6 +182,10 @@ constructor(db, app) {
         // View toggle
         window.setCoursesView = (view) => this.setCoursesView(view);
         
+        // Search and filter
+        window.searchCourses = () => this.searchCourses();
+        window.filterCourses = () => this.filterCourses();
+        
         // Initialize app object
         window.app = window.app || {};
         window.app.courses = this;
@@ -211,7 +202,7 @@ constructor(db, app) {
             const courseData = {
                 code: document.getElementById('courseCode').value.trim(),
                 name: document.getElementById('courseName').value.trim(),
-                program: document.getElementById('courseProgram').value, // Program code
+                program: document.getElementById('courseProgram').value,
                 credits: parseInt(document.getElementById('courseCredits').value) || 3,
                 description: document.getElementById('courseDescription').value.trim(),
                 status: document.getElementById('courseStatus').value || 'active'
@@ -234,6 +225,9 @@ constructor(db, app) {
             let course;
             if (isEditMode) {
                 // Update course
+                if (!this.db.updateCourse) {
+                    throw new Error('updateCourse method not available in database');
+                }
                 course = await this.db.updateCourse(isEditMode, courseData);
                 this.showToast('✅ Course updated successfully', 'success');
                 delete form.dataset.editId;
@@ -247,6 +241,9 @@ constructor(db, app) {
                 }
             } else {
                 // Add new course
+                if (!this.db.addCourse) {
+                    throw new Error('addCourse method not available in database');
+                }
                 course = await this.db.addCourse(courseData);
                 this.showToast('✅ Course added successfully', 'success');
             }
@@ -262,59 +259,110 @@ constructor(db, app) {
     
     async loadCourses() {
         try {
+            console.log('🔄 Loading courses...');
             const courses = await this.db.getCourses();
+            console.log(`✅ Found ${courses.length} courses:`, courses);
             
-            // Add program names and levels to courses
+            if (courses.length === 0) {
+                console.log('No courses found in database');
+                this.updateStatistics([]);
+                this.updateCoursesGrid([]);
+                this.updateCoursesTable([]);
+                this.updateBulkGradeCourseDropdown([]);
+                return;
+            }
+            
+            // Add program names to courses
             const enrichedCourses = courses.map(course => {
-                const program = this.programs.find(p => p.code === course.program);
+                const program = this.programs.find(p => 
+                    p.code === course.program || 
+                    p.value === course.program || 
+                    p.id === course.program
+                );
+                
+                // Handle different field names
+                const courseCode = course.course_code || course.code || 'N/A';
+                const courseName = course.course_name || course.name || 'Unnamed Course';
+                const programName = program ? program.name || program.label : course.program || 'N/A';
+                const credits = course.credits || 3;
+                const status = course.status || 'active';
+                const description = course.description || '';
+                const enrolledCount = course.enrolled_count || course.enrolled || 0;
+                
                 return {
                     ...course,
-                    program_name: program ? program.name : course.program,
-                    program_level: program ? program.level : 'basic'
+                    id: course.id,
+                    course_code: courseCode,
+                    course_name: courseName,
+                    program: course.program,
+                    program_name: programName,
+                    credits: credits,
+                    status: status,
+                    description: description,
+                    enrolled_count: enrolledCount
                 };
             });
+            
+            console.log('Enriched courses:', enrichedCourses);
             
             this.updateStatistics(enrichedCourses);
             this.updateCoursesGrid(enrichedCourses);
             this.updateCoursesTable(enrichedCourses);
             this.updateBulkGradeCourseDropdown(enrichedCourses);
             
-            console.log(`✅ Loaded ${enrichedCourses.length} courses`);
+            console.log(`✅ Successfully loaded ${enrichedCourses.length} courses`);
             
         } catch (error) {
-            console.error('Error loading courses:', error);
-            this.showToast('Error loading courses', 'error');
+            console.error('❌ Error loading courses:', error);
+            this.showToast(`Error loading courses: ${error.message}`, 'error');
+            
+            // Show empty state
+            this.updateCoursesGrid([]);
+            this.updateCoursesTable([]);
         }
     }
     
     updateStatistics(courses) {
-        const totalCourses = courses.length;
-        const activeCourses = courses.filter(c => c.status === 'active').length;
-        
-        // Calculate total enrolled students
-        const totalStudents = courses.reduce((sum, course) => {
-            return sum + (course.enrolled_count || 0);
-        }, 0);
-        
-        const coursesToGrade = courses.filter(c => (c.enrolled_count || 0) > 0).length;
-        
-        // Update stat cards
-        document.getElementById('totalCourses').textContent = totalCourses;
-        document.getElementById('activeCourses').textContent = activeCourses;
-        document.getElementById('totalStudentsEnrolled').textContent = totalStudents;
-        document.getElementById('coursesToGrade').textContent = coursesToGrade;
+        try {
+            const totalCourses = courses.length;
+            const activeCourses = courses.filter(c => c.status === 'active').length;
+            
+            // Calculate total enrolled students
+            const totalStudents = courses.reduce((sum, course) => {
+                return sum + (course.enrolled_count || 0);
+            }, 0);
+            
+            const coursesToGrade = courses.filter(c => (c.enrolled_count || 0) > 0).length;
+            
+            // Update stat cards
+            const updateElement = (id, value) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = value;
+            };
+            
+            updateElement('totalCourses', totalCourses);
+            updateElement('activeCourses', activeCourses);
+            updateElement('totalStudentsEnrolled', totalStudents);
+            updateElement('coursesToGrade', coursesToGrade);
+            
+        } catch (error) {
+            console.error('Error updating statistics:', error);
+        }
     }
     
     updateCoursesGrid(courses) {
         const grid = document.getElementById('coursesGrid');
-        if (!grid) return;
+        if (!grid) {
+            console.error('❌ coursesGrid element not found');
+            return;
+        }
         
         if (!courses || courses.length === 0) {
             grid.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-book fa-3x"></i>
+                <div class="empty-state" style="text-align: center; padding: 40px; color: #666;">
+                    <i class="fas fa-book fa-3x mb-3" style="color: #ccc;"></i>
                     <h3>No Courses Found</h3>
-                    <p>Get started by adding your first course</p>
+                    <p style="margin-bottom: 20px;">Get started by adding your first course</p>
                     <button class="btn btn-primary" onclick="openCourseModal()">
                         <i class="fas fa-plus"></i> Add Your First Course
                     </button>
@@ -330,59 +378,62 @@ constructor(db, app) {
             const canGrade = enrolledStudents > 0;
             const safeCode = (course.course_code || '').replace(/'/g, "\\'");
             
-            // Get level from program or default to basic
-            const level = course.program_level || 'basic';
-            
             html += `
-                <div class="course-card" data-course-id="${course.id}">
-                    <div class="course-card-header">
-                        <div class="course-header-content">
-                            <h3 class="course-code">${course.course_code || 'N/A'}</h3>
-                            <span class="course-status ${status === 'active' ? 'active' : 'inactive'}">
+                <div class="course-card" data-course-id="${course.id}" style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: white;">
+                    <div class="course-card-header" style="border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px;">
+                        <div class="course-header-content" style="display: flex; justify-content: space-between; align-items: center;">
+                            <h3 class="course-code" style="margin: 0; font-size: 1.1rem;">${course.course_code}</h3>
+                            <span class="course-status ${status === 'active' ? 'active' : 'inactive'}" 
+                                  style="padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; 
+                                         background: ${status === 'active' ? '#2ecc71' : '#95a5a6'}; 
+                                         color: white;">
                                 ${status.toUpperCase()}
                             </span>
                         </div>
                     </div>
                     <div class="course-card-body">
-                        <h4>${course.course_name || 'Unnamed Course'}</h4>
-                        <p class="course-description">${course.description || 'No description available'}</p>
-                        <div class="course-meta">
-                            <div class="meta-item">
-                                <i class="fas fa-graduation-cap"></i>
-                                <span>${course.program_name || course.program}</span>
+                        <h4 style="margin: 0 0 10px 0;">${course.course_name}</h4>
+                        <p class="course-description" style="color: #666; font-size: 0.9rem; margin-bottom: 15px;">
+                            ${course.description || 'No description available'}
+                        </p>
+                        <div class="course-meta" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+                            <div class="meta-item" style="display: flex; align-items: center; gap: 5px;">
+                                <i class="fas fa-graduation-cap" style="color: #3498db;"></i>
+                                <span style="font-size: 0.9rem;">${course.program_name}</span>
                             </div>
-                            <div class="meta-item">
-                                <i class="fas fa-layer-group"></i>
-                                <span>${level}</span>
+                            <div class="meta-item" style="display: flex; align-items: center; gap: 5px;">
+                                <i class="fas fa-star" style="color: #f39c12;"></i>
+                                <span style="font-size: 0.9rem;">${course.credits} Credits</span>
                             </div>
-                            <div class="meta-item">
-                                <i class="fas fa-star"></i>
-                                <span>${course.credits || 3} Credits</span>
-                            </div>
-                            <div class="meta-item">
-                                <i class="fas fa-users"></i>
-                                <span>${enrolledStudents} Enrolled</span>
+                            <div class="meta-item" style="display: flex; align-items: center; gap: 5px;">
+                                <i class="fas fa-users" style="color: #9b59b6;"></i>
+                                <span style="font-size: 0.9rem;">${enrolledStudents} Enrolled</span>
                             </div>
                         </div>
-                        <div class="course-actions">
-                            <button class="btn btn-sm btn-info" onclick="app.courses.openCourseEnrollmentModal('${course.id}')">
+                        <div class="course-actions" style="display: flex; gap: 8px;">
+                            <button class="btn btn-sm btn-info" 
+                                    onclick="app.courses.openCourseEnrollmentModal('${course.id}')"
+                                    style="padding: 5px 10px; font-size: 0.85rem;">
                                 <i class="fas fa-user-plus"></i> Enroll
                             </button>
                             ${canGrade ? `
-                                <button class="btn btn-sm btn-success" onclick="app.courses.openBulkGradeForCourse('${course.id}')">
+                                <button class="btn btn-sm btn-success" 
+                                        onclick="app.courses.openBulkGradeForCourse('${course.id}')"
+                                        style="padding: 5px 10px; font-size: 0.85rem;">
                                     <i class="fas fa-chart-line"></i> Grade
                                 </button>
                             ` : ''}
-                            <button class="btn btn-sm btn-primary" onclick="app.courses.editCourse('${course.id}')">
+                            <button class="btn btn-sm btn-primary" 
+                                    onclick="app.courses.editCourse('${course.id}')"
+                                    style="padding: 5px 10px; font-size: 0.85rem;">
                                 <i class="fas fa-edit"></i> Edit
                             </button>
-                            <button class="btn btn-sm btn-danger" onclick="app.courses.deleteCoursePrompt('${course.id}', '${safeCode}')">
+                            <button class="btn btn-sm btn-danger" 
+                                    onclick="app.courses.deleteCoursePrompt('${course.id}', '${safeCode}')"
+                                    style="padding: 5px 10px; font-size: 0.85rem;">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
-                    </div>
-                    <div class="course-card-footer">
-                        <small>${course.program_name || course.program} • ${level}</small>
                     </div>
                 </div>
             `;
@@ -393,13 +444,16 @@ constructor(db, app) {
     
     updateCoursesTable(courses) {
         const tbody = document.getElementById('coursesTableBody');
-        if (!tbody) return;
+        if (!tbody) {
+            console.error('❌ coursesTableBody element not found');
+            return;
+        }
         
         if (!courses || courses.length === 0) {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="7" class="text-center py-4">
-                        <i class="fas fa-book fa-2x mb-2"></i>
+                        <i class="fas fa-book fa-2x mb-2" style="color: #ccc;"></i>
                         <p>No courses found</p>
                     </td>
                 </tr>
@@ -415,34 +469,48 @@ constructor(db, app) {
             
             html += `
                 <tr data-course-id="${course.id}">
-                    <td><strong>${course.course_code || 'N/A'}</strong></td>
-                    <td>${course.course_name || 'Unnamed'}</td>
-                    <td>${course.program_name || course.program}</td>
-                    <td>${course.credits || 3}</td>
+                    <td><strong>${course.course_code}</strong></td>
+                    <td>${course.course_name}</td>
+                    <td>${course.program_name}</td>
+                    <td>${course.credits}</td>
                     <td>
-                        <span class="badge ${enrolledStudents > 0 ? 'badge-info' : 'badge-secondary'}">
+                        <span class="badge ${enrolledStudents > 0 ? 'badge-info' : 'badge-secondary'}" 
+                              style="background: ${enrolledStudents > 0 ? '#3498db' : '#95a5a6'}; color: white; padding: 3px 8px; border-radius: 4px;">
                             ${enrolledStudents}
                         </span>
                     </td>
                     <td>
-                        <span class="badge ${status === 'active' ? 'badge-success' : 'badge-secondary'}">
+                        <span class="badge ${status === 'active' ? 'badge-success' : 'badge-secondary'}"
+                              style="background: ${status === 'active' ? '#2ecc71' : '#95a5a6'}; color: white; padding: 3px 8px; border-radius: 4px;">
                             ${status.toUpperCase()}
                         </span>
                     </td>
                     <td>
-                        <div class="action-buttons">
-                            <button class="btn btn-sm btn-info" onclick="app.courses.openCourseEnrollmentModal('${course.id}')" title="Enroll">
+                        <div class="action-buttons" style="display: flex; gap: 5px;">
+                            <button class="btn btn-sm btn-info" 
+                                    onclick="app.courses.openCourseEnrollmentModal('${course.id}')" 
+                                    title="Enroll"
+                                    style="padding: 3px 8px; font-size: 0.8rem;">
                                 <i class="fas fa-user-plus"></i>
                             </button>
                             ${enrolledStudents > 0 ? `
-                                <button class="btn btn-sm btn-success" onclick="app.courses.openBulkGradeForCourse('${course.id}')" title="Grade">
+                                <button class="btn btn-sm btn-success" 
+                                        onclick="app.courses.openBulkGradeForCourse('${course.id}')" 
+                                        title="Grade"
+                                        style="padding: 3px 8px; font-size: 0.8rem;">
                                     <i class="fas fa-chart-line"></i>
                                 </button>
                             ` : ''}
-                            <button class="btn btn-sm btn-primary" onclick="app.courses.editCourse('${course.id}')" title="Edit">
+                            <button class="btn btn-sm btn-primary" 
+                                    onclick="app.courses.editCourse('${course.id}')" 
+                                    title="Edit"
+                                    style="padding: 3px 8px; font-size: 0.8rem;">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn btn-sm btn-danger" onclick="app.courses.deleteCoursePrompt('${course.id}', '${safeCode}')" title="Delete">
+                            <button class="btn btn-sm btn-danger" 
+                                    onclick="app.courses.deleteCoursePrompt('${course.id}', '${safeCode}')" 
+                                    title="Delete"
+                                    style="padding: 3px 8px; font-size: 0.8rem;">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -471,7 +539,6 @@ constructor(db, app) {
         });
     }
     
-    // FIXED EDIT COURSE - NO RECURSION
     async editCourse(courseId) {
         try {
             console.log('Editing course:', courseId);
@@ -490,13 +557,9 @@ constructor(db, app) {
                 return;
             }
             
-            // Find program name
-            const program = this.programs.find(p => p.code === course.program);
-            const programName = program ? program.name : course.program;
-            
             // Populate form
-            document.getElementById('courseCode').value = course.course_code || '';
-            document.getElementById('courseName').value = course.course_name || '';
+            document.getElementById('courseCode').value = course.course_code || course.code || '';
+            document.getElementById('courseName').value = course.course_name || course.name || '';
             document.getElementById('courseProgram').value = course.program || '';
             document.getElementById('courseCredits').value = course.credits || 3;
             document.getElementById('courseDescription').value = course.description || '';
@@ -522,13 +585,16 @@ constructor(db, app) {
         }
     }
     
-    // FIXED DELETE COURSE - NO RECURSION
     async deleteCoursePrompt(courseId, courseCode) {
         const confirmMessage = `Delete course "${courseCode}"?\n\nThis action cannot be undone.`;
         
         if (!confirm(confirmMessage)) return;
         
         try {
+            if (!this.db.deleteCourse) {
+                throw new Error('deleteCourse method not available in database');
+            }
+            
             await this.db.deleteCourse(courseId);
             this.showToast('✅ Course deleted', 'success');
             await this.loadCourses();
@@ -546,7 +612,7 @@ constructor(db, app) {
             
             // Get course
             let course;
-            if (this.db.getCourse) {
+            if (this.db.getCourse && typeof this.db.getCourse === 'function') {
                 course = await this.db.getCourse(courseId);
             } else {
                 const courses = await this.db.getCourses();
@@ -560,17 +626,19 @@ constructor(db, app) {
             
             // Get enrolled students
             let enrolledStudents = [];
-            if (this.db.getStudentsByCourse) {
+            if (this.db.getStudentsByCourse && typeof this.db.getStudentsByCourse === 'function') {
                 enrolledStudents = await this.db.getStudentsByCourse(courseId);
             } else {
-                // Fallback: Get enrollments and join with students
-                const enrollments = await this.db.getEnrollmentsByCourse(courseId);
-                if (enrollments && enrollments.length > 0) {
-                    const allStudents = await this.db.getStudents();
-                    enrolledStudents = enrollments.map(enrollment => {
-                        const student = allStudents.find(s => s.id === enrollment.student_id);
-                        return student ? { ...student, enrollment_id: enrollment.id } : null;
-                    }).filter(Boolean);
+                console.warn('getStudentsByCourse not available, trying getEnrollments');
+                if (this.db.getEnrollments && typeof this.db.getEnrollments === 'function') {
+                    const enrollments = await this.db.getEnrollments({ course_id: courseId });
+                    if (enrollments && enrollments.length > 0) {
+                        const allStudents = await this.db.getStudents();
+                        enrolledStudents = enrollments.map(enrollment => {
+                            const student = allStudents.find(s => s.id === enrollment.student_id);
+                            return student ? { ...student, enrollment_id: enrollment.id } : null;
+                        }).filter(Boolean);
+                    }
                 }
             }
             
@@ -591,40 +659,40 @@ constructor(db, app) {
     
     showEnrollmentModal(course, enrolledStudents, availableStudents) {
         const modalHtml = `
-            <div class="modal active" id="enrollmentModal" style="display: block;">
-                <div class="modal-content" style="max-width: 1000px;">
-                    <div class="modal-header">
-                        <h3><i class="fas fa-user-plus"></i> Manage Enrollments</h3>
-                        <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
+            <div class="modal active" id="enrollmentModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: block;">
+                <div class="modal-content" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; max-width: 1000px; width: 90%; max-height: 90vh; overflow-y: auto;">
+                    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="margin: 0;"><i class="fas fa-user-plus"></i> Manage Enrollments</h3>
+                        <span class="close" onclick="this.closest('.modal').remove()" style="cursor: pointer; font-size: 1.5rem;">&times;</span>
                     </div>
                     <div class="modal-body">
-                        <div class="enrollment-info">
-                            <h4>${course.course_code} - ${course.course_name}</h4>
-                            <p class="text-muted">${course.description || 'No description'}</p>
-                            <div class="enrollment-stats">
-                                <span class="badge badge-info">
+                        <div class="enrollment-info" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                            <h4 style="margin: 0 0 5px 0;">${course.course_code} - ${course.course_name}</h4>
+                            <p style="margin: 0; opacity: 0.9;">${course.description || 'No description'}</p>
+                            <div class="enrollment-stats" style="display: flex; gap: 10px; margin-top: 10px;">
+                                <span style="background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 4px; font-size: 0.9rem;">
                                     <i class="fas fa-users"></i> ${enrolledStudents.length} Enrolled
                                 </span>
-                                <span class="badge badge-secondary">
+                                <span style="background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 4px; font-size: 0.9rem;">
                                     <i class="fas fa-user-plus"></i> ${availableStudents.length} Available
                                 </span>
                             </div>
                         </div>
                         
-                        <div class="enrollment-controls mb-3">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <label>Study Centre:</label>
-                                    <select id="enrollmentStudyCenter" class="form-control" onchange="app.courses.filterEnrollmentLists()">
+                        <div class="enrollment-controls" style="margin-bottom: 20px;">
+                            <div class="row" style="display: flex; gap: 15px; margin-bottom: 15px;">
+                                <div style="flex: 1;">
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Study Centre:</label>
+                                    <select id="enrollmentStudyCenter" class="form-control" onchange="app.courses.filterEnrollmentLists()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                         <option value="">All Centres</option>
                                         ${this.centres.map(c => `
-                                            <option value="${c.name}">${c.name}</option>
+                                            <option value="${c.name || c.value || c}">${c.name || c.label || c}</option>
                                         `).join('')}
                                     </select>
                                 </div>
-                                <div class="col-md-6">
-                                    <label>Intake Year:</label>
-                                    <select id="enrollmentIntakeYear" class="form-control" onchange="app.courses.filterEnrollmentLists()">
+                                <div style="flex: 1;">
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Intake Year:</label>
+                                    <select id="enrollmentIntakeYear" class="form-control" onchange="app.courses.filterEnrollmentLists()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                         <option value="">All Years</option>
                                         ${this.intakeYears.map(year => `
                                             <option value="${year}">${year}</option>
@@ -634,19 +702,23 @@ constructor(db, app) {
                             </div>
                         </div>
                         
-                        <div class="enrollment-sections">
-                            <div class="enrollment-section">
-                                <h5><i class="fas fa-users text-success"></i> Enrolled Students (${enrolledStudents.length})</h5>
+                        <div class="enrollment-sections" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div class="enrollment-section" style="background: #f8f9fa; border-radius: 8px; padding: 15px; border: 1px solid #dee2e6;">
+                                <h5 style="border-bottom: 2px solid #2ecc71; padding-bottom: 10px; margin-bottom: 15px; font-size: 1rem; display: flex; align-items: center; gap: 5px;">
+                                    <i class="fas fa-users text-success"></i> Enrolled Students (${enrolledStudents.length})
+                                </h5>
                                 ${this.renderStudentList(enrolledStudents, true, course.id)}
                             </div>
-                            <div class="enrollment-section">
-                                <h5><i class="fas fa-user-plus text-primary"></i> Available Students (${availableStudents.length})</h5>
+                            <div class="enrollment-section" style="background: #f8f9fa; border-radius: 8px; padding: 15px; border: 1px solid #dee2e6;">
+                                <h5 style="border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 15px; font-size: 1rem; display: flex; align-items: center; gap: 5px;">
+                                    <i class="fas fa-user-plus text-primary"></i> Available Students (${availableStudents.length})
+                                </h5>
                                 ${this.renderStudentList(availableStudents, false, course.id)}
                             </div>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-secondary" onclick="document.getElementById('enrollmentModal').remove()">
+                    <div class="modal-footer" style="margin-top: 20px; text-align: right;">
+                        <button class="btn btn-secondary" onclick="document.getElementById('enrollmentModal').remove()" style="padding: 8px 16px; background: #95a5a6; color: white; border: none; border-radius: 4px; cursor: pointer;">
                             <i class="fas fa-times"></i> Close
                         </button>
                     </div>
@@ -660,9 +732,6 @@ constructor(db, app) {
         const modalDiv = document.createElement('div');
         modalDiv.innerHTML = modalHtml;
         document.body.appendChild(modalDiv.firstElementChild);
-        
-        // Add CSS for enrollment modal
-        this.addEnrollmentModalCSS();
     }
     
     renderStudentList(students, isEnrolled, courseId) {
@@ -677,55 +746,56 @@ constructor(db, app) {
         
         let html = `
             <div class="student-list" style="max-height: 300px; overflow-y: auto;">
-                <table class="table table-sm">
+                <table class="table" style="width: 100%; border-collapse: collapse;">
                     <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Reg No</th>
-                            <th>Centre</th>
-                            <th>Intake</th>
-                            <th>Program</th>
-                            <th>Actions</th>
+                        <tr style="background: #f1f1f1;">
+                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Name</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Reg No</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Centre</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Intake</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Program</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
         `;
         
         students.forEach(student => {
-            // Use centre_name if available, otherwise centre
             const centreDisplay = student.centre_name || student.centre || 'N/A';
             const programDisplay = student.program || 'N/A';
+            const safeId = student.id.toString().replace(/'/g, "\\'");
             
             html += `
                 <tr data-student-id="${student.id}" 
                     data-centre="${centreDisplay}" 
-                    data-intake="${student.intake_year}">
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <div class="avatar me-2">
+                    data-intake="${student.intake_year}"
+                    style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 8px;">
+                        <div style="display: flex; align-items: center;">
+                            <div style="width: 32px; height: 32px; background: #e9ecef; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
                                 <i class="fas fa-user-circle"></i>
                             </div>
                             <div>
-                                <strong>${student.full_name || 'Student'}</strong>
-                                <div class="text-muted small">${student.email || ''}</div>
+                                <strong>${student.full_name || student.name || 'Student'}</strong>
+                                <div style="font-size: 0.8rem; color: #666;">${student.email || ''}</div>
                             </div>
                         </div>
                     </td>
-                    <td><code>${student.reg_number || 'N/A'}</code></td>
-                    <td>${centreDisplay}</td>
-                    <td>${student.intake_year || 'N/A'}</td>
-                    <td>${programDisplay}</td>
-                    <td>
+                    <td style="padding: 8px;"><code>${student.reg_number || 'N/A'}</code></td>
+                    <td style="padding: 8px;">${centreDisplay}</td>
+                    <td style="padding: 8px;">${student.intake_year || 'N/A'}</td>
+                    <td style="padding: 8px;">${programDisplay}</td>
+                    <td style="padding: 8px;">
                         ${isEnrolled ? `
                             <button class="btn btn-sm btn-danger" 
-                                    onclick="app.courses.removeEnrollment('${courseId}', '${student.id}')"
-                                    title="Remove from course">
+                                    onclick="app.courses.removeEnrollment('${courseId}', '${safeId}')"
+                                    style="padding: 3px 8px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">
                                 <i class="fas fa-user-minus"></i> Remove
                             </button>
                         ` : `
                             <button class="btn btn-sm btn-success" 
-                                    onclick="app.courses.addEnrollment('${courseId}', '${student.id}')"
-                                    title="Add to course">
+                                    onclick="app.courses.addEnrollment('${courseId}', '${safeId}')"
+                                    style="padding: 3px 8px; background: #2ecc71; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">
                                 <i class="fas fa-user-plus"></i> Enroll
                             </button>
                         `}
@@ -745,14 +815,17 @@ constructor(db, app) {
     
     async addEnrollment(courseId, studentId) {
         try {
-            // Get student details to find program_id
+            // Get student details
             const student = await this.db.getStudent(studentId);
-            const program = this.programs.find(p => p.code === student.program);
+            const program = this.programs.find(p => 
+                p.code === student.program || 
+                p.value === student.program
+            );
             
             const enrollmentData = {
                 student_id: studentId,
                 course_id: courseId,
-                program_id: program ? program.id : null,
+                program_id: program ? program.id || program.value : null,
                 academic_year: new Date().getFullYear(),
                 semester: 'Semester 1',
                 enrollment_date: new Date().toISOString().split('T')[0],
@@ -760,7 +833,15 @@ constructor(db, app) {
                 is_active: true
             };
             
-            await this.db.addEnrollment(enrollmentData);
+            // Use enrollStudent method
+            if (this.db.enrollStudent && typeof this.db.enrollStudent === 'function') {
+                await this.db.enrollStudent(enrollmentData);
+            } else if (this.db.addEnrollment && typeof this.db.addEnrollment === 'function') {
+                await this.db.addEnrollment(enrollmentData);
+            } else {
+                throw new Error('No enrollment method available');
+            }
+            
             this.showToast('✅ Student enrolled successfully', 'success');
             
             // Refresh modal
@@ -777,7 +858,25 @@ constructor(db, app) {
         if (!confirm('Remove student from this course?')) return;
         
         try {
-            await this.db.removeEnrollment(courseId, studentId);
+            // Use deleteEnrollment method
+            if (this.db.deleteEnrollment && typeof this.db.deleteEnrollment === 'function') {
+                // Need to find enrollment ID first
+                const enrollments = await this.db.getEnrollments({ 
+                    course_id: courseId, 
+                    student_id: studentId 
+                });
+                
+                if (enrollments && enrollments.length > 0) {
+                    await this.db.deleteEnrollment(enrollments[0].id);
+                } else {
+                    throw new Error('Enrollment not found');
+                }
+            } else if (this.db.removeEnrollment && typeof this.db.removeEnrollment === 'function') {
+                await this.db.removeEnrollment(courseId, studentId);
+            } else {
+                throw new Error('No remove enrollment method available');
+            }
+            
             this.showToast('✅ Student removed from course', 'success');
             
             // Refresh modal
@@ -861,7 +960,7 @@ constructor(db, app) {
         
         try {
             let course;
-            if (this.db.getCourse) {
+            if (this.db.getCourse && typeof this.db.getCourse === 'function') {
                 course = await this.db.getCourse(courseId);
             } else {
                 const courses = await this.db.getCourses();
@@ -875,11 +974,10 @@ constructor(db, app) {
             
             // Get enrolled students
             let students = [];
-            if (this.db.getStudentsByCourse) {
+            if (this.db.getStudentsByCourse && typeof this.db.getStudentsByCourse === 'function') {
                 students = await this.db.getStudentsByCourse(courseId);
-            } else {
-                // Fallback
-                const enrollments = await this.db.getEnrollmentsByCourse(courseId);
+            } else if (this.db.getEnrollments && typeof this.db.getEnrollments === 'function') {
+                const enrollments = await this.db.getEnrollments({ course_id: courseId });
                 if (enrollments && enrollments.length > 0) {
                     const allStudents = await this.db.getStudents();
                     students = enrollments.map(enrollment => {
@@ -920,12 +1018,13 @@ constructor(db, app) {
         students.forEach((student, index) => {
             const studentId = student.id;
             const centreDisplay = student.centre_name || student.centre || 'N/A';
+            const safeId = studentId.toString().replace(/'/g, "\\'");
             
             html += `
                 <tr data-student-id="${studentId}">
                     <td class="text-center">
                         <input type="checkbox" class="student-checkbox" 
-                               data-student-id="${studentId}"
+                               data-student-id="${safeId}"
                                onchange="toggleStudentSelection(this)">
                     </td>
                     <td>
@@ -934,7 +1033,7 @@ constructor(db, app) {
                                 <i class="fas fa-user-circle"></i>
                             </div>
                             <div>
-                                <strong>${student.full_name || 'Student'}</strong>
+                                <strong>${student.full_name || student.name || 'Student'}</strong>
                                 <div class="text-muted small">${student.email || ''}</div>
                             </div>
                         </div>
@@ -946,7 +1045,7 @@ constructor(db, app) {
                     <td>
                         <div class="input-group input-group-sm">
                             <input type="number" class="form-control student-score" 
-                                   data-student-id="${studentId}"
+                                   data-student-id="${safeId}"
                                    placeholder="Score" min="0" max="100" step="0.01"
                                    value="">
                             <span class="input-group-text">/ 100</span>
@@ -1047,11 +1146,12 @@ constructor(db, app) {
         }
         
         try {
+            if (!this.db.addMark) {
+                throw new Error('addMark method not available in database');
+            }
+            
             const savePromises = studentsToGrade.map(gradeData => {
-                if (this.db.addMark) {
-                    return this.db.addMark(gradeData);
-                }
-                return Promise.resolve();
+                return this.db.addMark(gradeData);
             });
             
             await Promise.allSettled(savePromises);
@@ -1122,7 +1222,7 @@ constructor(db, app) {
     // ===== SEARCH AND FILTER =====
     
     searchCourses() {
-       const query = document.getElementById('courseSearch')?.value.toLowerCase() || '';
+        const query = document.getElementById('courseSearch')?.value.toLowerCase() || '';
         
         // Filter grid cards
         document.querySelectorAll('#coursesGrid .course-card').forEach(card => {
@@ -1149,7 +1249,6 @@ constructor(db, app) {
             
             const programMatch = !program || cardText.includes(program.toLowerCase());
             const statusMatch = !status || cardStatus.includes(status.toLowerCase());
-            // Note: Level filtering might not work since level isn't in courses table
             
             card.style.display = programMatch && statusMatch ? '' : 'none';
         });
@@ -1176,98 +1275,6 @@ constructor(db, app) {
         if (percentage >= 70) return { grade: 'CREDIT', points: 3.0 };
         if (percentage >= 50) return { grade: 'PASS', points: 2.0 };
         return { grade: 'FAIL', points: 0.0 };
-    }
-    
-    getGradeBadgeColor(grade) {
-        const colors = {
-            'DISTINCTION': 'success',
-            'CREDIT': 'info',
-            'PASS': 'warning',
-            'FAIL': 'danger'
-        };
-        return colors[grade] || 'secondary';
-    }
-    
-    addEnrollmentModalCSS() {
-        if (document.querySelector('#enrollment-modal-css')) return;
-        
-        const style = document.createElement('style');
-        style.id = 'enrollment-modal-css';
-        style.textContent = `
-            .enrollment-sections {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 20px;
-                margin-top: 20px;
-            }
-            
-            .enrollment-section {
-                background: #f8f9fa;
-                border-radius: 8px;
-                padding: 15px;
-                border: 1px solid #dee2e6;
-            }
-            
-            .enrollment-section h5 {
-                border-bottom: 2px solid #3498db;
-                padding-bottom: 10px;
-                margin-bottom: 15px;
-                font-size: 1rem;
-            }
-            
-            .student-list {
-                max-height: 300px;
-                overflow-y: auto;
-            }
-            
-            .student-list table {
-                font-size: 0.85rem;
-            }
-            
-            .student-list .avatar {
-                width: 32px;
-                height: 32px;
-                background: #e9ecef;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            
-            .enrollment-info {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                padding: 15px;
-                border-radius: 8px;
-                margin-bottom: 20px;
-            }
-            
-            .enrollment-stats {
-                display: flex;
-                gap: 10px;
-                margin-top: 10px;
-            }
-            
-            .enrollment-controls {
-                background: white;
-                padding: 15px;
-                border-radius: 8px;
-                border: 1px solid #dee2e6;
-            }
-            
-            .empty-list {
-                text-align: center;
-                padding: 40px;
-                color: #6c757d;
-            }
-            
-            @media (max-width: 992px) {
-                .enrollment-sections {
-                    grid-template-columns: 1fr;
-                }
-            }
-        `;
-        document.head.appendChild(style);
     }
     
     showToast(message, type = 'info') {
