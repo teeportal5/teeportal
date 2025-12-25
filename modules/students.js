@@ -387,124 +387,153 @@ class StudentManager {
     /**
      * Save or update student - FIXED FOR YOUR SCHEMA
      */
-    async saveStudent(event) {
-        event.preventDefault();
+   async saveStudent(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    if (!form || form.id !== 'studentForm') {
+        console.error('Invalid form element');
+        return;
+    }
+    
+    try {
+        // Get the selected centre value
+        const centreSelect = document.getElementById('studentCentre');
+        const selectedCentreId = centreSelect?.value || '';
+        const selectedOption = centreSelect?.options[centreSelect?.selectedIndex];
+        const selectedCentreText = selectedOption?.text || '';
         
-        const form = event.target;
-        if (!form || form.id !== 'studentForm') {
-            console.error('Invalid form element');
+        console.log('📍 Centre selection:', {
+            value: selectedCentreId,
+            text: selectedCentreText,
+            isUUID: selectedCentreId.includes('-') && selectedCentreId.length === 36
+        });
+        
+        // Get centre name - FIXED LOGIC
+        let centreName = '';
+        if (selectedCentreText && selectedCentreText !== 'Select Centre') {
+            // Extract just the centre name from the display text
+            // Display format: "DR ArTHUR (NKR) - Nakuru"
+            // We want: "DR ArTHUR"
+            const match = selectedCentreText.match(/^([^(]+)/);
+            centreName = match ? match[0].trim() : selectedCentreText;
+        } else if (selectedCentreId && this.centres.length > 0) {
+            // Fallback: look up from centres array
+            const centre = this.centres.find(c => c.id === selectedCentreId);
+            centreName = centre ? centre.name : '';
+        }
+        
+        console.log('📍 Centre name determined:', centreName);
+        
+        // Get all form data with CORRECT field names for your schema
+        const formData = {
+            // Registration Number (Auto-generated)
+            reg_number: document.getElementById('studentRegNumber')?.value.trim() || '',
+            
+            // Personal Information
+            full_name: document.getElementById('studentName')?.value.trim() || '',
+            email: document.getElementById('studentEmail')?.value.trim() || '',
+            phone: document.getElementById('studentPhone')?.value.trim() || '',
+            date_of_birth: document.getElementById('studentDOB')?.value || '',
+            id_number: document.getElementById('studentIdNumber')?.value.trim() || '',
+            gender: document.getElementById('studentGender')?.value || '',
+            
+            // Location Information
+            county: document.getElementById('studentCounty')?.value || '',
+            region: document.getElementById('studentRegion')?.value.trim() || '',
+            ward: document.getElementById('studentWard')?.value.trim() || '',
+            village: document.getElementById('studentVillage')?.value.trim() || '',
+            address: document.getElementById('studentAddress')?.value.trim() || '',
+            
+            // Academic Information - FIXED CENTRE HANDLING
+            program: document.getElementById('studentProgram')?.value || '',
+            intake_year: parseInt(document.getElementById('studentIntake')?.value) || new Date().getFullYear(),
+            centre_id: selectedCentreId || '', // UUID centre_id (if selected)
+            centre: centreName || '', // Centre name
+            centre_name: centreName || '', // Centre name (both fields for consistency)
+            study_mode: document.getElementById('studentStudyMode')?.value || 'fulltime',
+            status: document.getElementById('studentStatus')?.value || 'active',
+            registration_date: new Date().toISOString().split('T')[0],
+            
+            // Employment Information
+            employment_status: document.getElementById('studentEmployment')?.value || '',
+            employer: document.getElementById('studentEmployer')?.value.trim() || '',
+            job_title: document.getElementById('studentJobTitle')?.value.trim() || '',
+            years_experience: parseInt(document.getElementById('studentExperience')?.value) || 0,
+            
+            // Emergency Contact
+            emergency_contact_name: document.getElementById('studentEmergencyName')?.value.trim() || '',
+            emergency_contact_phone: document.getElementById('studentEmergencyPhone')?.value.trim() || '',
+            emergency_contact_relationship: document.getElementById('studentEmergencyContact')?.value.trim() || '',
+            emergency_contact: document.getElementById('studentEmergencyPhone')?.value.trim() || '',
+            
+            // Additional Information
+            notes: document.getElementById('studentNotes')?.value.trim() || ''
+        };
+        
+        console.log('📝 Form data to save:', formData);
+        
+        // Validate required fields
+        const requiredFields = ['reg_number', 'full_name', 'email', 'program', 'intake_year'];
+        const missingFields = requiredFields.filter(field => !formData[field] || formData[field].toString().trim() === '');
+        
+        if (missingFields.length > 0) {
+            this.ui.showToast(`Missing required fields: ${missingFields.join(', ')}`, 'error');
             return;
         }
         
-        try {
-            // Get all form data with CORRECT field names for your schema
-            const formData = {
-                // Registration Number (Auto-generated)
-                reg_number: document.getElementById('studentRegNumber')?.value.trim() || '',
-                
-                // Personal Information
-                full_name: document.getElementById('studentName')?.value.trim() || '',
-                email: document.getElementById('studentEmail')?.value.trim() || '',
-                phone: document.getElementById('studentPhone')?.value.trim() || '',
-                date_of_birth: document.getElementById('studentDOB')?.value || '',
-                id_number: document.getElementById('studentIdNumber')?.value.trim() || '',
-                gender: document.getElementById('studentGender')?.value || '',
-                
-                // Location Information
-                county: document.getElementById('studentCounty')?.value || '',
-                region: document.getElementById('studentRegion')?.value.trim() || '', // This maps to sub_county in your schema
-                ward: document.getElementById('studentWard')?.value.trim() || '',
-                village: document.getElementById('studentVillage')?.value.trim() || '',
-                address: document.getElementById('studentAddress')?.value.trim() || '',
-                
-                // Academic Information - FIXED FOR YOUR SCHEMA
-                program: document.getElementById('studentProgram')?.value || '', // TEXT program code
-                intake_year: parseInt(document.getElementById('studentIntake')?.value) || new Date().getFullYear(),
-                centre_id: document.getElementById('studentCentre')?.value || '', // UUID centre_id
-                centre: this._getCentreName(document.getElementById('studentCentre')?.value) || '', // Centre name for display
-                centre_name: this._getCentreName(document.getElementById('studentCentre')?.value) || '', // Centre name
-                study_mode: document.getElementById('studentStudyMode')?.value || 'fulltime',
-                status: document.getElementById('studentStatus')?.value || 'active',
-                registration_date: new Date().toISOString().split('T')[0],
-                
-                // Employment Information
-                employment_status: document.getElementById('studentEmployment')?.value || '',
-                employer: document.getElementById('studentEmployer')?.value.trim() || '',
-                job_title: document.getElementById('studentJobTitle')?.value.trim() || '',
-                years_experience: parseInt(document.getElementById('studentExperience')?.value) || 0,
-                
-                // Emergency Contact
-                emergency_contact_name: document.getElementById('studentEmergencyName')?.value.trim() || '',
-                emergency_contact_phone: document.getElementById('studentEmergencyPhone')?.value.trim() || '',
-                emergency_contact_relationship: document.getElementById('studentEmergencyContact')?.value.trim() || '',
-                emergency_contact: document.getElementById('studentEmergencyPhone')?.value.trim() || '', // Fallback field
-                
-                // Additional Information
-                notes: document.getElementById('studentNotes')?.value.trim() || ''
-            };
-            
-            console.log('📝 Form data to save:', formData);
-            
-            // Validate required fields
-            const requiredFields = ['reg_number', 'full_name', 'email', 'program', 'intake_year'];
-            const missingFields = requiredFields.filter(field => !formData[field] || formData[field].toString().trim() === '');
-            
-            if (missingFields.length > 0) {
-                this.ui.showToast(`Missing required fields: ${missingFields.join(', ')}`, 'error');
-                return;
-            }
-            
-            // Validate email
-            if (!this._validateEmail(formData.email)) {
-                this.ui.showToast('Please enter a valid email address', 'error');
-                return;
-            }
-            
-            // Show loading state
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-            submitBtn.disabled = true;
-            
-            let result;
-            if (this.currentEditId) {
-                // Update existing student
-                console.log(`🔄 Updating student ${this.currentEditId}...`);
-                result = await this.db.updateStudent(this.currentEditId, formData);
-                console.log('✅ Update result:', result);
-                this.ui.showToast(`Student updated successfully!`, 'success');
-            } else {
-                // Add new student
-                console.log('➕ Adding new student...');
-                result = await this.db.addStudent(formData);
-                console.log('✅ Add result:', result);
-                const regNumber = result.reg_number || formData.reg_number;
-                this.ui.showToast(`Student registered successfully! Registration Number: ${regNumber}`, 'success');
-            }
-            
-            // Reset form and close modal
-            this._resetStudentForm();
-            this.ui.closeModal('studentModal');
-            
-            // Refresh students table
-            console.log('🔄 Refreshing students table...');
-            await this.loadStudentsTable();
-            console.log('✅ Table refreshed');
-            
-        } catch (error) {
-            console.error('❌ Error saving student:', error);
-            console.error('Error details:', error.stack);
-            this.ui.showToast(error.message || 'Error saving student data', 'error');
-            
-            // Reset button if error
-            const submitBtn = form.querySelector('button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.innerHTML = this.currentEditId 
-                    ? '<i class="fas fa-save"></i> Update Student'
-                    : '<i class="fas fa-plus"></i> Register Student';
-                submitBtn.disabled = false;
-            }
+        // Validate email
+        if (!this._validateEmail(formData.email)) {
+            this.ui.showToast('Please enter a valid email address', 'error');
+            return;
         }
+        
+        // Show loading state
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        submitBtn.disabled = true;
+        
+        let result;
+        if (this.currentEditId) {
+            // Update existing student
+            console.log(`🔄 Updating student ${this.currentEditId}...`);
+            result = await this.db.updateStudent(this.currentEditId, formData);
+            console.log('✅ Update result:', result);
+            this.ui.showToast(`Student updated successfully!`, 'success');
+        } else {
+            // Add new student
+            console.log('➕ Adding new student...');
+            result = await this.db.addStudent(formData);
+            console.log('✅ Add result:', result);
+            const regNumber = result.reg_number || formData.reg_number;
+            this.ui.showToast(`Student registered successfully! Registration Number: ${regNumber}`, 'success');
+        }
+        
+        // Reset form and close modal
+        this._resetStudentForm();
+        this.ui.closeModal('studentModal');
+        
+        // Refresh students table
+        console.log('🔄 Refreshing students table...');
+        await this.loadStudentsTable();
+        console.log('✅ Table refreshed');
+        
+    } catch (error) {
+        console.error('❌ Error saving student:', error);
+        console.error('Error details:', error.stack);
+        this.ui.showToast(error.message || 'Error saving student data', 'error');
+        
+        // Reset button if error
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = this.currentEditId 
+                ? '<i class="fas fa-save"></i> Update Student'
+                : '<i class="fas fa-plus"></i> Register Student';
+            submitBtn.disabled = false;
+        }
+    }
+}
     }
     
     /**
