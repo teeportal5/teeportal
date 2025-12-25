@@ -1022,14 +1022,21 @@
 <section id="reports" class="content-section" aria-labelledby="reports-heading">
     <div class="section-header">
         <h2 id="reports-heading"><i class="fas fa-chart-bar" aria-hidden="true"></i> Reports & Analytics</h2>
-        <div class="action-buttons">
-            <button class="btn btn-primary" onclick="app.reports.generateSummaryReport()">
-                <i class="fas fa-file-pdf"></i> Summary Report
-            </button>
-            <button class="btn btn-secondary" onclick="app.reports.refreshReports()">
-                <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-        </div>
+       <div class="action-buttons">
+    <button class="btn btn-primary" onclick="app.reports.generateSummaryReport()">
+        <i class="fas fa-file-pdf"></i> Summary Report
+    </button>
+    <button class="btn btn-secondary" onclick="app.reports.refreshReports()">
+        <i class="fas fa-sync-alt"></i> Refresh
+    </button>
+    <!-- ADD THESE NEW BUTTONS -->
+    <button class="btn btn-info" onclick="app.reports.populateReportDropdowns()">
+        <i class="fas fa-sync-alt"></i> Refresh Data
+    </button>
+    <button class="btn btn-warning" onclick="app.reports.debugDropdowns()">
+        <i class="fas fa-bug"></i> Debug
+    </button>
+</div>
     </div>
     
     <!-- Loading Overlay -->
@@ -2457,24 +2464,30 @@ if (typeof window !== 'undefined') {
         </div>
     </div>
 </div>   
-    <!-- JavaScript Modules -->
-    <!-- These should be: -->
+  <!-- JavaScript Modules - CORRECT ORDER -->
+<!-- 1. Database Layer (Load FIRST) -->
 <script src="modules/database.js"></script>
 <script src="modules/supabase-db.js"></script>
+
+<!-- 2. Core Framework -->
 <script src="modules/ui.js"></script>
 <script src="modules/modal-manager.js"></script>
+<script src="modules/settings.js"></script>
+
+<!-- 3. Data Modules -->
 <script src="modules/students.js"></script>
 <script src="modules/programs.js"></script>
 <script src="modules/courses.js"></script>
 <script src="modules/marks.js"></script>
 <script src="modules/centres.js"></script>
-<script src="modules/settings.js"></script>
+
+<!-- 4. Feature Modules -->
 <script src="modules/dashboard.js"></script>
 <script src="modules/reports.js"></script>
 <script src="modules/transcripts.js"></script>
 <script src="modules/profile.js"></script>
 
-<!-- This one should be from root: -->
+<!-- 5. Main Application (MUST BE LAST) -->
 <script src="app.js"></script>
 <script>
     // Clean showSection function - NO INLINE STYLES
