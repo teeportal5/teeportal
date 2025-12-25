@@ -850,25 +850,51 @@ class TEEPortalSupabaseDB {
         }
     }
     
-    async getCourses() {
-        try {
-            const supabase = await this.ensureConnected();
-            const { data, error } = await this.supabase
-                .from('courses')
-                .select('*')
-                .order('created_at', { ascending: false });
-                
-            if (error) {
-                console.error('❌ Error fetching courses:', error);
-                return [];
-            }
+   async getCourses() {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        // Get courses with enrollment counts
+        const { data: courses, error } = await this.supabase
+            .from('courses')
+            .select(`
+                *,
+                enrollments!inner(
+                    id,
+                    enrollment_status,
+                    is_active
+                )
+            `)
+            .eq('enrollments.enrollment_status', 'enrolled')
+            .eq('enrollments.is_active', true)
+            .order('created_at', { ascending: false });
             
-            return data || [];
-        } catch (error) {
-            console.error('❌ Error in getCourses:', error);
-            return [];
+        if (error) {
+            console.error('❌ Error fetching courses with enrollments:', error);
+            // Fallback to simple course fetch
+            return await this.getCoursesSimple();
         }
+        
+        // Process courses to add enrolled_count
+        return (courses || []).map(course => {
+            // Count unique enrollments for this course
+            const enrolledCount = course.enrollments?.length || 0;
+            
+            // Remove enrollments array to clean up response
+            const { enrollments, ...courseData } = course;
+            
+            return {
+                ...courseData,
+                enrolled_count: enrolledCount
+            };
+        });
+        
+    } catch (error) {
+        console.error('❌ Error in getCourses:', error);
+        return await this.getCoursesSimple();
     }
+}
+
     
     async getCentres() {
         try {
@@ -998,6 +1024,390 @@ async deleteCentre(centreId) {
     } catch (error) {
         console.error('❌ Error deleting centre:', error);
         throw error;
+    }
+}
+    // ========== ENROLLMENT METHODS ==========
+
+async getEnrollments(filterOptions = {}) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        let query = this.supabase
+            .from('enrollments')
+            .select(`
+                *,
+                students (*),
+                courses (*)
+            `)
+            .order('created_at', { ascending: false });
+        
+        // Apply filters
+        if (filterOptions.course_id) {
+            query = query.eq('course_id', filterOptions.course_id);
+        }
+        if (filterOptions.student_id) {
+            query = query.eq('student_id', filterOptions.student_id);
+        }
+        if (filterOptions.academic_year) {
+            query = query.eq('academic_year', filterOptions.academic_year);
+        }
+        if (filterOptions.enrollment_status) {
+            query = query.eq('enrollment_status', filterOptions.enrollment_status);
+        }
+        if (filterOptions.is_active !== undefined) {
+            query = query.eq('is_active', filterOptions.is_active);
+        }
+        
+        const { data, error } = await query;
+        
+        if (error) {
+            console.error('❌ Error fetching enrollments:', error);
+            return [];
+        }
+        
+        return data || [];
+        
+    } catch (error) {
+        console.error('❌ Error in getEnrollments:', error);
+        return [];
+    }
+}
+
+async getStudentsByCourse(courseId) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        const { data, error } = await this.supabase
+            .from('enrollments')
+            .select(`
+                id,
+                student_id,
+                academic_year,
+                semester,
+                enrollment_status,
+                students (
+                    id,
+                    full_name,
+                    reg_number,
+                    email,
+                    phone,
+                    centre_name,
+                    program,
+                    intake_year
+                )
+            `)
+            .eq('course_id', courseId)
+            .eq('enrollment_status', 'enrolled')
+            .eq('is_active', true);
+            
+        if (error) {
+            console.error('❌ Error getting students by course:', error);
+            return [];
+        }
+        
+        // Process the data
+        return (data || []).map(item => ({
+            enrollment_id: item.id,
+            academic_year: item.academic_year,
+            semester: item.semester,
+            ...item.students
+        }));
+        
+    } catch (error) {
+        console.error('❌ Error in getStudentsByCourse:', error);
+        return [];
+    }
+}
+
+async enrollStudent(enrollmentData) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        // Validate required fields
+        if (!enrollmentData.student_id || !enrollmentData.course_id || !enrollmentData.academic_year) {
+            throw new Error('Student ID, Course ID, and Academic Year are required');
+        }
+        
+        const enrollment = {
+            student_id: enrollmentData.student_id,
+            course_id: enrollmentData.course_id,
+            program_id: enrollmentData.program_id,
+            academic_year: parseInt(enrollmentData.academic_year),
+            semester: enrollmentData.semester || 'fall',
+            enrollment_status: enrollmentData.enrollment_status || 'enrolled',
+            enrollment_type: enrollmentData.enrollment_type || 'regular',
+            is_active: enrollmentData.is_active !== undefined ? enrollmentData.is_active : true
+        };
+        
+        const { data, error } = await this.supabase
+            .from('enrollments')
+            .insert([enrollment])
+            .select(`
+                *,
+                students (*),
+                courses (*)
+            `)
+            .single();
+            
+        if (error) {
+            console.error('❌ Database error enrolling student:', error);
+            throw new Error(`Failed to enroll student: ${error.message}`);
+        }
+        
+        console.log('✅ Student enrolled successfully:', data);
+        
+        // Log activity
+        await this.logActivity('enrollment', 
+            `Enrolled ${data.students?.full_name || 'student'} in ${data.courses?.course_code || 'course'}`);
+        
+        return data;
+        
+    } catch (error) {
+        console.error('❌ Error enrolling student:', error);
+        throw error;
+    }
+}
+
+async updateEnrollment(enrollmentId, updates) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        const updateObj = {
+            enrollment_status: updates.enrollment_status,
+            enrollment_type: updates.enrollment_type,
+            is_active: updates.is_active,
+            academic_year: updates.academic_year ? parseInt(updates.academic_year) : undefined,
+            semester: updates.semester,
+            updated_at: new Date().toISOString()
+        };
+        
+        // Remove undefined values
+        Object.keys(updateObj).forEach(key => {
+            if (updateObj[key] === undefined) {
+                delete updateObj[key];
+            }
+        });
+        
+        const { data, error } = await this.supabase
+            .from('enrollments')
+            .update(updateObj)
+            .eq('id', enrollmentId)
+            .select(`
+                *,
+                students (*),
+                courses (*)
+            `)
+            .single();
+            
+        if (error) {
+            console.error('❌ Database error updating enrollment:', error);
+            throw new Error(`Failed to update enrollment: ${error.message}`);
+        }
+        
+        console.log('✅ Enrollment updated successfully:', data);
+        
+        // Log activity
+        await this.logActivity('enrollment_update', 
+            `Updated enrollment for ${data.students?.full_name || 'student'} in ${data.courses?.course_code || 'course'}`);
+        
+        return data;
+        
+    } catch (error) {
+        console.error('❌ Error updating enrollment:', error);
+        throw error;
+    }
+}
+
+async deleteEnrollment(enrollmentId) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        // Get enrollment details before deletion for logging
+        const { data: enrollment, error: fetchError } = await this.supabase
+            .from('enrollments')
+            .select(`
+                *,
+                students (*),
+                courses (*)
+            `)
+            .eq('id', enrollmentId)
+            .single();
+            
+        if (fetchError) {
+            console.warn('⚠️ Could not fetch enrollment details:', fetchError);
+        }
+        
+        // Delete the enrollment
+        const { error } = await this.supabase
+            .from('enrollments')
+            .delete()
+            .eq('id', enrollmentId);
+            
+        if (error) {
+            console.error('❌ Database error deleting enrollment:', error);
+            throw new Error(`Failed to delete enrollment: ${error.message}`);
+        }
+        
+        console.log('✅ Enrollment deleted successfully');
+        
+        // Log activity
+        if (enrollment) {
+            await this.logActivity('enrollment_delete', 
+                `Removed ${enrollment.students?.full_name || 'student'} from ${enrollment.courses?.course_code || 'course'}`);
+        }
+        
+        return { success: true, message: 'Enrollment deleted' };
+        
+    } catch (error) {
+        console.error('❌ Error deleting enrollment:', error);
+        throw error;
+    }
+}
+
+async getCourseEnrollmentCount(courseId) {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        const { count, error } = await this.supabase
+            .from('enrollments')
+            .select('*', { count: 'exact', head: true })
+            .eq('course_id', courseId)
+            .eq('enrollment_status', 'enrolled')
+            .eq('is_active', true);
+            
+        if (error) {
+            console.error('❌ Error counting enrollments:', error);
+            return 0;
+        }
+        
+        return count || 0;
+        
+    } catch (error) {
+        console.error('❌ Error in getCourseEnrollmentCount:', error);
+        return 0;
+    }
+}
+
+// ========== UPDATED COURSE METHODS ==========
+
+
+async getCoursesSimple() {
+    try {
+        const supabase = await this.ensureConnected();
+        
+        const { data, error } = await this.supabase
+            .from('courses')
+            .select('*')
+            .order('created_at', { ascending: false });
+            
+        if (error) {
+            console.error('❌ Error fetching courses:', error);
+            return [];
+        }
+        
+        // Add default enrolled_count
+        return (data || []).map(course => ({
+            ...course,
+            enrolled_count: 0
+        }));
+        
+    } catch (error) {
+        console.error('❌ Error in getCoursesSimple:', error);
+        return [];
+    }
+}
+
+// ========== UTILITY METHODS ==========
+
+async backfillEnrollments() {
+    try {
+        console.log('🔄 Backfilling enrollments from existing data...');
+        
+        // Get all active students
+        const { data: students, error: studentsError } = await this.supabase
+            .from('students')
+            .select('id, program, intake_year, status')
+            .eq('status', 'active');
+            
+        if (studentsError) {
+            console.error('❌ Error fetching students for backfill:', studentsError);
+            return { success: false, message: 'Failed to fetch students' };
+        }
+        
+        if (!students || students.length === 0) {
+            console.log('📭 No active students found for backfill');
+            return { success: true, message: 'No students to enroll' };
+        }
+        
+        // Get all courses
+        const { data: courses, error: coursesError } = await this.supabase
+            .from('courses')
+            .select('id, program, credits');
+            
+        if (coursesError) {
+            console.error('❌ Error fetching courses for backfill:', coursesError);
+            return { success: false, message: 'Failed to fetch courses' };
+        }
+        
+        // Group courses by program
+        const coursesByProgram = {};
+        courses.forEach(course => {
+            if (!coursesByProgram[course.program]) {
+                coursesByProgram[course.program] = [];
+            }
+            coursesByProgram[course.program].push(course);
+        });
+        
+        // Create enrollments
+        const enrollments = [];
+        const currentYear = new Date().getFullYear();
+        
+        students.forEach(student => {
+            const programCourses = coursesByProgram[student.program] || [];
+            
+            programCourses.forEach(course => {
+                enrollments.push({
+                    student_id: student.id,
+                    course_id: course.id,
+                    program_id: student.program,
+                    academic_year: student.intake_year || currentYear,
+                    semester: 'fall',
+                    enrollment_status: 'enrolled',
+                    enrollment_type: 'regular',
+                    is_active: true
+                });
+            });
+        });
+        
+        console.log(`📝 Creating ${enrollments.length} enrollment records...`);
+        
+        // Insert in batches of 100
+        const batchSize = 100;
+        for (let i = 0; i < enrollments.length; i += batchSize) {
+            const batch = enrollments.slice(i, i + batchSize);
+            
+            const { error } = await this.supabase
+                .from('enrollments')
+                .insert(batch)
+                .select();
+                
+            if (error) {
+                console.error(`❌ Error inserting batch ${i/batchSize + 1}:`, error);
+                // Continue with next batch
+            } else {
+                console.log(`✅ Batch ${i/batchSize + 1} inserted successfully`);
+            }
+        }
+        
+        console.log(`🎉 Backfill completed: ${enrollments.length} enrollments created`);
+        return { 
+            success: true, 
+            message: `Created ${enrollments.length} enrollment records` 
+        };
+        
+    } catch (error) {
+        console.error('❌ Error in backfillEnrollments:', error);
+        return { success: false, message: error.message };
     }
 }
     // ========== UTILITY METHODS ==========
