@@ -90,9 +90,17 @@ class CourseManager {
         
         this.intakeYears.sort((a, b) => b - a);
     }
-    
-   populateDropdowns() {
+    populateDropdowns() {
     console.log('🔄 Starting populateDropdowns()...');
+    
+    // DEBUG: Check what data we have
+    console.log('DEBUG - this.programs:', this.programs);
+    console.log('DEBUG - Number of programs:', this.programs.length);
+    
+    if (!this.programs || this.programs.length === 0) {
+        console.error('❌ No programs data to populate!');
+        return;
+    }
     
     // Populate program dropdowns
     this.populateDropdown('courseProgram', this.programs, 'Select Program');
@@ -124,8 +132,7 @@ class CourseManager {
     
     console.log('✅ populateDropdowns() completed');
 }
-
-populateDropdown(elementId, items, defaultLabel) {
+  populateDropdown(elementId, items, defaultLabel) {
     const select = document.getElementById(elementId);
     if (!select) {
         console.error(`❌ Element ${elementId} not found!`);
@@ -152,22 +159,6 @@ populateDropdown(elementId, items, defaultLabel) {
     
     console.log(`✅ ${elementId} now has ${select.options.length} options`);
 }
-    
-    populateDropdown(elementId, items, defaultLabel) {
-        const select = document.getElementById(elementId);
-        if (!select) return;
-        
-        select.innerHTML = `<option value="">${defaultLabel}</option>`;
-        
-        items.forEach(item => {
-            const option = document.createElement('option');
-            option.value = item.value;
-            option.textContent = item.label;
-            option.dataset.level = item.level || ''; // Store level if available
-            select.appendChild(option);
-        });
-    }
-    
     registerGlobalFunctions() {
         // Course modal functions
         window.openCourseModal = () => this.openCourseModal();
