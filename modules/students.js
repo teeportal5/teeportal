@@ -726,77 +726,99 @@ class StudentManager {
                 console.log('🔍 First student object:', students[0]);
             }
             
-            // Render all rows with proper data mapping
-            const html = students.map(student => {
-                // Get program display name
-                const programDisplay = this._getProgramName(student.program);
-                
-                // Get centre display name
-                const centreDisplay = student.centre || this._getCentreName(student.centre_id) || 'Not assigned';
-                
-                const studentName = this._escapeHtml(student.full_name || '');
-                const email = this._escapeHtml(student.email || '');
-                const status = student.status || 'active';
-                const safeStudentId = this._escapeAttr(student.id);
-                const safeRegNumber = this._escapeAttr(student.reg_number);
-                
-                return `
-                    <tr data-student-id="${safeStudentId}" data-student-reg="${safeRegNumber}">
-                        <td><strong>${this._escapeHtml(student.reg_number)}</strong></td>
-                        <td>
-                            <div class="student-avatar">
-                                <div class="avatar-icon" style="background-color: ${this._getAvatarColor(student.full_name)}">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                                <div class="student-info">
-                                    <strong>${studentName}</strong><br>
-                                    <small>${email}</small>
-                                </div>
-                            </div>
-                        </td>
-                        <td>${this._escapeHtml(programDisplay)}</td>
-                        <td>${this._escapeHtml(centreDisplay)}</td>
-                        <td>${this._escapeHtml(student.county)}</td>
-                        <td>${this._escapeHtml(student.intake_year)}</td>
-                        <td>
-                            <span class="status-badge ${this._escapeAttr(status)}">
-                                ${this._escapeHtml(status.toUpperCase())}
-                            </span>
-                        </td>
-                        <td class="action-buttons">
-                            <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="btn-action edit-student" data-id="${safeStudentId}" title="Edit Student">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn-action enter-marks" data-id="${safeStudentId}" title="Enter Marks">
-                                <i class="fas fa-chart-bar"></i>
-                            </button>
-                            <button class="btn-action delete-student" data-id="${safeStudentId}" title="Delete Student">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-            
-            tbody.innerHTML = html;
-            
-            // Attach event listeners
-            this._attachStudentRowEventListeners();
-            
-            // Show bulk actions if we have students
-            this._toggleBulkActions(true);
-            
-            console.log(`✅ Loaded ${students.length} students`);
-            
-        } catch (error) {
-            console.error('Error loading students table:', error);
-            this._renderErrorState();
+           // Render all rows with proper data mapping
+const html = students.map(student => {
+    // Get program display name
+    const programDisplay = this._getProgramName(student.program);
+    
+    // Get centre display name - FIXED VERSION
+    let centreDisplay = 'Not assigned';
+    
+    // PRIORITY 1: Use centre_name (all 15 students have this field)
+    if (student.centre_name && student.centre_name.trim() !== '') {
+        centreDisplay = student.centre_name;
+        console.log(`📍 ${student.reg_number}: Using centre_name = "${student.centre_name}"`);
+    }
+    // PRIORITY 2: Use centre field (10 students have this)
+    else if (student.centre && student.centre.trim() !== '') {
+        centreDisplay = student.centre;
+        console.log(`📍 ${student.reg_number}: Using centre = "${student.centre}"`);
+    }
+    // PRIORITY 3: Look up by centre_id (5 students have this)
+    else if (student.centre_id) {
+        const lookedUpName = this._getCentreName(student.centre_id);
+        centreDisplay = lookedUpName;
+        console.log(`📍 ${student.reg_number}: Looked up centre_id ${student.centre_id} = "${lookedUpName}"`);
+    }
+    
+    // For DHNC-2025-004 specifically: Clean up if it shows UUID
+    if (centreDisplay.includes('b3dec280')) {
+        console.warn(`⚠️ ${student.reg_number}: Centre has UUID "${centreDisplay}"`);
+        // Try to find the actual centre name
+        const centre = this.centres.find(c => c.id.includes('b3dec280'));
+        if (centre) {
+            centreDisplay = centre.name;
+            console.log(`✅ Corrected to: "${centre.name}"`);
         }
     }
     
+    const studentName = this._escapeHtml(student.full_name || '');
+    const email = this._escapeHtml(student.email || '');
+    const status = student.status || 'active';
+    const safeStudentId = this._escapeAttr(student.id);
+    const safeRegNumber = this._escapeAttr(student.reg_number);
+    
+    return `
+        <tr data-student-id="${safeStudentId}" data-student-reg="${safeRegNumber}">
+            <td><strong>${this._escapeHtml(student.reg_number)}</strong></td>
+            <td>
+                <div class="student-avatar">
+                    <div class="avatar-icon" style="background-color: ${this._getAvatarColor(student.full_name)}">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="student-info">
+                        <strong>${studentName}</strong><br>
+                        <small>${email}</small>
+                    </div>
+                </div>
+            </td>
+            <td>${this._escapeHtml(programDisplay)}</td>
+            <td>${this._escapeHtml(centreDisplay)}</td>
+            <td>${this._escapeHtml(student.county)}</td>
+            <td>${this._escapeHtml(student.intake_year)}</td>
+            <td>
+                <span class="status-badge ${this._escapeAttr(status)}">
+                    ${this._escapeHtml(status.toUpperCase())}
+                </span>
+            </td>
+            <td class="action-buttons">
+                <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn-action edit-student" data-id="${safeStudentId}" title="Edit Student">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn-action enter-marks" data-id="${safeStudentId}" title="Enter Marks">
+                    <i class="fas fa-chart-bar"></i>
+                </button>
+                <button class="btn-action delete-student" data-id="${safeStudentId}" title="Delete Student">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `;
+}).join('');
+
+tbody.innerHTML = html;
+
+// Attach event listeners
+this._attachStudentRowEventListeners();
+
+// Show bulk actions if we have students
+this._toggleBulkActions(true);
+
+console.log(`✅ Loaded ${students.length} students`);
+            
     /**
      * Search students
      */
