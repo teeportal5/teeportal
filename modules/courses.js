@@ -14,30 +14,65 @@ class CourseManager {
         this.initializeData();
     }
     
-    async initializeData() {
-        try {
-            // Load programs - use code and name
-            this.programs = await this.db.getPrograms();
-            
-            // Load centres - use name for display
-            this.centres = await this.db.getStudyCenters();
-            
-            // Generate intake years
-            this.generateIntakeYears();
-            
-            // Populate dropdowns
-            this.populateDropdowns();
-            
-            console.log('✅ Data initialized:', {
-                programs: this.programs.length,
-                centres: this.centres.length,
-                intakeYears: this.intakeYears.length
+  async initializeData() {
+    try {
+        console.log('=== DEBUG AUTO-POPULATION START ===');
+        
+        // 1. Load programs
+        console.log('1. Loading programs...');
+        this.programs = await this.db.getPrograms();
+        console.log('Programs loaded:', this.programs);
+        console.log('Number of programs:', this.programs.length);
+        
+        // Check if programs have expected structure
+        if (this.programs.length > 0) {
+            console.log('First program structure:', {
+                id: this.programs[0].id,
+                code: this.programs[0].code,
+                name: this.programs[0].name,
+                level: this.programs[0].level
             });
-            
-        } catch (error) {
-            console.error('Error initializing data:', error);
         }
+        
+        // 2. Load centres
+        console.log('2. Loading centres...');
+        this.centres = await this.db.getStudyCenters();
+        console.log('Centres loaded:', this.centres);
+        console.log('Number of centres:', this.centres.length);
+        
+        // 3. Generate intake years
+        console.log('3. Generating intake years...');
+        this.generateIntakeYears();
+        console.log('Intake years:', this.intakeYears);
+        
+        // 4. Check if HTML elements exist BEFORE populating
+        console.log('4. Checking HTML elements...');
+        console.log('- courseProgram:', !!document.getElementById('courseProgram'));
+        console.log('- filterProgram:', !!document.getElementById('filterProgram'));
+        console.log('- courseLevel:', !!document.getElementById('courseLevel'));
+        console.log('- filterLevel:', !!document.getElementById('filterLevel'));
+        console.log('- courseStatus:', !!document.getElementById('courseStatus'));
+        console.log('- filterStatus:', !!document.getElementById('filterStatus'));
+        console.log('- courseCredits:', !!document.getElementById('courseCredits'));
+        
+        // 5. Populate dropdowns
+        console.log('5. Populating dropdowns...');
+        this.populateDropdowns();
+        
+        // 6. Verify after population
+        console.log('6. Verifying dropdowns after population...');
+        const courseProgram = document.getElementById('courseProgram');
+        if (courseProgram) {
+            console.log('courseProgram options:', courseProgram.options.length);
+            console.log('courseProgram options HTML:', courseProgram.innerHTML);
+        }
+        
+        console.log('=== DEBUG AUTO-POPULATION END ===');
+        
+    } catch (error) {
+        console.error('❌ Error initializing data:', error);
     }
+}
     
     generateIntakeYears() {
         const currentYear = new Date().getFullYear();
@@ -56,40 +91,67 @@ class CourseManager {
         this.intakeYears.sort((a, b) => b - a);
     }
     
-    populateDropdowns() {
-        // Populate program dropdowns - use name for display, code for value
-        const programOptions = this.programs.map(p => ({
-            value: p.code,
-            label: p.name,
-            level: p.level // Store level for later use
-        }));
-        this.populateDropdown('courseProgram', programOptions, 'Select Program');
-        this.populateDropdown('filterProgram', programOptions, 'All Programs');
-        
-        // Populate level dropdown - get unique levels from programs
-        const uniqueLevels = [...new Set(this.programs.map(p => p.level).filter(Boolean))];
-        const levelOptions = uniqueLevels.map(level => ({
-            value: level,
-            label: level.charAt(0).toUpperCase() + level.slice(1)
-        }));
-        this.populateDropdown('filterLevel', levelOptions, 'All Levels');
-        
-        // Populate centre dropdowns
-        const centreOptions = this.centres.map(c => ({
-            value: c.name, // Use name for value since we display names
-            label: c.name
-        }));
-        this.populateDropdown('enrollmentStudyCenter', centreOptions, 'All Centres');
-        
-        // Populate intake year dropdown
-        const yearOptions = this.intakeYears.map(year => ({
-            value: year,
-            label: year
-        }));
-        this.populateDropdown('enrollmentIntakeYear', yearOptions, 'All Years');
-        
-        console.log('✅ Dropdowns populated');
+   populateDropdowns() {
+    console.log('🔄 Starting populateDropdowns()...');
+    
+    // Populate program dropdowns
+    this.populateDropdown('courseProgram', this.programs, 'Select Program');
+    this.populateDropdown('filterProgram', this.programs, 'All Programs');
+    
+    // Get unique levels from programs
+    const uniqueLevels = [...new Set(this.programs.map(p => p.level).filter(Boolean))];
+    console.log('Unique levels from programs:', uniqueLevels);
+    
+    // If no levels from programs, use default levels
+    if (uniqueLevels.length === 0) {
+        uniqueLevels.push('basic', 'intermediate', 'advanced');
     }
+    
+    const levelOptions = uniqueLevels.map(level => ({
+        value: level,
+        label: level.charAt(0).toUpperCase() + level.slice(1)
+    }));
+    
+    // Populate level dropdowns
+    this.populateDropdown('filterLevel', levelOptions, 'All Levels');
+    
+    // Populate status dropdowns
+    const statusOptions = [
+        { value: 'active', label: 'Active' },
+        { value: 'inactive', label: 'Inactive' }
+    ];
+    this.populateDropdown('filterStatus', statusOptions, 'All Status');
+    
+    console.log('✅ populateDropdowns() completed');
+}
+
+populateDropdown(elementId, items, defaultLabel) {
+    const select = document.getElementById(elementId);
+    if (!select) {
+        console.error(`❌ Element ${elementId} not found!`);
+        return;
+    }
+    
+    console.log(`📝 Populating ${elementId} with ${items.length} items`);
+    
+    // Clear existing options (keep first if it's the default)
+    if (select.options.length > 0 && select.options[0].value === "") {
+        // Keep the default empty option
+        select.innerHTML = `<option value="">${defaultLabel}</option>`;
+    } else {
+        select.innerHTML = `<option value="">${defaultLabel}</option>`;
+    }
+    
+    // Add items
+    items.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.value || item.code || item.id || item;
+        option.textContent = item.label || item.name || item.program_name || item.code || item;
+        select.appendChild(option);
+    });
+    
+    console.log(`✅ ${elementId} now has ${select.options.length} options`);
+}
     
     populateDropdown(elementId, items, defaultLabel) {
         const select = document.getElementById(elementId);
@@ -1052,7 +1114,7 @@ class CourseManager {
     // ===== SEARCH AND FILTER =====
     
     searchCourses() {
-        const query = document.getElementById('searchCourses')?.value.toLowerCase() || '';
+       const query = document.getElementById('courseSearch')?.value.toLowerCase() || '';
         
         // Filter grid cards
         document.querySelectorAll('#coursesGrid .course-card').forEach(card => {
