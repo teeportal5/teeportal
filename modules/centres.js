@@ -107,8 +107,8 @@ class CentreManager {
         return [
             'Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret',
             'Kisii', 'Kakamega', 'Thika', 'Nyeri', 'Meru',
-            'Machakos', 'Kitui', 'Garissa', 'Wajir', 'Mandera',
-            'Lamu', 'Kilifi', 'Kwale', 'Tana River', 'Taita Taveta'
+            'Machakos', 'Kitui', 'Garissa', 'Mandera',
+            'Lamu', 'Kilifi', 'Kilifi','Kilifi','Kilifi','Kwale', 'Tana River', 'Taita Taveta'
         ].sort();
     }
     
@@ -285,7 +285,7 @@ class CentreManager {
                 'centreName': centre.name || '',
                 'centreCode': centre.code || '',
                 'centreCounty': centre.county || '',
-                'centreSubCounty': centre.sub_county || centre.subCounty || '',
+                'centreRegion': centre.sub_county || centre.Region || '',
                 'centreAddress': centre.address || '',
                 'centreContactPerson': centre.contact_person || centre.contactPerson || '',
                 'centrePhone': centre.phone || '',
@@ -336,7 +336,7 @@ class CentreManager {
                 name: document.getElementById('centreName')?.value.trim() || '',
                 code: document.getElementById('centreCode')?.value.trim() || '',
                 county: document.getElementById('centreCounty')?.value || '',
-                sub_county: document.getElementById('centreSubCounty')?.value.trim() || '',
+                sub_county: document.getElementById('centreRegion')?.value.trim() || '',
                 address: document.getElementById('centreAddress')?.value.trim() || '',
                 contact_person: document.getElementById('centreContactPerson')?.value.trim() || '',
                 phone: document.getElementById('centrePhone')?.value.trim() || '',
