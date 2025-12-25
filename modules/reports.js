@@ -1,4 +1,4 @@
-// modules/reports.js - COMPLETE FIXED VERSION
+// modules/reports.js - UPDATED TO MATCH HTML STRUCTURE
 class ReportsManager {
     constructor(db) {
         console.log('📊 ReportsManager constructor called');
@@ -16,7 +16,7 @@ class ReportsManager {
             semester: 'all',
             status: 'all',
             intake: 'all',
-            centers: ['all'],
+            centres: ['all'],
             counties: ['all'],
             dateFrom: null,
             dateTo: null
@@ -109,18 +109,17 @@ class ReportsManager {
             const programs = await this.getPrograms();
             const students = await this.getStudents();
             
-            // Populate Center filters
-            const centerSelects = [
+            // Populate Centre filters
+            const centreSelects = [
                 'filterCenter', 
                 'studentReportCenter', 
                 'academicReportCenter',
                 'transcriptCenterFilter',
                 'bulkExportCenters',
-                'scheduleCenter',
-                'centerCompareSelect'
+                'scheduleCenter'
             ];
             
-            centerSelects.forEach(selectId => {
+            centreSelects.forEach(selectId => {
                 const select = document.getElementById(selectId);
                 if (select) {
                     // Clear existing options
@@ -130,6 +129,9 @@ class ReportsManager {
                     const allOption = document.createElement('option');
                     allOption.value = 'all';
                     allOption.textContent = 'All Centres';
+                    if (select.multiple) {
+                        allOption.selected = true;
+                    }
                     select.appendChild(allOption);
                     
                     // Add centre options from database
@@ -413,15 +415,7 @@ class ReportsManager {
                     action: 'generateCentreReport'
                 },
                 {
-                    id: 'geographical',
-                    title: 'Geographical Report',
-                    icon: 'fas fa-map-marker-alt',
-                    description: 'Student distribution by county/region',
-                    color: '#e74c3c',
-                    action: 'geographicalReport'
-                },
-                {
-                    id: 'summary',
+                    id: 'executive-summary',
                     title: 'Executive Summary',
                     icon: 'fas fa-chart-pie',
                     description: 'Key statistics and overview',
@@ -437,14 +431,6 @@ class ReportsManager {
                     action: 'openTranscriptSection'
                 },
                 {
-                    id: 'center-comparison',
-                    title: 'Centre Comparison',
-                    icon: 'fas fa-balance-scale',
-                    description: 'Compare performance across centres',
-                    color: '#34495e',
-                    action: 'generateCenterComparison'
-                },
-                {
                     id: 'scheduled',
                     title: 'Scheduled Reports',
                     icon: 'fas fa-calendar-alt',
@@ -458,35 +444,37 @@ class ReportsManager {
             
             reports.forEach(report => {
                 html += `
-                    <div class="report-card" onclick="app.reports.${report.action}()" 
-                         style="border: 1px solid #e0e0e0; border-radius: 10px; padding: 20px; 
-                                margin-bottom: 20px; background: white; cursor: pointer;
-                                transition: transform 0.2s, box-shadow 0.2s;"
-                         onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 5px 15px rgba(0,0,0,0.1)'"
-                         onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
-                        <div style="display: flex; align-items: center; margin-bottom: 15px;">
-                            <div style="width: 50px; height: 50px; border-radius: 10px; 
-                                        background: ${report.color}; display: flex; 
-                                        align-items: center; justify-content: center; 
-                                        margin-right: 15px;">
-                                <i class="${report.icon}" style="font-size: 24px; color: white;"></i>
+                    <div class="col-md-4 mb-3">
+                        <div class="report-card" onclick="app.reports.${report.action}()" 
+                             style="border: 1px solid #e0e0e0; border-radius: 10px; padding: 20px; 
+                                    background: white; cursor: pointer; height: 100%;
+                                    transition: transform 0.2s, box-shadow 0.2s;"
+                             onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 5px 15px rgba(0,0,0,0.1)'"
+                             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                            <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                                <div style="width: 50px; height: 50px; border-radius: 10px; 
+                                            background: ${report.color}; display: flex; 
+                                            align-items: center; justify-content: center; 
+                                            margin-right: 15px;">
+                                    <i class="${report.icon}" style="font-size: 24px; color: white;"></i>
+                                </div>
+                                <div>
+                                    <h4 style="margin: 0 0 5px 0; color: #2c3e50; font-size: 1.1rem;">${report.title}</h4>
+                                    <p style="margin: 0; color: #7f8c8d; font-size: 0.9rem;">
+                                        ${report.description}
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <h4 style="margin: 0 0 5px 0; color: #2c3e50;">${report.title}</h4>
-                                <p style="margin: 0; color: #7f8c8d; font-size: 0.9rem;">
-                                    ${report.description}
-                                </p>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+                                <span style="font-size: 0.8rem; color: #95a5a6;">
+                                    <i class="fas fa-clock"></i> Click to generate
+                                </span>
+                                <button class="btn btn-sm" 
+                                        style="background: ${report.color}; color: white; border: none;
+                                               padding: 5px 15px; border-radius: 4px; font-size: 0.85rem;">
+                                    Generate <i class="fas fa-arrow-right ml-1"></i>
+                                </button>
                             </div>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 0.8rem; color: #95a5a6;">
-                                <i class="fas fa-clock"></i> Click to generate
-                            </span>
-                            <button class="btn btn-sm" 
-                                    style="background: ${report.color}; color: white; border: none;
-                                           padding: 5px 15px; border-radius: 4px; font-size: 0.85rem;">
-                                Generate <i class="fas fa-arrow-right ml-1"></i>
-                            </button>
                         </div>
                     </div>
                 `;
@@ -537,10 +525,10 @@ class ReportsManager {
             refreshBtn.onclick = () => this.refreshReports();
         }
         
-        // Transcript Center Filter
-        const transcriptCenterFilter = document.getElementById('transcriptCenterFilter');
-        if (transcriptCenterFilter) {
-            transcriptCenterFilter.onchange = () => this.filterTranscriptStudentsByCenter();
+        // Transcript Centre Filter
+        const transcriptCentreFilter = document.getElementById('transcriptCenterFilter');
+        if (transcriptCentreFilter) {
+            transcriptCentreFilter.onchange = () => this.filterTranscriptStudentsByCenter();
         }
         
         // Update all onclick handlers
@@ -552,7 +540,6 @@ class ReportsManager {
             'app.reports.studentReport()': () => this.studentReport(),
             'app.reports.academicReport()': () => this.academicReport(),
             'app.reports.generateCentreReport()': () => this.generateCentreReport(),
-            'app.reports.geographicalReport()': () => this.geographicalReport(),
             'app.reports.generateSummaryReport()': () => this.generateSummaryReport(),
             'app.reports.previewStudentReport()': () => this.previewStudentReport(),
             'app.reports.previewAcademicReport()': () => this.previewAcademicReport(),
@@ -563,7 +550,6 @@ class ReportsManager {
             'app.reports.bulkExport()': () => this.bulkExport(),
             'app.reports.loadSampleTranscript()': () => this.loadSampleTranscript(),
             'app.reports.clearPreview()': () => this.clearPreview(),
-            'app.reports.generateCenterComparison()': () => this.generateCenterComparison(),
             'app.reports.addScheduledReport()': () => this.addScheduledReport(),
             'app.reports.saveFilterPreset()': () => this.saveFilterPreset(),
             'app.reports.downloadPreview()': () => this.downloadPreview(),
@@ -587,12 +573,12 @@ class ReportsManager {
     
     async filterTranscriptStudentsByCenter() {
         try {
-            const centerFilter = document.getElementById('transcriptCenterFilter');
+            const centreFilter = document.getElementById('transcriptCenterFilter');
             const studentSelect = document.getElementById('transcriptStudent');
             
-            if (!centerFilter || !studentSelect) return;
+            if (!centreFilter || !studentSelect) return;
             
-            const selectedCenter = centerFilter.value;
+            const selectedCentre = centreFilter.value;
             const students = await this.getStudents();
             
             // Clear existing options
@@ -607,11 +593,11 @@ class ReportsManager {
             studentSelect.appendChild(placeholderOption);
             
             // Filter students by centre
-            const filteredStudents = selectedCenter === 'all' 
+            const filteredStudents = selectedCentre === 'all' 
                 ? students 
                 : students.filter(student => 
-                    (student.centre_name === selectedCenter) || 
-                    (student.centre === selectedCenter)
+                    (student.centre_name === selectedCentre) || 
+                    (student.centre === selectedCentre)
                 );
             
             // Add filtered students
@@ -627,14 +613,14 @@ class ReportsManager {
                 studentSelect.appendChild(option);
             });
             
-            console.log(`Filtered ${filteredStudents.length} students for centre: ${selectedCenter}`);
+            console.log(`Filtered ${filteredStudents.length} students for centre: ${selectedCentre}`);
             
         } catch (error) {
             console.error('Error filtering transcript students by centre:', error);
         }
     }
     
-    // ==================== TRANSCRIPT METHODS (IMPROVED) ====================
+    // ==================== TRANSCRIPT METHODS ====================
     
     async generateTranscriptData(studentId) {
         try {
@@ -1036,46 +1022,6 @@ class ReportsManager {
         }
     }
     
-    async geographicalReport() {
-        console.log('🗺️ Generating geographical report...');
-        try {
-            this.showToast('Generating geographical report...', 'info');
-            const data = await this.generateGeographicalReportData();
-            this.previewReportData(data, 'Geographical Distribution Report');
-            return data;
-        } catch (error) {
-            console.error('Error in geographicalReport:', error);
-            this.showToast('Error generating geographical report', 'error');
-            throw error;
-        }
-    }
-    
-    async generateGeographicalReportData() {
-        try {
-            const students = await this.getStudents();
-            const counties = await this.getCounties();
-            
-            const countyData = counties.map(county => {
-                const countyName = county.name || county;
-                const countyStudents = students.filter(s => s.county === countyName);
-                const centres = [...new Set(countyStudents.map(s => s.centre_name || s.centre).filter(Boolean))];
-                
-                return {
-                    'County': countyName,
-                    'Students': countyStudents.length,
-                    'Centres': centres.length,
-                    'Programs': [...new Set(countyStudents.map(s => s.program).filter(Boolean))].length,
-                    'Active Students': countyStudents.filter(s => s.status === 'active').length
-                };
-            }).filter(data => data.Students > 0);
-            
-            return countyData;
-        } catch (error) {
-            console.error('Error generating geographical report data:', error);
-            throw error;
-        }
-    }
-    
     async generateSummaryReport() {
         console.log('📋 Generating summary report...');
         try {
@@ -1126,10 +1072,10 @@ class ReportsManager {
             const students = await this.getStudents();
             let filteredStudents = this.applyStudentFilters(students);
             
-            const centerFilter = this.getSelectedValues('studentReportCenter');
-            if (centerFilter.length > 0 && !centerFilter.includes('all')) {
+            const centreFilter = this.getSelectedValues('studentReportCenter');
+            if (centreFilter.length > 0 && !centreFilter.includes('all')) {
                 filteredStudents = filteredStudents.filter(student => 
-                    centerFilter.includes(student.centre_name || student.centre)
+                    centreFilter.includes(student.centre_name || student.centre)
                 );
             }
             
@@ -1235,7 +1181,7 @@ class ReportsManager {
                 semester: this.getSafeElementValue('semester', 'all'),
                 status: 'all',
                 intake: this.getSafeElementValue('filterIntake', 'all'),
-                centers: this.getSelectedValues('filterCenter'),
+                centres: this.getSelectedValues('filterCenter'),
                 counties: this.getSelectedValues('filterCounty'),
                 dateFrom: document.getElementById('reportStartDate')?.value || null,
                 dateTo: document.getElementById('reportEndDate')?.value || null
@@ -1282,7 +1228,7 @@ class ReportsManager {
                 semester: 'all',
                 status: 'all',
                 intake: 'all',
-                centers: ['all'],
+                centres: ['all'],
                 counties: ['all'],
                 dateFrom: null,
                 dateTo: null
@@ -1328,9 +1274,9 @@ class ReportsManager {
             filtered = filtered.filter(s => programs.includes(s.program));
         }
         
-        const centers = this.currentFilters.centers;
-        if (centers.length > 0 && !centers.includes('all')) {
-            filtered = filtered.filter(s => centers.includes(s.centre_name || s.centre));
+        const centres = this.currentFilters.centres;
+        if (centres.length > 0 && !centres.includes('all')) {
+            filtered = filtered.filter(s => centres.includes(s.centre_name || s.centre));
         }
         
         const counties = this.currentFilters.counties;
@@ -1619,10 +1565,6 @@ class ReportsManager {
         }
         
         this.showToast('Preview cleared', 'info');
-    }
-    
-    generateCenterComparison() {
-        this.showToast('Center comparison feature', 'info');
     }
     
     addScheduledReport() {
