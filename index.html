@@ -1411,19 +1411,23 @@
         </div>
         
         <div class="d-flex gap-2 justify-content-end mb-4">
-            <button class="btn btn-outline-primary" onclick="app.reports.loadSampleTranscript()">
-                <i class="fas fa-file-alt"></i> Load Sample
-            </button>
-            <button class="btn btn-primary" onclick="app.reports.previewTranscript()">
-                <i class="fas fa-eye"></i> Preview Transcript
-            </button>
-            <button class="btn btn-success" onclick="app.reports.generateTranscript()">
-                <i class="fas fa-file-pdf"></i> Generate PDF
-            </button>
-            <button class="btn btn-warning" onclick="app.reports.bulkTranscripts()">
-                <i class="fas fa-copy"></i> Bulk Generate
-            </button>
-        </div>
+    <button class="btn btn-outline-primary" 
+            onclick="if (app?.transcripts?.loadSampleTranscript) app.transcripts.loadSampleTranscript(); else alert('Transcripts module loading...')">
+        <i class="fas fa-file-alt"></i> Load Sample
+    </button>
+    <button class="btn btn-primary" 
+            onclick="if (app?.transcripts?.previewTranscript) app.transcripts.previewTranscript(); else alert('Please select a student first')">
+        <i class="fas fa-eye"></i> Preview Transcript
+    </button>
+    <button class="btn btn-success" 
+            onclick="if (app?.transcripts?.generateTranscriptFromUI) app.transcripts.generateTranscriptFromUI(); else if (app?.transcripts?.generateTranscript) app.transcripts.generateTranscript(); else alert('Select a student and format first')">
+        <i class="fas fa-file-pdf"></i> Generate PDF
+    </button>
+    <button class="btn btn-warning" 
+            onclick="if (app?.transcripts?.generateStudentTranscriptPrompt) app.transcripts.generateStudentTranscriptPrompt(); else alert('Bulk transcripts feature loading...')">
+        <i class="fas fa-copy"></i> Bulk Generate
+    </button>
+</div>
         
         <!-- TRANSCRIPT PREVIEW AREA -->
         <div id="transcriptPreview" class="mt-4" style="display: none;">
