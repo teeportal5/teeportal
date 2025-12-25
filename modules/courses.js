@@ -1,31 +1,24 @@
-// modules/courses.js - Course management module with grading features
+// modules/courses.js - UPDATED TO MATCH YOUR HTML
 class CourseManager {
     constructor(db, app) {
         this.db = db;
         this.app = app;
         this.currentCourse = null;
         this.selectedStudents = new Set();
-        this.currentView = 'grid'; // 'grid' or 'table'
+        this.currentView = 'grid';
         
-        // Initialize
-        this.init();
-    }
-    
-    async init() {
-        // Register global functions
+        // Initialize global functions for HTML onclick handlers
         this.registerGlobalFunctions();
-        
-        // Load initial data
-        await this.loadCourses();
-        await this.populateFilters();
-        await this.updateStatistics();
     }
     
-    // Register global functions for HTML onclick handlers
+    // Register all global functions that your HTML calls
     registerGlobalFunctions() {
+        // Course modal functions
         window.openCourseModal = () => this.openCourseModal();
         window.saveCourse = (e) => this.saveCourse(e);
         window.closeCourseModal = () => this.closeCourseModal();
+        
+        // Bulk grade modal functions
         window.openBulkGradeModal = () => this.openBulkGradeModal();
         window.closeBulkGradeModal = () => this.closeBulkGradeModal();
         window.loadStudentsForBulkGrading = () => this.loadStudentsForBulkGrading();
@@ -34,17 +27,33 @@ class CourseManager {
         window.deselectAllStudents = () => this.deselectAllStudents();
         window.submitBulkGrades = () => this.submitBulkGrades();
         window.toggleAllStudents = (checked) => {
-            if (checked) this.selectAllStudents();
-            else this.deselectAllStudents();
+            const checkboxes = document.querySelectorAll('.student-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = checked;
+                const studentId = cb.dataset.studentId;
+                if (checked) {
+                    this.selectedStudents.add(studentId);
+                } else {
+                    this.selectedStudents.delete(studentId);
+                }
+            });
+            this.updateSelectedCount();
         };
+        
+        // View toggle function
         window.setCoursesView = (view) => this.setCoursesView(view);
         
-        // Add app.courses methods for inline calls
+        // Initialize app.courses object for inline calls
         window.app = window.app || {};
-        window.app.courses = window.app.courses || {};
+        window.app.courses = window.app.courses || this;
+        
+        // Methods for inline onclick handlers
         window.app.courses.exportCourses = () => this.exportCourses();
         window.app.courses.searchCourses = (query) => this.searchCourses(query);
         window.app.courses.filterCourses = () => this.filterCourses();
+        window.app.courses.openBulkGradeForCourse = (courseId) => this.openBulkGradeForCourse(courseId);
+        window.app.courses.editCourse = (courseId) => this.editCourse(courseId);
+        window.app.courses.deleteCoursePrompt = (courseId, courseCode) => this.deleteCoursePrompt(courseId, courseCode);
     }
     
     // ===== COURSE MANAGEMENT =====
@@ -57,10 +66,10 @@ class CourseManager {
                 code: document.getElementById('courseCode').value.trim(),
                 name: document.getElementById('courseName').value.trim(),
                 program: document.getElementById('courseProgram').value,
-                credits: parseInt(document.getElementById('courseCredits').value),
                 level: document.getElementById('courseLevel').value,
+                credits: parseInt(document.getElementById('courseCredits').value),
                 description: document.getElementById('courseDescription').value.trim(),
-                status: document.getElementById('courseStatus').value || 'active'
+                status: document.getElementById('courseStatus').value
             };
             
             // Validation
@@ -94,13 +103,14 @@ class CourseManager {
                 course = await this.db.updateCourse(isEditMode, courseData);
                 this.showToast(`✅ Course "${course.course_code} - ${course.course_name}" updated successfully`, 'success');
                 delete form.dataset.editId;
+                
+                // Update modal title and button
+                document.getElementById('courseModalTitle').textContent = 'Add New Course';
                 const submitBtn = form.querySelector('button[type="submit"]');
                 if (submitBtn) {
                     submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Course';
-                    submitBtn.classList.remove('btn-update');
-                    submitBtn.classList.add('btn-primary');
+                    submitBtn.className = 'btn btn-primary';
                 }
-                document.getElementById('courseModalTitle').textContent = 'Add New Course';
             } else {
                 course = await this.db.addCourse(courseData);
                 this.showToast(`✅ Course "${course.course_code} - ${course.course_name}" added successfully`, 'success');
@@ -108,27 +118,36 @@ class CourseManager {
             
             this.closeCourseModal();
             form.reset();
+            document.getElementById('courseCredits').value = 3;
+            document.getElementById('courseStatus').value = 'active';
             
             await this.loadCourses();
             await this.updateStatistics();
-            await this.populateBulkGradeFilters();
             
         } catch (error) {
             console.error('Error saving course:', error);
             this.showToast(`❌ ${error.message}`, 'error');
         }
     }
-
+    
     async loadCourses() {
         try {
             const courses = await this.db.getCourses();
             
-            // Update both grid and table views
+            // Update UI
             this.updateCoursesGrid(courses);
             this.updateCoursesTable(courses);
-            
-            // Update bulk grade course dropdown
             this.updateBulkGradeCourseDropdown(courses);
+            
+            // Update statistics
+            await this.updateStatistics();
+            
+            // Show/hide bulk grade button
+            const bulkGradeBtn = document.getElementById('bulkGradeBtn');
+            if (bulkGradeBtn) {
+                const hasEnrolledStudents = courses.some(c => (c.enrolled_count || 0) > 0);
+                bulkGradeBtn.style.display = hasEnrolledStudents ? 'inline-block' : 'none';
+            }
             
         } catch (error) {
             console.error('Error loading courses:', error);
@@ -151,9 +170,6 @@ class CourseManager {
                     </button>
                 </div>
             `;
-            // Hide table container if no courses
-            const tableContainer = document.getElementById('coursesTableContainer');
-            if (tableContainer) tableContainer.style.display = 'none';
             return;
         }
         
@@ -217,12 +233,6 @@ class CourseManager {
         });
         
         grid.innerHTML = html;
-        
-        // Update bulk grade button visibility
-        const bulkGradeBtn = document.getElementById('bulkGradeBtn');
-        if (bulkGradeBtn) {
-            bulkGradeBtn.style.display = courses.some(c => (c.enrolled_count || 0) > 0) ? 'inline-block' : 'none';
-        }
     }
     
     updateCoursesTable(courses) {
@@ -284,25 +294,6 @@ class CourseManager {
         tbody.innerHTML = html;
     }
     
-    updateBulkGradeCourseDropdown(courses) {
-        const select = document.getElementById('bulkGradeCourse');
-        if (!select) return;
-        
-        select.innerHTML = '<option value="">Select Course</option>';
-        
-        if (courses && courses.length > 0) {
-            courses.forEach(course => {
-                if (course.status === 'active') {
-                    select.innerHTML += `
-                        <option value="${course.id}">
-                            ${course.course_code} - ${course.course_name}
-                        </option>
-                    `;
-                }
-            });
-        }
-    }
-    
     async editCourse(courseId) {
         try {
             let course;
@@ -319,9 +310,9 @@ class CourseManager {
             }
             
             // Populate form fields
-            document.getElementById('courseCode').value = course.course_code;
-            document.getElementById('courseName').value = course.course_name;
-            document.getElementById('courseProgram').value = course.program;
+            document.getElementById('courseCode').value = course.course_code || '';
+            document.getElementById('courseName').value = course.course_name || '';
+            document.getElementById('courseProgram').value = course.program || '';
             document.getElementById('courseLevel').value = course.level || 'basic';
             document.getElementById('courseCredits').value = course.credits || 3;
             document.getElementById('courseDescription').value = course.description || '';
@@ -389,36 +380,20 @@ class CourseManager {
         }
     }
     
-    // ===== FILTERS AND SEARCH =====
-    
-    async populateFilters() {
-        // Populate program filter
-        const programFilter = document.getElementById('filterProgram');
-        if (programFilter) {
-            try {
-                const programs = await this.db.getPrograms();
-                programs.forEach(program => {
-                    programFilter.innerHTML += `<option value="${program.id}">${program.name}</option>`;
-                });
-            } catch (error) {
-                console.error('Error loading programs for filter:', error);
-            }
-        }
-    }
+    // ===== SEARCH AND FILTER =====
     
     searchCourses(query) {
-        const cards = document.querySelectorAll('#coursesGrid .card');
-        const rows = document.querySelectorAll('#coursesTableBody tr');
-        
         const searchTerm = query.toLowerCase();
         
-        // Filter grid view
+        // Filter grid cards
+        const cards = document.querySelectorAll('#coursesGrid .card');
         cards.forEach(card => {
             const text = card.textContent.toLowerCase();
             card.style.display = text.includes(searchTerm) ? '' : 'none';
         });
         
-        // Filter table view
+        // Filter table rows
+        const rows = document.querySelectorAll('#coursesTableBody tr');
         rows.forEach(row => {
             const text = row.textContent.toLowerCase();
             row.style.display = text.includes(searchTerm) ? '' : 'none';
@@ -430,9 +405,8 @@ class CourseManager {
         const level = document.getElementById('filterLevel').value;
         const status = document.getElementById('filterStatus').value;
         
+        // Filter grid cards
         const cards = document.querySelectorAll('#coursesGrid .card');
-        const rows = document.querySelectorAll('#coursesTableBody tr');
-        
         cards.forEach(card => {
             const cardProgram = card.querySelector('.card-meta span:nth-child(1)')?.textContent || '';
             const cardLevel = card.querySelector('.card-meta span:nth-child(2)')?.textContent || '';
@@ -445,6 +419,8 @@ class CourseManager {
             card.style.display = matchesProgram && matchesLevel && matchesStatus ? '' : 'none';
         });
         
+        // Filter table rows
+        const rows = document.querySelectorAll('#coursesTableBody tr');
         rows.forEach(row => {
             const cells = row.querySelectorAll('td');
             if (cells.length < 6) return;
@@ -452,72 +428,11 @@ class CourseManager {
             const rowProgram = cells[2].textContent.trim();
             const rowStatus = cells[5].querySelector('.badge')?.textContent.trim() || '';
             
-            // Note: Level is not in table view, so we can't filter by it
             const matchesProgram = !program || rowProgram === program;
             const matchesStatus = !status || rowStatus.toLowerCase().includes(status.toLowerCase());
             
             row.style.display = matchesProgram && matchesStatus ? '' : 'none';
         });
-    }
-    
-    // ===== STATISTICS =====
-    
-    async updateStatistics() {
-        try {
-            const courses = await this.db.getCourses();
-            
-            const totalCourses = courses.length;
-            const activeCourses = courses.filter(c => c.status === 'active').length;
-            const totalStudents = courses.reduce((sum, course) => sum + (course.enrolled_count || 0), 0);
-            const coursesToGrade = courses.filter(c => (c.enrolled_count || 0) > 0).length;
-            
-            document.getElementById('totalCourses').textContent = totalCourses;
-            document.getElementById('activeCourses').textContent = activeCourses;
-            document.getElementById('totalStudentsEnrolled').textContent = totalStudents;
-            document.getElementById('coursesToGrade').textContent = coursesToGrade;
-            
-        } catch (error) {
-            console.error('Error updating statistics:', error);
-        }
-    }
-    
-    // ===== MODAL FUNCTIONS =====
-    
-    openCourseModal() {
-        const modal = document.getElementById('courseModal');
-        if (modal) {
-            modal.style.display = 'block';
-            modal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
-    }
-    
-    closeCourseModal() {
-        const modal = document.getElementById('courseModal');
-        if (modal) {
-            modal.style.display = 'none';
-            modal.classList.remove('active');
-            document.body.style.overflow = 'auto';
-        }
-        const form = document.getElementById('courseForm');
-        if (form) {
-            form.reset();
-            delete form.dataset.editId;
-        }
-        document.getElementById('courseModalTitle').textContent = 'Add New Course';
-    }
-    
-    // ===== EXPORT =====
-    
-    async exportCourses() {
-        try {
-            const courses = await this.db.getCourses();
-            console.log('Courses data for export:', courses);
-            this.showToast('Export feature coming soon!', 'info');
-        } catch (error) {
-            console.error('Error exporting courses:', error);
-            this.showToast('Error exporting courses', 'error');
-        }
     }
     
     // ===== BULK GRADING =====
@@ -569,20 +484,29 @@ class CourseManager {
         this.openBulkGradeModal();
     }
     
-    async loadStudentsForBulkGrading() {
-        const courseId = document.getElementById('bulkGradeCourse')?.value;
-        if (!courseId) return;
-        
-        this.currentCourse = courseId;
+    closeBulkGradeModal() {
+        const modal = document.getElementById('bulkGradeModal');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+        this.selectedStudents.clear();
+        this.currentCourse = null;
+    }
+    
+    async loadStudentsForBulkGrading(courseId = null) {
+        const courseIdToUse = courseId || document.getElementById('bulkGradeCourse')?.value;
+        if (!courseIdToUse) return;
         
         try {
             // Get course details
             let course;
             if (this.db.getCourse && typeof this.db.getCourse === 'function') {
-                course = await this.db.getCourse(courseId);
+                course = await this.db.getCourse(courseIdToUse);
             } else {
                 const courses = await this.db.getCourses();
-                course = courses.find(c => c.id === courseId);
+                course = courses.find(c => c.id === courseIdToUse);
             }
             
             if (!course) {
@@ -593,11 +517,11 @@ class CourseManager {
             // Get students for this course
             let students = [];
             if (this.db.getStudentsByCourse && typeof this.db.getStudentsByCourse === 'function') {
-                students = await this.db.getStudentsByCourse(courseId);
+                students = await this.db.getStudentsByCourse(courseIdToUse);
             } else {
-                // Fallback: get all students (for demo)
+                // Fallback: get all students
                 const allStudents = await this.db.getStudents();
-                students = allStudents.slice(0, 8); // Limit for demo
+                students = allStudents.slice(0, 10);
             }
             
             this.renderBulkGradeStudents(students, course);
@@ -668,8 +592,8 @@ class CourseManager {
                             <input type="number" class="form-control student-score" 
                                    data-student-id="${studentId}"
                                    placeholder="Score" min="0" max="100" step="0.01"
-                                   value="${existingScore !== '-' ? existingScore : ''}"
-                                   onchange="app.courses.updateStudentScore('${studentId}', this.value)">
+                                   value="${existingScore !== '-' ? existingScore : ''}">
+                            <span class="input-group-text">/ 100</span>
                         </div>
                     </td>
                 </tr>
@@ -678,37 +602,23 @@ class CourseManager {
         
         tbody.innerHTML = html;
         this.updateSelectedCount();
-    }
-    
-    toggleStudentSelection(checkbox) {
-        const studentId = checkbox.dataset.studentId;
-        if (checkbox.checked) {
-            this.selectedStudents.add(studentId);
-        } else {
-            this.selectedStudents.delete(studentId);
-        }
-        this.updateSelectedCount();
-    }
-    
-    updateStudentScore(studentId, score) {
-        // Store score for this student
-        // You might want to store this in a separate data structure
-        console.log(`Score updated for student ${studentId}: ${score}`);
-    }
-    
-    updateSelectedCount() {
-        const countElement = document.getElementById('selectedCount');
-        if (countElement) {
-            countElement.textContent = `${this.selectedStudents.size} students selected`;
-        }
         
-        // Update select all checkbox
-        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-        if (selectAllCheckbox) {
-            const checkboxes = document.querySelectorAll('.student-checkbox');
-            const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
-            selectAllCheckbox.checked = allChecked;
-        }
+        // Add global toggleStudentSelection function
+        window.toggleStudentSelection = (checkbox) => {
+            const studentId = checkbox.dataset.studentId;
+            if (checkbox.checked) {
+                this.selectedStudents.add(studentId);
+            } else {
+                this.selectedStudents.delete(studentId);
+            }
+            this.updateSelectedCount();
+        };
+    }
+    
+    filterStudentsForGrading() {
+        // This would filter the students list based on the filter selections
+        // For now, just reload all students
+        this.loadStudentsForBulkGrading();
     }
     
     selectAllStudents() {
@@ -731,62 +641,11 @@ class CourseManager {
         this.updateSelectedCount();
     }
     
-    async populateBulkGradeFilters() {
-        // Populate intake years
-        const intakeSelect = document.getElementById('bulkGradeIntake');
-        if (intakeSelect) {
-            const currentYear = new Date().getFullYear();
-            intakeSelect.innerHTML = '<option value="">All Intakes</option>';
-            for (let year = currentYear - 5; year <= currentYear + 1; year++) {
-                intakeSelect.innerHTML += `<option value="${year}">${year}</option>`;
-            }
+    updateSelectedCount() {
+        const countElement = document.getElementById('selectedCount');
+        if (countElement) {
+            countElement.textContent = `${this.selectedStudents.size} students selected`;
         }
-        
-        // Populate centres
-        const centreSelect = document.getElementById('bulkGradeCentre');
-        if (centreSelect) {
-            try {
-                const centres = await this.db.getCentres();
-                centreSelect.innerHTML = '<option value="">All Centres</option>';
-                centres.forEach(centre => {
-                    centreSelect.innerHTML += `<option value="${centre.id || centre.name}">${centre.name}</option>`;
-                });
-            } catch (error) {
-                console.error('Error loading centres:', error);
-                centreSelect.innerHTML = `
-                    <option value="">All Centres</option>
-                    <option value="main">Main Campus</option>
-                    <option value="branch1">Branch 1</option>
-                    <option value="branch2">Branch 2</option>
-                `;
-            }
-        }
-        
-        // Populate programs
-        const programSelect = document.getElementById('bulkGradeProgram');
-        if (programSelect) {
-            try {
-                const programs = await this.db.getPrograms();
-                programSelect.innerHTML = '<option value="">All Programs</option>';
-                programs.forEach(program => {
-                    programSelect.innerHTML += `<option value="${program.id}">${program.name}</option>`;
-                });
-            } catch (error) {
-                console.error('Error loading programs:', error);
-                programSelect.innerHTML = `
-                    <option value="">All Programs</option>
-                    <option value="basic">Basic TEE</option>
-                    <option value="hnc">HNC</option>
-                    <option value="advanced">Advanced TEE</option>
-                `;
-            }
-        }
-    }
-    
-    filterStudentsForGrading() {
-        // This would filter the students list based on the filter selections
-        // For now, just reload all students
-        this.loadStudentsForBulkGrading();
     }
     
     async submitBulkGrades() {
@@ -802,11 +661,6 @@ class CourseManager {
         
         if (this.selectedStudents.size === 0) {
             this.showToast('Please select at least one student', 'error');
-            return;
-        }
-        
-        if (!assessmentDate) {
-            this.showToast('Please select an assessment date', 'error');
             return;
         }
         
@@ -867,10 +721,6 @@ class CourseManager {
                 this.showToast(`✅ ${successful} grades saved successfully${failed > 0 ? `, ${failed} failed` : ''}`, 'success');
             }
             
-            if (failed > 0) {
-                console.error('Some grades failed to save:', results.filter(r => r.status === 'rejected'));
-            }
-            
             this.closeBulkGradeModal();
             await this.loadCourses();
             await this.updateStatistics();
@@ -881,18 +731,88 @@ class CourseManager {
         }
     }
     
-    closeBulkGradeModal() {
-        const modal = document.getElementById('bulkGradeModal');
+    // ===== MODAL FUNCTIONS =====
+    
+    openCourseModal() {
+        const modal = document.getElementById('courseModal');
+        if (modal) {
+            modal.style.display = 'block';
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+    
+    closeCourseModal() {
+        const modal = document.getElementById('courseModal');
         if (modal) {
             modal.style.display = 'none';
             modal.classList.remove('active');
             document.body.style.overflow = 'auto';
         }
-        this.selectedStudents.clear();
-        this.currentCourse = null;
+        const form = document.getElementById('courseForm');
+        if (form) {
+            form.reset();
+            delete form.dataset.editId;
+            document.getElementById('courseCredits').value = 3;
+            document.getElementById('courseStatus').value = 'active';
+        }
+        document.getElementById('courseModalTitle').textContent = 'Add New Course';
+    }
+    
+    // ===== STATISTICS =====
+    
+    async updateStatistics() {
+        try {
+            const courses = await this.db.getCourses();
+            
+            const totalCourses = courses.length;
+            const activeCourses = courses.filter(c => c.status === 'active').length;
+            const totalStudents = courses.reduce((sum, course) => sum + (course.enrolled_count || 0), 0);
+            const coursesToGrade = courses.filter(c => (c.enrolled_count || 0) > 0).length;
+            
+            document.getElementById('totalCourses').textContent = totalCourses;
+            document.getElementById('activeCourses').textContent = activeCourses;
+            document.getElementById('totalStudentsEnrolled').textContent = totalStudents;
+            document.getElementById('coursesToGrade').textContent = coursesToGrade;
+            
+        } catch (error) {
+            console.error('Error updating statistics:', error);
+        }
+    }
+    
+    // ===== EXPORT =====
+    
+    async exportCourses() {
+        try {
+            const courses = await this.db.getCourses();
+            console.log('Courses data for export:', courses);
+            this.showToast('Export feature coming soon!', 'info');
+        } catch (error) {
+            console.error('Error exporting courses:', error);
+            this.showToast('Error exporting courses', 'error');
+        }
     }
     
     // ===== HELPER FUNCTIONS =====
+    
+    updateBulkGradeCourseDropdown(courses) {
+        const select = document.getElementById('bulkGradeCourse');
+        if (!select) return;
+        
+        select.innerHTML = '<option value="">Select Course</option>';
+        
+        if (courses && courses.length > 0) {
+            courses.forEach(course => {
+                if (course.status === 'active') {
+                    select.innerHTML += `
+                        <option value="${course.id}">
+                            ${course.course_code} - ${course.course_name}
+                        </option>
+                    `;
+                }
+            });
+        }
+    }
     
     getGradeBadgeColor(grade) {
         const gradeColors = {
@@ -981,4 +901,9 @@ if (!document.querySelector('#toast-animations')) {
         }
     `;
     document.head.appendChild(style);
+}
+
+// Make available globally
+if (typeof window !== 'undefined') {
+    window.CourseManager = CourseManager;
 }
