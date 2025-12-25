@@ -1282,7 +1282,66 @@ class TEEPortalSupabaseDB {
             return [];
         }
     }
-    
+    // Add this to your TEEPortalSupabaseDB class, right after getPrograms() method
+async getProgram(programId) {
+    try {
+        const supabase = await this.ensureConnected();
+        const { data, error } = await this.supabase
+            .from('programs')
+            .select('*')
+            .or(`id.eq.${programId},code.eq.${programId}`)
+            .single();
+            
+        if (error) {
+            console.error('❌ Error fetching program:', error);
+            // Try to get from settings as fallback
+            const settings = await this.getSettings();
+            const programSettings = settings.programs || {};
+            
+            if (programSettings[programId]) {
+                const program = programSettings[programId];
+                return {
+                    id: programId,
+                    code: programId.toUpperCase(),
+                    name: program.name,
+                    duration: program.duration,
+                    max_credits: program.maxCredits,
+                    description: '',
+                    status: 'active'
+                };
+            }
+            
+            return null;
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('❌ Error in getProgram:', error);
+        return null;
+    }
+}
+
+// You might also want to add getCourse() if you're missing it:
+async getCourse(courseId) {
+    try {
+        const supabase = await this.ensureConnected();
+        const { data, error } = await this.supabase
+            .from('courses')
+            .select('*')
+            .or(`id.eq.${courseId},course_code.eq.${courseId}`)
+            .single();
+            
+        if (error) {
+            console.error('❌ Error fetching course:', error);
+            return null;
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('❌ Error in getCourse:', error);
+        return null;
+    }
+}
     // ========== COUNTY METHODS ==========
     
     async getCounties() {
