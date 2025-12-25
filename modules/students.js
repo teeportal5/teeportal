@@ -388,7 +388,7 @@ async saveStudent(event) {
             
             // Location Information
             county: document.getElementById('studentCounty')?.value || '',
-            sub_county: document.getElementById('studentSubCounty')?.value.trim() || '',
+            sub_county: document.getElementById('studentRegion')?.value.trim() || '',
             ward: document.getElementById('studentWard')?.value.trim() || '',
             village: document.getElementById('studentVillage')?.value.trim() || '',
             address: document.getElementById('studentAddress')?.value.trim() || '',
@@ -521,7 +521,7 @@ async editStudent(studentId) {
             
             // Location Information
             'studentCounty': student.county || '',
-            'studentSubCounty': student.sub_county || '',
+            'studentRegion': student.sub_county || '',
             'studentWard': student.ward || '',
             'studentVillage': student.village || '',
             'studentAddress': student.address || '',
