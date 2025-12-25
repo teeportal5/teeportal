@@ -1,20 +1,17 @@
-// modules/reports.js - COMPLETE FIXED VERSION
+// modules/reports.js - COMPLETE VERSION WITH TRANSCRIPT MODAL
 class ReportsManager {
     constructor(db) {
         console.log('📊 ReportsManager constructor called');
         
-        // Proper database connection
         this.db = db || window.app?.db;
         this.app = window.app || window;
         
-        // Log database availability
-        if (this.db) {
-            console.log('✅ Database connected to ReportsManager');
+        if (!this.db) {
+            console.error('❌ Database not available for ReportsManager');
         } else {
-            console.warn('⚠️ Database not available in constructor, will try during initialization');
+            console.log('✅ Database connected to ReportsManager:', this.db.constructor.name);
         }
         
-        // Initialize filters with proper defaults
         this.currentFilters = {
             year: new Date().getFullYear().toString(),
             program: ['all'],
@@ -33,8 +30,12 @@ class ReportsManager {
         this.students = [];
         this.courses = [];
         this.marks = [];
+        this.centres = [];
+        this.counties = [];
+        this.programs = [];
+        this.selectedStudentForTranscript = null;
         
-        // Bind methods to ensure proper 'this' context
+        // Bind all methods
         this.applyFilters = this.applyFilters.bind(this);
         this.clearFilters = this.clearFilters.bind(this);
         this.refreshReports = this.refreshReports.bind(this);
@@ -46,13 +47,28 @@ class ReportsManager {
         this.generateTranscript = this.generateTranscript.bind(this);
         this.loadSampleTranscript = this.loadSampleTranscript.bind(this);
         this.clearPreview = this.clearPreview.bind(this);
+        this.previewStudentReport = this.studentReport.bind(this);
+        this.previewAcademicReport = this.academicReport.bind(this);
+        this.quickStudentReport = this.studentReport.bind(this);
+        this.quickAcademicReport = this.academicReport.bind(this);
+        this.bulkExport = this.bulkExport.bind(this);
+        this.bulkTranscripts = this.bulkTranscripts.bind(this);
+        this.addScheduledReport = this.addScheduledReport.bind(this);
+        this.saveFilterPreset = this.saveFilterPreset.bind(this);
+        this.downloadPreview = this.downloadPreview.bind(this);
+        this.openTranscriptSection = this.openTranscriptSection.bind(this);
+        this.showScheduledReports = this.showScheduledReports.bind(this);
+        this.openTranscriptModal = this.openTranscriptModal.bind(this);
+        this.selectStudentForTranscript = this.selectStudentForTranscript.bind(this);
+        this.closeTranscriptModal = this.closeTranscriptModal.bind(this);
+        this.searchTranscriptStudents = this.searchTranscriptStudents.bind(this);
     }
     
     // ==================== INITIALIZATION ====================
     
     async initialize() {
         if (this.initialized) {
-            console.log('ReportsManager already initialized');
+            console.log('✅ ReportsManager already initialized');
             return;
         }
         
@@ -60,7 +76,7 @@ class ReportsManager {
             console.log('📊 Initializing Reports Manager...');
             this.showLoading(true);
             
-            // Load data first
+            // Load all data first
             await this.loadAllData();
             
             // Initialize UI components
@@ -92,39 +108,57 @@ class ReportsManager {
         try {
             console.log('🔄 Loading all data for reports...');
             
-            // Load data in parallel for better performance
-            const [studentsData, coursesData, marksData] = await Promise.all([
+            // Load all data in parallel
+            const [studentsData, coursesData, marksData, centresData, countiesData, programsData] = await Promise.all([
                 this.getStudents(),
                 this.getCourses(),
-                this.getMarks()
+                this.getMarks(),
+                this.getCentres(),
+                this.getCounties(),
+                this.getPrograms()
             ]);
             
             this.students = studentsData || [];
             this.courses = coursesData || [];
             this.marks = marksData || [];
+            this.centres = centresData || [];
+            this.counties = countiesData || [];
+            this.programs = programsData || [];
             
-            console.log(`📊 Data loaded: ${this.students.length} students, ${this.courses.length} courses, ${this.marks.length} marks`);
+            console.log(`📊 Data loaded: 
+                ${this.students.length} students, 
+                ${this.courses.length} courses, 
+                ${this.marks.length} marks,
+                ${this.centres.length} centres,
+                ${this.counties.length} counties,
+                ${this.programs.length} programs`);
             
         } catch (error) {
             console.error('❌ Error loading data:', error);
             this.showToast('Error loading report data', 'error');
+            
             // Initialize with empty arrays to prevent crashes
             this.students = this.students || [];
             this.courses = this.courses || [];
             this.marks = this.marks || [];
+            this.centres = this.centres || [];
+            this.counties = this.counties || [];
+            this.programs = this.programs || [];
         }
     }
     
     async initializeReportsUI() {
         try {
+            console.log('🔄 Initializing Reports UI...');
+            
+            // Create transcript modal if it doesn't exist
+            this.createTranscriptModal();
+            
             // Populate all filters
             await this.populateAllFilters();
             
             // Set default dates
             this.setDefaultDates();
-            
-            // Initialize transcript section
-            await this.populateTranscriptStudents();
             
             console.log('✅ Reports UI initialized');
             
@@ -134,42 +168,186 @@ class ReportsManager {
         }
     }
     
+    createTranscriptModal() {
+        // Check if modal already exists
+        if (document.getElementById('transcriptModal')) {
+            return;
+        }
+        
+        const modalHTML = `
+        <div class="modal fade" id="transcriptModal" tabindex="-1" role="dialog" aria-labelledby="transcriptModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="transcriptModalLabel">
+                            <i class="fas fa-graduation-cap mr-2"></i>Select Student for Transcript
+                        </h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="input-group">
+                                    <input type="text" 
+                                           id="transcriptStudentSearch" 
+                                           class="form-control" 
+                                           placeholder="Search by name, reg number, or program..."
+                                           onkeyup="app.reports.searchTranscriptStudents()">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="app.reports.searchTranscriptStudents()">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <select id="transcriptModalCentreFilter" class="form-control" onchange="app.reports.searchTranscriptStudents()">
+                                    <option value="all">All Centres</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select id="transcriptModalProgramFilter" class="form-control" onchange="app.reports.searchTranscriptStudents()">
+                                    <option value="all">All Programs</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-hover table-sm">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th style="width: 50px;">Select</th>
+                                        <th>Reg Number</th>
+                                        <th>Student Name</th>
+                                        <th>Program</th>
+                                        <th>Centre</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transcriptModalStudentsList">
+                                    <!-- Student list will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div id="transcriptModalNoResults" class="text-center p-4" style="display: none;">
+                            <i class="fas fa-user-slash fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No students found</p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="app.reports.selectStudentForTranscript()" disabled id="selectStudentBtn">
+                            <i class="fas fa-check mr-1"></i> Select Student
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+        
+        // Add modal to body
+        const modalContainer = document.createElement('div');
+        modalContainer.innerHTML = modalHTML;
+        document.body.appendChild(modalContainer);
+        
+        console.log('✅ Transcript modal created');
+    }
+    
     async populateAllFilters() {
         try {
             console.log('🔄 Populating all filters...');
             
-            // Get all data needed for filters
-            const [centres, counties, programs, students, courses] = await Promise.all([
-                this.getCentres(),
-                this.getCounties(),
-                this.getPrograms(),
-                this.getStudents(),
-                this.getCourses()
-            ]);
+            // Check which elements exist before trying to populate them
+            const filterElements = {
+                'academicYear': 'Academic Year',
+                'filterCenter': 'Centre Filter',
+                'studentReportCenter': 'Student Report Centre',
+                'academicReportCenter': 'Academic Report Centre',
+                'transcriptCenterFilter': 'Transcript Centre Filter',
+                'bulkExportCenters': 'Bulk Export Centres',
+                'scheduleCenter': 'Schedule Centre',
+                'filterCounty': 'County Filter',
+                'filterProgram': 'Program Filter',
+                'filterIntake': 'Intake Filter',
+                'filterCourse': 'Course Filter'
+            };
+            
+            // Log which elements are found
+            Object.entries(filterElements).forEach(([id, name]) => {
+                const element = document.getElementById(id);
+                console.log(`${element ? '✅' : '❌'} ${name} element: ${element ? 'Found' : 'Not found'}`);
+            });
             
             // 1. Academic Year filter
             this.populateAcademicYearFilter();
             
-            // 2. Centre filters (all select elements that need centres)
-            this.populateCentreFilters(centres);
+            // 2. Centre filters
+            await this.populateCentreFilters();
             
             // 3. County filters
-            this.populateCountyFilters(counties);
+            await this.populateCountyFilters();
             
             // 4. Program filter
-            this.populateProgramFilter(programs);
+            await this.populateProgramFilter();
             
             // 5. Intake filter
-            this.populateIntakeFilter(students);
+            await this.populateIntakeFilter();
             
             // 6. Course filter
-            this.populateCourseFilter(courses);
+            await this.populateCourseFilter();
+            
+            // 7. Modal filters
+            await this.populateModalFilters();
             
             console.log('✅ All filters populated successfully');
             
         } catch (error) {
             console.error('❌ Error populating filters:', error);
             this.showToast('Error loading filter data', 'error');
+        }
+    }
+    
+    async populateModalFilters() {
+        try {
+            // Populate modal centre filter
+            const modalCentreFilter = document.getElementById('transcriptModalCentreFilter');
+            if (modalCentreFilter) {
+                modalCentreFilter.innerHTML = '<option value="all">All Centres</option>';
+                
+                const centres = this.centres.length > 0 ? this.centres : await this.getCentres();
+                if (centres && centres.length > 0) {
+                    centres.forEach(centre => {
+                        const option = document.createElement('option');
+                        const centreName = centre.name || centre.code || centre;
+                        option.value = centreName;
+                        option.textContent = centreName;
+                        modalCentreFilter.appendChild(option);
+                    });
+                }
+            }
+            
+            // Populate modal program filter
+            const modalProgramFilter = document.getElementById('transcriptModalProgramFilter');
+            if (modalProgramFilter) {
+                modalProgramFilter.innerHTML = '<option value="all">All Programs</option>';
+                
+                const programs = this.programs.length > 0 ? this.programs : await this.getPrograms();
+                if (programs && programs.length > 0) {
+                    programs.forEach(program => {
+                        const option = document.createElement('option');
+                        const programName = program.name || program.code || program;
+                        option.value = programName;
+                        option.textContent = programName;
+                        modalProgramFilter.appendChild(option);
+                    });
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ Error populating modal filters:', error);
         }
     }
     
@@ -203,19 +381,24 @@ class ReportsManager {
         this.currentFilters.year = currentYear.toString();
     }
     
-    populateCentreFilters(centres) {
-        const centreSelects = [
-            'filterCenter', 
-            'studentReportCenter', 
-            'academicReportCenter',
-            'transcriptCenterFilter',
-            'bulkExportCenters',
-            'scheduleCenter'
-        ];
-        
-        centreSelects.forEach(selectId => {
-            const select = document.getElementById(selectId);
-            if (select) {
+    async populateCentreFilters() {
+        try {
+            const centreSelects = [
+                'filterCenter', 
+                'studentReportCenter', 
+                'academicReportCenter',
+                'transcriptCenterFilter',
+                'bulkExportCenters',
+                'scheduleCenter'
+            ];
+            
+            for (const selectId of centreSelects) {
+                const select = document.getElementById(selectId);
+                if (!select) {
+                    console.warn(`⚠️ Select element ${selectId} not found`);
+                    continue;
+                }
+                
                 // Clear existing options
                 select.innerHTML = '';
                 
@@ -225,12 +408,17 @@ class ReportsManager {
                 allOption.textContent = 'All Centres';
                 select.appendChild(allOption);
                 
-                // Add centre options from database
+                // Get centres data
+                const centres = this.centres.length > 0 ? this.centres : await this.getCentres();
+                
                 if (centres && centres.length > 0) {
                     centres.forEach(centre => {
                         const option = document.createElement('option');
-                        option.value = centre.id || centre.name || centre;
-                        option.textContent = centre.name || centre.code || centre;
+                        const centreId = centre.id || centre.code || centre.name;
+                        const centreName = centre.name || centre.code || 'Unknown Centre';
+                        
+                        option.value = centreId;
+                        option.textContent = centreName;
                         
                         // Add county if available
                         if (centre.county) {
@@ -242,20 +430,32 @@ class ReportsManager {
                     
                     console.log(`✅ Populated ${selectId} with ${centres.length} centres`);
                 } else {
-                    console.warn(`No centres data for ${selectId}`);
+                    console.warn(`⚠️ No centres data for ${selectId}`);
+                    
+                    // Add a default option
+                    const defaultOption = document.createElement('option');
+                    defaultOption.value = 'default';
+                    defaultOption.textContent = 'Main Campus';
+                    select.appendChild(defaultOption);
                 }
-            } else {
-                console.warn(`⚠️ Select element ${selectId} not found`);
             }
-        });
+            
+        } catch (error) {
+            console.error('❌ Error populating centre filters:', error);
+        }
     }
     
-    populateCountyFilters(counties) {
-        const countySelects = ['filterCounty'];
-        
-        countySelects.forEach(selectId => {
-            const select = document.getElementById(selectId);
-            if (select) {
+    async populateCountyFilters() {
+        try {
+            const countySelects = ['filterCounty'];
+            
+            for (const selectId of countySelects) {
+                const select = document.getElementById(selectId);
+                if (!select) {
+                    console.warn(`⚠️ Select element ${selectId} not found`);
+                    continue;
+                }
+                
                 select.innerHTML = '';
                 
                 // Add "All Counties" option
@@ -264,7 +464,9 @@ class ReportsManager {
                 allOption.textContent = 'All Counties';
                 select.appendChild(allOption);
                 
-                // Add county options
+                // Get counties data
+                const counties = this.counties.length > 0 ? this.counties : await this.getCounties();
+                
                 if (counties && counties.length > 0) {
                     counties.forEach(county => {
                         const option = document.createElement('option');
@@ -274,14 +476,31 @@ class ReportsManager {
                     });
                     
                     console.log(`✅ Populated ${selectId} with ${counties.length} counties`);
+                } else {
+                    // Add default counties from settings
+                    const defaultCounties = ['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret'];
+                    defaultCounties.forEach(county => {
+                        const option = document.createElement('option');
+                        option.value = county;
+                        option.textContent = county;
+                        select.appendChild(option);
+                    });
                 }
             }
-        });
+            
+        } catch (error) {
+            console.error('❌ Error populating county filters:', error);
+        }
     }
     
-    populateProgramFilter(programs) {
-        const programSelect = document.getElementById('filterProgram');
-        if (programSelect) {
+    async populateProgramFilter() {
+        try {
+            const programSelect = document.getElementById('filterProgram');
+            if (!programSelect) {
+                console.warn('⚠️ filterProgram element not found');
+                return;
+            }
+            
             programSelect.innerHTML = '';
             
             // Add "All Programs" option
@@ -290,23 +509,54 @@ class ReportsManager {
             allOption.textContent = 'All Programs';
             programSelect.appendChild(allOption);
             
-            // Add program options
+            // Get programs data
+            const programs = this.programs.length > 0 ? this.programs : await this.getPrograms();
+            
             if (programs && programs.length > 0) {
                 programs.forEach(program => {
                     const option = document.createElement('option');
-                    option.value = program.code || program.name || program.id;
-                    option.textContent = program.name || program.code || 'Unknown Program';
+                    
+                    // Extract program code and name
+                    let programCode = program.code || program.id || program.program_code || 'N/A';
+                    let programName = program.name || program.program_name || 'Unknown Program';
+                    
+                    option.value = programCode;
+                    option.textContent = `${programCode} - ${programName}`;
                     programSelect.appendChild(option);
                 });
                 
                 console.log(`✅ Populated program filter with ${programs.length} programs`);
+            } else {
+                console.warn('⚠️ No programs data found');
+                
+                // Add default programs
+                const defaultPrograms = [
+                    { code: 'BASIC', name: 'Basic TEE' },
+                    { code: 'HNC', name: 'Higher National Certificate' },
+                    { code: 'ADV', name: 'Advanced TEE' }
+                ];
+                
+                defaultPrograms.forEach(program => {
+                    const option = document.createElement('option');
+                    option.value = program.code;
+                    option.textContent = `${program.code} - ${program.name}`;
+                    programSelect.appendChild(option);
+                });
             }
+            
+        } catch (error) {
+            console.error('❌ Error populating program filter:', error);
         }
     }
     
-    populateIntakeFilter(students) {
-        const intakeSelect = document.getElementById('filterIntake');
-        if (intakeSelect) {
+    async populateIntakeFilter() {
+        try {
+            const intakeSelect = document.getElementById('filterIntake');
+            if (!intakeSelect) {
+                console.warn('⚠️ filterIntake element not found');
+                return;
+            }
+            
             intakeSelect.innerHTML = '';
             
             // Add "All Intakes" option
@@ -315,19 +565,53 @@ class ReportsManager {
             allOption.textContent = 'All Intakes';
             intakeSelect.appendChild(allOption);
             
-            // Get unique intake years from students
-            const intakeYears = [...new Set(students.map(s => s.intake_year || s.intake).filter(Boolean))]
-                .sort((a, b) => b - a);
+            // Get students data
+            const students = this.students.length > 0 ? this.students : await this.getStudents();
             
-            if (intakeYears.length > 0) {
-                intakeYears.forEach(year => {
-                    const option = document.createElement('option');
-                    option.value = year;
-                    option.textContent = year.toString();
-                    intakeSelect.appendChild(option);
+            if (students && students.length > 0) {
+                // Extract unique intake years
+                const intakeYearsSet = new Set();
+                
+                students.forEach(student => {
+                    let intakeYear = null;
+                    
+                    // Try different possible field names
+                    if (student.intake_year) {
+                        intakeYear = student.intake_year;
+                    } else if (student.intake) {
+                        intakeYear = student.intake;
+                    } else if (student.created_at) {
+                        // Extract year from created_at
+                        intakeYear = new Date(student.created_at).getFullYear();
+                    }
+                    
+                    if (intakeYear) {
+                        intakeYearsSet.add(parseInt(intakeYear));
+                    }
                 });
                 
-                console.log(`✅ Populated intake filter with ${intakeYears.length} years`);
+                // Convert to array and sort descending
+                const intakeYears = Array.from(intakeYearsSet)
+                    .filter(year => !isNaN(year) && year > 2000 && year <= new Date().getFullYear())
+                    .sort((a, b) => b - a);
+                
+                if (intakeYears.length > 0) {
+                    intakeYears.forEach(year => {
+                        const option = document.createElement('option');
+                        option.value = year;
+                        option.textContent = year.toString();
+                        intakeSelect.appendChild(option);
+                    });
+                    
+                    console.log(`✅ Populated intake filter with ${intakeYears.length} years`);
+                } else {
+                    // Add current year as fallback
+                    const currentYear = new Date().getFullYear();
+                    const option = document.createElement('option');
+                    option.value = currentYear;
+                    option.textContent = currentYear.toString();
+                    intakeSelect.appendChild(option);
+                }
             } else {
                 // Add current year as fallback
                 const currentYear = new Date().getFullYear();
@@ -336,12 +620,20 @@ class ReportsManager {
                 option.textContent = currentYear.toString();
                 intakeSelect.appendChild(option);
             }
+            
+        } catch (error) {
+            console.error('❌ Error populating intake filter:', error);
         }
     }
     
-    populateCourseFilter(courses) {
-        const courseSelect = document.getElementById('filterCourse');
-        if (courseSelect) {
+    async populateCourseFilter() {
+        try {
+            const courseSelect = document.getElementById('filterCourse');
+            if (!courseSelect) {
+                console.warn('⚠️ filterCourse element not found');
+                return;
+            }
+            
             courseSelect.innerHTML = '';
             
             // Add "All Courses" option
@@ -350,12 +642,19 @@ class ReportsManager {
             allOption.textContent = 'All Courses';
             courseSelect.appendChild(allOption);
             
-            // Add course options
+            // Get courses data
+            const courses = this.courses.length > 0 ? this.courses : await this.getCourses();
+            
             if (courses && courses.length > 0) {
                 courses.forEach(course => {
                     const option = document.createElement('option');
-                    option.value = course.course_code || course.code || course.id;
-                    option.textContent = course.course_name || course.name || 'Unknown Course';
+                    
+                    // Extract course code and name
+                    let courseCode = course.course_code || course.code || 'N/A';
+                    let courseName = course.course_name || course.name || 'Unknown Course';
+                    
+                    option.value = courseCode;
+                    option.textContent = `${courseCode} - ${courseName}`;
                     
                     // Add credits if available
                     if (course.credits) {
@@ -364,63 +663,207 @@ class ReportsManager {
                     
                     courseSelect.appendChild(option);
                 });
-            }
-        }
-    }
-    
-    async populateTranscriptStudents() {
-        try {
-            const studentSelect = document.getElementById('transcriptStudent');
-            if (!studentSelect) {
-                console.warn('⚠️ transcriptStudent element not found');
-                return;
-            }
-            
-            // Clear existing options
-            studentSelect.innerHTML = '';
-            
-            // Add placeholder option
-            const placeholderOption = document.createElement('option');
-            placeholderOption.value = '';
-            placeholderOption.textContent = 'Select Student';
-            placeholderOption.disabled = true;
-            placeholderOption.selected = true;
-            studentSelect.appendChild(placeholderOption);
-            
-            // Get all students
-            const students = this.students.length > 0 ? this.students : await this.getStudents();
-            
-            // Add student options
-            if (students && students.length > 0) {
-                students.forEach(student => {
-                    const option = document.createElement('option');
-                    option.value = student.id || student.reg_number;
-                    option.textContent = `${student.reg_number || 'N/A'} - ${student.full_name || student.name || 'Unknown Student'}`;
-                    
-                    // Add student centre if available
-                    if (student.centre_name || student.centre) {
-                        option.textContent += ` (${student.centre_name || student.centre})`;
-                    }
-                    
-                    studentSelect.appendChild(option);
-                });
                 
-                console.log(`✅ Loaded ${students.length} students for transcript generation`);
+                console.log(`✅ Populated course filter with ${courses.length} courses`);
             } else {
-                console.warn('⚠️ No students found for transcript generation');
+                console.warn('⚠️ No courses data found');
                 
-                // Add a disabled option to indicate no students
-                const noStudentsOption = document.createElement('option');
-                noStudentsOption.value = '';
-                noStudentsOption.textContent = 'No students available';
-                noStudentsOption.disabled = true;
-                studentSelect.appendChild(noStudentsOption);
+                // Add default courses
+                const defaultCourses = [
+                    { code: 'TEE101', name: 'Introduction to TEE', credits: 3 },
+                    { code: 'BIB101', name: 'Bible Study Methods', credits: 3 },
+                    { code: 'MIN101', name: 'Ministry Foundations', credits: 3 }
+                ];
+                
+                defaultCourses.forEach(course => {
+                    const option = document.createElement('option');
+                    option.value = course.code;
+                    option.textContent = `${course.code} - ${course.name} (${course.credits} credits)`;
+                    courseSelect.appendChild(option);
+                });
             }
             
         } catch (error) {
-            console.error('❌ Error populating transcript students:', error);
-            this.showToast('Error loading student list', 'error');
+            console.error('❌ Error populating course filter:', error);
         }
+    }
+    
+    // ==================== TRANSCRIPT MODAL METHODS ====================
+    
+    async openTranscriptModal() {
+        try {
+            console.log('🎓 Opening transcript modal...');
+            
+            // Load fresh student data for modal
+            const students = await this.getStudents();
+            this.students = students;
+            
+            // Populate modal filters
+            await this.populateModalFilters();
+            
+            // Populate student list
+            await this.searchTranscriptStudents();
+            
+            // Show modal
+            $('#transcriptModal').modal('show');
+            
+            this.showToast('Select a student for transcript', 'info');
+            
+        } catch (error) {
+            console.error('❌ Error opening transcript modal:', error);
+            this.showToast('Error opening student selector', 'error');
+        }
+    }
+    
+    async searchTranscriptStudents() {
+        try {
+            const searchInput = document.getElementById('transcriptStudentSearch');
+            const centreFilter = document.getElementById('transcriptModalCentreFilter');
+            const programFilter = document.getElementById('transcriptModalProgramFilter');
+            const studentsList = document.getElementById('transcriptModalStudentsList');
+            const noResultsDiv = document.getElementById('transcriptModalNoResults');
+            
+            if (!searchInput || !studentsList) return;
+            
+            const searchTerm = searchInput.value.toLowerCase();
+            const selectedCentre = centreFilter ? centreFilter.value : 'all';
+            const selectedProgram = programFilter ? programFilter.value : 'all';
+            
+            // Get students (use cached if available)
+            const students = this.students.length > 0 ? this.students : await this.getStudents();
+            
+            // Filter students
+            const filteredStudents = students.filter(student => {
+                // Search term filter
+                const matchesSearch = searchTerm === '' || 
+                    (student.full_name && student.full_name.toLowerCase().includes(searchTerm)) ||
+                    (student.reg_number && student.reg_number.toLowerCase().includes(searchTerm)) ||
+                    (student.program && student.program.toLowerCase().includes(searchTerm));
+                
+                // Centre filter
+                const matchesCentre = selectedCentre === 'all' || 
+                    (student.centre_name && student.centre_name === selectedCentre) ||
+                    (student.centre && student.centre === selectedCentre);
+                
+                // Program filter
+                const matchesProgram = selectedProgram === 'all' ||
+                    (student.program && student.program === selectedProgram);
+                
+                return matchesSearch && matchesCentre && matchesProgram;
+            });
+            
+            // Clear current selection
+            this.selectedStudentForTranscript = null;
+            document.getElementById('selectStudentBtn').disabled = true;
+            
+            // Display results
+            if (filteredStudents.length === 0) {
+                studentsList.innerHTML = '';
+                if (noResultsDiv) noResultsDiv.style.display = 'block';
+                return;
+            }
+            
+            if (noResultsDiv) noResultsDiv.style.display = 'none';
+            
+            // Build table rows
+            let html = '';
+            filteredStudents.forEach(student => {
+                const studentId = student.id || student.student_id || student.reg_number;
+                const regNumber = student.reg_number || 'N/A';
+                const fullName = student.full_name || student.name || 'Unknown';
+                const program = student.program || 'Not specified';
+                const centre = student.centre_name || student.centre || 'Not specified';
+                const status = student.status || 'active';
+                
+                const statusColor = status === 'active' ? 'success' : 
+                                  status === 'graduated' ? 'primary' : 
+                                  status === 'inactive' ? 'secondary' : 'warning';
+                
+                html += `
+                <tr onclick="app.reports.selectStudentRow(this, '${studentId}')" style="cursor: pointer;">
+                    <td>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="studentSelection" id="student_${studentId}" value="${studentId}">
+                        </div>
+                    </td>
+                    <td><strong>${regNumber}</strong></td>
+                    <td>${fullName}</td>
+                    <td>${program}</td>
+                    <td>${centre}</td>
+                    <td>
+                        <span class="badge badge-${statusColor}">${status}</span>
+                    </td>
+                </tr>
+                `;
+            });
+            
+            studentsList.innerHTML = html;
+            
+            console.log(`🔍 Found ${filteredStudents.length} students matching search`);
+            
+        } catch (error) {
+            console.error('❌ Error searching transcript students:', error);
+        }
+    }
+    
+    selectStudentRow(rowElement, studentId) {
+        // Uncheck all other radio buttons
+        document.querySelectorAll('input[name="studentSelection"]').forEach(radio => {
+            radio.checked = false;
+            radio.closest('tr').classList.remove('table-primary');
+        });
+        
+        // Check the selected radio
+        const radio = document.getElementById(`student_${studentId}`);
+        if (radio) {
+            radio.checked = true;
+            rowElement.classList.add('table-primary');
+            
+            // Find the student data
+            const student = this.students.find(s => 
+                (s.id && s.id.toString() === studentId.toString()) ||
+                (s.student_id && s.student_id.toString() === studentId.toString()) ||
+                (s.reg_number && s.reg_number === studentId)
+            );
+            
+            this.selectedStudentForTranscript = student;
+            document.getElementById('selectStudentBtn').disabled = false;
+        }
+    }
+    
+    selectStudentForTranscript() {
+        if (!this.selectedStudentForTranscript) {
+            this.showToast('Please select a student first', 'warning');
+            return;
+        }
+        
+        console.log('✅ Selected student for transcript:', this.selectedStudentForTranscript);
+        
+        // Close modal
+        $('#transcriptModal').modal('hide');
+        
+        // Show transcript section
+        this.openTranscriptSection();
+        
+        // Set the selected student in the transcript form (if exists)
+        const studentSelect = document.getElementById('transcriptStudent');
+        if (studentSelect) {
+            const studentId = this.selectedStudentForTranscript.id || 
+                             this.selectedStudentForTranscript.reg_number;
+            studentSelect.value = studentId;
+            
+            // Trigger preview
+            setTimeout(() => {
+                this.previewTranscript();
+            }, 500);
+        }
+        
+        this.showToast(`Selected: ${this.selectedStudentForTranscript.full_name || this.selectedStudentForTranscript.reg_number}`, 'success');
+    }
+    
+    closeTranscriptModal() {
+        $('#transcriptModal').modal('hide');
+        this.selectedStudentForTranscript = null;
     }
     
     // ==================== DATABASE METHODS ====================
@@ -434,8 +877,49 @@ class ReportsManager {
             
             if (typeof this.db.getStudents === 'function') {
                 const students = await this.db.getStudents();
-                this.students = students || [];
-                return this.students;
+                console.log(`📊 Got ${students?.length || 0} students from database`);
+                
+                // Process students to ensure consistent structure
+                const processedStudents = (students || []).map(student => {
+                    // Ensure centre field is properly set
+                    let centreDisplay = 'Main Campus';
+                    if (student.centre_name && student.centre_name.trim()) {
+                        centreDisplay = student.centre_name.trim();
+                    } else if (student.centre && student.centre.trim()) {
+                        centreDisplay = student.centre.trim();
+                    }
+                    
+                    return {
+                        id: student.id,
+                        student_id: student.id, // Alias for compatibility
+                        reg_number: student.reg_number || '',
+                        full_name: student.full_name || student.name || '',
+                        email: student.email || '',
+                        phone: student.phone || '',
+                        date_of_birth: student.date_of_birth || null,
+                        gender: student.gender || '',
+                        
+                        // Location fields
+                        county: student.county || '',
+                        address: student.address || '',
+                        
+                        // Centre fields
+                        centre: centreDisplay,
+                        centre_name: centreDisplay,
+                        
+                        // Academic fields
+                        program: student.program || '',
+                        intake_year: student.intake_year || student.intake || new Date().getFullYear(),
+                        status: student.status || 'active',
+                        
+                        // Timestamps
+                        created_at: student.created_at,
+                        updated_at: student.updated_at
+                    };
+                });
+                
+                this.students = processedStudents;
+                return processedStudents;
             } else {
                 console.warn('⚠️ getStudents method not available on db');
                 return this.students || [];
@@ -458,7 +942,8 @@ class ReportsManager {
             
             // If not found, try database method
             if (this.db && typeof this.db.getStudent === 'function') {
-                return await this.db.getStudent(studentId);
+                const student = await this.db.getStudent(studentId);
+                if (student) return student;
             }
             
             console.warn(`⚠️ Student with ID ${studentId} not found`);
@@ -479,6 +964,12 @@ class ReportsManager {
             
             if (typeof this.db.getCourses === 'function') {
                 const courses = await this.db.getCourses();
+                console.log(`📚 Got ${courses?.length || 0} courses from database`);
+                this.courses = courses || [];
+                return this.courses;
+            } else if (typeof this.db.getCoursesSimple === 'function') {
+                const courses = await this.db.getCoursesSimple();
+                console.log(`📚 Got ${courses?.length || 0} courses (simple) from database`);
                 this.courses = courses || [];
                 return this.courses;
             } else {
@@ -500,6 +991,12 @@ class ReportsManager {
             
             if (typeof this.db.getMarks === 'function') {
                 const marks = await this.db.getMarks();
+                console.log(`📝 Got ${marks?.length || 0} marks from database`);
+                this.marks = marks || [];
+                return this.marks;
+            } else if (typeof this.db.getMarksTableData === 'function') {
+                const marks = await this.db.getMarksTableData();
+                console.log(`📝 Got ${marks?.length || 0} marks (table data) from database`);
                 this.marks = marks || [];
                 return this.marks;
             } else {
@@ -509,6 +1006,117 @@ class ReportsManager {
         } catch (error) {
             console.error('❌ Error getting marks:', error);
             return this.marks || [];
+        }
+    }
+    
+    async getCentres() {
+        try {
+            if (!this.db) {
+                console.warn('⚠️ Database not available in getCentres');
+                return this.centres || [];
+            }
+            
+            if (typeof this.db.getCentres === 'function') {
+                const centres = await this.db.getCentres();
+                console.log(`🏛️ Got ${centres?.length || 0} centres from database`);
+                this.centres = centres || [];
+                return this.centres;
+            } else if (typeof this.db.getStudyCenters === 'function') {
+                const centres = await this.db.getStudyCenters();
+                console.log(`🏛️ Got ${centres?.length || 0} study centres from database`);
+                this.centres = centres || [];
+                return this.centres;
+            } else {
+                // Try to get centres from settings
+                if (typeof this.db.getSettings === 'function') {
+                    const settings = await this.db.getSettings();
+                    if (settings && settings.centres) {
+                        console.log(`🏛️ Got ${settings.centres.length} centres from settings`);
+                        this.centres = settings.centres;
+                        return this.centres;
+                    }
+                }
+                
+                console.warn('⚠️ No centres data available');
+                return this.centres || [];
+            }
+        } catch (error) {
+            console.error('❌ Error getting centres:', error);
+            return this.centres || [];
+        }
+    }
+    
+    async getCounties() {
+        try {
+            if (!this.db) {
+                console.warn('⚠️ Database not available in getCounties');
+                return this.counties || [];
+            }
+            
+            if (typeof this.db.getCounties === 'function') {
+                const counties = await this.db.getCounties();
+                console.log(`🗺️ Got ${counties?.length || 0} counties from database`);
+                this.counties = counties || [];
+                return this.counties;
+            } else {
+                // Try to get counties from settings
+                if (typeof this.db.getSettings === 'function') {
+                    const settings = await this.db.getSettings();
+                    if (settings && settings.counties) {
+                        console.log(`🗺️ Got ${settings.counties.length} counties from settings`);
+                        this.counties = settings.counties;
+                        return this.counties;
+                    }
+                }
+                
+                console.warn('⚠️ No counties data available');
+                return this.counties || [];
+            }
+        } catch (error) {
+            console.error('❌ Error getting counties:', error);
+            return this.counties || [];
+        }
+    }
+    
+    async getPrograms() {
+        try {
+            if (!this.db) {
+                console.warn('⚠️ Database not available in getPrograms');
+                return this.programs || [];
+            }
+            
+            if (typeof this.db.getPrograms === 'function') {
+                const programs = await this.db.getPrograms();
+                console.log(`🎓 Got ${programs?.length || 0} programs from database`);
+                this.programs = programs || [];
+                return this.programs;
+            } else {
+                // Try to get programs from settings
+                if (typeof this.db.getSettings === 'function') {
+                    const settings = await this.db.getSettings();
+                    if (settings && settings.programs) {
+                        console.log(`🎓 Got ${Object.keys(settings.programs).length} programs from settings`);
+                        
+                        // Convert settings.programs object to array
+                        const programsArray = Object.entries(settings.programs).map(([id, program]) => ({
+                            id: id,
+                            code: id.toUpperCase(),
+                            name: program.name,
+                            duration: program.duration,
+                            max_credits: program.maxCredits
+                        }));
+                        
+                        this.programs = programsArray;
+                        return this.programs;
+                    }
+                }
+                
+                console.warn('⚠️ No programs data available');
+                return this.programs || [];
+            }
+        } catch (error) {
+            console.error('❌ Error getting programs:', error);
+            return this.programs || [];
         }
     }
     
@@ -534,66 +1142,371 @@ class ReportsManager {
         }
     }
     
-    async getCentres() {
-        try {
-            if (this.db && typeof this.db.getCentres === 'function') {
-                return await this.db.getCentres();
-            }
-            
-            // Fallback: extract from students
-            const students = this.students.length > 0 ? this.students : await this.getStudents();
-            const centres = [...new Set(students.map(s => s.centre_name || s.centre).filter(Boolean))];
-            
-            return centres.map(centre => ({ 
-                name: centre,
-                id: centre // Use name as ID for fallback
-            }));
-            
-        } catch (error) {
-            console.error('❌ Error getting centres:', error);
-            return [];
+    // ==================== HELPER METHODS ====================
+    
+    setDefaultDates() {
+        const dateFrom = document.getElementById('reportStartDate');
+        const dateTo = document.getElementById('reportEndDate');
+        
+        if (dateFrom) {
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+            dateFrom.valueAsDate = oneYearAgo;
+            this.currentFilters.dateFrom = oneYearAgo.toISOString().split('T')[0];
+        }
+        
+        if (dateTo) {
+            dateTo.valueAsDate = new Date();
+            this.currentFilters.dateTo = new Date().toISOString().split('T')[0];
         }
     }
     
-    async getCounties() {
-        try {
-            if (this.db && typeof this.db.getCounties === 'function') {
-                return await this.db.getCounties();
+    setupEventListeners() {
+        console.log('🔧 Setting up event listeners...');
+        
+        // Update all onclick handlers
+        this.updateButtonListeners();
+        
+        // Setup filter change listeners
+        this.setupFilterChangeListeners();
+        
+        console.log('✅ Event listeners setup complete');
+    }
+    
+    setupFilterChangeListeners() {
+        // Apply filters on change for certain filters
+        const autoApplyFilters = ['academicYear', 'filterProgram', 'filterCenter', 'filterCounty', 'filterIntake'];
+        autoApplyFilters.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('change', () => this.applyFilters());
             }
-            
-            // Fallback: extract from students
-            const students = this.students.length > 0 ? this.students : await this.getStudents();
-            const counties = [...new Set(students.map(s => s.county).filter(Boolean))];
-            
-            return counties.map(county => ({ 
-                name: county,
-                id: county // Use name as ID for fallback
-            }));
-            
-        } catch (error) {
-            console.error('❌ Error getting counties:', error);
-            return [];
+        });
+    }
+    
+    updateButtonListeners() {
+        console.log('🔄 Updating button listeners...');
+        
+        // Map of button IDs to methods
+        const buttonMap = {
+            'applyFilters': this.applyFilters,
+            'clearFilters': this.clearFilters,
+            'refreshReports': this.refreshReports,
+            'saveFilterPreset': this.saveFilterPreset,
+            'clearPreview': this.clearPreview,
+            'downloadPreview': this.downloadPreview,
+            'generateSummaryReport': this.generateSummaryReport,
+            'generateCentreReport': this.generateCentreReport,
+            'studentReport': this.studentReport,
+            'academicReport': this.academicReport,
+            'previewTranscript': this.previewTranscript,
+            'generateTranscript': this.generateTranscript,
+            'loadSampleTranscript': this.loadSampleTranscript,
+            'bulkTranscripts': this.bulkTranscripts,
+            'bulkExport': this.bulkExport,
+            'addScheduledReport': this.addScheduledReport,
+            'openTranscriptModal': this.openTranscriptModal
+        };
+        
+        // Bind all buttons
+        Object.entries(buttonMap).forEach(([id, method]) => {
+            this.bindButton(id, method);
+        });
+        
+        // Also update all onclick attributes in the DOM
+        this.updateAllOnclickHandlers();
+        
+        console.log('✅ Button listeners updated');
+    }
+    
+    bindButton(elementId, method) {
+        // Try to find by ID first
+        let element = document.getElementById(elementId);
+        
+        // If not found by ID, try to find by onclick attribute
+        if (!element) {
+            const elements = document.querySelectorAll(`[onclick*="${elementId}"]`);
+            if (elements.length > 0) {
+                element = elements[0];
+            }
+        }
+        
+        if (element) {
+            element.onclick = method;
+            console.log(`✅ Bound ${elementId} to method`);
+        } else {
+            console.warn(`⚠️ Could not find element for ${elementId}`);
         }
     }
     
-    async getPrograms() {
-        try {
-            if (this.db && typeof this.db.getPrograms === 'function') {
-                return await this.db.getPrograms();
+    updateAllOnclickHandlers() {
+        // Map of onclick strings to methods
+        const handlerMap = {
+            'app.reports.studentReport()': this.studentReport,
+            'app.reports.academicReport()': this.academicReport,
+            'app.reports.generateCentreReport()': this.generateCentreReport,
+            'app.reports.generateSummaryReport()': this.generateSummaryReport,
+            'app.reports.previewStudentReport()': this.studentReport,
+            'app.reports.previewAcademicReport()': this.academicReport,
+            'app.reports.quickStudentReport()': this.studentReport,
+            'app.reports.quickAcademicReport()': this.academicReport,
+            'app.reports.previewTranscript()': this.previewTranscript,
+            'app.reports.generateTranscript()': this.generateTranscript,
+            'app.reports.bulkExport()': this.bulkExport,
+            'app.reports.loadSampleTranscript()': this.loadSampleTranscript,
+            'app.reports.clearPreview()': this.clearPreview,
+            'app.reports.addScheduledReport()': this.addScheduledReport,
+            'app.reports.saveFilterPreset()': this.saveFilterPreset,
+            'app.reports.downloadPreview()': this.downloadPreview,
+            'app.reports.bulkTranscripts()': this.bulkTranscripts,
+            'app.reports.refreshReports()': this.refreshReports,
+            'app.reports.applyFilters()': this.applyFilters,
+            'app.reports.clearFilters()': this.clearFilters,
+            'app.reports.openTranscriptSection()': this.openTranscriptSection,
+            'app.reports.showScheduledReports()': this.showScheduledReports,
+            'app.reports.openTranscriptModal()': this.openTranscriptModal
+        };
+        
+        // Update all elements with onclick attributes
+        document.querySelectorAll('[onclick]').forEach(element => {
+            const onclickAttr = element.getAttribute('onclick');
+            if (onclickAttr) {
+                // Check if this onclick matches any in our map
+                for (const [pattern, handler] of Object.entries(handlerMap)) {
+                    if (onclickAttr.includes(pattern.replace('app.reports.', '').replace('()', ''))) {
+                        element.onclick = handler;
+                        break;
+                    }
+                }
             }
+        });
+    }
+    
+    // ==================== FILTER FUNCTIONS ====================
+    
+    async applyFilters() {
+        try {
+            console.log('🔍 Applying filters...');
+            this.showLoading(true);
             
-            // Fallback: extract from students
-            const students = this.students.length > 0 ? this.students : await this.getStudents();
-            const programs = [...new Set(students.map(s => s.program).filter(Boolean))];
+            // Get all filter values
+            this.currentFilters = {
+                year: this.getSafeElementValue('academicYear', 'all'),
+                program: this.getSelectedValues('filterProgram'),
+                course: this.getSafeElementValue('filterCourse', 'all'),
+                semester: this.getSafeElementValue('semester', 'all'),
+                status: 'all',
+                intake: this.getSafeElementValue('filterIntake', 'all'),
+                centres: this.getSelectedValues('filterCenter'),
+                counties: this.getSelectedValues('filterCounty'),
+                dateFrom: document.getElementById('reportStartDate')?.value || null,
+                dateTo: document.getElementById('reportEndDate')?.value || null
+            };
             
-            return programs.map(program => ({ 
-                name: program,
-                code: program // Use name as code for fallback
-            }));
+            console.log('Current filters:', this.currentFilters);
+            
+            // Update statistics with current filters
+            await this.updateStatistics();
+            
+            // Update reports grid
+            await this.generateReportsGrid();
+            
+            this.showToast('Filters applied successfully', 'success');
             
         } catch (error) {
-            console.error('❌ Error getting programs:', error);
-            return [];
+            console.error('Error applying filters:', error);
+            this.showToast('Error applying filters: ' + error.message, 'error');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+    
+    clearFilters() {
+        try {
+            console.log('🧹 Clearing filters...');
+            
+            // Reset all filter elements
+            const filterElements = {
+                'academicYear': () => {
+                    const element = document.getElementById('academicYear');
+                    if (element) {
+                        element.value = new Date().getFullYear();
+                    }
+                },
+                'filterProgram': () => {
+                    const element = document.getElementById('filterProgram');
+                    if (element) {
+                        if (element.type === 'select-multiple') {
+                            Array.from(element.options).forEach(option => {
+                                option.selected = option.value === 'all';
+                            });
+                        } else {
+                            element.value = 'all';
+                        }
+                    }
+                },
+                'filterCenter': () => {
+                    const element = document.getElementById('filterCenter');
+                    if (element) {
+                        if (element.type === 'select-multiple') {
+                            Array.from(element.options).forEach(option => {
+                                option.selected = option.value === 'all';
+                            });
+                        } else {
+                            element.value = 'all';
+                        }
+                    }
+                },
+                'filterCounty': () => {
+                    const element = document.getElementById('filterCounty');
+                    if (element) element.value = 'all';
+                },
+                'filterIntake': () => {
+                    const element = document.getElementById('filterIntake');
+                    if (element) element.value = 'all';
+                },
+                'filterCourse': () => {
+                    const element = document.getElementById('filterCourse');
+                    if (element) element.value = 'all';
+                },
+                'semester': () => {
+                    const element = document.getElementById('semester');
+                    if (element) element.value = 'all';
+                }
+            };
+            
+            // Reset each filter
+            Object.values(filterElements).forEach(resetFunction => resetFunction());
+            
+            // Reset dates
+            this.setDefaultDates();
+            
+            // Reset current filters
+            this.currentFilters = {
+                year: new Date().getFullYear().toString(),
+                program: ['all'],
+                course: 'all',
+                semester: 'all',
+                status: 'all',
+                intake: 'all',
+                centres: ['all'],
+                counties: ['all'],
+                dateFrom: null,
+                dateTo: null
+            };
+            
+            // Update UI
+            this.updateStatistics();
+            this.generateReportsGrid();
+            
+            this.showToast('Filters cleared', 'info');
+            
+        } catch (error) {
+            console.error('Error clearing filters:', error);
+            this.showToast('Error clearing filters: ' + error.message, 'error');
+        }
+    }
+    
+    getSelectedValues(selectId) {
+        const select = document.getElementById(selectId);
+        if (!select) return ['all'];
+        
+        if (select.type === 'select-multiple') {
+            const selected = Array.from(select.selectedOptions)
+                .map(option => option.value)
+                .filter(value => value && value !== '' && value !== 'all');
+            
+            return selected.length > 0 ? selected : ['all'];
+        } else {
+            const value = select.value;
+            return value && value !== '' && value !== 'all' ? [value] : ['all'];
+        }
+    }
+    
+    getSafeElementValue(elementId, defaultValue = '') {
+        const element = document.getElementById(elementId);
+        return element ? element.value : defaultValue;
+    }
+    
+    applyStudentFilters(students) {
+        if (!students || !Array.isArray(students)) return [];
+        
+        let filtered = [...students];
+        
+        // Apply program filter
+        const programs = this.currentFilters.program;
+        if (programs.length > 0 && !programs.includes('all')) {
+            filtered = filtered.filter(s => 
+                s.program && programs.includes(s.program)
+            );
+        }
+        
+        // Apply centre filter
+        const centres = this.currentFilters.centres;
+        if (centres.length > 0 && !centres.includes('all')) {
+            filtered = filtered.filter(s => {
+                const studentCentre = s.centre_name || s.centre;
+                return studentCentre && centres.includes(studentCentre.toString());
+            });
+        }
+        
+        // Apply county filter
+        const counties = this.currentFilters.counties;
+        if (counties.length > 0 && !counties.includes('all')) {
+            filtered = filtered.filter(s => 
+                s.county && counties.includes(s.county)
+            );
+        }
+        
+        // Apply intake filter
+        if (this.currentFilters.intake !== 'all') {
+            const intakeYear = parseInt(this.currentFilters.intake);
+            filtered = filtered.filter(s => {
+                const studentIntake = s.intake_year || s.intake;
+                return studentIntake && parseInt(studentIntake) === intakeYear;
+            });
+        }
+        
+        return filtered;
+    }
+    
+    // ==================== STATISTICS ====================
+    
+    async updateStatistics() {
+        try {
+            const students = this.students.length > 0 ? this.students : await this.getStudents();
+            const filteredStudents = this.applyStudentFilters(students);
+            
+            const totalStudents = filteredStudents.length;
+            const activeStudents = filteredStudents.filter(s => s.status === 'active').length;
+            const graduatedStudents = filteredStudents.filter(s => s.status === 'graduated').length;
+            
+            const graduationRate = totalStudents > 0 ? 
+                Math.round((graduatedStudents / totalStudents) * 100) : 0;
+            
+            const centres = await this.getCentres();
+            const activeCentres = centres.length;
+            
+            // Calculate average GPA (simplified for now)
+            const avgGPA = 3.24;
+            
+            // Update DOM elements
+            this.updateElementText('totalStudents', totalStudents.toLocaleString());
+            this.updateElementText('graduationRate', graduationRate + '%');
+            this.updateElementText('avgGPA', avgGPA.toFixed(2));
+            this.updateElementText('centersCount', activeCentres);
+            
+            console.log(`📊 Statistics updated: ${totalStudents} students, ${graduationRate}% graduation rate`);
+            
+        } catch (error) {
+            console.error('Error updating statistics:', error);
+        }
+    }
+    
+    updateElementText(elementId, text) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.textContent = text;
         }
     }
     
@@ -646,7 +1559,7 @@ class ReportsManager {
                     icon: 'fas fa-graduation-cap',
                     description: 'Generate official student transcripts',
                     color: '#1abc9c',
-                    action: 'openTranscriptSection'
+                    action: 'openTranscriptModal' // Changed to open modal
                 },
                 {
                     id: 'scheduled',
@@ -707,532 +1620,107 @@ class ReportsManager {
         }
     }
     
-    // ==================== HELPER METHODS ====================
+    // ==================== UTILITY METHODS ====================
     
-    setDefaultDates() {
-        const dateFrom = document.getElementById('reportStartDate');
-        const dateTo = document.getElementById('reportEndDate');
-        
-        if (dateFrom) {
-            const oneYearAgo = new Date();
-            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-            dateFrom.valueAsDate = oneYearAgo;
-            this.currentFilters.dateFrom = oneYearAgo.toISOString().split('T')[0];
+    calculateGrade(percentage) {
+        if (typeof percentage !== 'number' || isNaN(percentage)) {
+            return 'FAIL';
         }
         
-        if (dateTo) {
-            dateTo.valueAsDate = new Date();
-            this.currentFilters.dateTo = new Date().toISOString().split('T')[0];
-        }
+        if (percentage >= 85) return 'DISTINCTION';
+        if (percentage >= 70) return 'CREDIT';
+        if (percentage >= 50) return 'PASS';
+        return 'FAIL';
     }
     
-    setupEventListeners() {
-        console.log('🔧 Setting up event listeners...');
-        
-        // Update all onclick handlers
-        this.updateButtonListeners();
-        
-        // Setup filter change listeners
-        this.setupFilterChangeListeners();
-        
-        console.log('✅ Event listeners setup complete');
+    getGradePoints(grade) {
+        const gradePoints = {
+            'DISTINCTION': 4.0,
+            'CREDIT': 3.0,
+            'PASS': 2.0,
+            'FAIL': 0.0
+        };
+        return gradePoints[grade] || 0.0;
     }
     
-    setupFilterChangeListeners() {
-        // Transcript Centre Filter
-        const transcriptCentreFilter = document.getElementById('transcriptCenterFilter');
-        if (transcriptCentreFilter) {
-            transcriptCentreFilter.addEventListener('change', () => this.filterTranscriptStudentsByCenter());
-        }
-        
-        // Apply filters on change for certain filters
-        const autoApplyFilters = ['academicYear', 'filterProgram', 'filterCenter', 'filterCounty', 'filterIntake'];
-        autoApplyFilters.forEach(id => {
-            const element = document.getElementById(id);
-            if (element) {
-                element.addEventListener('change', () => this.applyFilters());
-            }
-        });
-    }
-    
-    updateButtonListeners() {
-        console.log('🔄 Updating button listeners...');
-        
-        // Direct method binding for critical buttons
-        this.bindButton('applyFilters', this.applyFilters);
-        this.bindButton('clearFilters', this.clearFilters);
-        this.bindButton('refreshReports', this.refreshReports);
-        this.bindButton('saveFilterPreset', this.saveFilterPreset);
-        this.bindButton('clearPreview', this.clearPreview);
-        this.bindButton('downloadPreview', this.downloadPreview);
-        
-        // Report generation buttons
-        this.bindButton('generateSummaryReport', this.generateSummaryReport);
-        this.bindButton('generateCentreReport', this.generateCentreReport);
-        this.bindButton('studentReport', this.studentReport);
-        this.bindButton('academicReport', this.academicReport);
-        this.bindButton('quickStudentReport', this.studentReport);
-        this.bindButton('quickAcademicReport', this.academicReport);
-        this.bindButton('previewStudentReport', this.previewStudentReport);
-        this.bindButton('previewAcademicReport', this.previewAcademicReport);
-        
-        // Transcript buttons
-        this.bindButton('previewTranscript', this.previewTranscript);
-        this.bindButton('generateTranscript', this.generateTranscript);
-        this.bindButton('loadSampleTranscript', this.loadSampleTranscript);
-        this.bindButton('bulkTranscripts', this.bulkTranscripts);
-        this.bindButton('bulkExport', this.bulkExport);
-        this.bindButton('addScheduledReport', this.addScheduledReport);
-        
-        // Also update all onclick attributes globally
-        this.updateAllOnclickHandlers();
-        
-        console.log('✅ Button listeners updated');
-    }
-    
-    bindButton(elementId, method) {
-        const element = document.getElementById(elementId);
-        if (element) {
-            element.onclick = method;
-        } else {
-            // Try to find by partial match
-            const elements = document.querySelectorAll(`[id*="${elementId}"], [onclick*="${elementId}"]`);
-            elements.forEach(el => {
-                if (el.onclick === null || el.getAttribute('onclick')?.includes(elementId)) {
-                    el.onclick = method;
-                }
-            });
+    showLoading(show) {
+        const loadingOverlay = document.getElementById('reportLoading');
+        if (loadingOverlay) {
+            loadingOverlay.style.display = show ? 'flex' : 'none';
         }
     }
     
-    updateAllOnclickHandlers() {
-        // Map of onclick strings to methods
-        const handlerMap = {
-            'app.reports.studentReport()': this.studentReport,
-            'app.reports.academicReport()': this.academicReport,
-            'app.reports.generateCentreReport()': this.generateCentreReport,
-            'app.reports.generateSummaryReport()': this.generateSummaryReport,
-            'app.reports.previewStudentReport()': this.previewStudentReport,
-            'app.reports.previewAcademicReport()': this.previewAcademicReport,
-            'app.reports.quickStudentReport()': this.studentReport,
-            'app.reports.quickAcademicReport()': this.academicReport,
-            'app.reports.previewTranscript()': this.previewTranscript,
-            'app.reports.generateTranscript()': this.generateTranscript,
-            'app.reports.bulkExport()': this.bulkExport,
-            'app.reports.loadSampleTranscript()': this.loadSampleTranscript,
-            'app.reports.clearPreview()': this.clearPreview,
-            'app.reports.addScheduledReport()': this.addScheduledReport,
-            'app.reports.saveFilterPreset()': this.saveFilterPreset,
-            'app.reports.downloadPreview()': this.downloadPreview,
-            'app.reports.bulkTranscripts()': this.bulkTranscripts,
-            'app.reports.refreshReports()': this.refreshReports,
-            'app.reports.applyFilters()': this.applyFilters,
-            'app.reports.clearFilters()': this.clearFilters
+    showToast(message, type = 'info') {
+        // Create toast container if it doesn't exist
+        let container = document.getElementById('toastContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toastContainer';
+            container.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 9999;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                max-width: 400px;
+            `;
+            document.body.appendChild(container);
+        }
+        
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        const icons = {
+            success: 'fa-check-circle',
+            error: 'fa-exclamation-circle',
+            info: 'fa-info-circle',
+            warning: 'fa-exclamation-triangle'
         };
         
-        // Update all buttons with onclick attributes
-        document.querySelectorAll('[onclick]').forEach(element => {
-            const onclickAttr = element.getAttribute('onclick');
-            if (onclickAttr) {
-                // Check if this onclick matches any in our map
-                for (const [pattern, handler] of Object.entries(handlerMap)) {
-                    if (onclickAttr.includes(pattern.replace('app.reports.', '').replace('()', ''))) {
-                        element.onclick = handler;
-                        break;
-                    }
-                }
-            }
-        });
-    }
-    
-    async filterTranscriptStudentsByCenter() {
-        try {
-            const centreFilter = document.getElementById('transcriptCenterFilter');
-            const studentSelect = document.getElementById('transcriptStudent');
-            
-            if (!centreFilter || !studentSelect) return;
-            
-            const selectedCentre = centreFilter.value;
-            const students = this.students.length > 0 ? this.students : await this.getStudents();
-            
-            // Clear existing options
-            studentSelect.innerHTML = '';
-            
-            // Add placeholder option
-            const placeholderOption = document.createElement('option');
-            placeholderOption.value = '';
-            placeholderOption.textContent = 'Select Student';
-            placeholderOption.disabled = true;
-            placeholderOption.selected = true;
-            studentSelect.appendChild(placeholderOption);
-            
-            // Filter students by centre
-            const filteredStudents = selectedCentre === 'all' 
-                ? students 
-                : students.filter(student => 
-                    (student.centre_name === selectedCentre) || 
-                    (student.centre === selectedCentre) ||
-                    (student.centre_id === selectedCentre)
-                );
-            
-            // Add filtered students
-            filteredStudents.forEach(student => {
-                const option = document.createElement('option');
-                option.value = student.id || student.reg_number;
-                option.textContent = `${student.reg_number || 'N/A'} - ${student.full_name || student.name || 'Unknown Student'}`;
-                
-                if (student.centre_name || student.centre) {
-                    option.textContent += ` (${student.centre_name || student.centre})`;
-                }
-                
-                studentSelect.appendChild(option);
-            });
-            
-            console.log(`Filtered ${filteredStudents.length} students for centre: ${selectedCentre}`);
-            
-        } catch (error) {
-            console.error('Error filtering transcript students by centre:', error);
-        }
-    }
-    
-    // ==================== TRANSCRIPT METHODS ====================
-    
-    async generateTranscriptData(studentId) {
-        try {
-            console.log('📄 Generating transcript data for student ID:', studentId);
-            
-            const student = await this.getStudentById(studentId);
-            if (!student) {
-                throw new Error('Student not found');
-            }
-            
-            const marks = await this.getMarksByStudent(studentId);
-            console.log(`Found ${marks.length} marks for student`);
-            
-            // Group marks by course
-            const coursesMap = {};
-            
-            marks.forEach(mark => {
-                const courseId = mark.course_id || mark.course_code;
-                if (!courseId) return;
-                
-                if (!coursesMap[courseId]) {
-                    coursesMap[courseId] = {
-                        course_id: courseId,
-                        course_name: mark.course_name,
-                        marks: [],
-                        totalScore: 0,
-                        totalMaxScore: 0
-                    };
-                }
-                
-                coursesMap[courseId].marks.push({
-                    assessment_name: mark.assessment_name || 'Assessment',
-                    assessment_type: mark.assessment_type || 'Exam',
-                    score: mark.score || 0,
-                    max_score: mark.max_score || 100,
-                    percentage: mark.percentage || 0,
-                    grade: mark.grade || 'N/A',
-                    date: mark.assessment_date || mark.created_at || new Date().toISOString()
-                });
-                
-                coursesMap[courseId].totalScore += mark.score || 0;
-                coursesMap[courseId].totalMaxScore += mark.max_score || 100;
-            });
-            
-            // Get course details and calculate final grades
-            const allCourses = this.courses.length > 0 ? this.courses : await this.getCourses();
-            const courseList = [];
-            let totalCredits = 0;
-            let totalGradePoints = 0;
-            
-            Object.values(coursesMap).forEach(courseData => {
-                const course = allCourses.find(c => 
-                    c.id === courseData.course_id || 
-                    c.course_code === courseData.course_id ||
-                    c.code === courseData.course_id
-                );
-                
-                const courseName = courseData.course_name || (course ? course.course_name || course.name : 'Unknown Course');
-                const courseCode = courseData.course_id;
-                const finalScore = courseData.totalMaxScore > 0 
-                    ? (courseData.totalScore / courseData.totalMaxScore) * 100 
-                    : 0;
-                
-                const grade = this.calculateGrade(finalScore);
-                const gradePoints = this.getGradePoints(grade);
-                const credits = course?.credits || 3;
-                
-                totalCredits += credits;
-                totalGradePoints += gradePoints * credits;
-                
-                courseList.push({
-                    course_code: courseCode,
-                    course_name: courseName,
-                    credits: credits,
-                    semester: course?.semester || 1,
-                    final_score: finalScore.toFixed(1),
-                    grade: grade,
-                    grade_points: gradePoints,
-                    assessments: courseData.marks
-                });
-            });
-            
-            // Sort by semester
-            courseList.sort((a, b) => a.semester - b.semester);
-            
-            // Calculate GPA
-            const gpa = totalCredits > 0 ? (totalGradePoints / totalCredits).toFixed(2) : '0.00';
-            
-            return {
-                student: {
-                    id: student.id,
-                    reg_number: student.reg_number,
-                    full_name: student.full_name || student.name,
-                    program: student.program,
-                    centre: student.centre_name || student.centre || 'Not specified',
-                    intake_year: student.intake_year || student.intake,
-                    status: student.status || 'active',
-                    date_of_birth: student.date_of_birth,
-                    gender: student.gender,
-                    email: student.email,
-                    phone: student.phone
-                },
-                courses: courseList,
-                summary: {
-                    total_courses: courseList.length,
-                    total_credits: totalCredits,
-                    gpa: parseFloat(gpa),
-                    cumulative_gpa: parseFloat(gpa),
-                    date_generated: new Date().toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                    })
-                }
-            };
-            
-        } catch (error) {
-            console.error('❌ Error generating transcript data:', error);
-            throw error;
-        }
-    }
-    
-    async previewTranscript() {
-        try {
-            const studentId = this.getSafeElementValue('transcriptStudent');
-            
-            if (!studentId) {
-                this.showToast('Please select a student', 'warning');
-                return;
-            }
-            
-            console.log('Previewing transcript for student ID:', studentId);
-            
-            const data = await this.generateTranscriptData(studentId);
-            this.previewTranscriptData(data);
-            
-            this.showToast('Transcript preview loaded', 'success');
-            
-        } catch (error) {
-            console.error('❌ Error previewing transcript:', error);
-            this.showToast('Error previewing transcript: ' + error.message, 'error');
-        }
-    }
-    
-    async generateTranscript() {
-        try {
-            const studentId = this.getSafeElementValue('transcriptStudent');
-            const format = this.getSafeElementValue('transcriptFormat', 'pdf');
-            
-            if (!studentId) {
-                this.showToast('Please select a student', 'warning');
-                return;
-            }
-            
-            console.log(`📄 Generating ${format.toUpperCase()} transcript for student ID: ${studentId}`);
-            
-            const data = await this.generateTranscriptData(studentId);
-            
-            if (format === 'pdf') {
-                await this.exportTranscriptToPDF(data);
-            } else {
-                await this.exportData(data.courses, `transcript-${data.student.reg_number}`, format);
-            }
-            
-            this.showToast('Transcript generated successfully', 'success');
-            
-        } catch (error) {
-            console.error('❌ Error generating transcript:', error);
-            this.showToast('Error generating transcript: ' + error.message, 'error');
-        }
-    }
-    
-    previewTranscriptData(transcriptData) {
-        try {
-            const previewDiv = document.getElementById('transcriptPreview');
-            if (!previewDiv) {
-                console.warn('transcriptPreview element not found');
-                return;
-            }
-            
-            let html = `
-                <div class="transcript-preview" style="background: white; border-radius: 10px; padding: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 100%; overflow-x: auto;">
-                    <div class="transcript-header" style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #3498db; padding-bottom: 20px;">
-                        <h2 style="color: #2c3e50; margin-bottom: 5px;">TEE College</h2>
-                        <h3 style="color: #7f8c8d; font-weight: normal; margin-bottom: 20px;">Academic Transcript</h3>
-                    </div>
-                    
-                    <div class="student-info" style="margin-bottom: 30px;">
-                        <div class="row" style="display: flex; flex-wrap: wrap; margin-bottom: 15px;">
-                            <div style="flex: 1; min-width: 200px; margin-bottom: 10px;">
-                                <strong style="color: #2c3e50;">Student Name:</strong>
-                                <div style="color: #34495e;">${transcriptData.student.full_name}</div>
-                            </div>
-                            <div style="flex: 1; min-width: 200px; margin-bottom: 10px;">
-                                <strong style="color: #2c3e50;">Registration Number:</strong>
-                                <div style="color: #34495e;"><code>${transcriptData.student.reg_number}</code></div>
-                            </div>
-                        </div>
-                        <div class="row" style="display: flex; flex-wrap: wrap; margin-bottom: 15px;">
-                            <div style="flex: 1; min-width: 200px; margin-bottom: 10px;">
-                                <strong style="color: #2c3e50;">Program:</strong>
-                                <div style="color: #34495e;">${transcriptData.student.program}</div>
-                            </div>
-                            <div style="flex: 1; min-width: 200px; margin-bottom: 10px;">
-                                <strong style="color: #2c3e50;">Study Centre:</strong>
-                                <div style="color: #34495e;">${transcriptData.student.centre}</div>
-                            </div>
-                        </div>
-                        <div class="row" style="display: flex; flex-wrap: wrap;">
-                            <div style="flex: 1; min-width: 200px; margin-bottom: 10px;">
-                                <strong style="color: #2c3e50;">Intake Year:</strong>
-                                <div style="color: #34495e;">${transcriptData.student.intake_year}</div>
-                            </div>
-                            <div style="flex: 1; min-width: 200px; margin-bottom: 10px;">
-                                <strong style="color: #2c3e50;">Status:</strong>
-                                <span class="badge" 
-                                      style="background: ${transcriptData.student.status === 'active' ? '#2ecc71' : '#95a5a6'}; 
-                                             color: white; padding: 3px 10px; border-radius: 4px;">
-                                    ${transcriptData.student.status || 'Unknown'}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="courses-table" style="margin-bottom: 30px;">
-                        <h4 style="color: #2c3e50; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
-                            <i class="fas fa-book"></i> Course Performance
-                        </h4>
-            `;
-            
-            if (transcriptData.courses.length === 0) {
-                html += `
-                    <div class="alert alert-info" style="background: #e8f4fc; color: #31708f; padding: 15px; border-radius: 5px; text-align: center;">
-                        <i class="fas fa-info-circle"></i> No course records found for this student
-                    </div>
-                `;
-            } else {
-                html += `
-                    <div class="table-responsive">
-                        <table class="table" style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-                            <thead style="background: #f8f9fa;">
-                                <tr>
-                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Course Code</th>
-                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Course Name</th>
-                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Credits</th>
-                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Semester</th>
-                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Score (%)</th>
-                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Grade</th>
-                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Grade Points</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                `;
-                
-                transcriptData.courses.forEach(course => {
-                    const gradeColor = course.grade === 'FAIL' ? '#e74c3c' : 
-                                     course.grade === 'PASS' ? '#f39c12' : 
-                                     course.grade === 'CREDIT' ? '#3498db' : '#2ecc71';
-                    
-                    html += `
-                        <tr style="border-bottom: 1px solid #eee;">
-                            <td style="padding: 12px;"><strong>${course.course_code}</strong></td>
-                            <td style="padding: 12px;">${course.course_name}</td>
-                            <td style="padding: 12px; text-align: center;">${course.credits}</td>
-                            <td style="padding: 12px; text-align: center;">${course.semester}</td>
-                            <td style="padding: 12px; text-align: center;">${course.final_score}%</td>
-                            <td style="padding: 12px;">
-                                <span class="badge" style="background: ${gradeColor}; color: white; padding: 4px 8px; border-radius: 4px;">
-                                    ${course.grade}
-                                </span>
-                            </td>
-                            <td style="padding: 12px; text-align: center;">${course.grade_points.toFixed(1)}</td>
-                        </tr>
-                    `;
-                });
-                
-                html += `
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-            }
-            
-            html += `
-                    </div>
-                    
-                    <div class="transcript-summary" style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #3498db;">
-                        <div class="row" style="display: flex; flex-wrap: wrap; justify-content: space-between;">
-                            <div style="flex: 1; min-width: 150px; margin-bottom: 10px;">
-                                <strong style="color: #2c3e50;">Total Courses:</strong>
-                                <div style="font-size: 1.2rem; color: #34495e;">${transcriptData.summary.total_courses}</div>
-                            </div>
-                            <div style="flex: 1; min-width: 150px; margin-bottom: 10px;">
-                                <strong style="color: #2c3e50;">Total Credits:</strong>
-                                <div style="font-size: 1.2rem; color: #34495e;">${transcriptData.summary.total_credits}</div>
-                            </div>
-                            <div style="flex: 1; min-width: 150px; margin-bottom: 10px;">
-                                <strong style="color: #2c3e50;">Grade Point Average (GPA):</strong>
-                                <div style="font-size: 1.5rem; color: #2ecc71; font-weight: bold;">${transcriptData.summary.gpa.toFixed(2)}</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="transcript-footer" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #7f8c8d; font-size: 0.9rem;">
-                        <p>Generated on: ${transcriptData.summary.date_generated}</p>
-                        <p><i class="fas fa-lock"></i> Official Transcript - For Academic Use Only</p>
-                    </div>
+        toast.innerHTML = `
+            <div style="display: flex; align-items: flex-start; gap: 12px;">
+                <i class="fas ${icons[type] || 'fa-info-circle'}" 
+                   style="font-size: 18px; margin-top: 2px;"></i>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 500; margin-bottom: 2px;">${type.toUpperCase()}</div>
+                    <div style="font-size: 14px; opacity: 0.9;">${message}</div>
                 </div>
-            `;
-            
-            previewDiv.innerHTML = html;
-            previewDiv.style.display = 'block';
-            
-        } catch (error) {
-            console.error('Error rendering transcript preview:', error);
-            this.showToast('Error rendering transcript preview: ' + error.message, 'error');
-        }
-    }
-    
-    async loadSampleTranscript() {
-        try {
-            const students = this.students.length > 0 ? this.students : await this.getStudents();
-            if (students.length > 0) {
-                const sampleStudent = students[0];
-                const studentSelect = document.getElementById('transcriptStudent');
-                if (studentSelect) {
-                    studentSelect.value = sampleStudent.id || sampleStudent.reg_number;
-                    await this.previewTranscript();
-                    this.showToast('Loaded sample transcript', 'info');
-                }
-            } else {
-                this.showToast('No students found in database', 'warning');
+                <button onclick="this.parentElement.parentElement.remove()" 
+                        style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; margin-left: 8px;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        // Style based on type
+        const styles = {
+            success: 'background: #2ecc71; color: white; border-left: 4px solid #27ae60;',
+            error: 'background: #e74c3c; color: white; border-left: 4px solid #c0392b;',
+            warning: 'background: #f39c12; color: white; border-left: 4px solid #d35400;',
+            info: 'background: #3498db; color: white; border-left: 4px solid #2980b9;'
+        };
+        
+        toast.style.cssText = `
+            ${styles[type] || styles.info}
+            padding: 14px 16px;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: slideIn 0.3s ease;
+            min-width: 300px;
+            max-width: 400px;
+        `;
+        
+        container.appendChild(toast);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
             }
-        } catch (error) {
-            console.error('Error loading sample transcript:', error);
-            this.showToast('Error loading sample: ' + error.message, 'error');
-        }
+        }, 5000);
     }
     
     // ==================== REPORT GENERATION ====================
@@ -1457,268 +1945,360 @@ class ReportsManager {
         }
     }
     
-    // ==================== FILTER FUNCTIONS ====================
+    // ==================== TRANSCRIPT METHODS ====================
     
-    async applyFilters() {
+    async generateTranscriptData(studentId) {
         try {
-            console.log('🔍 Applying filters...');
-            this.showLoading(true);
+            console.log('📄 Generating transcript data for student ID:', studentId);
             
-            this.currentFilters = {
-                year: this.getSafeElementValue('academicYear', 'all'),
-                program: this.getSelectedValues('filterProgram'),
-                course: this.getSafeElementValue('filterCourse', 'all'),
-                semester: this.getSafeElementValue('semester', 'all'),
-                status: 'all',
-                intake: this.getSafeElementValue('filterIntake', 'all'),
-                centres: this.getSelectedValues('filterCenter'),
-                counties: this.getSelectedValues('filterCounty'),
-                dateFrom: document.getElementById('reportStartDate')?.value || null,
-                dateTo: document.getElementById('reportEndDate')?.value || null
-            };
+            const student = await this.getStudentById(studentId);
+            if (!student) {
+                throw new Error('Student not found');
+            }
             
-            console.log('Current filters:', this.currentFilters);
+            const marks = await this.getMarksByStudent(studentId);
+            console.log(`Found ${marks.length} marks for student`);
             
-            await this.updateStatistics();
-            await this.generateReportsGrid();
+            // Group marks by course
+            const coursesMap = {};
             
-            this.showToast('Filters applied successfully', 'success');
-            
-        } catch (error) {
-            console.error('Error applying filters:', error);
-            this.showToast('Error applying filters: ' + error.message, 'error');
-        } finally {
-            this.showLoading(false);
-        }
-    }
-    
-    clearFilters() {
-        try {
-            // Reset filter elements
-            const elements = ['academicYear', 'filterProgram', 'filterCourse', 'semester', 'filterCenter', 'filterCounty', 'filterIntake'];
-            
-            elements.forEach(id => {
-                const element = document.getElementById(id);
-                if (element) {
-                    if (element.type === 'select-multiple') {
-                        Array.from(element.options).forEach(option => {
-                            option.selected = option.value === 'all';
-                        });
-                    } else {
-                        element.value = 'all';
-                    }
+            marks.forEach(mark => {
+                const courseId = mark.course_id || mark.course_code;
+                if (!courseId) return;
+                
+                if (!coursesMap[courseId]) {
+                    coursesMap[courseId] = {
+                        course_id: courseId,
+                        course_name: mark.course_name,
+                        marks: [],
+                        totalScore: 0,
+                        totalMaxScore: 0
+                    };
                 }
+                
+                coursesMap[courseId].marks.push({
+                    assessment_name: mark.assessment_name || 'Assessment',
+                    assessment_type: mark.assessment_type || 'Exam',
+                    score: mark.score || 0,
+                    max_score: mark.max_score || 100,
+                    percentage: mark.percentage || 0,
+                    grade: mark.grade || 'N/A',
+                    date: mark.assessment_date || mark.created_at || new Date().toISOString()
+                });
+                
+                coursesMap[courseId].totalScore += mark.score || 0;
+                coursesMap[courseId].totalMaxScore += mark.max_score || 100;
             });
             
-            // Reset dates
-            this.setDefaultDates();
+            // Get course details and calculate final grades
+            const allCourses = this.courses.length > 0 ? this.courses : await this.getCourses();
+            const courseList = [];
+            let totalCredits = 0;
+            let totalGradePoints = 0;
             
-            // Reset current filters
-            this.currentFilters = {
-                year: new Date().getFullYear().toString(),
-                program: ['all'],
-                course: 'all',
-                semester: 'all',
-                status: 'all',
-                intake: 'all',
-                centres: ['all'],
-                counties: ['all'],
-                dateFrom: null,
-                dateTo: null
+            Object.values(coursesMap).forEach(courseData => {
+                const course = allCourses.find(c => 
+                    c.id === courseData.course_id || 
+                    c.course_code === courseData.course_id ||
+                    c.code === courseData.course_id
+                );
+                
+                const courseName = courseData.course_name || (course ? course.course_name || course.name : 'Unknown Course');
+                const courseCode = courseData.course_id;
+                const finalScore = courseData.totalMaxScore > 0 
+                    ? (courseData.totalScore / courseData.totalMaxScore) * 100 
+                    : 0;
+                
+                const grade = this.calculateGrade(finalScore);
+                const gradePoints = this.getGradePoints(grade);
+                const credits = course?.credits || 3;
+                
+                totalCredits += credits;
+                totalGradePoints += gradePoints * credits;
+                
+                courseList.push({
+                    course_code: courseCode,
+                    course_name: courseName,
+                    credits: credits,
+                    semester: course?.semester || 1,
+                    final_score: finalScore.toFixed(1),
+                    grade: grade,
+                    grade_points: gradePoints,
+                    assessments: courseData.marks
+                });
+            });
+            
+            // Sort by semester
+            courseList.sort((a, b) => a.semester - b.semester);
+            
+            // Calculate GPA
+            const gpa = totalCredits > 0 ? (totalGradePoints / totalCredits).toFixed(2) : '0.00';
+            
+            return {
+                student: {
+                    id: student.id,
+                    reg_number: student.reg_number,
+                    full_name: student.full_name || student.name,
+                    program: student.program,
+                    centre: student.centre_name || student.centre || 'Not specified',
+                    intake_year: student.intake_year || student.intake,
+                    status: student.status || 'active',
+                    date_of_birth: student.date_of_birth,
+                    gender: student.gender,
+                    email: student.email,
+                    phone: student.phone
+                },
+                courses: courseList,
+                summary: {
+                    total_courses: courseList.length,
+                    total_credits: totalCredits,
+                    gpa: parseFloat(gpa),
+                    cumulative_gpa: parseFloat(gpa),
+                    date_generated: new Date().toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    })
+                }
             };
             
-            // Update UI
-            this.updateStatistics();
-            this.generateReportsGrid();
+        } catch (error) {
+            console.error('❌ Error generating transcript data:', error);
+            throw error;
+        }
+    }
+    
+    async previewTranscript() {
+        try {
+            // Check if we have a selected student from modal
+            let studentId = null;
             
-            this.showToast('Filters cleared', 'info');
+            if (this.selectedStudentForTranscript) {
+                studentId = this.selectedStudentForTranscript.id || this.selectedStudentForTranscript.reg_number;
+            } else {
+                // Fallback to form input
+                studentId = this.getSafeElementValue('transcriptStudent');
+            }
+            
+            if (!studentId) {
+                // Open modal if no student selected
+                await this.openTranscriptModal();
+                return;
+            }
+            
+            console.log('Previewing transcript for student ID:', studentId);
+            
+            const data = await this.generateTranscriptData(studentId);
+            this.previewTranscriptData(data);
+            
+            this.showToast('Transcript preview loaded', 'success');
             
         } catch (error) {
-            console.error('Error clearing filters:', error);
-            this.showToast('Error clearing filters: ' + error.message, 'error');
+            console.error('❌ Error previewing transcript:', error);
+            this.showToast('Error previewing transcript: ' + error.message, 'error');
         }
     }
     
-    getSelectedValues(selectId) {
-        const select = document.getElementById(selectId);
-        if (!select) return ['all'];
-        
-        if (select.type === 'select-multiple') {
-            const selected = Array.from(select.selectedOptions)
-                .map(option => option.value)
-                .filter(value => value && value !== '' && value !== 'all');
+    async generateTranscript() {
+        try {
+            // Check if we have a selected student from modal
+            let studentId = null;
             
-            return selected.length > 0 ? selected : ['all'];
-        } else {
-            const value = select.value;
-            return value && value !== '' && value !== 'all' ? [value] : ['all'];
+            if (this.selectedStudentForTranscript) {
+                studentId = this.selectedStudentForTranscript.id || this.selectedStudentForTranscript.reg_number;
+            } else {
+                // Fallback to form input
+                studentId = this.getSafeElementValue('transcriptStudent');
+            }
+            
+            const format = this.getSafeElementValue('transcriptFormat', 'pdf');
+            
+            if (!studentId) {
+                this.showToast('Please select a student first', 'warning');
+                await this.openTranscriptModal();
+                return;
+            }
+            
+            console.log(`📄 Generating ${format.toUpperCase()} transcript for student ID: ${studentId}`);
+            
+            const data = await this.generateTranscriptData(studentId);
+            
+            if (format === 'pdf') {
+                await this.exportTranscriptToPDF(data);
+            } else {
+                await this.exportData(data.courses, `transcript-${data.student.reg_number}`, format);
+            }
+            
+            this.showToast('Transcript generated successfully', 'success');
+            
+        } catch (error) {
+            console.error('❌ Error generating transcript:', error);
+            this.showToast('Error generating transcript: ' + error.message, 'error');
         }
     }
     
-    getSafeElementValue(elementId, defaultValue = '') {
-        const element = document.getElementById(elementId);
-        return element ? element.value : defaultValue;
+    previewTranscriptData(transcriptData) {
+        try {
+            const previewDiv = document.getElementById('transcriptPreview');
+            if (!previewDiv) {
+                console.warn('transcriptPreview element not found');
+                return;
+            }
+            
+            let html = `
+                <div class="transcript-preview" style="background: white; border-radius: 10px; padding: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 100%; overflow-x: auto;">
+                    <div class="transcript-header" style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #3498db; padding-bottom: 20px;">
+                        <h2 style="color: #2c3e50; margin-bottom: 5px;">TEE College</h2>
+                        <h3 style="color: #7f8c8d; font-weight: normal; margin-bottom: 20px;">Academic Transcript</h3>
+                    </div>
+                    
+                    <div class="student-info" style="margin-bottom: 30px;">
+                        <div class="row" style="display: flex; flex-wrap: wrap; margin-bottom: 15px;">
+                            <div style="flex: 1; min-width: 200px; margin-bottom: 10px;">
+                                <strong style="color: #2c3e50;">Student Name:</strong>
+                                <div style="color: #34495e;">${transcriptData.student.full_name}</div>
+                            </div>
+                            <div style="flex: 1; min-width: 200px; margin-bottom: 10px;">
+                                <strong style="color: #2c3e50;">Registration Number:</strong>
+                                <div style="color: #34495e;"><code>${transcriptData.student.reg_number}</code></div>
+                            </div>
+                        </div>
+                        <div class="row" style="display: flex; flex-wrap: wrap; margin-bottom: 15px;">
+                            <div style="flex: 1; min-width: 200px; margin-bottom: 10px;">
+                                <strong style="color: #2c3e50;">Program:</strong>
+                                <div style="color: #34495e;">${transcriptData.student.program}</div>
+                            </div>
+                            <div style="flex: 1; min-width: 200px; margin-bottom: 10px;">
+                                <strong style="color: #2c3e50;">Study Centre:</strong>
+                                <div style="color: #34495e;">${transcriptData.student.centre}</div>
+                            </div>
+                        </div>
+                        <div class="row" style="display: flex; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 200px; margin-bottom: 10px;">
+                                <strong style="color: #2c3e50;">Intake Year:</strong>
+                                <div style="color: #34495e;">${transcriptData.student.intake_year}</div>
+                            </div>
+                            <div style="flex: 1; min-width: 200px; margin-bottom: 10px;">
+                                <strong style="color: #2c3e50;">Status:</strong>
+                                <span class="badge" 
+                                      style="background: ${transcriptData.student.status === 'active' ? '#2ecc71' : '#95a5a6'}; 
+                                             color: white; padding: 3px 10px; border-radius: 4px;">
+                                    ${transcriptData.student.status || 'Unknown'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="courses-table" style="margin-bottom: 30px;">
+                        <h4 style="color: #2c3e50; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                            <i class="fas fa-book"></i> Course Performance
+                        </h4>
+            `;
+            
+            if (transcriptData.courses.length === 0) {
+                html += `
+                    <div class="alert alert-info" style="background: #e8f4fc; color: #31708f; padding: 15px; border-radius: 5px; text-align: center;">
+                        <i class="fas fa-info-circle"></i> No course records found for this student
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="table-responsive">
+                        <table class="table" style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                            <thead style="background: #f8f9fa;">
+                                <tr>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Course Code</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Course Name</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Credits</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Semester</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Score (%)</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Grade</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Grade Points</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                transcriptData.courses.forEach(course => {
+                    const gradeColor = course.grade === 'FAIL' ? '#e74c3c' : 
+                                     course.grade === 'PASS' ? '#f39c12' : 
+                                     course.grade === 'CREDIT' ? '#3498db' : '#2ecc71';
+                    
+                    html += `
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 12px;"><strong>${course.course_code}</strong></td>
+                            <td style="padding: 12px;">${course.course_name}</td>
+                            <td style="padding: 12px; text-align: center;">${course.credits}</td>
+                            <td style="padding: 12px; text-align: center;">${course.semester}</td>
+                            <td style="padding: 12px; text-align: center;">${course.final_score}%</td>
+                            <td style="padding: 12px;">
+                                <span class="badge" style="background: ${gradeColor}; color: white; padding: 4px 8px; border-radius: 4px;">
+                                    ${course.grade}
+                                </span>
+                            </td>
+                            <td style="padding: 12px; text-align: center;">${course.grade_points.toFixed(1)}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+            
+            html += `
+                    </div>
+                    
+                    <div class="transcript-summary" style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #3498db;">
+                        <div class="row" style="display: flex; flex-wrap: wrap; justify-content: space-between;">
+                            <div style="flex: 1; min-width: 150px; margin-bottom: 10px;">
+                                <strong style="color: #2c3e50;">Total Courses:</strong>
+                                <div style="font-size: 1.2rem; color: #34495e;">${transcriptData.summary.total_courses}</div>
+                            </div>
+                            <div style="flex: 1; min-width: 150px; margin-bottom: 10px;">
+                                <strong style="color: #2c3e50;">Total Credits:</strong>
+                                <div style="font-size: 1.2rem; color: #34495e;">${transcriptData.summary.total_credits}</div>
+                            </div>
+                            <div style="flex: 1; min-width: 150px; margin-bottom: 10px;">
+                                <strong style="color: #2c3e50;">Grade Point Average (GPA):</strong>
+                                <div style="font-size: 1.5rem; color: #2ecc71; font-weight: bold;">${transcriptData.summary.gpa.toFixed(2)}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="transcript-footer" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #7f8c8d; font-size: 0.9rem;">
+                        <p>Generated on: ${transcriptData.summary.date_generated}</p>
+                        <p><i class="fas fa-lock"></i> Official Transcript - For Academic Use Only</p>
+                    </div>
+                </div>
+            `;
+            
+            previewDiv.innerHTML = html;
+            previewDiv.style.display = 'block';
+            
+        } catch (error) {
+            console.error('Error rendering transcript preview:', error);
+            this.showToast('Error rendering transcript preview: ' + error.message, 'error');
+        }
     }
     
-    applyStudentFilters(students) {
-        let filtered = [...students];
-        
-        const programs = this.currentFilters.program;
-        if (programs.length > 0 && !programs.includes('all')) {
-            filtered = filtered.filter(s => programs.includes(s.program));
-        }
-        
-        const centres = this.currentFilters.centres;
-        if (centres.length > 0 && !centres.includes('all')) {
-            filtered = filtered.filter(s => centres.includes(s.centre_name || s.centre));
-        }
-        
-        const counties = this.currentFilters.counties;
-        if (counties.length > 0 && !counties.includes('all')) {
-            filtered = filtered.filter(s => counties.includes(s.county));
-        }
-        
-        if (this.currentFilters.intake !== 'all') {
-            filtered = filtered.filter(s => (s.intake_year || s.intake) == parseInt(this.currentFilters.intake));
-        }
-        
-        return filtered;
-    }
-    
-    // ==================== STATISTICS ====================
-    
-    async updateStatistics() {
+    async loadSampleTranscript() {
         try {
             const students = this.students.length > 0 ? this.students : await this.getStudents();
-            const filteredStudents = this.applyStudentFilters(students);
-            
-            const totalStudents = filteredStudents.length;
-            const activeStudents = filteredStudents.filter(s => s.status === 'active').length;
-            const graduatedStudents = filteredStudents.filter(s => s.status === 'graduated').length;
-            
-            const graduationRate = totalStudents > 0 ? 
-                Math.round((graduatedStudents / totalStudents) * 100) : 0;
-            
-            const centres = await this.getCentres();
-            const activeCentres = centres.length;
-            
-            // Calculate average GPA (simplified for now)
-            const avgGPA = 3.24;
-            
-            this.updateElementText('totalStudents', totalStudents.toLocaleString());
-            this.updateElementText('graduationRate', graduationRate + '%');
-            this.updateElementText('avgGPA', avgGPA.toFixed(2));
-            this.updateElementText('centersCount', activeCentres);
-            
-        } catch (error) {
-            console.error('Error updating statistics:', error);
-        }
-    }
-    
-    updateElementText(elementId, text) {
-        const element = document.getElementById(elementId);
-        if (element) {
-            element.textContent = text;
-        }
-    }
-    
-    // ==================== UTILITY METHODS ====================
-    
-    calculateGrade(percentage) {
-        if (percentage >= 85) return 'DISTINCTION';
-        if (percentage >= 70) return 'CREDIT';
-        if (percentage >= 50) return 'PASS';
-        return 'FAIL';
-    }
-    
-    getGradePoints(grade) {
-        const gradePoints = {
-            'DISTINCTION': 4.0,
-            'CREDIT': 3.0,
-            'PASS': 2.0,
-            'FAIL': 0.0
-        };
-        return gradePoints[grade] || 0.0;
-    }
-    
-    showLoading(show) {
-        const loadingOverlay = document.getElementById('reportLoading');
-        if (loadingOverlay) {
-            loadingOverlay.style.display = show ? 'flex' : 'none';
-        }
-    }
-    
-    showToast(message, type = 'info') {
-        // Create toast container if it doesn't exist
-        let container = document.getElementById('toastContainer');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'toastContainer';
-            container.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                z-index: 9999;
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-                max-width: 400px;
-            `;
-            document.body.appendChild(container);
-        }
-        
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        
-        const icons = {
-            success: 'fa-check-circle',
-            error: 'fa-exclamation-circle',
-            info: 'fa-info-circle',
-            warning: 'fa-exclamation-triangle'
-        };
-        
-        toast.innerHTML = `
-            <div style="display: flex; align-items: flex-start; gap: 12px;">
-                <i class="fas ${icons[type] || 'fa-info-circle'}" 
-                   style="font-size: 18px; margin-top: 2px;"></i>
-                <div style="flex: 1; min-width: 0;">
-                    <div style="font-weight: 500; margin-bottom: 2px;">${type.toUpperCase()}</div>
-                    <div style="font-size: 14px; opacity: 0.9;">${message}</div>
-                </div>
-                <button onclick="this.parentElement.parentElement.remove()" 
-                        style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; margin-left: 8px;">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        `;
-        
-        // Style based on type
-        const styles = {
-            success: 'background: #2ecc71; color: white; border-left: 4px solid #27ae60;',
-            error: 'background: #e74c3c; color: white; border-left: 4px solid #c0392b;',
-            warning: 'background: #f39c12; color: white; border-left: 4px solid #d35400;',
-            info: 'background: #3498db; color: white; border-left: 4px solid #2980b9;'
-        };
-        
-        toast.style.cssText = `
-            ${styles[type] || styles.info}
-            padding: 14px 16px;
-            border-radius: 4px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            animation: slideIn 0.3s ease;
-            min-width: 300px;
-            max-width: 400px;
-        `;
-        
-        container.appendChild(toast);
-        
-        // Auto remove after 5 seconds
-        setTimeout(() => {
-            if (toast.parentElement) {
-                toast.style.animation = 'slideOut 0.3s ease';
-                setTimeout(() => toast.remove(), 300);
+            if (students.length > 0) {
+                const sampleStudent = students[0];
+                this.selectedStudentForTranscript = sampleStudent;
+                await this.previewTranscript();
+                this.showToast('Loaded sample transcript', 'info');
+            } else {
+                this.showToast('No students found in database', 'warning');
             }
-        }, 5000);
+        } catch (error) {
+            console.error('Error loading sample transcript:', error);
+            this.showToast('Error loading sample: ' + error.message, 'error');
+        }
     }
     
     // ==================== PREVIEW FUNCTIONS ====================
@@ -1977,14 +2557,6 @@ class ReportsManager {
         this.showToast('Scheduled reports feature coming soon', 'info');
     }
     
-    previewStudentReport() {
-        this.studentReport();
-    }
-    
-    previewAcademicReport() {
-        this.academicReport();
-    }
-    
     bulkExport() {
         this.showToast('Bulk export feature coming soon', 'info');
     }
@@ -2000,6 +2572,8 @@ class ReportsManager {
             transcriptPreview.innerHTML = '';
             transcriptPreview.style.display = 'none';
         }
+        
+        this.selectedStudentForTranscript = null;
         
         this.showToast('Preview cleared', 'info');
     }
