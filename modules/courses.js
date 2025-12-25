@@ -155,85 +155,93 @@ class CourseManager {
         }
     }
     
-    updateCoursesGrid(courses) {
-        const grid = document.getElementById('coursesGrid');
-        if (!grid) return;
+    // In updateCoursesGrid() method
+updateCoursesGrid(courses) {
+    const grid = document.getElementById('coursesGrid');
+    if (!grid) return;
+    
+    if (!courses || courses.length === 0) {
+        grid.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-book fa-3x"></i>
+                <h3>No Courses Found</h3>
+                <p>Get started by adding your first course</p>
+                <button class="btn btn-primary" onclick="openCourseModal()">
+                    <i class="fas fa-plus"></i> Add Your First Course
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    const programNames = {
+        'basic': 'Basic TEE',
+        'hnc': 'HNC',
+        'advanced': 'Advanced TEE'
+    };
+    
+    const levelColors = {
+        'basic': '#3498db',
+        'intermediate': '#2ecc71',
+        'advanced': '#9b59b6'
+    };
+    
+    let html = '';
+    courses.forEach(course => {
+        const programName = programNames[course.program] || course.program;
+        const levelColor = levelColors[course.level] || '#95a5a6';
+        const enrolledStudents = course.enrolled_count || 0;
+        const status = course.status || 'active';
+        const canGrade = enrolledStudents > 0;
         
-        if (!courses || courses.length === 0) {
-            grid.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-book fa-3x"></i>
-                    <h3>No Courses Found</h3>
-                    <p>Get started by adding your first course</p>
-                    <button class="btn btn-primary" onclick="openCourseModal()">
-                        <i class="fas fa-plus"></i> Add Your First Course
+        html += `
+            <div class="card" data-course-id="${course.id}">
+                <div class="card-header" style="border-left: 4px solid ${levelColor};">
+                    <div class="card-header-content">
+                        <h3>${course.course_code}</h3>
+                        <span class="badge ${status === 'active' ? 'badge-success' : 'badge-secondary'}">
+                            ${status.toUpperCase()}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <h4>${course.course_name}</h4>
+                    <p class="card-text">${course.description || 'No description available'}</p>
+                    <div class="card-meta">
+                        <span><i class="fas fa-graduation-cap"></i> ${programName}</span>
+                        <span><i class="fas fa-layer-group"></i> ${course.level || 'basic'}</span>
+                        <span><i class="fas fa-star"></i> ${course.credits || 3} Credits</span>
+                    </div>
+                    <div class="card-stats">
+                        <span><i class="fas fa-users"></i> ${enrolledStudents} Students Enrolled</span>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <button class="btn btn-sm btn-info" onclick="app.courses.openCourseEnrollmentModal('${course.id}')" 
+                            title="Manage Enrollments">
+                        <i class="fas fa-user-plus"></i> Enroll
+                    </button>
+                    ${canGrade ? `
+                        <button class="btn btn-sm btn-success" onclick="app.courses.openBulkGradeForCourse('${course.id}')" 
+                                title="Grade Students">
+                            <i class="fas fa-chart-line"></i> Grade
+                        </button>
+                    ` : ''}
+                    <button class="btn btn-sm btn-primary" onclick="app.courses.editCourse('${course.id}')" 
+                            title="Edit Course">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="app.courses.deleteCoursePrompt('${course.id}', '${course.course_code}')" 
+                            title="Delete Course">
+                        <i class="fas fa-trash"></i>
                     </button>
                 </div>
-            `;
-            return;
-        }
-        
-        const programNames = {
-            'basic': 'Basic TEE',
-            'hnc': 'HNC',
-            'advanced': 'Advanced TEE'
-        };
-        
-        const levelColors = {
-            'basic': '#3498db',
-            'intermediate': '#2ecc71',
-            'advanced': '#9b59b6'
-        };
-        
-        let html = '';
-        courses.forEach(course => {
-            const programName = programNames[course.program] || course.program;
-            const levelColor = levelColors[course.level] || '#95a5a6';
-            const enrolledStudents = course.enrolled_count || 0;
-            const status = course.status || 'active';
-            const canGrade = enrolledStudents > 0;
-            
-            html += `
-                <div class="card" data-course-id="${course.id}">
-                    <div class="card-header" style="border-left: 4px solid ${levelColor};">
-                        <div class="card-header-content">
-                            <h3>${course.course_code}</h3>
-                            <span class="badge ${status === 'active' ? 'badge-success' : 'badge-secondary'}">
-                                ${status.toUpperCase()}
-                            </span>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <h4>${course.course_name}</h4>
-                        <p class="card-text">${course.description || 'No description available'}</p>
-                        <div class="card-meta">
-                            <span><i class="fas fa-graduation-cap"></i> ${programName}</span>
-                            <span><i class="fas fa-layer-group"></i> ${course.level || 'basic'}</span>
-                            <span><i class="fas fa-star"></i> ${course.credits || 3} Credits</span>
-                        </div>
-                        <div class="card-stats">
-                            <span><i class="fas fa-users"></i> ${enrolledStudents} Students</span>
-                        </div>
-                    </div>
-                    <div class="card-actions">
-                        ${canGrade ? `
-                            <button class="btn btn-sm btn-success" onclick="app.courses.openBulkGradeForCourse('${course.id}')" title="Grade Students">
-                                <i class="fas fa-chart-line"></i> Grade
-                            </button>
-                        ` : ''}
-                        <button class="btn btn-sm btn-primary" onclick="app.courses.editCourse('${course.id}')" title="Edit Course">
-                            <i class="fas fa-edit"></i> Edit
-                        </button>
-                        <button class="btn btn-sm btn-danger" onclick="app.courses.deleteCoursePrompt('${course.id}', '${course.course_code}')" title="Delete Course">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-        });
-        
-        grid.innerHTML = html;
-    }
+            </div>
+        `;
+    });
+    
+    grid.innerHTML = html;
+}
     
     updateCoursesTable(courses) {
         const tbody = document.getElementById('coursesTableBody');
@@ -495,42 +503,119 @@ class CourseManager {
         this.currentCourse = null;
     }
     
-    async loadStudentsForBulkGrading(courseId = null) {
-        const courseIdToUse = courseId || document.getElementById('bulkGradeCourse')?.value;
-        if (!courseIdToUse) return;
-        
-        try {
-            // Get course details
-            let course;
-            if (this.db.getCourse && typeof this.db.getCourse === 'function') {
-                course = await this.db.getCourse(courseIdToUse);
-            } else {
-                const courses = await this.db.getCourses();
-                course = courses.find(c => c.id === courseIdToUse);
-            }
-            
-            if (!course) {
-                this.showToast('Course not found', 'error');
-                return;
-            }
-            
-            // Get students for this course
-            let students = [];
-            if (this.db.getStudentsByCourse && typeof this.db.getStudentsByCourse === 'function') {
-                students = await this.db.getStudentsByCourse(courseIdToUse);
-            } else {
-                // Fallback: get all students
-                const allStudents = await this.db.getStudents();
-                students = allStudents.slice(0, 10);
-            }
-            
-            this.renderBulkGradeStudents(students, course);
-            
-        } catch (error) {
-            console.error('❌ Error loading students for grading:', error);
-            this.showToast('Error loading students', 'error');
+   // In the loadStudentsForBulkGrading() method, update:
+async loadStudentsForBulkGrading(courseId = null) {
+    const courseIdToUse = courseId || document.getElementById('bulkGradeCourse')?.value;
+    if (!courseIdToUse) return;
+    
+    try {
+        // Get course details
+        let course;
+        if (this.db.getCourse && typeof this.db.getCourse === 'function') {
+            course = await this.db.getCourse(courseIdToUse);
+        } else {
+            const courses = await this.db.getCourses();
+            course = courses.find(c => c.id === courseIdToUse);
         }
+        
+        if (!course) {
+            this.showToast('Course not found', 'error');
+            return;
+        }
+        
+        // ✅ UPDATED: Get students enrolled in this course
+        let students = [];
+        if (this.db.getStudentsByCourse && typeof this.db.getStudentsByCourse === 'function') {
+            students = await this.db.getStudentsByCourse(courseIdToUse);
+        } else {
+            this.showToast('Enrollment system not available', 'error');
+            return;
+        }
+        
+        this.renderBulkGradeStudents(students, course);
+        
+    } catch (error) {
+        console.error('❌ Error loading students for grading:', error);
+        this.showToast('Error loading students', 'error');
     }
+}
+
+// Add a new method for enrollment management
+async openCourseEnrollmentModal(courseId) {
+    try {
+        this.currentCourse = courseId;
+        
+        // Get course details
+        const course = await this.db.getCourse(courseId);
+        if (!course) {
+            this.showToast('Course not found', 'error');
+            return;
+        }
+        
+        // Get enrolled students
+        const enrolledStudents = await this.db.getStudentsByCourse(courseId);
+        const enrolledStudentIds = enrolledStudents.map(s => s.id);
+        
+        // Get all active students
+        const allStudents = await this.db.getStudents();
+        const availableStudents = allStudents.filter(s => 
+            s.status === 'active' && !enrolledStudentIds.includes(s.id)
+        );
+        
+        // Show enrollment modal
+        this.showEnrollmentModal(course, enrolledStudents, availableStudents);
+        
+    } catch (error) {
+        console.error('❌ Error opening enrollment modal:', error);
+        this.showToast('Error loading enrollment data', 'error');
+    }
+}
+
+showEnrollmentModal(course, enrolledStudents, availableStudents) {
+    const modalHtml = `
+        <div class="modal" id="enrollmentModal" style="display: block;">
+            <div class="modal-content" style="max-width: 800px;">
+                <div class="modal-header">
+                    <h3><i class="fas fa-user-plus"></i> Manage Course Enrollments</h3>
+                    <span class="close" onclick="document.getElementById('enrollmentModal').remove()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="enrollment-info">
+                        <h4>${course.course_code} - ${course.course_name}</h4>
+                        <p>${course.description || 'No description'}</p>
+                        <div class="enrollment-stats">
+                            <span class="badge badge-info">${enrolledStudents.length} Enrolled</span>
+                            <span class="badge badge-secondary">${availableStudents.length} Available</span>
+                        </div>
+                    </div>
+                    
+                    <div class="enrollment-sections">
+                        <!-- Enrolled Students -->
+                        <div class="enrollment-section">
+                            <h5><i class="fas fa-users"></i> Currently Enrolled</h5>
+                            ${this.renderStudentList(enrolledStudents, true, course.id)}
+                        </div>
+                        
+                        <!-- Available Students -->
+                        <div class="enrollment-section">
+                            <h5><i class="fas fa-user-plus"></i> Available Students</h5>
+                            ${this.renderStudentList(availableStudents, false, course.id)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('enrollmentModal');
+    if (existingModal) existingModal.remove();
+    
+    // Add modal to DOM
+    const modalDiv = document.createElement('div');
+    modalDiv.innerHTML = modalHtml;
+    document.body.appendChild(modalDiv.firstElementChild);
+}
     
     renderBulkGradeStudents(students, course) {
         const tbody = document.getElementById('bulkGradeStudentsList');
