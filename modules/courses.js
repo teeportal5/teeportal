@@ -1,8 +1,31 @@
+console.log('🚀 courses.js STARTING LOAD...');
 // modules/courses.js - UPDATED FOR YOUR POSTGRESQL DATABASE
 class CourseManager {
     constructor(db, app) {
-        this.db = db;
-        this.app = app;
+        // FIX: Use TEEPortalSupabaseDB if db not provided
+        this.db = db || window.TEEPortalSupabaseDB;
+        this.app = app || window.app;
+        
+        console.log('🔍 CourseManager initialized with:', {
+            db: this.db ? '✅ Found' : '❌ Missing',
+            app: this.app ? '✅ Found' : '❌ Missing',
+            dbType: this.db?.constructor?.name
+        });
+        
+        if (!this.db) {
+            console.error('❌ ERROR: No database found!');
+            console.log('Available global objects:', Object.keys(window).filter(k => 
+                k.includes('DB') || k.includes('Database') || k.toLowerCase().includes('db')
+            ));
+            return;
+        }
+        
+        // Check if database has required methods
+        console.log('📋 Checking database methods...');
+        console.log('- getPrograms:', typeof this.db.getPrograms);
+        console.log('- getStudyCenters:', typeof this.db.getStudyCenters);
+        console.log('- getCourses:', typeof this.db.getCourses);
+        
         this.currentCourse = null;
         this.selectedStudents = new Set();
         this.currentView = 'grid';
@@ -13,6 +36,7 @@ class CourseManager {
         this.registerGlobalFunctions();
         this.initializeData();
     }
+    
     
   async initializeData() {
     try {
