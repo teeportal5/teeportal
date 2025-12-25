@@ -847,6 +847,12 @@ this._attachStudentRowEventListeners();
 this._toggleBulkActions(true);
 
 console.log(`✅ Loaded ${students.length} students`);
+             } catch (error) {
+            console.error('❌ Error loading students table:', error);
+            this.ui.showToast('Error loading students data', 'error');
+            this._renderErrorState();
+        }
+    }
             
     /**
      * Search students
