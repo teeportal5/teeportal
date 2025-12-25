@@ -850,51 +850,101 @@ class TEEPortalSupabaseDB {
         }
     }
     
-   async getCourses() {
+  async getCourses() {
     try {
         const supabase = await this.ensureConnected();
         
-        // Get courses with enrollment counts
+        console.log('📚 Fetching courses...');
+        
+        // Method 1: Simple query first to test
         const { data: courses, error } = await this.supabase
             .from('courses')
-            .select(`
-                *,
-                enrollments!inner(
-                    id,
-                    enrollment_status,
-                    is_active
-                )
-            `)
-            .eq('enrollments.enrollment_status', 'enrolled')
-            .eq('enrollments.is_active', true)
+            .select('*')
             .order('created_at', { ascending: false });
             
         if (error) {
-            console.error('❌ Error fetching courses with enrollments:', error);
-            // Fallback to simple course fetch
-            return await this.getCoursesSimple();
+            console.error('❌ Error fetching courses:', error);
+            return [];
         }
         
-        // Process courses to add enrolled_count
-        return (courses || []).map(course => {
-            // Count unique enrollments for this course
-            const enrolledCount = course.enrollments?.length || 0;
-            
-            // Remove enrollments array to clean up response
-            const { enrollments, ...courseData } = course;
-            
-            return {
-                ...courseData,
-                enrolled_count: enrolledCount
-            };
-        });
+        console.log(`✅ Found ${courses?.length || 0} courses`);
+        
+        if (!courses || courses.length === 0) {
+            return [];
+        }
+        
+        // Get enrollment counts for each course
+        const courseIds = courses.map(c => c.id);
+        
+        // Try to get enrollment counts from enrollments table
+        let enrollmentCounts = {};
+        try {
+            const { data: enrollments, error: enrollError } = await this.supabase
+                .from('enrollments')
+                .select('course_id, student_id')
+                .in('course_id', courseIds)
+                .eq('enrollment_status', 'enrolled')
+                .eq('is_active', true);
+                
+            if (!enrollError && enrollments) {
+                // Count unique students per course
+                const courseStudentMap = {};
+                enrollments.forEach(enrollment => {
+                    if (!courseStudentMap[enrollment.course_id]) {
+                        courseStudentMap[enrollment.course_id] = new Set();
+                    }
+                    courseStudentMap[enrollment.course_id].add(enrollment.student_id);
+                });
+                
+                Object.keys(courseStudentMap).forEach(courseId => {
+                    enrollmentCounts[courseId] = courseStudentMap[courseId].size;
+                });
+            }
+        } catch (e) {
+            console.warn('⚠️ Could not fetch enrollments:', e.message);
+        }
+        
+        // If no enrollments found, check marks table as fallback
+        if (Object.keys(enrollmentCounts).length === 0) {
+            try {
+                const { data: marks, error: marksError } = await this.supabase
+                    .from('marks')
+                    .select('course_id, student_id')
+                    .in('course_id', courseIds);
+                    
+                if (!marksError && marks) {
+                    // Count unique students per course from marks
+                    const courseStudentMap = {};
+                    marks.forEach(mark => {
+                        if (!courseStudentMap[mark.course_id]) {
+                            courseStudentMap[mark.course_id] = new Set();
+                        }
+                        courseStudentMap[mark.course_id].add(mark.student_id);
+                    });
+                    
+                    Object.keys(courseStudentMap).forEach(courseId => {
+                        enrollmentCounts[courseId] = courseStudentMap[courseId].size;
+                    });
+                }
+            } catch (e) {
+                console.warn('⚠️ Could not fetch marks for enrollment counts:', e.message);
+            }
+        }
+        
+        // Combine courses with enrollment counts
+        const processedCourses = courses.map(course => ({
+            ...course,
+            enrolled_count: enrollmentCounts[course.id] || 0
+        }));
+        
+        console.log('📊 Courses with enrollment counts:', processedCourses);
+        return processedCourses;
         
     } catch (error) {
         console.error('❌ Error in getCourses:', error);
-        return await this.getCoursesSimple();
+        return [];
     }
 }
-
     
     async getCentres() {
         try {
