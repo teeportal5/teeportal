@@ -548,6 +548,46 @@ async addMark(data) {
             console.warn('⚠️ DashboardManager not loaded');
         }
         
+        // ✅ ADD THIS: Initialize Report Manager
+        if (typeof ReportManager !== 'undefined') {
+            this.reports = new ReportManager(this.db, this);
+            console.log('✅ ReportManager initialized');
+            
+            // Optional: Pre-load some report data in background
+            setTimeout(() => {
+                if (this.reports && this.reports.preloadReportData) {
+                    this.reports.preloadReportData();
+                    console.log('📊 Report data pre-loaded');
+                }
+            }, 3000);
+        } else {
+            console.warn('⚠️ ReportManager not loaded - Reports section will not work');
+        }
+        
+        // ✅ ADD THIS: Initialize Settings Manager (if exists)
+        if (typeof SettingsManager !== 'undefined') {
+            this.settings = new SettingsManager(this.db, this);
+            console.log('✅ SettingsManager initialized');
+        } else {
+            console.warn('⚠️ SettingsManager not loaded');
+        }
+        
+        // ✅ ADD THIS: Initialize Transcripts Manager (if exists)
+        if (typeof TranscriptsManager !== 'undefined') {
+            this.transcripts = new TranscriptsManager(this.db, this);
+            console.log('✅ TranscriptsManager initialized');
+        } else {
+            console.warn('⚠️ TranscriptsManager not loaded');
+        }
+        
+        // ✅ ADD THIS: Initialize Profile Manager (if exists)
+        if (typeof ProfileManager !== 'undefined') {
+            this.profile = new ProfileManager(this.db, this);
+            console.log('✅ ProfileManager initialized');
+        } else {
+            console.warn('⚠️ ProfileManager not loaded');
+        }
+        
         console.log('✅ All modules initialized');
         
     } catch (error) {
@@ -1174,6 +1214,18 @@ TEEPortalApp.prototype.lazyLoadSection = function(sectionId) {
         case 'dashboard':
             if (this.dashboard && this.dashboard.updateDashboard) {
                 this.dashboard.updateDashboard();
+            }
+            break;
+   // ✅ ADD THIS CASE FOR REPORTS
+        case 'reports':
+            if (this.reports && this.reports.loadAllReports) {
+                console.log('📈 Loading all reports...');
+                this.reports.loadAllReports();
+            } else {
+                console.warn('⚠️ ReportManager not available for loading reports.');
+                if (window.app && window.app.showToast) {
+                    window.app.showToast('Reports module not loaded', 'error');
+                }
             }
             break;
     }
