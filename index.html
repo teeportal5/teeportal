@@ -1015,7 +1015,7 @@
     </div>
 </section>
             
-        <!-- Reports Section -->
+     <!-- Reports Section -->
 <section id="reports" class="content-section" aria-labelledby="reports-heading">
     <div class="section-header">
         <h2 id="reports-heading"><i class="fas fa-chart-bar" aria-hidden="true"></i> Reports & Analytics</h2>
@@ -1034,6 +1034,11 @@
         <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Loading reports...</span>
         </div>
+    </div>
+    
+    <!-- Reports Grid -->
+    <div id="reportsGrid" class="row mb-4">
+        <!-- Reports grid will be populated dynamically by JavaScript -->
     </div>
     
     <!-- Quick Statistics -->
@@ -1078,7 +1083,7 @@
                 </div>
                 <div class="stat-content">
                     <h3 id="centersCount">0</h3>
-                    <p>Active Centers</p>
+                    <p>Active Centres</p>
                 </div>
             </div>
         </div>
@@ -1103,8 +1108,7 @@
                     <label class="form-label">Academic Year</label>
                     <select id="academicYear" class="form-select" onchange="app.reports.applyFilters()">
                         <option value="all">All Years</option>
-                        <option value="2023-2024">2023-2024</option>
-                        <option value="2024-2025" selected>2024-2025</option>
+                        <!-- Will be populated dynamically -->
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -1117,14 +1121,14 @@
                     </select>
                 </div>
                 
-                <!-- Center Filter -->
+                <!-- Centre Filter -->
                 <div class="col-md-4">
-                    <label class="form-label">Filter by Center</label>
+                    <label class="form-label">Filter by Centre</label>
                     <select id="filterCenter" class="form-select" multiple size="3" onchange="app.reports.applyFilters()">
-                        <option value="all" selected>All Centers</option>
+                        <option value="all" selected>All Centres</option>
                         <!-- Will be populated dynamically -->
                     </select>
-                    <small class="text-muted">Hold Ctrl/Cmd to select multiple centers</small>
+                    <small class="text-muted">Hold Ctrl/Cmd to select multiple centres</small>
                 </div>
                 
                 <!-- County Filter -->
@@ -1145,6 +1149,15 @@
                         <!-- Will be populated dynamically -->
                     </select>
                     <small class="text-muted">Hold Ctrl/Cmd to select multiple programs</small>
+                </div>
+                
+                <!-- Intake Year Filter -->
+                <div class="col-md-4">
+                    <label class="form-label">Filter by Intake Year</label>
+                    <select id="filterIntake" class="form-select" onchange="app.reports.applyFilters()">
+                        <option value="all">All Intakes</option>
+                        <!-- Will be populated dynamically -->
+                    </select>
                 </div>
                 
                 <!-- Filter Actions -->
@@ -1168,7 +1181,7 @@
     <!-- Quick Report Actions -->
     <div class="quick-actions mb-4">
         <div class="row g-3">
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <button class="btn btn-action btn-block" onclick="app.reports.studentReport()">
                     <i class="fas fa-users fa-2x mb-2"></i>
                     <h5>Student Reports</h5>
@@ -1176,7 +1189,7 @@
                     <span class="action-badge">Generate →</span>
                 </button>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <button class="btn btn-action btn-block" onclick="app.reports.academicReport()">
                     <i class="fas fa-chart-line fa-2x mb-2"></i>
                     <h5>Academic Reports</h5>
@@ -1184,19 +1197,11 @@
                     <span class="action-badge">Generate →</span>
                 </button>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <button class="btn btn-action btn-block" onclick="app.reports.generateCentreReport()">
                     <i class="fas fa-map fa-2x mb-2"></i>
                     <h5>Centre Reports</h5>
-                    <p>Student distribution by centre and county</p>
-                    <span class="action-badge">Generate →</span>
-                </button>
-            </div>
-            <div class="col-md-3">
-                <button class="btn btn-action btn-block" onclick="app.reports.geographicalReport()">
-                    <i class="fas fa-map-marked-alt fa-2x mb-2"></i>
-                    <h5>Geographical Reports</h5>
-                    <p>Student distribution maps and statistics</p>
+                    <p>Student distribution by centre</p>
                     <span class="action-badge">Generate →</span>
                 </button>
             </div>
@@ -1215,18 +1220,14 @@
                     <div class="report-config">
                         <h6><i class="fas fa-users"></i> Student Report</h6>
                         
-                        <!-- Center Filter for Student Report -->
+                        <!-- Centre Filter for Student Report -->
                         <div class="mb-3">
-                            <label class="form-label">Filter by Center</label>
+                            <label class="form-label">Filter by Centre</label>
                             <select id="studentReportCenter" class="form-select" multiple>
-                                <option value="all">All Centers</option>
-                                <option value="center-1">Main Campus</option>
-                                <option value="center-2">West Campus</option>
-                                <option value="center-3">East Campus</option>
-                                <option value="center-4">North Center</option>
-                                <option value="center-5">South Center</option>
+                                <option value="all">All Centres</option>
+                                <!-- Will be populated dynamically -->
                             </select>
-                            <small class="text-muted">Leave empty for all centers</small>
+                            <small class="text-muted">Leave empty for all centres</small>
                         </div>
                         
                         <div class="mb-3">
@@ -1236,7 +1237,7 @@
                                 <option value="enrollment">Enrollment Statistics</option>
                                 <option value="graduation">Graduation Report</option>
                                 <option value="demographics">Demographics</option>
-                                <option value="center_distribution">Center Distribution</option>
+                                <option value="center_distribution">Centre Distribution</option>
                             </select>
                         </div>
                         <div class="mb-3">
@@ -1263,18 +1264,14 @@
                     <div class="report-config">
                         <h6><i class="fas fa-chart-line"></i> Academic Report</h6>
                         
-                        <!-- Center Filter for Academic Report -->
+                        <!-- Centre Filter for Academic Report -->
                         <div class="mb-3">
-                            <label class="form-label">Filter by Center</label>
+                            <label class="form-label">Filter by Centre</label>
                             <select id="academicReportCenter" class="form-select" multiple>
-                                <option value="all">All Centers</option>
-                                <option value="center-1">Main Campus</option>
-                                <option value="center-2">West Campus</option>
-                                <option value="center-3">East Campus</option>
-                                <option value="center-4">North Center</option>
-                                <option value="center-5">South Center</option>
+                                <option value="all">All Centres</option>
+                                <!-- Will be populated dynamically -->
                             </select>
-                            <small class="text-muted">Leave empty for all centers</small>
+                            <small class="text-muted">Leave empty for all centres</small>
                         </div>
                         
                         <div class="mb-3">
@@ -1284,7 +1281,7 @@
                                 <option value="performance">Performance Analysis</option>
                                 <option value="grades">Grade Distribution</option>
                                 <option value="coursewise">Course-wise Results</option>
-                                <option value="center_performance">Center Performance Comparison</option>
+                                <option value="center_performance">Centre Performance</option>
                             </select>
                         </div>
                         <div class="mb-3">
@@ -1309,68 +1306,8 @@
         </div>
     </div>
     
-    <!-- Center Comparison Report -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5><i class="fas fa-balance-scale"></i> Center Comparison Report</h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label class="form-label">Select Centers to Compare</label>
-                        <select id="centerCompareSelect" class="form-select" multiple size="5">
-                            <option value="center-1">Main Campus</option>
-                            <option value="center-2">West Campus</option>
-                            <option value="center-3">East Campus</option>
-                            <option value="center-4">North Center</option>
-                            <option value="center-5">South Center</option>
-                            <option value="center-6">Online Center</option>
-                        </select>
-                        <small class="text-muted">Select 2 or more centers to compare</small>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label class="form-label">Comparison Metric</label>
-                        <select id="centerMetric" class="form-select">
-                            <option value="enrollment">Enrollment Count</option>
-                            <option value="graduation_rate">Graduation Rate</option>
-                            <option value="avg_gpa">Average GPA</option>
-                            <option value="attendance">Attendance Rate</option>
-                            <option value="dropout_rate">Dropout Rate</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label class="form-label">Time Period</label>
-                        <select id="centerPeriod" class="form-select">
-                            <option value="current">Current Semester</option>
-                            <option value="year">This Academic Year</option>
-                            <option value="all">All Time</option>
-                            <option value="custom">Custom Range</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <div class="text-center">
-                <button class="btn btn-primary" onclick="app.reports.generateCenterComparison()">
-                    <i class="fas fa-chart-bar"></i> Generate Comparison Report
-                </button>
-            </div>
-            
-            <!-- Center Comparison Chart -->
-            <div id="centerComparisonChart" class="mt-4" style="display: none;">
-                <div class="chart-container">
-                    <canvas id="centerComparisonCanvas"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-    
     <!-- Transcript Generation -->
-    <div class="card mb-4">
+    <div id="transcriptSection" class="card mb-4">
         <div class="card-header">
             <h5><i class="fas fa-graduation-cap"></i> Transcript Generation</h5>
         </div>
@@ -1378,13 +1315,10 @@
             <div class="row">
                 <div class="col-md-4">
                     <div class="mb-3">
-                        <label class="form-label">Filter by Center</label>
-                        <select id="transcriptCenterFilter" class="form-select" onchange="app.reports.filterTranscriptStudents()">
-                            <option value="all">All Centers</option>
-                            <option value="center-1">Main Campus</option>
-                            <option value="center-2">West Campus</option>
-                            <option value="center-3">East Campus</option>
-                            <option value="center-4">North Center</option>
+                        <label class="form-label">Filter by Centre</label>
+                        <select id="transcriptCenterFilter" class="form-select" onchange="app.reports.filterTranscriptStudentsByCenter()">
+                            <option value="all">All Centres</option>
+                            <!-- Will be populated dynamically -->
                         </select>
                     </div>
                 </div>
@@ -1393,7 +1327,7 @@
                         <label class="form-label">Select Student</label>
                         <select id="transcriptStudent" class="form-select">
                             <option value="">Select Student</option>
-                            <!-- Will be populated based on center filter -->
+                            <!-- Will be populated based on centre filter -->
                         </select>
                     </div>
                 </div>
@@ -1425,50 +1359,7 @@
             
             <!-- Transcript Preview -->
             <div id="transcriptPreview" class="mt-4" style="display: none;">
-                <div class="card">
-                    <div class="card-header bg-light">
-                        <h6 class="mb-0">Transcript Preview</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-8">
-                                <h5 id="previewStudentName">Student Name</h5>
-                                <p class="text-muted mb-1">
-                                    <i class="fas fa-id-card"></i> Reg No: <span id="previewRegNumber">-</span> |
-                                    <i class="fas fa-graduation-cap"></i> Program: <span id="previewProgram">-</span>
-                                </p>
-                                <p class="text-muted mb-3">
-                                    <i class="fas fa-university"></i> Center: <span id="previewCenter">-</span> |
-                                    <i class="fas fa-calendar"></i> Intake: <span id="previewIntake">-</span> |
-                                    Status: <span id="previewStatus" class="badge bg-success">Active</span>
-                                </p>
-                            </div>
-                            <div class="col-md-4 text-end">
-                                <div class="stat-box">
-                                    <h4 id="previewGPA">0.00</h4>
-                                    <p class="text-muted">GPA</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Courses Table -->
-                        <div class="table-responsive mt-3">
-                            <table class="table table-sm">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Course</th>
-                                        <th>Grade</th>
-                                        <th>Credits</th>
-                                        <th>Semester</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="previewCourses">
-                                    <!-- Will be populated by JavaScript -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+                <!-- Will be populated dynamically by JavaScript -->
             </div>
         </div>
     </div>
@@ -1486,8 +1377,8 @@
                         <option value="weekly_summary">Weekly Summary</option>
                         <option value="monthly_attendance">Monthly Attendance</option>
                         <option value="quarterly_grades">Quarterly Grades</option>
-                        <option value="center_weekly">Weekly Center Report</option>
-                        <option value="monthly_center">Monthly Center Performance</option>
+                        <option value="center_weekly">Weekly Centre Report</option>
+                        <option value="monthly_center">Monthly Centre Performance</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -1500,10 +1391,8 @@
                 </div>
                 <div class="col-md-3">
                     <select id="scheduleCenter" class="form-select">
-                        <option value="all">All Centers</option>
-                        <option value="center-1">Main Campus</option>
-                        <option value="center-2">West Campus</option>
-                        <option value="center-3">East Campus</option>
+                        <option value="all">All Centres</option>
+                        <!-- Will be populated dynamically -->
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -1523,7 +1412,7 @@
                         <thead>
                             <tr>
                                 <th>Report Type</th>
-                                <th>Center</th>
+                                <th>Centre</th>
                                 <th>Frequency</th>
                                 <th>Next Run</th>
                                 <th>Recipients</th>
@@ -1554,18 +1443,16 @@
                             <option value="excel">Excel Workbook</option>
                             <option value="csv_all">CSV Archive</option>
                             <option value="pdf_all">PDF Reports</option>
-                            <option value="center_wise">Center-wise Export</option>
+                            <option value="center_wise">Centre-wise Export</option>
                         </select>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="mb-3">
-                        <label class="form-label">Select Centers</label>
+                        <label class="form-label">Select Centres</label>
                         <select id="bulkExportCenters" class="form-select" multiple>
-                            <option value="all">All Centers</option>
-                            <option value="center-1">Main Campus</option>
-                            <option value="center-2">West Campus</option>
-                            <option value="center-3">East Campus</option>
+                            <option value="all">All Centres</option>
+                            <!-- Will be populated dynamically -->
                         </select>
                     </div>
                 </div>
