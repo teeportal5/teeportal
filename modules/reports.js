@@ -1,16 +1,22 @@
-// modules/reports.js - UPDATED TO MATCH HTML STRUCTURE
+// modules/reports.js - COMPLETE FIXED VERSION
 class ReportsManager {
     constructor(db) {
         console.log('📊 ReportsManager constructor called');
-        this.db = db || window.app?.db;
-        this.app = window.app;
         
-        if (!this.db) {
-            console.error('❌ Database not available for ReportsManager');
+        // Proper database connection
+        this.db = db || window.app?.db;
+        this.app = window.app || window;
+        
+        // Log database availability
+        if (this.db) {
+            console.log('✅ Database connected to ReportsManager');
+        } else {
+            console.warn('⚠️ Database not available in constructor, will try during initialization');
         }
         
+        // Initialize filters with proper defaults
         this.currentFilters = {
-            year: 'all',
+            year: new Date().getFullYear().toString(),
             program: ['all'],
             course: 'all',
             semester: 'all',
@@ -21,28 +27,41 @@ class ReportsManager {
             dateFrom: null,
             dateTo: null
         };
+        
         this.charts = {};
         this.initialized = false;
+        this.students = [];
+        this.courses = [];
+        this.marks = [];
         
-        console.log('Initialized ReportsManager:', {
-            db: this.db ? `✅ ${this.db.constructor.name}` : '❌ Missing',
-            hasGetStudents: typeof this.db?.getStudents === 'function',
-            hasGetCourses: typeof this.db?.getCourses === 'function',
-            hasGetMarks: typeof this.db?.getMarks === 'function',
-            hasGetPrograms: typeof this.db?.getPrograms === 'function',
-            hasGetCentres: typeof this.db?.getCentres === 'function',
-            hasGetCounties: typeof this.db?.getCounties === 'function'
-        });
+        // Bind methods to ensure proper 'this' context
+        this.applyFilters = this.applyFilters.bind(this);
+        this.clearFilters = this.clearFilters.bind(this);
+        this.refreshReports = this.refreshReports.bind(this);
+        this.studentReport = this.studentReport.bind(this);
+        this.academicReport = this.academicReport.bind(this);
+        this.generateCentreReport = this.generateCentreReport.bind(this);
+        this.generateSummaryReport = this.generateSummaryReport.bind(this);
+        this.previewTranscript = this.previewTranscript.bind(this);
+        this.generateTranscript = this.generateTranscript.bind(this);
+        this.loadSampleTranscript = this.loadSampleTranscript.bind(this);
+        this.clearPreview = this.clearPreview.bind(this);
     }
     
     // ==================== INITIALIZATION ====================
     
     async initialize() {
-        if (this.initialized) return;
+        if (this.initialized) {
+            console.log('ReportsManager already initialized');
+            return;
+        }
         
         try {
             console.log('📊 Initializing Reports Manager...');
             this.showLoading(true);
+            
+            // Load data first
+            await this.loadAllData();
             
             // Initialize UI components
             await this.initializeReportsUI();
@@ -57,165 +76,94 @@ class ReportsManager {
             await this.generateReportsGrid();
             
             this.initialized = true;
-            console.log('✅ Reports Manager initialized');
+            console.log('✅ Reports Manager initialized successfully');
             
             this.showToast('Reports module ready', 'success');
             
         } catch (error) {
             console.error('❌ Error initializing reports:', error);
-            this.showToast('Reports module failed to initialize', 'error');
+            this.showToast('Reports module failed to initialize: ' + error.message, 'error');
         } finally {
             this.showLoading(false);
+        }
+    }
+    
+    async loadAllData() {
+        try {
+            console.log('🔄 Loading all data for reports...');
+            
+            // Load data in parallel for better performance
+            const [studentsData, coursesData, marksData] = await Promise.all([
+                this.getStudents(),
+                this.getCourses(),
+                this.getMarks()
+            ]);
+            
+            this.students = studentsData || [];
+            this.courses = coursesData || [];
+            this.marks = marksData || [];
+            
+            console.log(`📊 Data loaded: ${this.students.length} students, ${this.courses.length} courses, ${this.marks.length} marks`);
+            
+        } catch (error) {
+            console.error('❌ Error loading data:', error);
+            this.showToast('Error loading report data', 'error');
+            // Initialize with empty arrays to prevent crashes
+            this.students = this.students || [];
+            this.courses = this.courses || [];
+            this.marks = this.marks || [];
         }
     }
     
     async initializeReportsUI() {
         try {
             // Populate all filters
-            await this.populateFilters();
+            await this.populateAllFilters();
             
             // Set default dates
             this.setDefaultDates();
             
-            // Initialize student selector for transcripts
+            // Initialize transcript section
             await this.populateTranscriptStudents();
             
+            console.log('✅ Reports UI initialized');
+            
         } catch (error) {
-            console.error('Error initializing reports UI:', error);
+            console.error('❌ Error initializing reports UI:', error);
             throw error;
         }
     }
     
-    async populateFilters() {
+    async populateAllFilters() {
         try {
-            console.log('🔄 Populating report filters...');
+            console.log('🔄 Populating all filters...');
             
-            // Populate Academic Year filter
-            const yearSelect = document.getElementById('academicYear');
-            if (yearSelect) {
-                const currentYear = new Date().getFullYear();
-                for (let year = currentYear; year >= currentYear - 5; year--) {
-                    const option = document.createElement('option');
-                    option.value = year;
-                    option.textContent = year;
-                    yearSelect.appendChild(option);
-                }
-                yearSelect.value = currentYear;
-            }
+            // Get all data needed for filters
+            const [centres, counties, programs, students, courses] = await Promise.all([
+                this.getCentres(),
+                this.getCounties(),
+                this.getPrograms(),
+                this.getStudents(),
+                this.getCourses()
+            ]);
             
-            // Get real data from database
-            const centres = await this.getCentres();
-            const counties = await this.getCounties();
-            const programs = await this.getPrograms();
-            const students = await this.getStudents();
+            // 1. Academic Year filter
+            this.populateAcademicYearFilter();
             
-            // Populate Centre filters
-            const centreSelects = [
-                'filterCenter', 
-                'studentReportCenter', 
-                'academicReportCenter',
-                'transcriptCenterFilter',
-                'bulkExportCenters',
-                'scheduleCenter'
-            ];
+            // 2. Centre filters (all select elements that need centres)
+            this.populateCentreFilters(centres);
             
-            centreSelects.forEach(selectId => {
-                const select = document.getElementById(selectId);
-                if (select) {
-                    // Clear existing options
-                    select.innerHTML = '';
-                    
-                    // Add "All Centres" option
-                    const allOption = document.createElement('option');
-                    allOption.value = 'all';
-                    allOption.textContent = 'All Centres';
-                    if (select.multiple) {
-                        allOption.selected = true;
-                    }
-                    select.appendChild(allOption);
-                    
-                    // Add centre options from database
-                    centres.forEach(centre => {
-                        const option = document.createElement('option');
-                        option.value = centre.id || centre.name;
-                        option.textContent = centre.name || centre.code || 'Unknown Centre';
-                        if (centre.county) {
-                            option.textContent += ` (${centre.county})`;
-                        }
-                        select.appendChild(option);
-                    });
-                    
-                    console.log(`✅ Populated ${selectId} with ${centres.length} centres`);
-                }
-            });
+            // 3. County filters
+            this.populateCountyFilters(counties);
             
-            // Populate County filters
-            const countySelects = ['filterCounty'];
+            // 4. Program filter
+            this.populateProgramFilter(programs);
             
-            countySelects.forEach(selectId => {
-                const select = document.getElementById(selectId);
-                if (select) {
-                    select.innerHTML = '';
-                    
-                    // Add "All Counties" option
-                    const allOption = document.createElement('option');
-                    allOption.value = 'all';
-                    allOption.textContent = 'All Counties';
-                    allOption.selected = true;
-                    select.appendChild(allOption);
-                    
-                    counties.forEach(county => {
-                        const option = document.createElement('option');
-                        option.value = county.name || county;
-                        option.textContent = county.name || county;
-                        select.appendChild(option);
-                    });
-                }
-            });
+            // 5. Intake filter
+            this.populateIntakeFilter(students);
             
-            // Populate Program filter
-            const programSelect = document.getElementById('filterProgram');
-            if (programSelect) {
-                programSelect.innerHTML = '';
-                
-                // Add "All Programs" option
-                const allOption = document.createElement('option');
-                allOption.value = 'all';
-                allOption.textContent = 'All Programs';
-                allOption.selected = true;
-                programSelect.appendChild(allOption);
-                
-                programs.forEach(program => {
-                    const option = document.createElement('option');
-                    option.value = program.code || program.name || program.id;
-                    option.textContent = program.name || program.code || 'Unknown Program';
-                    programSelect.appendChild(option);
-                });
-            }
-            
-            // Populate Intake filter
-            const intakeSelect = document.getElementById('filterIntake');
-            if (intakeSelect) {
-                intakeSelect.innerHTML = '';
-                
-                // Add "All Intakes" option
-                const allOption = document.createElement('option');
-                allOption.value = 'all';
-                allOption.textContent = 'All Intakes';
-                allOption.selected = true;
-                intakeSelect.appendChild(allOption);
-                
-                // Get unique intake years from students
-                const intakeYears = [...new Set(students.map(s => s.intake_year).filter(Boolean))]
-                    .sort((a, b) => b - a);
-                
-                intakeYears.forEach(year => {
-                    const option = document.createElement('option');
-                    option.value = year;
-                    option.textContent = year;
-                    intakeSelect.appendChild(option);
-                });
-            }
+            // 6. Course filter
+            this.populateCourseFilter(courses);
             
             console.log('✅ All filters populated successfully');
             
@@ -225,11 +173,210 @@ class ReportsManager {
         }
     }
     
+    populateAcademicYearFilter() {
+        const yearSelect = document.getElementById('academicYear');
+        if (!yearSelect) {
+            console.warn('⚠️ academicYear element not found');
+            return;
+        }
+        
+        // Clear existing options
+        yearSelect.innerHTML = '';
+        
+        // Add default option
+        const defaultOption = document.createElement('option');
+        defaultOption.value = 'all';
+        defaultOption.textContent = 'All Years';
+        yearSelect.appendChild(defaultOption);
+        
+        // Add current year and previous 5 years
+        const currentYear = new Date().getFullYear();
+        for (let year = currentYear; year >= currentYear - 5; year--) {
+            const option = document.createElement('option');
+            option.value = year;
+            option.textContent = year;
+            yearSelect.appendChild(option);
+        }
+        
+        // Set default to current year
+        yearSelect.value = currentYear;
+        this.currentFilters.year = currentYear.toString();
+    }
+    
+    populateCentreFilters(centres) {
+        const centreSelects = [
+            'filterCenter', 
+            'studentReportCenter', 
+            'academicReportCenter',
+            'transcriptCenterFilter',
+            'bulkExportCenters',
+            'scheduleCenter'
+        ];
+        
+        centreSelects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            if (select) {
+                // Clear existing options
+                select.innerHTML = '';
+                
+                // Add "All Centres" option
+                const allOption = document.createElement('option');
+                allOption.value = 'all';
+                allOption.textContent = 'All Centres';
+                select.appendChild(allOption);
+                
+                // Add centre options from database
+                if (centres && centres.length > 0) {
+                    centres.forEach(centre => {
+                        const option = document.createElement('option');
+                        option.value = centre.id || centre.name || centre;
+                        option.textContent = centre.name || centre.code || centre;
+                        
+                        // Add county if available
+                        if (centre.county) {
+                            option.textContent += ` (${centre.county})`;
+                        }
+                        
+                        select.appendChild(option);
+                    });
+                    
+                    console.log(`✅ Populated ${selectId} with ${centres.length} centres`);
+                } else {
+                    console.warn(`No centres data for ${selectId}`);
+                }
+            } else {
+                console.warn(`⚠️ Select element ${selectId} not found`);
+            }
+        });
+    }
+    
+    populateCountyFilters(counties) {
+        const countySelects = ['filterCounty'];
+        
+        countySelects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            if (select) {
+                select.innerHTML = '';
+                
+                // Add "All Counties" option
+                const allOption = document.createElement('option');
+                allOption.value = 'all';
+                allOption.textContent = 'All Counties';
+                select.appendChild(allOption);
+                
+                // Add county options
+                if (counties && counties.length > 0) {
+                    counties.forEach(county => {
+                        const option = document.createElement('option');
+                        option.value = county.name || county;
+                        option.textContent = county.name || county;
+                        select.appendChild(option);
+                    });
+                    
+                    console.log(`✅ Populated ${selectId} with ${counties.length} counties`);
+                }
+            }
+        });
+    }
+    
+    populateProgramFilter(programs) {
+        const programSelect = document.getElementById('filterProgram');
+        if (programSelect) {
+            programSelect.innerHTML = '';
+            
+            // Add "All Programs" option
+            const allOption = document.createElement('option');
+            allOption.value = 'all';
+            allOption.textContent = 'All Programs';
+            programSelect.appendChild(allOption);
+            
+            // Add program options
+            if (programs && programs.length > 0) {
+                programs.forEach(program => {
+                    const option = document.createElement('option');
+                    option.value = program.code || program.name || program.id;
+                    option.textContent = program.name || program.code || 'Unknown Program';
+                    programSelect.appendChild(option);
+                });
+                
+                console.log(`✅ Populated program filter with ${programs.length} programs`);
+            }
+        }
+    }
+    
+    populateIntakeFilter(students) {
+        const intakeSelect = document.getElementById('filterIntake');
+        if (intakeSelect) {
+            intakeSelect.innerHTML = '';
+            
+            // Add "All Intakes" option
+            const allOption = document.createElement('option');
+            allOption.value = 'all';
+            allOption.textContent = 'All Intakes';
+            intakeSelect.appendChild(allOption);
+            
+            // Get unique intake years from students
+            const intakeYears = [...new Set(students.map(s => s.intake_year || s.intake).filter(Boolean))]
+                .sort((a, b) => b - a);
+            
+            if (intakeYears.length > 0) {
+                intakeYears.forEach(year => {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year.toString();
+                    intakeSelect.appendChild(option);
+                });
+                
+                console.log(`✅ Populated intake filter with ${intakeYears.length} years`);
+            } else {
+                // Add current year as fallback
+                const currentYear = new Date().getFullYear();
+                const option = document.createElement('option');
+                option.value = currentYear;
+                option.textContent = currentYear.toString();
+                intakeSelect.appendChild(option);
+            }
+        }
+    }
+    
+    populateCourseFilter(courses) {
+        const courseSelect = document.getElementById('filterCourse');
+        if (courseSelect) {
+            courseSelect.innerHTML = '';
+            
+            // Add "All Courses" option
+            const allOption = document.createElement('option');
+            allOption.value = 'all';
+            allOption.textContent = 'All Courses';
+            courseSelect.appendChild(allOption);
+            
+            // Add course options
+            if (courses && courses.length > 0) {
+                courses.forEach(course => {
+                    const option = document.createElement('option');
+                    option.value = course.course_code || course.code || course.id;
+                    option.textContent = course.course_name || course.name || 'Unknown Course';
+                    
+                    // Add credits if available
+                    if (course.credits) {
+                        option.textContent += ` (${course.credits} credits)`;
+                    }
+                    
+                    courseSelect.appendChild(option);
+                });
+            }
+        }
+    }
+    
     async populateTranscriptStudents() {
         try {
             const studentSelect = document.getElementById('transcriptStudent');
-            if (!studentSelect) return;
+            if (!studentSelect) {
+                console.warn('⚠️ transcriptStudent element not found');
+                return;
+            }
             
+            // Clear existing options
             studentSelect.innerHTML = '';
             
             // Add placeholder option
@@ -240,24 +387,35 @@ class ReportsManager {
             placeholderOption.selected = true;
             studentSelect.appendChild(placeholderOption);
             
-            // Get all students from database
-            const students = await this.getStudents();
+            // Get all students
+            const students = this.students.length > 0 ? this.students : await this.getStudents();
             
             // Add student options
-            students.forEach(student => {
-                const option = document.createElement('option');
-                option.value = student.id;
-                option.textContent = `${student.reg_number} - ${student.full_name}`;
+            if (students && students.length > 0) {
+                students.forEach(student => {
+                    const option = document.createElement('option');
+                    option.value = student.id || student.reg_number;
+                    option.textContent = `${student.reg_number || 'N/A'} - ${student.full_name || student.name || 'Unknown Student'}`;
+                    
+                    // Add student centre if available
+                    if (student.centre_name || student.centre) {
+                        option.textContent += ` (${student.centre_name || student.centre})`;
+                    }
+                    
+                    studentSelect.appendChild(option);
+                });
                 
-                // Add student centre if available
-                if (student.centre_name || student.centre) {
-                    option.textContent += ` (${student.centre_name || student.centre})`;
-                }
+                console.log(`✅ Loaded ${students.length} students for transcript generation`);
+            } else {
+                console.warn('⚠️ No students found for transcript generation');
                 
-                studentSelect.appendChild(option);
-            });
-            
-            console.log(`✅ Loaded ${students.length} students for transcript generation`);
+                // Add a disabled option to indicate no students
+                const noStudentsOption = document.createElement('option');
+                noStudentsOption.value = '';
+                noStudentsOption.textContent = 'No students available';
+                noStudentsOption.disabled = true;
+                studentSelect.appendChild(noStudentsOption);
+            }
             
         } catch (error) {
             console.error('❌ Error populating transcript students:', error);
@@ -269,25 +427,43 @@ class ReportsManager {
     
     async getStudents() {
         try {
-            if (!this.db || !this.db.getStudents) {
-                console.error('getStudents method not available');
-                return [];
+            if (!this.db) {
+                console.warn('⚠️ Database not available in getStudents');
+                return this.students || [];
             }
-            return await this.db.getStudents();
+            
+            if (typeof this.db.getStudents === 'function') {
+                const students = await this.db.getStudents();
+                this.students = students || [];
+                return this.students;
+            } else {
+                console.warn('⚠️ getStudents method not available on db');
+                return this.students || [];
+            }
         } catch (error) {
             console.error('❌ Error getting students:', error);
-            return [];
+            return this.students || [];
         }
     }
     
     async getStudentById(studentId) {
         try {
-            if (!this.db || !this.db.getStudent) {
-                console.error('getStudent method not available');
-                const students = await this.getStudents();
-                return students.find(s => s.id == studentId) || null;
+            // First check if we have the student in memory
+            if (this.students && this.students.length > 0) {
+                const student = this.students.find(s => 
+                    s.id == studentId || s.reg_number == studentId
+                );
+                if (student) return student;
             }
-            return await this.db.getStudent(studentId);
+            
+            // If not found, try database method
+            if (this.db && typeof this.db.getStudent === 'function') {
+                return await this.db.getStudent(studentId);
+            }
+            
+            console.warn(`⚠️ Student with ID ${studentId} not found`);
+            return null;
+            
         } catch (error) {
             console.error('❌ Error getting student by ID:', error);
             return null;
@@ -296,38 +472,62 @@ class ReportsManager {
     
     async getCourses() {
         try {
-            if (!this.db || !this.db.getCourses) {
-                console.error('getCourses method not available');
-                return [];
+            if (!this.db) {
+                console.warn('⚠️ Database not available in getCourses');
+                return this.courses || [];
             }
-            return await this.db.getCourses();
+            
+            if (typeof this.db.getCourses === 'function') {
+                const courses = await this.db.getCourses();
+                this.courses = courses || [];
+                return this.courses;
+            } else {
+                console.warn('⚠️ getCourses method not available on db');
+                return this.courses || [];
+            }
         } catch (error) {
             console.error('❌ Error getting courses:', error);
-            return [];
+            return this.courses || [];
         }
     }
     
     async getMarks() {
         try {
-            if (!this.db || !this.db.getMarks) {
-                console.error('getMarks method not available');
-                return [];
+            if (!this.db) {
+                console.warn('⚠️ Database not available in getMarks');
+                return this.marks || [];
             }
-            return await this.db.getMarks();
+            
+            if (typeof this.db.getMarks === 'function') {
+                const marks = await this.db.getMarks();
+                this.marks = marks || [];
+                return this.marks;
+            } else {
+                console.warn('⚠️ getMarks method not available on db');
+                return this.marks || [];
+            }
         } catch (error) {
             console.error('❌ Error getting marks:', error);
-            return [];
+            return this.marks || [];
         }
     }
     
     async getMarksByStudent(studentId) {
         try {
-            if (!this.db || !this.db.getStudentMarks) {
-                // Fallback: get all marks and filter
-                const allMarks = await this.getMarks();
-                return allMarks.filter(mark => mark.student_id == studentId);
+            // First filter from memory
+            if (this.marks && this.marks.length > 0) {
+                return this.marks.filter(mark => mark.student_id == studentId);
             }
-            return await this.db.getStudentMarks(studentId);
+            
+            // Try database method
+            if (this.db && typeof this.db.getStudentMarks === 'function') {
+                return await this.db.getStudentMarks(studentId);
+            }
+            
+            // Fallback: get all marks and filter
+            const allMarks = await this.getMarks();
+            return allMarks.filter(mark => mark.student_id == studentId);
+            
         } catch (error) {
             console.error('❌ Error getting marks by student:', error);
             return [];
@@ -336,14 +536,19 @@ class ReportsManager {
     
     async getCentres() {
         try {
-            if (!this.db || !this.db.getCentres) {
-                console.error('getCentres method not available');
-                // Fallback: get from students
-                const students = await this.getStudents();
-                const centres = [...new Set(students.map(s => s.centre_name || s.centre).filter(Boolean))];
-                return centres.map(centre => ({ name: centre }));
+            if (this.db && typeof this.db.getCentres === 'function') {
+                return await this.db.getCentres();
             }
-            return await this.db.getCentres();
+            
+            // Fallback: extract from students
+            const students = this.students.length > 0 ? this.students : await this.getStudents();
+            const centres = [...new Set(students.map(s => s.centre_name || s.centre).filter(Boolean))];
+            
+            return centres.map(centre => ({ 
+                name: centre,
+                id: centre // Use name as ID for fallback
+            }));
+            
         } catch (error) {
             console.error('❌ Error getting centres:', error);
             return [];
@@ -352,14 +557,19 @@ class ReportsManager {
     
     async getCounties() {
         try {
-            if (!this.db || !this.db.getCounties) {
-                console.error('getCounties method not available');
-                // Fallback: get from students
-                const students = await this.getStudents();
-                const counties = [...new Set(students.map(s => s.county).filter(Boolean))];
-                return counties.map(county => ({ name: county }));
+            if (this.db && typeof this.db.getCounties === 'function') {
+                return await this.db.getCounties();
             }
-            return await this.db.getCounties();
+            
+            // Fallback: extract from students
+            const students = this.students.length > 0 ? this.students : await this.getStudents();
+            const counties = [...new Set(students.map(s => s.county).filter(Boolean))];
+            
+            return counties.map(county => ({ 
+                name: county,
+                id: county // Use name as ID for fallback
+            }));
+            
         } catch (error) {
             console.error('❌ Error getting counties:', error);
             return [];
@@ -368,14 +578,19 @@ class ReportsManager {
     
     async getPrograms() {
         try {
-            if (!this.db || !this.db.getPrograms) {
-                console.error('getPrograms method not available');
-                // Fallback: get from students
-                const students = await this.getStudents();
-                const programs = [...new Set(students.map(s => s.program).filter(Boolean))];
-                return programs.map(program => ({ name: program, code: program }));
+            if (this.db && typeof this.db.getPrograms === 'function') {
+                return await this.db.getPrograms();
             }
-            return await this.db.getPrograms();
+            
+            // Fallback: extract from students
+            const students = this.students.length > 0 ? this.students : await this.getStudents();
+            const programs = [...new Set(students.map(s => s.program).filter(Boolean))];
+            
+            return programs.map(program => ({ 
+                name: program,
+                code: program // Use name as code for fallback
+            }));
+            
         } catch (error) {
             console.error('❌ Error getting programs:', error);
             return [];
@@ -387,7 +602,10 @@ class ReportsManager {
     async generateReportsGrid() {
         try {
             const reportsContainer = document.getElementById('reportsGrid');
-            if (!reportsContainer) return;
+            if (!reportsContainer) {
+                console.warn('⚠️ reportsGrid element not found');
+                return;
+            }
             
             const reports = [
                 {
@@ -445,7 +663,7 @@ class ReportsManager {
             reports.forEach(report => {
                 html += `
                     <div class="col-md-4 mb-3">
-                        <div class="report-card" onclick="app.reports.${report.action}()" 
+                        <div class="report-card" onclick="if(window.app && window.app.reports && window.app.reports.${report.action}) { window.app.reports.${report.action}(); } else { console.error('Report action not available'); }" 
                              style="border: 1px solid #e0e0e0; border-radius: 10px; padding: 20px; 
                                     background: white; cursor: pointer; height: 100%;
                                     transition: transform 0.2s, box-shadow 0.2s;"
@@ -499,74 +717,130 @@ class ReportsManager {
             const oneYearAgo = new Date();
             oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
             dateFrom.valueAsDate = oneYearAgo;
+            this.currentFilters.dateFrom = oneYearAgo.toISOString().split('T')[0];
         }
         
         if (dateTo) {
             dateTo.valueAsDate = new Date();
+            this.currentFilters.dateTo = new Date().toISOString().split('T')[0];
         }
     }
     
     setupEventListeners() {
-        // Apply Filters button
-        const applyBtn = document.querySelector('[onclick*="applyFilters"]');
-        if (applyBtn) {
-            applyBtn.onclick = () => this.applyFilters();
-        }
-        
-        // Clear Filters button
-        const clearBtn = document.querySelector('[onclick*="clearFilters"]');
-        if (clearBtn) {
-            clearBtn.onclick = () => this.clearFilters();
-        }
-        
-        // Refresh button
-        const refreshBtn = document.querySelector('[onclick*="refreshReports"]');
-        if (refreshBtn) {
-            refreshBtn.onclick = () => this.refreshReports();
-        }
-        
-        // Transcript Centre Filter
-        const transcriptCentreFilter = document.getElementById('transcriptCenterFilter');
-        if (transcriptCentreFilter) {
-            transcriptCentreFilter.onchange = () => this.filterTranscriptStudentsByCenter();
-        }
+        console.log('🔧 Setting up event listeners...');
         
         // Update all onclick handlers
         this.updateButtonListeners();
+        
+        // Setup filter change listeners
+        this.setupFilterChangeListeners();
+        
+        console.log('✅ Event listeners setup complete');
+    }
+    
+    setupFilterChangeListeners() {
+        // Transcript Centre Filter
+        const transcriptCentreFilter = document.getElementById('transcriptCenterFilter');
+        if (transcriptCentreFilter) {
+            transcriptCentreFilter.addEventListener('change', () => this.filterTranscriptStudentsByCenter());
+        }
+        
+        // Apply filters on change for certain filters
+        const autoApplyFilters = ['academicYear', 'filterProgram', 'filterCenter', 'filterCounty', 'filterIntake'];
+        autoApplyFilters.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('change', () => this.applyFilters());
+            }
+        });
     }
     
     updateButtonListeners() {
-        const buttonMap = {
-            'app.reports.studentReport()': () => this.studentReport(),
-            'app.reports.academicReport()': () => this.academicReport(),
-            'app.reports.generateCentreReport()': () => this.generateCentreReport(),
-            'app.reports.generateSummaryReport()': () => this.generateSummaryReport(),
-            'app.reports.previewStudentReport()': () => this.previewStudentReport(),
-            'app.reports.previewAcademicReport()': () => this.previewAcademicReport(),
-            'app.reports.quickStudentReport()': () => this.quickStudentReport(),
-            'app.reports.quickAcademicReport()': () => this.quickAcademicReport(),
-            'app.reports.previewTranscript()': () => this.previewTranscript(),
-            'app.reports.generateTranscript()': () => this.generateTranscript(),
-            'app.reports.bulkExport()': () => this.bulkExport(),
-            'app.reports.loadSampleTranscript()': () => this.loadSampleTranscript(),
-            'app.reports.clearPreview()': () => this.clearPreview(),
-            'app.reports.addScheduledReport()': () => this.addScheduledReport(),
-            'app.reports.saveFilterPreset()': () => this.saveFilterPreset(),
-            'app.reports.downloadPreview()': () => this.downloadPreview(),
-            'app.reports.bulkTranscripts()': () => this.bulkTranscripts(),
-            'app.reports.removeScheduledReport()': (btn) => this.removeScheduledReport(btn)
+        console.log('🔄 Updating button listeners...');
+        
+        // Direct method binding for critical buttons
+        this.bindButton('applyFilters', this.applyFilters);
+        this.bindButton('clearFilters', this.clearFilters);
+        this.bindButton('refreshReports', this.refreshReports);
+        this.bindButton('saveFilterPreset', this.saveFilterPreset);
+        this.bindButton('clearPreview', this.clearPreview);
+        this.bindButton('downloadPreview', this.downloadPreview);
+        
+        // Report generation buttons
+        this.bindButton('generateSummaryReport', this.generateSummaryReport);
+        this.bindButton('generateCentreReport', this.generateCentreReport);
+        this.bindButton('studentReport', this.studentReport);
+        this.bindButton('academicReport', this.academicReport);
+        this.bindButton('quickStudentReport', this.studentReport);
+        this.bindButton('quickAcademicReport', this.academicReport);
+        this.bindButton('previewStudentReport', this.previewStudentReport);
+        this.bindButton('previewAcademicReport', this.previewAcademicReport);
+        
+        // Transcript buttons
+        this.bindButton('previewTranscript', this.previewTranscript);
+        this.bindButton('generateTranscript', this.generateTranscript);
+        this.bindButton('loadSampleTranscript', this.loadSampleTranscript);
+        this.bindButton('bulkTranscripts', this.bulkTranscripts);
+        this.bindButton('bulkExport', this.bulkExport);
+        this.bindButton('addScheduledReport', this.addScheduledReport);
+        
+        // Also update all onclick attributes globally
+        this.updateAllOnclickHandlers();
+        
+        console.log('✅ Button listeners updated');
+    }
+    
+    bindButton(elementId, method) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.onclick = method;
+        } else {
+            // Try to find by partial match
+            const elements = document.querySelectorAll(`[id*="${elementId}"], [onclick*="${elementId}"]`);
+            elements.forEach(el => {
+                if (el.onclick === null || el.getAttribute('onclick')?.includes(elementId)) {
+                    el.onclick = method;
+                }
+            });
+        }
+    }
+    
+    updateAllOnclickHandlers() {
+        // Map of onclick strings to methods
+        const handlerMap = {
+            'app.reports.studentReport()': this.studentReport,
+            'app.reports.academicReport()': this.academicReport,
+            'app.reports.generateCentreReport()': this.generateCentreReport,
+            'app.reports.generateSummaryReport()': this.generateSummaryReport,
+            'app.reports.previewStudentReport()': this.previewStudentReport,
+            'app.reports.previewAcademicReport()': this.previewAcademicReport,
+            'app.reports.quickStudentReport()': this.studentReport,
+            'app.reports.quickAcademicReport()': this.academicReport,
+            'app.reports.previewTranscript()': this.previewTranscript,
+            'app.reports.generateTranscript()': this.generateTranscript,
+            'app.reports.bulkExport()': this.bulkExport,
+            'app.reports.loadSampleTranscript()': this.loadSampleTranscript,
+            'app.reports.clearPreview()': this.clearPreview,
+            'app.reports.addScheduledReport()': this.addScheduledReport,
+            'app.reports.saveFilterPreset()': this.saveFilterPreset,
+            'app.reports.downloadPreview()': this.downloadPreview,
+            'app.reports.bulkTranscripts()': this.bulkTranscripts,
+            'app.reports.refreshReports()': this.refreshReports,
+            'app.reports.applyFilters()': this.applyFilters,
+            'app.reports.clearFilters()': this.clearFilters
         };
         
-        // Update all buttons with app.reports handlers
-        document.querySelectorAll('button[onclick*="app.reports."]').forEach(button => {
-            const onclickValue = button.getAttribute('onclick');
-            if (onclickValue && onclickValue.includes('removeScheduledReport')) {
-                button.onclick = (e) => {
-                    e.stopPropagation();
-                    this.removeScheduledReport(button);
-                };
-            } else if (onclickValue && buttonMap[onclickValue]) {
-                button.onclick = () => buttonMap[onclickValue]();
+        // Update all buttons with onclick attributes
+        document.querySelectorAll('[onclick]').forEach(element => {
+            const onclickAttr = element.getAttribute('onclick');
+            if (onclickAttr) {
+                // Check if this onclick matches any in our map
+                for (const [pattern, handler] of Object.entries(handlerMap)) {
+                    if (onclickAttr.includes(pattern.replace('app.reports.', '').replace('()', ''))) {
+                        element.onclick = handler;
+                        break;
+                    }
+                }
             }
         });
     }
@@ -579,7 +853,7 @@ class ReportsManager {
             if (!centreFilter || !studentSelect) return;
             
             const selectedCentre = centreFilter.value;
-            const students = await this.getStudents();
+            const students = this.students.length > 0 ? this.students : await this.getStudents();
             
             // Clear existing options
             studentSelect.innerHTML = '';
@@ -597,14 +871,15 @@ class ReportsManager {
                 ? students 
                 : students.filter(student => 
                     (student.centre_name === selectedCentre) || 
-                    (student.centre === selectedCentre)
+                    (student.centre === selectedCentre) ||
+                    (student.centre_id === selectedCentre)
                 );
             
             // Add filtered students
             filteredStudents.forEach(student => {
                 const option = document.createElement('option');
-                option.value = student.id;
-                option.textContent = `${student.reg_number} - ${student.full_name}`;
+                option.value = student.id || student.reg_number;
+                option.textContent = `${student.reg_number || 'N/A'} - ${student.full_name || student.name || 'Unknown Student'}`;
                 
                 if (student.centre_name || student.centre) {
                     option.textContent += ` (${student.centre_name || student.centre})`;
@@ -638,12 +913,13 @@ class ReportsManager {
             const coursesMap = {};
             
             marks.forEach(mark => {
-                const courseId = mark.course_id;
+                const courseId = mark.course_id || mark.course_code;
                 if (!courseId) return;
                 
                 if (!coursesMap[courseId]) {
                     coursesMap[courseId] = {
                         course_id: courseId,
+                        course_name: mark.course_name,
                         marks: [],
                         totalScore: 0,
                         totalMaxScore: 0
@@ -665,31 +941,36 @@ class ReportsManager {
             });
             
             // Get course details and calculate final grades
-            const allCourses = await this.getCourses();
+            const allCourses = this.courses.length > 0 ? this.courses : await this.getCourses();
             const courseList = [];
             let totalCredits = 0;
             let totalGradePoints = 0;
             
             Object.values(coursesMap).forEach(courseData => {
-                const course = allCourses.find(c => c.id === courseData.course_id);
-                if (!course) return;
+                const course = allCourses.find(c => 
+                    c.id === courseData.course_id || 
+                    c.course_code === courseData.course_id ||
+                    c.code === courseData.course_id
+                );
                 
+                const courseName = courseData.course_name || (course ? course.course_name || course.name : 'Unknown Course');
+                const courseCode = courseData.course_id;
                 const finalScore = courseData.totalMaxScore > 0 
                     ? (courseData.totalScore / courseData.totalMaxScore) * 100 
                     : 0;
                 
                 const grade = this.calculateGrade(finalScore);
                 const gradePoints = this.getGradePoints(grade);
-                const credits = course.credits || 3;
+                const credits = course?.credits || 3;
                 
                 totalCredits += credits;
                 totalGradePoints += gradePoints * credits;
                 
                 courseList.push({
-                    course_code: course.course_code || course.code || 'N/A',
-                    course_name: course.course_name || course.name || 'Unknown Course',
+                    course_code: courseCode,
+                    course_name: courseName,
                     credits: credits,
-                    semester: course.semester || 1,
+                    semester: course?.semester || 1,
                     final_score: finalScore.toFixed(1),
                     grade: grade,
                     grade_points: gradePoints,
@@ -707,10 +988,10 @@ class ReportsManager {
                 student: {
                     id: student.id,
                     reg_number: student.reg_number,
-                    full_name: student.full_name,
+                    full_name: student.full_name || student.name,
                     program: student.program,
                     centre: student.centre_name || student.centre || 'Not specified',
-                    intake_year: student.intake_year,
+                    intake_year: student.intake_year || student.intake,
                     status: student.status || 'active',
                     date_of_birth: student.date_of_birth,
                     gender: student.gender,
@@ -755,7 +1036,7 @@ class ReportsManager {
             
         } catch (error) {
             console.error('❌ Error previewing transcript:', error);
-            this.showToast('Error previewing transcript. Please check student data.', 'error');
+            this.showToast('Error previewing transcript: ' + error.message, 'error');
         }
     }
     
@@ -783,17 +1064,20 @@ class ReportsManager {
             
         } catch (error) {
             console.error('❌ Error generating transcript:', error);
-            this.showToast('Error generating transcript', 'error');
+            this.showToast('Error generating transcript: ' + error.message, 'error');
         }
     }
     
     previewTranscriptData(transcriptData) {
         try {
             const previewDiv = document.getElementById('transcriptPreview');
-            if (!previewDiv) return;
+            if (!previewDiv) {
+                console.warn('transcriptPreview element not found');
+                return;
+            }
             
             let html = `
-                <div class="transcript-preview" style="background: white; border-radius: 10px; padding: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <div class="transcript-preview" style="background: white; border-radius: 10px; padding: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 100%; overflow-x: auto;">
                     <div class="transcript-header" style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #3498db; padding-bottom: 20px;">
                         <h2 style="color: #2c3e50; margin-bottom: 5px;">TEE College</h2>
                         <h3 style="color: #7f8c8d; font-weight: normal; margin-bottom: 20px;">Academic Transcript</h3>
@@ -827,7 +1111,7 @@ class ReportsManager {
                             </div>
                             <div style="flex: 1; min-width: 200px; margin-bottom: 10px;">
                                 <strong style="color: #2c3e50;">Status:</strong>
-                                <span class="badge ${transcriptData.student.status === 'active' ? 'badge-success' : 'badge-secondary'}" 
+                                <span class="badge" 
                                       style="background: ${transcriptData.student.status === 'active' ? '#2ecc71' : '#95a5a6'}; 
                                              color: white; padding: 3px 10px; border-radius: 4px;">
                                     ${transcriptData.student.status || 'Unknown'}
@@ -858,6 +1142,7 @@ class ReportsManager {
                                     <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Course Name</th>
                                     <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Credits</th>
                                     <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Semester</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Score (%)</th>
                                     <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Grade</th>
                                     <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Grade Points</th>
                                 </tr>
@@ -876,6 +1161,7 @@ class ReportsManager {
                             <td style="padding: 12px;">${course.course_name}</td>
                             <td style="padding: 12px; text-align: center;">${course.credits}</td>
                             <td style="padding: 12px; text-align: center;">${course.semester}</td>
+                            <td style="padding: 12px; text-align: center;">${course.final_score}%</td>
                             <td style="padding: 12px;">
                                 <span class="badge" style="background: ${gradeColor}; color: white; padding: 4px 8px; border-radius: 4px;">
                                     ${course.grade}
@@ -925,24 +1211,27 @@ class ReportsManager {
             
         } catch (error) {
             console.error('Error rendering transcript preview:', error);
-            this.showToast('Error rendering transcript preview', 'error');
+            this.showToast('Error rendering transcript preview: ' + error.message, 'error');
         }
     }
     
     async loadSampleTranscript() {
         try {
-            const students = await this.getStudents();
+            const students = this.students.length > 0 ? this.students : await this.getStudents();
             if (students.length > 0) {
                 const sampleStudent = students[0];
-                document.getElementById('transcriptStudent').value = sampleStudent.id;
-                await this.previewTranscript();
-                this.showToast('Loaded sample transcript', 'info');
+                const studentSelect = document.getElementById('transcriptStudent');
+                if (studentSelect) {
+                    studentSelect.value = sampleStudent.id || sampleStudent.reg_number;
+                    await this.previewTranscript();
+                    this.showToast('Loaded sample transcript', 'info');
+                }
             } else {
                 this.showToast('No students found in database', 'warning');
             }
         } catch (error) {
             console.error('Error loading sample transcript:', error);
-            this.showToast('Error loading sample', 'error');
+            this.showToast('Error loading sample: ' + error.message, 'error');
         }
     }
     
@@ -957,7 +1246,7 @@ class ReportsManager {
             return data;
         } catch (error) {
             console.error('Error in studentReport:', error);
-            this.showToast('Error generating student report', 'error');
+            this.showToast('Error generating student report: ' + error.message, 'error');
             throw error;
         }
     }
@@ -971,7 +1260,7 @@ class ReportsManager {
             return data;
         } catch (error) {
             console.error('Error in academicReport:', error);
-            this.showToast('Error generating academic report', 'error');
+            this.showToast('Error generating academic report: ' + error.message, 'error');
             throw error;
         }
     }
@@ -985,39 +1274,7 @@ class ReportsManager {
             return data;
         } catch (error) {
             console.error('Error in generateCentreReport:', error);
-            this.showToast('Error generating centre report', 'error');
-            throw error;
-        }
-    }
-    
-    async generateCentreReportData() {
-        try {
-            const students = await this.getStudents();
-            const centres = await this.getCentres();
-            
-            const centreData = centres.map(centre => {
-                const centreName = centre.name || centre;
-                const centreStudents = students.filter(s => 
-                    s.centre_name === centreName || s.centre === centreName
-                );
-                const activeStudents = centreStudents.filter(s => s.status === 'active');
-                const graduatedStudents = centreStudents.filter(s => s.status === 'graduated');
-                
-                return {
-                    'Centre Name': centreName,
-                    'County': centre.county || 'Not specified',
-                    'Total Students': centreStudents.length,
-                    'Active Students': activeStudents.length,
-                    'Graduated': graduatedStudents.length,
-                    'Graduation Rate': centreStudents.length > 0 
-                        ? ((graduatedStudents.length / centreStudents.length) * 100).toFixed(1) + '%' 
-                        : '0%'
-                };
-            }).filter(data => data['Total Students'] > 0);
-            
-            return centreData;
-        } catch (error) {
-            console.error('Error generating centre report data:', error);
+            this.showToast('Error generating centre report: ' + error.message, 'error');
             throw error;
         }
     }
@@ -1031,45 +1288,16 @@ class ReportsManager {
             return data;
         } catch (error) {
             console.error('Error in generateSummaryReport:', error);
-            this.showToast('Error generating summary report', 'error');
+            this.showToast('Error generating summary report: ' + error.message, 'error');
             throw error;
         }
     }
     
-    async generateExecutiveSummary() {
-        try {
-            const students = await this.getStudents();
-            const courses = await this.getCourses();
-            const marks = await this.getMarks();
-            
-            const totalStudents = students.length;
-            const activeStudents = students.filter(s => s.status === 'active').length;
-            const graduatedStudents = students.filter(s => s.status === 'graduated').length;
-            
-            const graduationRate = totalStudents > 0 
-                ? ((graduatedStudents / totalStudents) * 100).toFixed(1) + '%'
-                : '0%';
-            
-            const centres = await this.getCentres();
-            
-            return [
-                { 'Metric': 'Total Students', 'Value': totalStudents },
-                { 'Metric': 'Active Students', 'Value': activeStudents },
-                { 'Metric': 'Graduated Students', 'Value': graduatedStudents },
-                { 'Metric': 'Graduation Rate', 'Value': graduationRate },
-                { 'Metric': 'Total Courses', 'Value': courses.length },
-                { 'Metric': 'Active Centres', 'Value': centres.length },
-                { 'Metric': 'Marks Entries', 'Value': marks.length }
-            ];
-        } catch (error) {
-            console.error('Error generating executive summary:', error);
-            throw error;
-        }
-    }
+    // ==================== DATA GENERATION METHODS ====================
     
     async generateStudentListReport() {
         try {
-            const students = await this.getStudents();
+            const students = this.students.length > 0 ? this.students : await this.getStudents();
             let filteredStudents = this.applyStudentFilters(students);
             
             const centreFilter = this.getSelectedValues('studentReportCenter');
@@ -1081,13 +1309,13 @@ class ReportsManager {
             
             return filteredStudents.map(student => ({
                 'Registration Number': student.reg_number || 'N/A',
-                'Full Name': student.full_name || 'N/A',
+                'Full Name': student.full_name || student.name || 'N/A',
                 'Email': student.email || '',
                 'Phone': student.phone || '',
                 'Program': student.program || '',
                 'Centre': student.centre_name || student.centre || 'Not specified',
                 'County': student.county || 'Not specified',
-                'Intake Year': student.intake_year || '',
+                'Intake Year': student.intake_year || student.intake || '',
                 'Status': student.status || '',
                 'Date of Birth': student.date_of_birth ? new Date(student.date_of_birth).toLocaleDateString() : '',
                 'Gender': student.gender || '',
@@ -1103,9 +1331,9 @@ class ReportsManager {
     
     async generateAcademicReport() {
         try {
-            const marks = await this.getMarks();
-            const courses = await this.getCourses();
-            const students = await this.getStudents();
+            const marks = this.marks.length > 0 ? this.marks : await this.getMarks();
+            const courses = this.courses.length > 0 ? this.courses : await this.getCourses();
+            const students = this.students.length > 0 ? this.students : await this.getStudents();
             
             // Group marks by student
             const studentPerformance = {};
@@ -1119,7 +1347,7 @@ class ReportsManager {
                     studentPerformance[studentId] = {
                         student_id: studentId,
                         reg_number: student.reg_number || 'N/A',
-                        full_name: student.full_name || 'Unknown Student',
+                        full_name: student.full_name || student.name || 'Unknown Student',
                         program: student.program || '',
                         centre: student.centre_name || student.centre || '',
                         total_marks: 0,
@@ -1167,6 +1395,68 @@ class ReportsManager {
         }
     }
     
+    async generateCentreReportData() {
+        try {
+            const students = this.students.length > 0 ? this.students : await this.getStudents();
+            const centres = await this.getCentres();
+            
+            const centreData = centres.map(centre => {
+                const centreName = centre.name || centre;
+                const centreStudents = students.filter(s => 
+                    s.centre_name === centreName || s.centre === centreName
+                );
+                const activeStudents = centreStudents.filter(s => s.status === 'active');
+                const graduatedStudents = centreStudents.filter(s => s.status === 'graduated');
+                
+                return {
+                    'Centre Name': centreName,
+                    'County': centre.county || 'Not specified',
+                    'Total Students': centreStudents.length,
+                    'Active Students': activeStudents.length,
+                    'Graduated': graduatedStudents.length,
+                    'Graduation Rate': centreStudents.length > 0 
+                        ? ((graduatedStudents.length / centreStudents.length) * 100).toFixed(1) + '%' 
+                        : '0%'
+                };
+            }).filter(data => data['Total Students'] > 0);
+            
+            return centreData;
+        } catch (error) {
+            console.error('Error generating centre report data:', error);
+            throw error;
+        }
+    }
+    
+    async generateExecutiveSummary() {
+        try {
+            const students = this.students.length > 0 ? this.students : await this.getStudents();
+            const courses = this.courses.length > 0 ? this.courses : await this.getCourses();
+            const marks = this.marks.length > 0 ? this.marks : await this.getMarks();
+            const centres = await this.getCentres();
+            
+            const totalStudents = students.length;
+            const activeStudents = students.filter(s => s.status === 'active').length;
+            const graduatedStudents = students.filter(s => s.status === 'graduated').length;
+            
+            const graduationRate = totalStudents > 0 
+                ? ((graduatedStudents / totalStudents) * 100).toFixed(1) + '%'
+                : '0%';
+            
+            return [
+                { 'Metric': 'Total Students', 'Value': totalStudents },
+                { 'Metric': 'Active Students', 'Value': activeStudents },
+                { 'Metric': 'Graduated Students', 'Value': graduatedStudents },
+                { 'Metric': 'Graduation Rate', 'Value': graduationRate },
+                { 'Metric': 'Total Courses', 'Value': courses.length },
+                { 'Metric': 'Active Centres', 'Value': centres.length },
+                { 'Metric': 'Marks Entries', 'Value': marks.length }
+            ];
+        } catch (error) {
+            console.error('Error generating executive summary:', error);
+            throw error;
+        }
+    }
+    
     // ==================== FILTER FUNCTIONS ====================
     
     async applyFilters() {
@@ -1196,7 +1486,7 @@ class ReportsManager {
             
         } catch (error) {
             console.error('Error applying filters:', error);
-            this.showToast('Error applying filters', 'error');
+            this.showToast('Error applying filters: ' + error.message, 'error');
         } finally {
             this.showLoading(false);
         }
@@ -1204,6 +1494,7 @@ class ReportsManager {
     
     clearFilters() {
         try {
+            // Reset filter elements
             const elements = ['academicYear', 'filterProgram', 'filterCourse', 'semester', 'filterCenter', 'filterCounty', 'filterIntake'];
             
             elements.forEach(id => {
@@ -1219,10 +1510,12 @@ class ReportsManager {
                 }
             });
             
+            // Reset dates
             this.setDefaultDates();
             
+            // Reset current filters
             this.currentFilters = {
-                year: 'all',
+                year: new Date().getFullYear().toString(),
                 program: ['all'],
                 course: 'all',
                 semester: 'all',
@@ -1234,6 +1527,7 @@ class ReportsManager {
                 dateTo: null
             };
             
+            // Update UI
             this.updateStatistics();
             this.generateReportsGrid();
             
@@ -1241,7 +1535,7 @@ class ReportsManager {
             
         } catch (error) {
             console.error('Error clearing filters:', error);
-            this.showToast('Error clearing filters', 'error');
+            this.showToast('Error clearing filters: ' + error.message, 'error');
         }
     }
     
@@ -1252,12 +1546,12 @@ class ReportsManager {
         if (select.type === 'select-multiple') {
             const selected = Array.from(select.selectedOptions)
                 .map(option => option.value)
-                .filter(value => value !== '' && value !== 'all');
+                .filter(value => value && value !== '' && value !== 'all');
             
             return selected.length > 0 ? selected : ['all'];
         } else {
             const value = select.value;
-            return value && value !== 'all' ? [value] : ['all'];
+            return value && value !== '' && value !== 'all' ? [value] : ['all'];
         }
     }
     
@@ -1285,7 +1579,7 @@ class ReportsManager {
         }
         
         if (this.currentFilters.intake !== 'all') {
-            filtered = filtered.filter(s => s.intake_year == parseInt(this.currentFilters.intake));
+            filtered = filtered.filter(s => (s.intake_year || s.intake) == parseInt(this.currentFilters.intake));
         }
         
         return filtered;
@@ -1295,7 +1589,7 @@ class ReportsManager {
     
     async updateStatistics() {
         try {
-            const students = await this.getStudents();
+            const students = this.students.length > 0 ? this.students : await this.getStudents();
             const filteredStudents = this.applyStudentFilters(students);
             
             const totalStudents = filteredStudents.length;
@@ -1355,25 +1649,26 @@ class ReportsManager {
     }
     
     showToast(message, type = 'info') {
+        // Create toast container if it doesn't exist
+        let container = document.getElementById('toastContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toastContainer';
+            container.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 9999;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                max-width: 400px;
+            `;
+            document.body.appendChild(container);
+        }
+        
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
-        toast.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
-            padding: 12px 16px;
-            border-radius: 4px;
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            min-width: 300px;
-            animation: slideIn 0.3s ease;
-            background: ${type === 'success' ? '#2ecc71' : 
-                        type === 'error' ? '#e74c3c' : 
-                        type === 'warning' ? '#f39c12' : '#3498db'};
-        `;
         
         const icons = {
             success: 'fa-check-circle',
@@ -1383,30 +1678,57 @@ class ReportsManager {
         };
         
         toast.innerHTML = `
-            <i class="fas ${icons[type] || 'fa-info-circle'}"></i>
-            <span style="flex: 1;">${message}</span>
-            <button onclick="this.parentElement.remove()" style="background: none; border: none; color: white; cursor: pointer;">
-                <i class="fas fa-times"></i>
-            </button>
+            <div style="display: flex; align-items: flex-start; gap: 12px;">
+                <i class="fas ${icons[type] || 'fa-info-circle'}" 
+                   style="font-size: 18px; margin-top: 2px;"></i>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 500; margin-bottom: 2px;">${type.toUpperCase()}</div>
+                    <div style="font-size: 14px; opacity: 0.9;">${message}</div>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" 
+                        style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; margin-left: 8px;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
         `;
         
-        let container = document.getElementById('toastContainer');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'toastContainer';
-            container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;';
-            document.body.appendChild(container);
-        }
+        // Style based on type
+        const styles = {
+            success: 'background: #2ecc71; color: white; border-left: 4px solid #27ae60;',
+            error: 'background: #e74c3c; color: white; border-left: 4px solid #c0392b;',
+            warning: 'background: #f39c12; color: white; border-left: 4px solid #d35400;',
+            info: 'background: #3498db; color: white; border-left: 4px solid #2980b9;'
+        };
+        
+        toast.style.cssText = `
+            ${styles[type] || styles.info}
+            padding: 14px 16px;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: slideIn 0.3s ease;
+            min-width: 300px;
+            max-width: 400px;
+        `;
         
         container.appendChild(toast);
-        setTimeout(() => { if (toast.parentElement) toast.remove(); }, 5000);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }
+        }, 5000);
     }
     
     // ==================== PREVIEW FUNCTIONS ====================
     
     previewReportData(data, title) {
         const previewDiv = document.getElementById('reportPreview');
-        if (!previewDiv) return;
+        if (!previewDiv) {
+            console.warn('reportPreview element not found');
+            return;
+        }
         
         if (!data || data.length === 0) {
             previewDiv.innerHTML = `
@@ -1429,20 +1751,26 @@ class ReportsManager {
                     </span>
                 </div>
                 <div style="overflow-x: auto;">
-                    <table style="width: 100%; border-collapse: collapse;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
                         <thead style="background: #f8f9fa;">
                             <tr>
-                                ${headers.map(header => `<th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">${header}</th>`).join('')}
+                                ${headers.map(header => `
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057; white-space: nowrap;">
+                                        ${header}
+                                    </th>
+                                `).join('')}
                             </tr>
                         </thead>
                         <tbody>
         `;
         
-        previewData.forEach(row => {
+        previewData.forEach((row, index) => {
             html += `
-                <tr style="border-bottom: 1px solid #eee;">
+                <tr style="border-bottom: 1px solid #eee; ${index % 2 === 0 ? 'background: #fafafa;' : ''}">
                     ${headers.map(header => `
-                        <td style="padding: 12px; color: #495057;">${row[header] || ''}</td>
+                        <td style="padding: 10px 12px; color: #495057; white-space: nowrap;">
+                            ${row[header] !== undefined && row[header] !== null ? row[header] : ''}
+                        </td>
                     `).join('')}
                 </tr>
             `;
@@ -1457,6 +1785,18 @@ class ReportsManager {
                         <i class="fas fa-info-circle"></i> Showing first 10 of ${data.length} records
                     </div>
                 ` : ''}
+                <div style="margin-top: 20px; display: flex; gap: 10px;">
+                    <button onclick="app.reports.exportData(${JSON.stringify(data).replace(/</g, '\\u003c')}, '${title.toLowerCase().replace(/\s+/g, '-')}', 'csv')" 
+                            class="btn btn-sm" 
+                            style="background: #2ecc71; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                        <i class="fas fa-download mr-1"></i> Export as CSV
+                    </button>
+                    <button onclick="app.reports.clearPreview()" 
+                            class="btn btn-sm" 
+                            style="background: #95a5a6; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                        <i class="fas fa-times mr-1"></i> Clear Preview
+                    </button>
+                </div>
             </div>
         `;
         
@@ -1466,17 +1806,101 @@ class ReportsManager {
     // ==================== EXPORT METHODS ====================
     
     async exportTranscriptToPDF(data) {
-        // Placeholder for PDF export functionality
+        // This would be implemented with a PDF library like jsPDF
         console.log('PDF export functionality would be implemented here');
         console.log('Transcript data for PDF:', data);
         this.showToast('PDF export would be implemented with a PDF library', 'info');
+        
+        // For now, let's create a simple downloadable HTML file
+        this.exportToHTML(data, `transcript-${data.student.reg_number}`);
+    }
+    
+    exportToHTML(data, filename) {
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${filename}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 40px; }
+                    .header { text-align: center; margin-bottom: 30px; }
+                    .student-info { margin-bottom: 30px; }
+                    table { width: 100%; border-collapse: collapse; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background-color: #f2f2f2; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>TEE College</h1>
+                    <h2>Academic Transcript</h2>
+                </div>
+                
+                <div class="student-info">
+                    <p><strong>Student:</strong> ${data.student.full_name}</p>
+                    <p><strong>Registration Number:</strong> ${data.student.reg_number}</p>
+                    <p><strong>Program:</strong> ${data.student.program}</p>
+                    <p><strong>Centre:</strong> ${data.student.centre}</p>
+                    <p><strong>GPA:</strong> ${data.summary.gpa.toFixed(2)}</p>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Course Code</th>
+                            <th>Course Name</th>
+                            <th>Credits</th>
+                            <th>Grade</th>
+                            <th>Grade Points</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.courses.map(course => `
+                            <tr>
+                                <td>${course.course_code}</td>
+                                <td>${course.course_name}</td>
+                                <td>${course.credits}</td>
+                                <td>${course.grade}</td>
+                                <td>${course.grade_points.toFixed(1)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                
+                <div style="margin-top: 30px; font-size: 12px; color: #666;">
+                    <p>Generated on: ${data.summary.date_generated}</p>
+                </div>
+            </body>
+            </html>
+        `;
+        
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${filename}.html`);
+        link.style.visibility = 'hidden';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        this.showToast('HTML transcript downloaded', 'success');
     }
     
     async exportData(data, filename, format) {
+        if (!data || data.length === 0) {
+            this.showToast('No data to export', 'warning');
+            return;
+        }
+        
         if (format === 'csv') {
             this.exportToCSV(data, filename);
         } else if (format === 'excel') {
             this.exportToExcel(data, filename);
+        } else {
+            this.showToast(`Export format ${format} not supported`, 'error');
         }
     }
     
@@ -1486,39 +1910,60 @@ class ReportsManager {
             return;
         }
         
-        const headers = Object.keys(data[0]);
-        const csvContent = [
-            headers.join(','),
-            ...data.map(row => headers.map(header => `"${row[header] || ''}"`).join(','))
-        ].join('\n');
-        
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        
-        link.setAttribute('href', url);
-        link.setAttribute('download', `${filename}.csv`);
-        link.style.visibility = 'hidden';
-        
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        this.showToast('CSV file downloaded', 'success');
+        try {
+            const headers = Object.keys(data[0]);
+            const csvContent = [
+                headers.join(','),
+                ...data.map(row => headers.map(header => {
+                    const value = row[header];
+                    // Handle special characters and commas
+                    if (typeof value === 'string') {
+                        return `"${value.replace(/"/g, '""')}"`;
+                    }
+                    return value !== undefined && value !== null ? `"${value}"` : '';
+                }).join(','))
+            ].join('\n');
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', `${filename}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            this.showToast('CSV file downloaded', 'success');
+            
+        } catch (error) {
+            console.error('Error exporting to CSV:', error);
+            this.showToast('Error exporting to CSV: ' + error.message, 'error');
+        }
     }
     
     exportToExcel(data, filename) {
         // Placeholder for Excel export
-        console.log('Excel export would be implemented with a library like SheetJS');
         this.showToast('Excel export would require SheetJS library', 'info');
+        
+        // Fallback to CSV
+        this.exportToCSV(data, filename);
     }
     
     // ==================== UTILITY SHORTCUTS ====================
     
     refreshReports() {
-        this.updateStatistics();
-        this.generateReportsGrid();
-        this.showToast('Reports refreshed', 'success');
+        this.showToast('Refreshing reports...', 'info');
+        this.loadAllData().then(() => {
+            this.updateStatistics();
+            this.generateReportsGrid();
+            this.showToast('Reports refreshed', 'success');
+        }).catch(error => {
+            console.error('Error refreshing reports:', error);
+            this.showToast('Error refreshing reports', 'error');
+        });
     }
     
     openTranscriptSection() {
@@ -1529,15 +1974,7 @@ class ReportsManager {
     }
     
     showScheduledReports() {
-        this.showToast('Scheduled reports feature', 'info');
-    }
-    
-    quickStudentReport() {
-        this.studentReport();
-    }
-    
-    quickAcademicReport() {
-        this.academicReport();
+        this.showToast('Scheduled reports feature coming soon', 'info');
     }
     
     previewStudentReport() {
@@ -1549,7 +1986,7 @@ class ReportsManager {
     }
     
     bulkExport() {
-        this.showToast('Bulk export feature', 'info');
+        this.showToast('Bulk export feature coming soon', 'info');
     }
     
     clearPreview() {
@@ -1568,19 +2005,19 @@ class ReportsManager {
     }
     
     addScheduledReport() {
-        this.showToast('Add scheduled report feature', 'info');
+        this.showToast('Add scheduled report feature coming soon', 'info');
     }
     
     saveFilterPreset() {
-        this.showToast('Save filter preset feature', 'info');
+        this.showToast('Save filter preset feature coming soon', 'info');
     }
     
     downloadPreview() {
-        this.showToast('Download preview feature', 'info');
+        this.showToast('Download preview feature coming soon', 'info');
     }
     
     bulkTranscripts() {
-        this.showToast('Bulk transcripts feature', 'info');
+        this.showToast('Bulk transcripts feature coming soon', 'info');
     }
     
     removeScheduledReport(btn) {
@@ -1594,8 +2031,8 @@ class ReportsManager {
     }
 }
 
-// Add CSS for animations
-if (!document.querySelector('#toast-animations')) {
+// Add CSS for animations if not already present
+if (typeof document !== 'undefined' && !document.querySelector('#toast-animations')) {
     const style = document.createElement('style');
     style.id = 'toast-animations';
     style.textContent = `
@@ -1606,9 +2043,6 @@ if (!document.querySelector('#toast-animations')) {
         @keyframes slideOut {
             from { transform: translateX(0); opacity: 1; }
             to { transform: translateX(100%); opacity: 0; }
-        }
-        .toast {
-            animation: slideIn 0.3s ease;
         }
     `;
     document.head.appendChild(style);
