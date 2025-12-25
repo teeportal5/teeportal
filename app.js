@@ -1444,7 +1444,7 @@ window.showSection = function(sectionId) {
     }
 };
 
-// Add to TEEPortalApp class - COMPLETE VERSION
+// Add to TEEPortalApp class - near the lazyLoadSection method
 TEEPortalApp.prototype.lazyLoadSection = function(sectionId) {
     switch(sectionId) {
         case 'students':
@@ -1462,41 +1462,46 @@ TEEPortalApp.prototype.lazyLoadSection = function(sectionId) {
                 this.dashboard.updateDashboard();
             }
             break;
-        // ✅ COMPLETE REPORTS CASE
         case 'reports':
+            // Handle reports section
             if (this.reports && this.reports.loadAllReports) {
                 console.log('📈 Loading reports section...');
-                
-                // 1. Load all reports data
                 this.reports.loadAllReports();
-                
-                // 2. Generate the report cards grid
                 this.reports.generateReportsGrid();
-                
-                // 3. Update statistics
                 this.reports.updateStatistics();
                 
-                // 4. Update button listeners
-                if (this.reports.updateButtonListeners) {
-                    this.reports.updateButtonListeners();
+                // ✅ ADD THIS: Initialize transcripts UI when in reports section
+                if (this.transcripts && this.transcripts.initializeTranscriptsUI) {
+                    setTimeout(() => {
+                        this.transcripts.initializeTranscriptsUI();
+                        console.log('📄 Transcripts UI initialized for reports section');
+                    }, 500);
                 }
-                
-                console.log('✅ Reports section fully loaded');
-            } else {
-                console.warn('⚠️ ReportManager not available');
-                // Try to initialize it
-                if (typeof ReportsManager !== 'undefined') {
-                    this.reports = new ReportsManager(this.db);
-                    this.reports.initialize().then(() => {
-                        this.reports.generateReportsGrid();
-                        this.reports.updateStatistics();
-                    });
-                }
+            }
+            break;
+        // ✅ ADD THIS: Separate case for transcripts if you have a standalone section
+        case 'transcripts':
+            if (this.transcripts && this.transcripts.initializeTranscriptsUI) {
+                this.transcripts.initializeTranscriptsUI();
+            }
+            break;
+        case 'courses':
+            if (this.courses && this.courses.loadCourses) {
+                this.courses.loadCourses();
+            }
+            break;
+        case 'centres':
+            if (this.centres && this.centres.loadCentres) {
+                this.centres.loadCentres();
+            }
+            break;
+        case 'programs':
+            if (this.programs && this.programs.loadProgramsTable) {
+                this.programs.loadProgramsTable();
             }
             break;
     }
 };
-
 // Handle hash changes
 window.addEventListener('hashchange', function() {
     const hash = window.location.hash.substring(1);
