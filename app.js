@@ -548,23 +548,48 @@ async addMark(data) {
             console.warn('⚠️ DashboardManager not loaded');
         }
         
-        // ✅ ADD THIS: Initialize Report Manager
+        // ✅ ✅ ✅ ADD THIS: Initialize Report Manager
         if (typeof ReportManager !== 'undefined') {
             this.reports = new ReportManager(this.db, this);
             console.log('✅ ReportManager initialized');
             
-            // Optional: Pre-load some report data in background
-            setTimeout(() => {
-                if (this.reports && this.reports.preloadReportData) {
-                    this.reports.preloadReportData();
-                    console.log('📊 Report data pre-loaded');
+            // Optional: Pre-load report data in background
+            setTimeout(async () => {
+                if (this.reports && this.reports.initialize) {
+                    try {
+                        await this.reports.initialize();
+                        console.log('📊 Reports pre-initialized in background');
+                        
+                        // Pre-populate filters
+                        if (this.reports.populateAllFilters) {
+                            await this.reports.populateAllFilters();
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ Background report initialization failed:', error);
+                    }
                 }
-            }, 3000);
+            }, 2000);
+        } else if (typeof ReportsManager !== 'undefined') {
+            // Some systems use ReportsManager instead of ReportManager
+            this.reports = new ReportsManager(this.db, this);
+            console.log('✅ ReportsManager initialized (alternative class name)');
+            
+            // Optional: Pre-load
+            setTimeout(async () => {
+                if (this.reports && this.reports.initialize) {
+                    try {
+                        await this.reports.initialize();
+                        console.log('📊 Reports pre-initialized in background');
+                    } catch (error) {
+                        console.warn('⚠️ Background report initialization failed:', error);
+                    }
+                }
+            }, 2000);
         } else {
-            console.warn('⚠️ ReportManager not loaded - Reports section will not work');
+            console.warn('⚠️ ReportManager/ReportsManager not loaded - Reports section will not work');
         }
         
-        // ✅ ADD THIS: Initialize Settings Manager (if exists)
+        // Initialize settings manager (if exists)
         if (typeof SettingsManager !== 'undefined') {
             this.settings = new SettingsManager(this.db, this);
             console.log('✅ SettingsManager initialized');
@@ -572,7 +597,7 @@ async addMark(data) {
             console.warn('⚠️ SettingsManager not loaded');
         }
         
-        // ✅ ADD THIS: Initialize Transcripts Manager (if exists)
+        // Initialize transcripts manager (if exists)
         if (typeof TranscriptsManager !== 'undefined') {
             this.transcripts = new TranscriptsManager(this.db, this);
             console.log('✅ TranscriptsManager initialized');
@@ -580,7 +605,7 @@ async addMark(data) {
             console.warn('⚠️ TranscriptsManager not loaded');
         }
         
-        // ✅ ADD THIS: Initialize Profile Manager (if exists)
+        // Initialize profile manager (if exists)
         if (typeof ProfileManager !== 'undefined') {
             this.profile = new ProfileManager(this.db, this);
             console.log('✅ ProfileManager initialized');
@@ -1198,7 +1223,7 @@ window.showSection = function(sectionId) {
     }
 };
 
-// Add to TEEPortalApp class
+// Add to TEEPortalApp class - COMPLETE VERSION
 TEEPortalApp.prototype.lazyLoadSection = function(sectionId) {
     switch(sectionId) {
         case 'students':
@@ -1216,15 +1241,35 @@ TEEPortalApp.prototype.lazyLoadSection = function(sectionId) {
                 this.dashboard.updateDashboard();
             }
             break;
-   // ✅ ADD THIS CASE FOR REPORTS
+        // ✅ COMPLETE REPORTS CASE
         case 'reports':
             if (this.reports && this.reports.loadAllReports) {
-                console.log('📈 Loading all reports...');
+                console.log('📈 Loading reports section...');
+                
+                // 1. Load all reports data
                 this.reports.loadAllReports();
+                
+                // 2. Generate the report cards grid
+                this.reports.generateReportsGrid();
+                
+                // 3. Update statistics
+                this.reports.updateStatistics();
+                
+                // 4. Update button listeners
+                if (this.reports.updateButtonListeners) {
+                    this.reports.updateButtonListeners();
+                }
+                
+                console.log('✅ Reports section fully loaded');
             } else {
-                console.warn('⚠️ ReportManager not available for loading reports.');
-                if (window.app && window.app.showToast) {
-                    window.app.showToast('Reports module not loaded', 'error');
+                console.warn('⚠️ ReportManager not available');
+                // Try to initialize it
+                if (typeof ReportsManager !== 'undefined') {
+                    this.reports = new ReportsManager(this.db);
+                    this.reports.initialize().then(() => {
+                        this.reports.generateReportsGrid();
+                        this.reports.updateStatistics();
+                    });
                 }
             }
             break;
