@@ -1316,127 +1316,401 @@
         </div>
     </div>
     
-    <!-- Transcript Generation -->
-    <div id="transcriptSection" class="card mb-4">
-        <div class="card-header">
-            <h5><i class="fas fa-graduation-cap"></i> Transcript Generation</h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label class="form-label">Filter by Centre</label>
-                        <select id="transcriptCenterFilter" class="form-select" onchange="app.reports.filterTranscriptStudentsByCenter()">
-                            <option value="all">All Centres</option>
-                            <!-- Will be populated dynamically -->
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label class="form-label">Select Student</label>
-                        <select id="transcriptStudent" class="form-select">
-                            <option value="">Select Student</option>
-                            <!-- Will be populated based on centre filter -->
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label class="form-label">Format</label>
-                        <select id="transcriptFormat" class="form-select">
-                            <option value="pdf">PDF</option>
-                            <option value="excel">Excel</option>
-                            <option value="csv">CSV</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <div class="d-flex gap-2 justify-content-end">
-                <button class="btn btn-outline-primary" onclick="app.reports.loadSampleTranscript()">
-                    <i class="fas fa-file-alt"></i> Sample
-                </button>
-                <button class="btn btn-primary" onclick="app.reports.previewTranscript()">
-                    <i class="fas fa-eye"></i> Preview
-                </button>
-                <button class="btn btn-success" onclick="app.reports.generateTranscript()">
-                    <i class="fas fa-print"></i> Generate Transcript
-                </button>
-                <button class="btn btn-warning" onclick="app.reports.bulkTranscripts()">
-                    <i class="fas fa-copy"></i> Bulk Transcripts
-                </button>
-            </div>
-            
-            <!-- Transcript Preview -->
-            <div id="transcriptPreview" class="mt-4" style="display: none;">
-                <!-- Will be populated dynamically by JavaScript -->
-            </div>
-        </div>
+   <!-- Transcript Generation - WITH TRANSCRIPT MODEL -->
+<div id="transcriptSection" class="card mb-4">
+    <div class="card-header">
+        <h5><i class="fas fa-graduation-cap"></i> Transcript Generation</h5>
     </div>
-    
-    <!-- Scheduled Reports -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5><i class="fas fa-clock"></i> Scheduled Reports</h5>
-        </div>
-        <div class="card-body">
-            <div class="row align-items-center mb-3">
-                <div class="col-md-3">
-                    <select id="scheduleReportType" class="form-select">
-                        <option value="">Select Report Type</option>
-                        <option value="weekly_summary">Weekly Summary</option>
-                        <option value="monthly_attendance">Monthly Attendance</option>
-                        <option value="quarterly_grades">Quarterly Grades</option>
-                        <option value="center_weekly">Weekly Centre Report</option>
-                        <option value="monthly_center">Monthly Centre Performance</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <select id="scheduleFrequency" class="form-select">
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                        <option value="quarterly">Quarterly</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <select id="scheduleCenter" class="form-select">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">Filter by Centre</label>
+                    <select id="transcriptCenterFilter" class="form-select" onchange="app.reports.filterTranscriptStudentsByCenter()">
                         <option value="all">All Centres</option>
                         <!-- Will be populated dynamically -->
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <input type="email" class="form-control" placeholder="Email to send to" id="scheduleEmail">
-                </div>
-                <div class="col-md-1">
-                    <button class="btn btn-outline-primary w-100" onclick="app.reports.addScheduledReport()">
-                        <i class="fas fa-plus"></i>
-                    </button>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">Select Student</label>
+                    <select id="transcriptStudent" class="form-select">
+                        <option value="">Select Student</option>
+                        <!-- Will be populated based on centre filter -->
+                    </select>
                 </div>
             </div>
-            
-            <!-- Scheduled Reports List -->
-            <div class="mt-3" id="scheduledReportsList">
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Report Type</th>
-                                <th>Centre</th>
-                                <th>Frequency</th>
-                                <th>Next Run</th>
-                                <th>Recipients</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Will be populated dynamically -->
-                        </tbody>
-                    </table>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">Program</label>
+                    <select id="transcriptProgram" class="form-select">
+                        <option value="all">All Programs</option>
+                        <!-- Will be populated -->
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">Format</label>
+                    <select id="transcriptFormat" class="form-select">
+                        <option value="pdf">PDF Transcript</option>
+                        <option value="print">Print Version</option>
+                        <option value="digital">Digital Copy</option>
+                    </select>
                 </div>
             </div>
         </div>
+        
+        <!-- TRANSCRIPT OPTIONS -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">Include in Transcript</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="includeGrades" checked>
+                        <label class="form-check-label" for="includeGrades">
+                            Grades & Marks
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="includeGPA" checked>
+                        <label class="form-check-label" for="includeGPA">
+                            GPA Calculation
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="includeSignatures" checked>
+                        <label class="form-check-label" for="includeSignatures">
+                            Official Signatures
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">Grading System</label>
+                    <select id="gradingSystem" class="form-select">
+                        <option value="distinction">Distinction/Credit/Pass/Fail</option>
+                        <option value="percentage">Percentage Only</option>
+                        <option value="both">Both Grades & Percentage</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">Watermark</label>
+                    <select id="transcriptWatermark" class="form-select">
+                        <option value="official">OFFICIAL TRANSCRIPT</option>
+                        <option value="unofficial">UNOFFICIAL - FOR REVIEW</option>
+                        <option value="draft">DRAFT COPY</option>
+                        <option value="none">No Watermark</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <div class="d-flex gap-2 justify-content-end mb-4">
+            <button class="btn btn-outline-primary" onclick="app.reports.loadSampleTranscript()">
+                <i class="fas fa-file-alt"></i> Load Sample
+            </button>
+            <button class="btn btn-primary" onclick="app.reports.previewTranscript()">
+                <i class="fas fa-eye"></i> Preview Transcript
+            </button>
+            <button class="btn btn-success" onclick="app.reports.generateTranscript()">
+                <i class="fas fa-file-pdf"></i> Generate PDF
+            </button>
+            <button class="btn btn-warning" onclick="app.reports.bulkTranscripts()">
+                <i class="fas fa-copy"></i> Bulk Generate
+            </button>
+        </div>
+        
+        <!-- TRANSCRIPT PREVIEW AREA -->
+        <div id="transcriptPreview" class="mt-4" style="display: none;">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> This is a preview of the transcript. Actual transcript will include official seals and signatures.
+            </div>
+            
+            <!-- TRANSCRIPT MODEL/TEMPLATE -->
+            <div id="transcriptModel" style="background: white; padding: 30px; border: 2px solid #1e3a8a; border-radius: 8px; max-width: 800px; margin: 0 auto; font-family: 'Georgia', serif;">
+                
+                <!-- HEADER WITH SEAL -->
+                <div class="text-center mb-4 position-relative">
+                    <div style="position: absolute; left: 0; top: 0; width: 80px; height: 80px; border: 2px solid #1e3a8a; border-radius: 50%; text-align: center; line-height: 80px; color: #1e3a8a; font-size: 12px;">
+                        OFFICIAL SEAL
+                    </div>
+                    
+                    <h1 style="color: #1e3a8a; font-size: 28px; margin-bottom: 5px;">THEOLOGICAL EXTENSION BY EDUCATION</h1>
+                    <h2 style="color: #3b82f6; font-size: 20px; margin-bottom: 5px;">TEE COLLEGE</h2>
+                    <h3 style="color: #666; font-size: 16px; margin-bottom: 15px;">Accredited Theological Institution</h3>
+                    <h4 style="color: #1e3a8a; font-size: 22px; font-weight: bold; border-top: 2px solid #1e3a8a; border-bottom: 2px solid #1e3a8a; padding: 10px 0; display: inline-block; padding: 10px 40px;">
+                        OFFICIAL ACADEMIC TRANSCRIPT
+                    </h4>
+                </div>
+                
+                <!-- STUDENT INFORMATION -->
+                <div class="student-info mb-4" style="background: #f8fafc; padding: 20px; border-radius: 5px;">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <table style="width: 100%;">
+                                <tr>
+                                    <td style="width: 35%; padding: 5px 0;"><strong>FULL NAME:</strong></td>
+                                    <td style="padding: 5px 0;" id="modelStudentName">REV. JOHN KAMAU MWANGI</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px 0;"><strong>REGISTRATION NO:</strong></td>
+                                    <td style="padding: 5px 0;" id="modelRegNumber">CERT-2023-001</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px 0;"><strong>PROGRAM:</strong></td>
+                                    <td style="padding: 5px 0;" id="modelProgram">CERTIFICATE IN CHRISTIAN MINISTRY</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px 0;"><strong>STUDY CENTRE:</strong></td>
+                                    <td style="padding: 5px 0;" id="modelCentre">NAIROBI HEADQUARTERS</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px 0;"><strong>COUNTY:</strong></td>
+                                    <td style="padding: 5px 0;" id="modelCounty">NAIROBI</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div style="border: 1px solid #ccc; padding: 10px; display: inline-block;">
+                                <div style="width: 120px; height: 150px; background: #f8f9fa; line-height: 150px; color: #666;">
+                                    PHOTO
+                                </div>
+                                <div style="font-size: 12px; color: #666; margin-top: 5px;">Passport Size</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- PROGRAM DETAILS -->
+                <div class="program-details mb-4">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div style="background: #1e3a8a; color: white; padding: 10px; border-radius: 5px;">
+                                <div style="font-size: 12px;">INTAKE DATE</div>
+                                <div style="font-size: 16px; font-weight: bold;" id="modelIntakeDate">SEPTEMBER 2023</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div style="background: #3b82f6; color: white; padding: 10px; border-radius: 5px;">
+                                <div style="font-size: 12px;">COMPLETION DATE</div>
+                                <div style="font-size: 16px; font-weight: bold;" id="modelCompletionDate">AUGUST 2024</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div style="background: #10b981; color: white; padding: 10px; border-radius: 5px;">
+                                <div style="font-size: 12px;">DURATION</div>
+                                <div style="font-size: 16px; font-weight: bold;" id="modelDuration">12 MONTHS</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div style="background: #8b5cf6; color: white; padding: 10px; border-radius: 5px;">
+                                <div style="font-size: 12px;">MODE OF STUDY</div>
+                                <div style="font-size: 16px; font-weight: bold;" id="modelStudyMode">PART-TIME</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ACADEMIC PERFORMANCE TABLE -->
+                <div class="academic-table mb-4">
+                    <h5 style="color: #1e3a8a; border-bottom: 2px solid #1e3a8a; padding-bottom: 8px; margin-bottom: 15px;">
+                        <i class="fas fa-graduation-cap"></i> ACADEMIC PERFORMANCE RECORD
+                    </h5>
+                    
+                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                        <thead>
+                            <tr style="background: #1e3a8a; color: white;">
+                                <th style="padding: 12px; text-align: left; width: 8%;">NO.</th>
+                                <th style="padding: 12px; text-align: left; width: 12%;">CODE</th>
+                                <th style="padding: 12px; text-align: left; width: 40%;">COURSE TITLE</th>
+                                <th style="padding: 12px; text-align: center; width: 10%;">CREDITS</th>
+                                <th style="padding: 12px; text-align: center; width: 12%;">SCORE %</th>
+                                <th style="padding: 12px; text-align: center; width: 18%;">GRADE</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modelCoursesTable">
+                            <!-- Row 1 -->
+                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                <td style="padding: 10px; text-align: center;">1</td>
+                                <td style="padding: 10px;">THE101</td>
+                                <td style="padding: 10px;">Introduction to Theology</td>
+                                <td style="padding: 10px; text-align: center;">3</td>
+                                <td style="padding: 10px; text-align: center;">88%</td>
+                                <td style="padding: 10px; text-align: center;">
+                                    <span class="badge bg-success" style="padding: 5px 10px; font-weight: bold;">DISTINCTION</span>
+                                </td>
+                            </tr>
+                            <!-- Row 2 -->
+                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                <td style="padding: 10px; text-align: center;">2</td>
+                                <td style="padding: 10px;">BIB101</td>
+                                <td style="padding: 10px;">Biblical Studies I</td>
+                                <td style="padding: 10px; text-align: center;">3</td>
+                                <td style="padding: 10px; text-align: center;">76%</td>
+                                <td style="padding: 10px; text-align: center;">
+                                    <span class="badge bg-primary" style="padding: 5px 10px; font-weight: bold;">CREDIT</span>
+                                </td>
+                            </tr>
+                            <!-- Row 3 -->
+                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                <td style="padding: 10px; text-align: center;">3</td>
+                                <td style="padding: 10px;">MIN101</td>
+                                <td style="padding: 10px;">Introduction to Christian Ministry</td>
+                                <td style="padding: 10px; text-align: center;">3</td>
+                                <td style="padding: 10px; text-align: center;">65%</td>
+                                <td style="padding: 10px; text-align: center;">
+                                    <span class="badge bg-warning" style="padding: 5px 10px; font-weight: bold;">PASS</span>
+                                </td>
+                            </tr>
+                            <!-- Row 4 -->
+                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                <td style="padding: 10px; text-align: center;">4</td>
+                                <td style="padding: 10px;">CHU101</td>
+                                <td style="padding: 10px;">Church History</td>
+                                <td style="padding: 10px; text-align: center;">3</td>
+                                <td style="padding: 10px; text-align: center;">45%</td>
+                                <td style="padding: 10px; text-align: center;">
+                                    <span class="badge bg-danger" style="padding: 5px 10px; font-weight: bold;">FAIL</span>
+                                </td>
+                            </tr>
+                            <!-- Row 5 -->
+                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                <td style="padding: 10px; text-align: center;">5</td>
+                                <td style="padding: 10px;">ETH101</td>
+                                <td style="padding: 10px;">Christian Ethics</td>
+                                <td style="padding: 10px; text-align: center;">3</td>
+                                <td style="padding: 10px; text-align: center;">82%</td>
+                                <td style="padding: 10px; text-align: center;">
+                                    <span class="badge bg-success" style="padding: 5px 10px; font-weight: bold;">DISTINCTION</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- SUMMARY & GRADING SCALE -->
+                <div class="summary-section mb-4">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div style="background: #f0f9ff; padding: 15px; border-radius: 5px; border-left: 4px solid #3b82f6;">
+                                <h6 style="color: #1e3a8a; margin-bottom: 10px;"><i class="fas fa-calculator"></i> ACADEMIC SUMMARY</h6>
+                                <table style="width: 100%;">
+                                    <tr>
+                                        <td style="padding: 5px 0;"><strong>Total Credits Attempted:</strong></td>
+                                        <td style="padding: 5px 0; text-align: right;" id="totalCreditsAttempted">15</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 5px 0;"><strong>Total Credits Earned:</strong></td>
+                                        <td style="padding: 5px 0; text-align: right;" id="totalCreditsEarned">12</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 5px 0;"><strong>Overall Percentage:</strong></td>
+                                        <td style="padding: 5px 0; text-align: right;" id="overallPercentage">71.2%</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 5px 0;"><strong>Final Grade:</strong></td>
+                                        <td style="padding: 5px 0; text-align: right;">
+                                            <span class="badge bg-primary" style="font-size: 14px;">CREDIT</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div style="background: #f0fdf4; padding: 15px; border-radius: 5px; border-left: 4px solid #10b981;">
+                                <h6 style="color: #1e3a8a; margin-bottom: 10px;"><i class="fas fa-scale-balanced"></i> GRADING SYSTEM</h6>
+                                <table style="width: 100%; font-size: 13px;">
+                                    <tr>
+                                        <td style="padding: 3px 0;">80% - 100%</td>
+                                        <td style="padding: 3px 0; font-weight: bold;">DISTINCTION</td>
+                                        <td style="padding: 3px 0; text-align: right;">
+                                            <span class="badge bg-success" style="padding: 3px 8px;">Excellent</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 3px 0;">70% - 79%</td>
+                                        <td style="padding: 3px 0; font-weight: bold;">CREDIT</td>
+                                        <td style="padding: 3px 0; text-align: right;">
+                                            <span class="badge bg-primary" style="padding: 3px 8px;">Good</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 3px 0;">60% - 69%</td>
+                                        <td style="padding: 3px 0; font-weight: bold;">PASS</td>
+                                        <td style="padding: 3px 0; text-align: right;">
+                                            <span class="badge bg-warning" style="padding: 3px 8px;">Satisfactory</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 3px 0;">Below 60%</td>
+                                        <td style="padding: 3px 0; font-weight: bold;">FAIL</td>
+                                        <td style="padding: 3px 0; text-align: right;">
+                                            <span class="badge bg-danger" style="padding: 3px 8px;">Repeat</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FOOTER WITH SIGNATURES -->
+                <div class="transcript-footer mt-4 pt-4" style="border-top: 2px solid #1e3a8a;">
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto; padding-top: 10px;">
+                                <div style="font-weight: bold;">REGISTRAR</div>
+                                <div style="color: #666; font-size: 14px;">TEE College</div>
+                                <div style="color: #666; font-size: 12px;">Date: <span id="issueDate"><?php echo date('d/m/Y'); ?></span></div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto; padding-top: 10px;">
+                                <div style="font-weight: bold;">ACADEMIC DEAN</div>
+                                <div style="color: #666; font-size: 14px;">TEE College</div>
+                                <div style="color: #666; font-size: 12px;">Stamp & Seal</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto; padding-top: 10px;">
+                                <div style="font-weight: bold;">CENTRE DIRECTOR</div>
+                                <div style="color: #666; font-size: 14px;" id="centreDirectorName">Nairobi HQ</div>
+                                <div style="color: #666; font-size: 12px;">Official Stamp</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- OFFICIAL NOTES -->
+                    <div class="official-notes mt-4" style="background: #fef2f2; padding: 10px; border-radius: 5px; font-size: 12px; color: #666;">
+                        <p style="margin: 0;"><strong>OFFICIAL NOTES:</strong> This is an official transcript issued by TEE College. Any alteration renders this document invalid. For verification, contact the Registrar's Office.</p>
+                        <p style="margin: 5px 0 0 0;"><strong>TRANSCRIPT ID:</strong> <span id="transcriptId">TRX-<?php echo date('Ymd'); ?>-001</span> | <strong>ISSUED ON:</strong> <?php echo date('F d, Y'); ?></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- TRANSCRIPT CONTROLS -->
+            <div class="transcript-controls mt-4 text-center">
+                <button class="btn btn-outline-primary" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print Transcript
+                </button>
+                <button class="btn btn-outline-success" onclick="app.reports.downloadTranscript()">
+                    <i class="fas fa-download"></i> Download PDF
+                </button>
+                <button class="btn btn-outline-info" onclick="app.reports.emailTranscript()">
+                    <i class="fas fa-envelope"></i> Email to Student
+                </button>
+                <button class="btn btn-outline-secondary" onclick="document.getElementById('transcriptPreview').style.display='none'">
+                    <i class="fas fa-times"></i> Close Preview
+                </button>
+            </div>
+        </div>
     </div>
+</div>
     
     <!-- Bulk Export -->
     <div class="card mb-4">
