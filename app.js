@@ -1075,97 +1075,62 @@ class TEEPortalApp {
     /**
      * Populate select dropdown - UPDATED FOR YOUR SCHEMA
      */
-    populateSelect(selectId, data, valueKey, textKey, defaultText, extraTextKey = null) {
-        const select = document.getElementById(selectId);
-        if (!select) {
-            console.warn(`⚠️ Select element ${selectId} not found`);
-            return;
-        }
-        
-        select.innerHTML = `<option value="">${defaultText}</option>`;
-        
-        if (!data || data.length === 0) {
-            console.warn(`⚠️ No data to populate ${selectId}`);
-            return;
-        }
-        
-        data.forEach(item => {
-            const option = document.createElement('option');
-            
-            // Get the value - CRITICAL: For programs, this should be 'code' not 'id'
-            const value = item[valueKey];
-            if (value === undefined || value === null) {
-                console.warn(`⚠️ Missing value key ${valueKey} in item:`, item);
-                return;
-            }
-            option.value = value;
-            
-            // Build display text
-            let displayText = item[textKey] || '';
-            
-            // SPECIAL HANDLING FOR PROGRAMS
-            if ((selectId.includes('Program') || selectId.includes('program')) && item.code) {
-                // For programs, show "CODE - NAME (duration years)"
-                const programCode = item.code || '';
-                const programName = item.name || '';
-                const duration = item.duration || '';
-                
-                if (programCode && programName) {
-                    displayText = `${programCode} - ${programName}`;
-                } else if (programCode) {
-                    displayText = programCode;
-                } else if (programName) {
-                    displayText = programName;
-                }
-                
-                // Add duration if available
-                if (duration) {
-                    displayText += ` (${duration} year${duration > 1 ? 's' : ''})`;
-                }
-            } 
-            // For centres, show "NAME (CODE) - COUNTY"
-            else if ((selectId.includes('Centre') || selectId.includes('centre')) && item.code) {
-                const centreName = item.name || '';
-                const centreCode = item.code || '';
-                const county = item.county || '';
-                
-                if (centreName && centreCode) {
-                    displayText = `${centreName} (${centreCode})`;
-                }
-                
-                // Add county if available
-                if (county) {
-                    displayText += ` - ${county}`;
-                }
-            }
-            // For counties, show "NAME (REGION)"
-            else if ((selectId.includes('County') || selectId.includes('county')) && item.region) {
-                const countyName = item.name || '';
-                const region = item.region || '';
-                
-                if (countyName && region) {
-                    displayText = `${countyName} (${region})`;
-                }
-            }
-            // Default: add extra text in parentheses
-            else if (extraTextKey && item[extraTextKey]) {
-                const extraText = item[extraTextKey] || '';
-                if (extraText && displayText) {
-                    displayText += ` (${extraText})`;
-                }
-            }
-            
-            // Fallback if display text is still empty
-            if (!displayText) {
-                displayText = item[valueKey] || 'Unknown';
-            }
-            
-            option.textContent = this.escapeHtml(displayText);
-            select.appendChild(option);
-        });
-        
-        console.log(`✅ Populated ${selectId} with ${data.length} items (valueKey: ${valueKey}, textKey: ${textKey})`);
+   populateSelect(selectId, data, valueKey, textKey, defaultText, extraTextKey = null) {
+    const select = document.getElementById(selectId);
+    if (!select) {
+        console.warn(`⚠️ Select element ${selectId} not found`);
+        return;
     }
+    
+    select.innerHTML = `<option value="">${defaultText}</option>`;
+    
+    if (!data || data.length === 0) {
+        console.warn(`⚠️ No data to populate ${selectId}`);
+        return;
+    }
+    
+    data.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item[valueKey];
+        
+        // Build display text - SIMPLIFIED
+        let displayText = '';
+        
+        // For programs: "CODE - NAME (duration years)"
+        if ((selectId.includes('Program') || selectId.includes('program')) && item.code) {
+            const duration = item.duration ? ` (${item.duration} year${item.duration > 1 ? 's' : ''})` : '';
+            displayText = `${item.code} - ${item.name || ''}${duration}`.trim();
+        }
+        // For centres: "NAME (CODE) - COUNTY"
+        else if ((selectId.includes('Centre') || selectId.includes('centre'))) {
+            const codePart = item.code ? ` (${item.code})` : '';
+            const countyPart = item.county ? ` - ${item.county}` : '';
+            displayText = `${item.name || ''}${codePart}${countyPart}`.trim();
+        }
+        // For counties: "NAME (REGION)"
+        else if ((selectId.includes('County') || selectId.includes('county'))) {
+            const regionPart = item.region ? ` (${item.region})` : '';
+            displayText = `${item.name || ''}${regionPart}`.trim();
+        }
+        // Default: Use textKey + extraTextKey
+        else {
+            displayText = item[textKey] || '';
+            if (extraTextKey && item[extraTextKey]) {
+                displayText += ` (${item[extraTextKey]})`;
+            }
+        }
+        
+        // Final fallback
+        if (!displayText) {
+            displayText = item[valueKey] || 'Unknown';
+        }
+        
+        option.textContent = this.escapeHtml(displayText);
+        select.appendChild(option);
+    });
+    
+    console.log(`✅ Populated ${selectId} with ${data.length} items`);
+}
     
     initializeUI() {
         console.log('🎨 Initializing UI...');
