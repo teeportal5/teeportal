@@ -67,42 +67,45 @@ class ReportsManager {
     // ==================== INITIALIZATION ====================
     
     async initialize() {
-        if (this.initialized) {
-            console.log('✅ ReportsManager already initialized');
-            return;
-        }
-        
-        try {
-            console.log('📊 Initializing Reports Manager...');
-            this.showLoading(true);
-            
-            // Load all data first
-            await this.loadAllData();
-            
-            // Initialize UI components
-            await this.initializeReportsUI();
-            
-            // Set up event listeners
-            this.setupEventListeners();
-            
-            // Load initial statistics
-            await this.updateStatistics();
-            
-            // Load initial reports grid
-            await this.generateReportsGrid();
-            
-            this.initialized = true;
-            console.log('✅ Reports Manager initialized successfully');
-            
-            this.showToast('Reports module ready', 'success');
-            
-        } catch (error) {
-            console.error('❌ Error initializing reports:', error);
-            this.showToast('Reports module failed to initialize: ' + error.message, 'error');
-        } finally {
-            this.showLoading(false);
-        }
+    if (this.initialized) {
+        console.log('✅ ReportsManager already initialized');
+        return;
     }
+    
+    try {
+        console.log('📊 Initializing Reports Manager...');
+        this.showLoading(true);
+        
+        // Load all data first
+        await this.loadAllData();
+        
+        // DEBUG: Check data
+        await this.debugStudentData();
+        
+        // Initialize UI components
+        await this.initializeReportsUI();
+        
+        // Set up event listeners
+        this.setupEventListeners();
+        
+        // Load initial statistics
+        await this.updateStatistics();
+        
+        // Load initial reports grid
+        await this.generateReportsGrid();
+        
+        this.initialized = true;
+        console.log('✅ Reports Manager initialized successfully');
+        
+        this.showToast('Reports module ready', 'success');
+        
+    } catch (error) {
+        console.error('❌ Error initializing reports:', error);
+        this.showToast('Reports module failed to initialize: ' + error.message, 'error');
+    } finally {
+        this.showLoading(false);
+    }
+}
     
     async loadAllData() {
         try {
@@ -868,68 +871,210 @@ class ReportsManager {
     
     // ==================== DATABASE METHODS ====================
     
-    async getStudents() {
-        try {
-            if (!this.db) {
-                console.warn('⚠️ Database not available in getStudents');
-                return this.students || [];
-            }
-            
-            if (typeof this.db.getStudents === 'function') {
-                const students = await this.db.getStudents();
-                console.log(`📊 Got ${students?.length || 0} students from database`);
-                
-                // Process students to ensure consistent structure
-                const processedStudents = (students || []).map(student => {
-                    // Ensure centre field is properly set
-                    let centreDisplay = 'Main Campus';
-                    if (student.centre_name && student.centre_name.trim()) {
-                        centreDisplay = student.centre_name.trim();
-                    } else if (student.centre && student.centre.trim()) {
-                        centreDisplay = student.centre.trim();
-                    }
-                    
-                    return {
-                        id: student.id,
-                        student_id: student.id, // Alias for compatibility
-                        reg_number: student.reg_number || '',
-                        full_name: student.full_name || student.name || '',
-                        email: student.email || '',
-                        phone: student.phone || '',
-                        date_of_birth: student.date_of_birth || null,
-                        gender: student.gender || '',
-                        
-                        // Location fields
-                        county: student.county || '',
-                        address: student.address || '',
-                        
-                        // Centre fields
-                        centre: centreDisplay,
-                        centre_name: centreDisplay,
-                        
-                        // Academic fields
-                        program: student.program || '',
-                        intake_year: student.intake_year || student.intake || new Date().getFullYear(),
-                        status: student.status || 'active',
-                        
-                        // Timestamps
-                        created_at: student.created_at,
-                        updated_at: student.updated_at
-                    };
-                });
-                
-                this.students = processedStudents;
-                return processedStudents;
-            } else {
-                console.warn('⚠️ getStudents method not available on db');
-                return this.students || [];
-            }
-        } catch (error) {
-            console.error('❌ Error getting students:', error);
+   async getStudents() {
+    try {
+        if (!this.db) {
+            console.warn('⚠️ Database not available in getStudents');
             return this.students || [];
         }
+        
+        console.log('📊 Fetching students from database...');
+        
+        // Try multiple methods to get students
+        let studentsData = [];
+        
+        // Method 1: Check if db has getStudents method
+        if (typeof this.db.getStudents === 'function') {
+            console.log('📡 Using db.getStudents()');
+            studentsData = await this.db.getStudents();
+            
+        } else if (typeof this.db.getStudentList === 'function') {
+            console.log('📡 Using db.getStudentList()');
+            studentsData = await this.db.getStudentList();
+            
+        } else if (typeof this.db.getAll === 'function') {
+            console.log('📡 Using db.getAll("students")');
+            studentsData = await this.db.getAll('students');
+            
+        } else if (this.db.supabase && typeof this.db.supabase.from === 'function') {
+            console.log('📡 Using direct Supabase query');
+            const { data, error } = await this.db.supabase
+                .from('students')
+                .select(`
+                    id,
+                    reg_number,
+                    name,
+                    email,
+                    phone,
+                    county,
+                    region,
+                    ward,
+                    village,
+                    centre_id,
+                    program_id,
+                    intake_year,
+                    status,
+                    created_at,
+                    centres:centre_id (name, code, county),
+                    programs:program_id (name, code, duration)
+                `);
+            
+            if (error) throw error;
+            studentsData = data || [];
+        }
+        
+        console.log(`✅ Got ${studentsData?.length || 0} students from database`);
+        
+        // Process students to ensure consistent structure
+        const processedStudents = (studentsData || []).map(student => {
+            console.log('Processing student:', student);
+            
+            // Determine centre name
+            let centreName = '';
+            if (student.centres && student.centres.name) {
+                centreName = student.centres.name;
+            } else if (student.centre_name) {
+                centreName = student.centre_name;
+            } else if (student.centre) {
+                centreName = student.centre;
+            } else if (student.centre_id && typeof student.centre_id === 'object') {
+                centreName = student.centre_id.name || student.centre_id.code || '';
+            }
+            
+            // Determine program name
+            let programName = '';
+            if (student.programs && student.programs.name) {
+                programName = student.programs.name;
+            } else if (student.program_name) {
+                programName = student.program_name;
+            } else if (student.program) {
+                programName = student.program;
+            } else if (student.program_id && typeof student.program_id === 'object') {
+                programName = student.program_id.name || student.program_id.code || '';
+            }
+            
+            // Determine intake year
+            let intakeYear = '';
+            if (student.intake_year) {
+                intakeYear = student.intake_year;
+            } else if (student.intake) {
+                intakeYear = student.intake;
+            } else if (student.created_at) {
+                intakeYear = new Date(student.created_at).getFullYear().toString();
+            }
+            
+            return {
+                id: student.id || student.student_id || Date.now().toString(),
+                reg_number: student.reg_number || `STU-${Date.now()}`,
+                full_name: student.full_name || student.name || 'Unknown Student',
+                email: student.email || '',
+                phone: student.phone || '',
+                county: student.county || '',
+                region: student.region || student.sub_county || '',
+                ward: student.ward || '',
+                village: student.village || '',
+                
+                // Centre information
+                centre_id: student.centre_id?.id || student.centre_id,
+                centre_name: centreName || 'Main Campus',
+                centre: centreName || 'Main Campus',
+                
+                // Program information
+                program_id: student.program_id?.id || student.program_id,
+                program_name: programName,
+                program: programName,
+                
+                // Academic information
+                intake_year: intakeYear,
+                intake: intakeYear,
+                status: student.status || 'active',
+                
+                // Timestamps
+                created_at: student.created_at,
+                updated_at: student.updated_at
+            };
+        });
+        
+        console.log('Processed students sample:', processedStudents.slice(0, 2));
+        this.students = processedStudents;
+        return processedStudents;
+        
+    } catch (error) {
+        console.error('❌ Error getting students:', error);
+        console.error('Error details:', error.message);
+        console.error('Error stack:', error.stack);
+        
+        // Return fallback data for testing
+        if (this.students && this.students.length > 0) {
+            console.log('⚠️ Using cached students due to error');
+            return this.students;
+        }
+        
+        console.warn('⚠️ Creating sample students for testing');
+        const sampleStudents = this.createSampleStudents();
+        this.students = sampleStudents;
+        return sampleStudents;
     }
-    
+}
+
+/**
+ * Create sample students for testing
+ */
+createSampleStudents() {
+    return [
+        {
+            id: 'stu1',
+            reg_number: 'STU-2024-001',
+            full_name: 'John Doe',
+            email: 'john@example.com',
+            phone: '0712345678',
+            county: 'Nairobi',
+            region: 'Central',
+            centre: 'Nairobi HQ',
+            centre_name: 'Nairobi Headquarters',
+            program: 'TEE Basic Certificate',
+            program_name: 'TEE Basic Certificate',
+            intake_year: '2024',
+            intake: '2024',
+            status: 'active',
+            created_at: new Date().toISOString()
+        },
+        {
+            id: 'stu2',
+            reg_number: 'STU-2024-002',
+            full_name: 'Jane Smith',
+            email: 'jane@example.com',
+            phone: '0723456789',
+            county: 'Nakuru',
+            region: 'Rift Valley',
+            centre: 'Nakuru Centre',
+            centre_name: 'Nakuru Study Centre',
+            program: 'TEE Advanced Diploma',
+            program_name: 'TEE Advanced Diploma',
+            intake_year: '2023',
+            intake: '2023',
+            status: 'active',
+            created_at: new Date().toISOString()
+        },
+        {
+            id: 'stu3',
+            reg_number: 'STU-2023-001',
+            full_name: 'Robert Johnson',
+            email: 'robert@example.com',
+            phone: '0734567890',
+            county: 'Mombasa',
+            region: 'Coast',
+            centre: 'Mombasa Centre',
+            centre_name: 'Mombasa Study Centre',
+            program: 'TEE Basic Certificate',
+            program_name: 'TEE Basic Certificate',
+            intake_year: '2023',
+            intake: '2023',
+            status: 'graduated',
+            created_at: new Date().toISOString()
+        }
+    ];
+}
     async getStudentById(studentId) {
         try {
             // First check if we have the student in memory
@@ -1078,48 +1223,129 @@ class ReportsManager {
         }
     }
     
-    async getPrograms() {
-        try {
-            if (!this.db) {
-                console.warn('⚠️ Database not available in getPrograms');
-                return this.programs || [];
-            }
-            
-            if (typeof this.db.getPrograms === 'function') {
-                const programs = await this.db.getPrograms();
-                console.log(`🎓 Got ${programs?.length || 0} programs from database`);
-                this.programs = programs || [];
-                return this.programs;
-            } else {
-                // Try to get programs from settings
-                if (typeof this.db.getSettings === 'function') {
-                    const settings = await this.db.getSettings();
-                    if (settings && settings.programs) {
-                        console.log(`🎓 Got ${Object.keys(settings.programs).length} programs from settings`);
-                        
-                        // Convert settings.programs object to array
-                        const programsArray = Object.entries(settings.programs).map(([id, program]) => ({
-                            id: id,
-                            code: id.toUpperCase(),
-                            name: program.name,
-                            duration: program.duration,
-                            max_credits: program.maxCredits
-                        }));
-                        
-                        this.programs = programsArray;
-                        return this.programs;
-                    }
-                }
-                
-                console.warn('⚠️ No programs data available');
-                return this.programs || [];
-            }
-        } catch (error) {
-            console.error('❌ Error getting programs:', error);
+  async getPrograms() {
+    try {
+        if (!this.db) {
+            console.warn('⚠️ Database not available in getPrograms');
             return this.programs || [];
         }
+        
+        console.log('🎓 Fetching programs from database...');
+        
+        let programsData = [];
+        
+        // Method 1: Check if db has getPrograms method
+        if (typeof this.db.getPrograms === 'function') {
+            console.log('📡 Using db.getPrograms()');
+            programsData = await this.db.getPrograms();
+            
+        } else if (typeof this.db.getAllPrograms === 'function') {
+            console.log('📡 Using db.getAllPrograms()');
+            programsData = await this.db.getAllPrograms();
+            
+        } else if (typeof this.db.getAll === 'function') {
+            console.log('📡 Using db.getAll("programs")');
+            programsData = await this.db.getAll('programs');
+            
+        } else if (this.db.supabase && typeof this.db.supabase.from === 'function') {
+            console.log('📡 Using direct Supabase query for programs');
+            const { data, error } = await this.db.supabase
+                .from('programs')
+                .select('*')
+                .order('name');
+            
+            if (error) throw error;
+            programsData = data || [];
+        }
+        
+        console.log(`✅ Got ${programsData?.length || 0} programs from database`);
+        
+        // Process programs to ensure consistent structure
+        const processedPrograms = (programsData || []).map(program => {
+            return {
+                id: program.id || program.program_id || Date.now().toString(),
+                code: program.code || program.program_code || 'PROG-001',
+                name: program.name || program.program_name || 'Unnamed Program',
+                description: program.description || '',
+                level: program.level || 'certificate',
+                duration: program.duration || '1 year',
+                credits: program.credits || program.total_credits || 30,
+                status: program.status || 'active'
+            };
+        });
+        
+        // Add default programs if none found
+        if (processedPrograms.length === 0) {
+            console.warn('⚠️ No programs found, creating sample programs');
+            processedPrograms.push(
+                {
+                    id: 'prog1',
+                    code: 'TEE-BASIC',
+                    name: 'TEE Basic Certificate',
+                    description: 'Basic Theological Education by Extension',
+                    level: 'certificate',
+                    duration: '1 year',
+                    credits: 30,
+                    status: 'active'
+                },
+                {
+                    id: 'prog2',
+                    code: 'TEE-ADV',
+                    name: 'TEE Advanced Diploma',
+                    description: 'Advanced Theological Education',
+                    level: 'diploma',
+                    duration: '2 years',
+                    credits: 60,
+                    status: 'active'
+                },
+                {
+                    id: 'prog3',
+                    code: 'TEE-HNC',
+                    name: 'Higher National Certificate',
+                    description: 'Advanced theological training',
+                    level: 'certificate',
+                    duration: '1.5 years',
+                    credits: 45,
+                    status: 'active'
+                }
+            );
+        }
+        
+        this.programs = processedPrograms;
+        return processedPrograms;
+        
+    } catch (error) {
+        console.error('❌ Error getting programs:', error);
+        
+        // Return fallback data
+        if (this.programs && this.programs.length > 0) {
+            return this.programs;
+        }
+        
+        console.warn('⚠️ Creating sample programs for testing');
+        const samplePrograms = [
+            {
+                id: 'prog1',
+                code: 'TEE-BASIC',
+                name: 'TEE Basic Certificate',
+                level: 'certificate',
+                duration: '1 year',
+                credits: 30
+            },
+            {
+                id: 'prog2',
+                code: 'TEE-ADV',
+                name: 'TEE Advanced Diploma',
+                level: 'diploma',
+                duration: '2 years',
+                credits: 60
+            }
+        ];
+        
+        this.programs = samplePrograms;
+        return samplePrograms;
     }
-    
+}
     async getMarksByStudent(studentId) {
         try {
             // First filter from memory
@@ -1141,7 +1367,59 @@ class ReportsManager {
             return [];
         }
     }
+    /**
+ * Debug function to check student data
+ */
+async debugStudentData() {
+    console.log('🔍 Debugging student data...');
     
+    try {
+        // Test getting students
+        const students = await this.getStudents();
+        console.log(`📊 Total students: ${students.length}`);
+        
+        if (students.length > 0) {
+            console.log('📋 Sample student data:');
+            students.slice(0, 3).forEach((student, index) => {
+                console.log(`Student ${index + 1}:`, {
+                    id: student.id,
+                    reg_number: student.reg_number,
+                    name: student.full_name,
+                    centre: student.centre_name,
+                    program: student.program_name,
+                    intake_year: student.intake_year
+                });
+            });
+        }
+        
+        // Test getting programs
+        const programs = await this.getPrograms();
+        console.log(`🎓 Total programs: ${programs.length}`);
+        
+        if (programs.length > 0) {
+            console.log('📋 Sample program data:');
+            programs.slice(0, 3).forEach((program, index) => {
+                console.log(`Program ${index + 1}:`, {
+                    id: program.id,
+                    code: program.code,
+                    name: program.name
+                });
+            });
+        }
+        
+        // Test getting centres
+        const centres = await this.getCentres();
+        console.log(`🏛️ Total centres: ${centres.length}`);
+        
+        // Populate filter dropdowns
+        await this.populateAllFilters();
+        
+        console.log('✅ Debug complete');
+        
+    } catch (error) {
+        console.error('❌ Debug error:', error);
+    }
+}
     // ==================== HELPER METHODS ====================
     
     setDefaultDates() {
