@@ -503,13 +503,14 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Program *</label>
-                            <select id="studentProgram" class="form-control" required 
-                                    onchange="if (window.app && window.app.students) window.app.students.generateRegNumber()">
-                                <option value="">Select Program</option>
-                                <!-- Programs with codes will be loaded -->
-                            </select>
-                        </div>
+    <label>Program *</label>
+    <select id="studentProgram" class="form-control" required 
+            onchange="if (window.app && window.app.students) window.app.students.generateRegNumber()">
+        <option value="">Select Program</option>
+        <!-- Options will be loaded dynamically -->
+    </select>
+</div>
+
                     </div>
                     <div class="form-row">
                         <div class="form-group">
