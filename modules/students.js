@@ -78,17 +78,28 @@ async init() {
     console.log('✅ StudentManager initialized');
 }
     
-   async _loadCentresAndPrograms() {
+  async _loadCentresAndPrograms() {
     try {
         // Load programs
         if (this.db.getPrograms) {
-            this.programs = await this.db.getPrograms();
+            const rawPrograms = await this.db.getPrograms();
+            console.log('📦 Raw programs data from database:', rawPrograms);
+            
+            // Check if programs have IDs
+            this.programs = rawPrograms;
+            
             console.log(`🎓 Loaded ${this.programs.length} programs`);
             
-            // DEBUG: Show what programs were loaded
+            // Debug each program
             this.programs.forEach((p, i) => {
-                console.log(`  Program ${i}: code="${p.code}", name="${p.name}", id="${p.id}"`);
+                console.log(`Program ${i}: id="${p.id}", code="${p.code}", name="${p.name}"`);
             });
+            
+            // Check for missing IDs
+            const programsWithoutId = this.programs.filter(p => !p.id);
+            if (programsWithoutId.length > 0) {
+                console.error('❌ Programs missing ID:', programsWithoutId);
+            }
         }
         
         // Load centres
@@ -117,6 +128,8 @@ populateProgramSelect() {
     // Clear existing options
     select.innerHTML = '<option value="">Select Program</option>';
     
+    console.log('🔍 DEBUG: Available programs:', this.programs);
+    
     // Add programs
     if (this.programs && this.programs.length > 0) {
         this.programs.forEach(p => {
@@ -128,16 +141,16 @@ populateProgramSelect() {
             // ✅ Display format
             option.textContent = `${p.code ? p.code.trim() : ''} - ${p.name}`;
             
-            // ✅ CRITICAL FIX: Set data attribute CORRECTLY
-            // Use dataset API instead of setAttribute for consistency
+            // ✅ CRITICAL FIX: Use setAttribute NOT dataset
             if (p.id) {
-                option.dataset.programId = p.id;
+                // This is the fix - use setAttribute
+                option.setAttribute('data-program-id', p.id);
+                console.log(`➕ Added program "${p.code}" with data-program-id="${p.id}"`);
+            } else {
+                console.error(`❌ Program "${p.code}" has no ID!`);
             }
             
             select.appendChild(option);
-            
-            // DEBUG: Verify the attribute was set
-            console.log(`➕ Added program: "${p.code}" - ID: ${p.id || 'NO ID!'}, hasDataAttr: ${option.hasAttribute('data-program-id')}`);
         });
         
         // Restore previous selection if editing
@@ -150,13 +163,41 @@ populateProgramSelect() {
     
     console.log(`✅ Populated ${this.programs?.length || 0} programs in dropdown`);
     
-    // DEBUG: Verify all options have data-program-id
+    // ✅ CRITICAL: Verify the data-program-id is actually set
     const options = Array.from(select.options);
     options.forEach((opt, i) => {
         if (opt.value) {
-            console.log(`Option ${i}: value="${opt.value}", data-program-id="${opt.getAttribute('data-program-id')}", hasAttr: ${opt.hasAttribute('data-program-id')}`);
+            const hasAttr = opt.hasAttribute('data-program-id');
+            const attrValue = opt.getAttribute('data-program-id');
+            console.log(`✅ Verification - Option ${i}: value="${opt.value}", has data-program-id: ${hasAttr}, value: "${attrValue}"`);
         }
     });
+}
+    /**
+ * Emergency fix for missing data-program-id attributes
+ */
+_fixMissingProgramIds() {
+    const programSelect = document.getElementById('studentProgram');
+    if (!programSelect) return;
+    
+    const options = Array.from(programSelect.options);
+    let fixedCount = 0;
+    
+    options.forEach(option => {
+        if (option.value && !option.hasAttribute('data-program-id')) {
+            // Find the program in our loaded programs
+            const program = this.programs.find(p => p.code === option.value);
+            if (program && program.id) {
+                option.setAttribute('data-program-id', program.id);
+                fixedCount++;
+                console.log(`🛠️ Emergency fix: Added data-program-id="${program.id}" to "${option.value}"`);
+            }
+        }
+    });
+    
+    if (fixedCount > 0) {
+        console.log(`✅ Emergency fix completed: Added ${fixedCount} missing data-program-id attributes`);
+    }
 }
     /**
      * Get centre name by ID
@@ -453,7 +494,9 @@ populateProgramSelect() {
 
 async saveStudent(event) {
     event.preventDefault();
-
+// ✅ EMERGENCY FIX: Add missing data-program-id attributes
+    this._fixMissingProgramIds();
+    
     const form = event.target;
     if (!form || form.id !== 'studentForm') return;
 
