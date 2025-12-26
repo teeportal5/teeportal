@@ -935,7 +935,7 @@ async loadStudentsTable(filterOptions = {}) {
         
         // Reuse the rendering logic from loadStudentsTable
         const html = students.map(student => {
-            coconst programDisplay = student.program_name || this._getProgramName(student.program);
+          const programDisplay = student.program_name || this._getProgramName(student.program);
             const centreDisplay = student.centre || this._getCentreName(student.centre_id) || 'Not assigned';
             const studentName = this._escapeHtml(student.full_name || '');
             const email = this._escapeHtml(student.email || '');
