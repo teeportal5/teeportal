@@ -125,24 +125,15 @@ populateProgramSelect() {
     // Store current value if editing
     const currentValue = select.value;
     
-    // ✅ DON'T clear if already populated with data attributes
-    const existingOptions = Array.from(select.options);
-    const hasDataAttributes = existingOptions.some(opt => 
-        opt.value && opt.hasAttribute('data-program-id')
-    );
-    
-    if (hasDataAttributes && existingOptions.length > 1) {
-        console.log('✅ Dropdown already has data-program-id attributes, skipping repopulation');
-        return;
-    }
-    
-    // Clear existing options
+    // ✅ ALWAYS clear and repopulate - don't check for existing data
     select.innerHTML = '<option value="">Select Program</option>';
     
     console.log('🔍 DEBUG: Available programs:', this.programs);
     
     // Add programs
     if (this.programs && this.programs.length > 0) {
+        console.log(`📝 Adding ${this.programs.length} programs to dropdown`);
+        
         this.programs.forEach(p => {
             const option = document.createElement('option');
             
@@ -152,9 +143,8 @@ populateProgramSelect() {
             // ✅ Display format
             option.textContent = `${p.code ? p.code.trim() : ''} - ${p.name}`;
             
-            // ✅ CRITICAL FIX: Use setAttribute NOT dataset
+            // ✅ CRITICAL: Set data-program-id attribute
             if (p.id) {
-                // This is the fix - use setAttribute
                 option.setAttribute('data-program-id', p.id);
                 console.log(`➕ Added program "${p.code}" with data-program-id="${p.id}"`);
             } else {
@@ -168,21 +158,27 @@ populateProgramSelect() {
         if (currentValue && currentValue !== '') {
             select.value = currentValue;
         }
+        
+        console.log(`✅ Populated ${this.programs.length} programs in dropdown`);
     } else {
-        console.warn('No programs available to populate dropdown');
+        console.warn('⚠️ No programs available to populate dropdown');
+        
+        // If no programs, show a helpful message
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'No programs available';
+        option.disabled = true;
+        select.appendChild(option);
     }
     
-    console.log(`✅ Populated ${this.programs?.length || 0} programs in dropdown`);
-    
-    // ✅ CRITICAL: Verify the data-program-id is actually set
+    // Final verification
     const options = Array.from(select.options);
-    options.forEach((opt, i) => {
-        if (opt.value) {
-            const hasAttr = opt.hasAttribute('data-program-id');
-            const attrValue = opt.getAttribute('data-program-id');
-            console.log(`✅ Verification - Option ${i}: value="${opt.value}", has data-program-id: ${hasAttr}, value: "${attrValue}"`);
-        }
-    });
+    console.log('🔍 Final check - Dropdown options:', options.map(opt => ({
+        value: opt.value,
+        text: opt.textContent,
+        hasDataId: opt.hasAttribute('data-program-id'),
+        dataId: opt.getAttribute('data-program-id')
+    })));
 }
 
     /**
@@ -881,11 +877,24 @@ _resetStudentForm() {
             }
         });
         
-        // ✅ CRITICAL FIX: Repopulate dropdowns after reset
-        setTimeout(() => {
-            this.populateProgramSelect();
-            this.populateCentreSelect();
-        }, 100);
+        // ✅ CRITICAL: Always populate dropdowns, but ensure data is loaded first
+        const populateIfReady = () => {
+            if (this.programs && this.programs.length > 0) {
+                console.log('✅ Programs loaded, populating dropdown');
+                this.populateProgramSelect();
+            } else {
+                console.warn('⚠️ Programs not loaded yet, waiting...');
+                // Wait and try again
+                setTimeout(populateIfReady, 300);
+            }
+            
+            if (this.centres && this.centres.length > 0) {
+                this.populateCentreSelect();
+            }
+        };
+        
+        // Start the population process
+        setTimeout(populateIfReady, 100);
         
         // Reset modal title
         const modalTitle = document.getElementById('studentModalTitle');
