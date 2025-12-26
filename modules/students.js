@@ -451,7 +451,7 @@ populateCentreSelect() {
     }
     
 /**
- * Save or update student - final version
+ * Save or update student - bulletproof version
  */
 async saveStudent(event) {
     event.preventDefault();
@@ -465,8 +465,7 @@ async saveStudent(event) {
         const selectedCentreId = centreSelect?.value || '';
         const selectedOption = centreSelect?.options[centreSelect?.selectedIndex];
         const selectedCentreText = selectedOption?.text || '';
-
-        // Extract centre name from display text
+        
         let centreName = '';
         if (selectedCentreText && selectedCentreText !== 'Select Centre') {
             const match = selectedCentreText.match(/^([^(]+)/);
@@ -477,21 +476,30 @@ async saveStudent(event) {
         }
 
         // --- Get selected program ---
-        const programCode = document.getElementById('studentProgram')?.value || '';
-        if (!programCode) {
-            this.ui.showToast('Please select a program', 'error');
-            return;
+        const selectedCode = document.getElementById('studentProgram')?.value || '';
+        const selectedText = selectedOption?.text || '';
+        let programObj = null;
+
+        if (this.programs && this.programs.length > 0) {
+            programObj = this.programs.find(p => p.code === selectedCode);
         }
 
-        const programObj = this.programs.find(p => p.code === programCode);
         if (!programObj) {
-            this.ui.showToast(`Program not found: ${programCode}`, 'error');
-            return;
+            if (selectedCode) {
+                programObj = {
+                    id: null,
+                    code: selectedCode,
+                    name: selectedText || selectedCode
+                };
+                console.warn('⚠️ Program not found in programs array, using fallback:', programObj);
+            } else {
+                this.ui.showToast('Please select a valid program', 'error');
+                return;
+            }
         }
 
         // --- Prepare form data ---
         const formData = {
-            // Personal
             reg_number: document.getElementById('studentRegNumber')?.value.trim() || '',
             full_name: document.getElementById('studentName')?.value.trim() || '',
             email: document.getElementById('studentEmail')?.value.trim() || '',
@@ -500,17 +508,15 @@ async saveStudent(event) {
             id_number: document.getElementById('studentIdNumber')?.value.trim() || '',
             gender: document.getElementById('studentGender')?.value || '',
 
-            // Location
             county: document.getElementById('studentCounty')?.value || '',
             region: document.getElementById('studentRegion')?.value.trim() || '',
             ward: document.getElementById('studentWard')?.value.trim() || '',
             village: document.getElementById('studentVillage')?.value.trim() || '',
             address: document.getElementById('studentAddress')?.value.trim() || '',
 
-            // Academic
-            program_id: programObj.id,        // ✅ guaranteed
-            program_name: programObj.name,    // ✅ guaranteed
-            program: programCode,             // optional
+            program_id: programObj.id,
+            program: programObj.code,
+            program_name: programObj.name,
             intake_year: parseInt(document.getElementById('studentIntake')?.value) || new Date().getFullYear(),
             centre_id: selectedCentreId || '',
             centre: centreName || '',
@@ -518,31 +524,32 @@ async saveStudent(event) {
             status: document.getElementById('studentStatus')?.value || 'active',
             registration_date: new Date().toISOString().split('T')[0],
 
-            // Employment
             employment_status: document.getElementById('studentEmployment')?.value || '',
             employer: document.getElementById('studentEmployer')?.value.trim() || '',
             job_title: document.getElementById('studentJobTitle')?.value.trim() || '',
             years_experience: parseInt(document.getElementById('studentExperience')?.value) || 0,
 
-            // Emergency contact
             emergency_contact_name: document.getElementById('studentEmergencyName')?.value.trim() || '',
             emergency_contact_phone: document.getElementById('studentEmergencyPhone')?.value.trim() || '',
             emergency_contact_relationship: document.getElementById('studentEmergencyContact')?.value.trim() || '',
             emergency_contact: document.getElementById('studentEmergencyPhone')?.value.trim() || '',
 
-            // Additional
             notes: document.getElementById('studentNotes')?.value.trim() || ''
         };
 
+        // --- Debug console logs ---
+        console.log('📌 Selected program object:', programObj);
+        console.log('📝 Form data prepared for insert/update:', formData);
+
         // --- Validate required fields ---
-        const requiredFields = ['reg_number', 'full_name', 'email', 'program_id', 'program_name', 'intake_year'];
-        const missingFields = requiredFields.filter(f => !formData[f]);
+        const requiredFields = ['reg_number', 'full_name', 'email', 'program', 'program_name', 'intake_year'];
+        const missingFields = requiredFields.filter(field => !formData[field] || formData[field].toString().trim() === '');
         if (missingFields.length > 0) {
+            console.error('❌ Missing required fields:', missingFields);
             this.ui.showToast(`Missing required fields: ${missingFields.join(', ')}`, 'error');
             return;
         }
 
-        // Validate email
         if (!this._validateEmail(formData.email)) {
             this.ui.showToast('Please enter a valid email address', 'error');
             return;
@@ -550,16 +557,17 @@ async saveStudent(event) {
 
         // --- Save / Update ---
         const submitBtn = form.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
         submitBtn.disabled = true;
 
         let result;
         if (this.currentEditId) {
             result = await this.db.updateStudent(this.currentEditId, formData);
+            console.log('✅ Student updated:', result);
             this.ui.showToast(`Student updated successfully!`, 'success');
         } else {
             result = await this.db.addStudent(formData);
+            console.log('✅ Student added:', result);
             const regNumber = result.reg_number || formData.reg_number;
             this.ui.showToast(`Student registered successfully! Registration Number: ${regNumber}`, 'success');
         }
