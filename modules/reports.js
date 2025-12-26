@@ -1483,45 +1483,109 @@ class ReportsManager {
         return filtered;
     }
     
-    // ==================== STATISTICS ====================
+   // ==================== STATISTICS ====================
     
-    async updateStatistics() {
-        try {
-            const students = this.students.length > 0 ? this.students : await this.getStudents();
-            const filteredStudents = this.applyStudentFilters(students);
-            
-            const totalStudents = filteredStudents.length;
-            const activeStudents = filteredStudents.filter(s => s.status === 'active').length;
-            const graduatedStudents = filteredStudents.filter(s => s.status === 'graduated').length;
-            
-            const graduationRate = totalStudents > 0 ? 
-                Math.round((graduatedStudents / totalStudents) * 100) : 0;
-            
-            const centres = await this.getCentres();
-            const activeCentres = centres.length;
-            
-            // Calculate average GPA (simplified for now)
-            const avgGPA = 3.24;
-            
-            // Update DOM elements
-            this.updateElementText('totalStudents', totalStudents.toLocaleString());
-            this.updateElementText('graduationRate', graduationRate + '%');
-            this.updateElementText('avgGPA', avgGPA.toFixed(2));
-            this.updateElementText('centersCount', activeCentres);
-            
-            console.log(`📊 Statistics updated: ${totalStudents} students, ${graduationRate}% graduation rate`);
-            
-        } catch (error) {
-            console.error('Error updating statistics:', error);
-        }
+async updateStatistics() {
+    try {
+        console.log('🔄 Updating statistics...');
+        
+        // Get fresh student data
+        const students = this.students.length > 0 ? this.students : await this.getStudents();
+        const filteredStudents = this.applyStudentFilters(students);
+        
+        const totalStudents = filteredStudents.length;
+        const activeStudents = filteredStudents.filter(s => s.status === 'active').length;
+        const graduatedStudents = filteredStudents.filter(s => s.status === 'graduated').length;
+        
+        const graduationRate = totalStudents > 0 ? 
+            Math.round((graduatedStudents / totalStudents) * 100) : 0;
+        
+        const centres = await this.getCentres();
+        const activeCentres = centres.length;
+        
+        // Calculate average GPA (simplified for now)
+        const avgGPA = 3.24;
+        
+        // DEBUG: Log the values
+        console.log('Statistics calculated:', {
+            totalStudents,
+            graduationRate,
+            avgGPA,
+            activeCentres
+        });
+        
+        // Update DOM elements - FIXED IDs based on HTML structure
+        this.updateElementText('totalStudents', totalStudents.toLocaleString());
+        this.updateElementText('graduationRate', graduationRate + '%');
+        this.updateElementText('avgGPA', avgGPA.toFixed(2));
+        this.updateElementText('centersCount', activeCentres.toString()); // FIXED: added .toString()
+        
+        console.log(`✅ Statistics updated: ${totalStudents} students, ${graduationRate}% graduation rate`);
+        
+    } catch (error) {
+        console.error('❌ Error updating statistics:', error);
+        console.error('Error stack:', error.stack);
+        
+        // Set fallback values on error
+        this.updateElementText('totalStudents', '0');
+        this.updateElementText('graduationRate', '0%');
+        this.updateElementText('avgGPA', '0.00');
+        this.updateElementText('centersCount', '0');
     }
+}
+
+updateElementText(elementId, text) {
+    console.log(`🔄 Looking for element: #${elementId}`);
+    const element = document.getElementById(elementId);
     
-    updateElementText(elementId, text) {
-        const element = document.getElementById(elementId);
-        if (element) {
-            element.textContent = text;
+    if (element) {
+        element.textContent = text;
+        console.log(`✅ Updated #${elementId} to: ${text}`);
+    } else {
+        console.warn(`⚠️ Element #${elementId} not found!`);
+        
+        // Try to find element by class or other attributes
+        const altSelectors = [
+            `[data-id="${elementId}"]`,
+            `[id*="${elementId.toLowerCase()}"]`,
+            `[id*="${elementId}"]`,
+            `.${elementId}`
+        ];
+        
+        for (const selector of altSelectors) {
+            const altElement = document.querySelector(selector);
+            if (altElement) {
+                altElement.textContent = text;
+                console.log(`✅ Found alternative ${selector} and updated to: ${text}`);
+                return;
+            }
         }
+        
+        console.error(`❌ Could not find element #${elementId} or any alternative`);
     }
+}
+
+// Add this helper method to debug element IDs
+debugElementIDs() {
+    console.log('🔍 Debugging element IDs in statistics cards:');
+    
+    // Check all possible statistic elements
+    const statisticElements = document.querySelectorAll('[id*="student"], [id*="graduation"], [id*="gpa"], [id*="center"]');
+    
+    if (statisticElements.length > 0) {
+        statisticElements.forEach(el => {
+            console.log(`Found: #${el.id} -> Current text: "${el.textContent}"`);
+        });
+    } else {
+        console.warn('⚠️ No statistic elements found!');
+        
+        // Check for elements with common classes
+        const statNumbers = document.querySelectorAll('.stat-number, .card-title, .stat-content h3');
+        statNumbers.forEach(el => {
+            console.log(`Possible stat element: "${el.textContent}" - Parent:`, el.parentElement);
+        });
+    }
+}
     
     // ==================== REPORTS GRID ====================
     
