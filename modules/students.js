@@ -78,27 +78,28 @@ async init() {
     console.log('✅ StudentManager initialized');
 }
     
-    /**
-     * Load centres and programs for dropdowns
-     */
-    async _loadCentresAndPrograms() {
-        try {
-            // Load centres
-            if (this.db.getCentres) {
-                this.centres = await this.db.getCentres();
-                console.log(`📍 Loaded ${this.centres.length} centres`);
-            }
+   async _loadCentresAndPrograms() {
+    try {
+        // Load programs
+        if (this.db.getPrograms) {
+            this.programs = await this.db.getPrograms();
+            console.log(`🎓 Loaded ${this.programs.length} programs`);
             
-            // Load programs
-            if (this.db.getPrograms) {
-                this.programs = await this.db.getPrograms();
-                console.log(`🎓 Loaded ${this.programs.length} programs`);
-            }
-        } catch (error) {
-            console.error('Error loading centres/programs:', error);
+            // DEBUG: Show what programs were loaded
+            this.programs.forEach((p, i) => {
+                console.log(`  Program ${i}: code="${p.code}", name="${p.name}", id="${p.id}"`);
+            });
         }
+        
+        // Load centres
+        if (this.db.getCentres) {
+            this.centres = await this.db.getCentres();
+            console.log(`📍 Loaded ${this.centres.length} centres`);
+        }
+    } catch (error) {
+        console.error('Error loading centres/programs:', error);
     }
-   
+}
 
 /**
  * Populate program select dropdown - FIXED VERSION
@@ -113,53 +114,54 @@ populateProgramSelect() {
     // Store current value if editing
     const currentValue = select.value;
     
-    // Clear existing options
+    // Clear existing options but KEEP the first "Select Program" option
     select.innerHTML = '<option value="">Select Program</option>';
     
     // Add programs
     if (this.programs && this.programs.length > 0) {
         this.programs.forEach(p => {
             const option = document.createElement('option');
-            option.value = p.code;  // ✅ Store code as value
-            option.textContent = `${p.code} - ${p.name}`; // Display format
-            option.setAttribute('data-program-id', p.id); // Store UUID in data attribute
+            
+            // ✅ CRITICAL: Use ONLY the program CODE as value
+            // e.g., "CTOT" not "CTOT - Certificate in Tailoring"
+            option.value = p.code.trim();  
+            
+            // ✅ Display format: "CODE - Name"
+            option.textContent = `${p.code.trim()} - ${p.name}`;
+            
+            // ✅ Store UUID in data attribute
+            option.setAttribute('data-program-id', p.id);
+            
+            // ✅ Store program name in another data attribute if needed
+            option.setAttribute('data-program-name', p.name);
+            
             select.appendChild(option);
+            
+            console.log(`➕ Added option: value="${p.code}", text="${p.code} - ${p.name}", data-id="${p.id}"`);
         });
         
         // Restore previous selection if editing
         if (currentValue && currentValue !== '') {
-            select.value = currentValue;
+            // Clean the value if it contains " - "
+            const cleanValue = currentValue.split(' - ')[0].trim();
+            select.value = cleanValue;
+            console.log(`↩️ Restored selection: ${cleanValue}`);
         }
     } else {
         console.warn('No programs available to populate dropdown');
     }
     
     console.log(`✅ Populated ${this.programs?.length || 0} programs in dropdown`);
-}
-
-// Also add a method to populate centre dropdown:
-populateCentreSelect() {
-    const select = document.getElementById('studentCentre');
-    if (!select) {
-        console.warn('studentCentre select element not found');
-        return;
-    }
     
-    const currentValue = select.value;
-    select.innerHTML = '<option value="">Select Centre</option>';
-    
-    if (this.centres && this.centres.length > 0) {
-        this.centres.forEach(c => {
-            const option = document.createElement('option');
-            option.value = c.id;  // Store UUID as value
-            option.textContent = `${c.name} (${c.code || c.county || 'Centre'})`; // Display format
-            select.appendChild(option);
-        });
-        
-        if (currentValue && currentValue !== '') {
-            select.value = currentValue;
-        }
-    }
+    // DEBUG: Show all options
+    const options = Array.from(select.options);
+    console.log('📋 All dropdown options:', options.map(opt => ({
+        index: opt.index,
+        value: opt.value,
+        text: opt.textContent,
+        hasId: opt.hasAttribute('data-program-id'),
+        id: opt.getAttribute('data-program-id')
+    })));
 }
     /**
      * Get centre name by ID
