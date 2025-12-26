@@ -466,12 +466,12 @@ async saveStudent(event) {
         const selectedCentreId = centreSelect?.value || '';
         const selectedOption = centreSelect?.options[centreSelect?.selectedIndex];
         const selectedCentreText = selectedOption?.text || '';
-        
+
         let centreName = '';
         if (selectedCentreText && selectedCentreText !== 'Select Centre') {
             const match = selectedCentreText.match(/^([^(]+)/);
             centreName = match ? match[0].trim() : selectedCentreText;
-        } else if (selectedCentreId && this.centres.length > 0) {
+        } else if (selectedCentreId && this.centres?.length > 0) {
             const centre = this.centres.find(c => c.id === selectedCentreId);
             centreName = centre ? centre.name : '';
         }
@@ -480,19 +480,19 @@ async saveStudent(event) {
         const programCode = document.getElementById('studentProgram')?.value || '';
         let programObj = null;
 
-        if (programCode && this.programs.length > 0) {
+        if (programCode && this.programs?.length > 0) {
             programObj = this.programs.find(p => p.code === programCode);
             if (!programObj) {
-                console.warn(`⚠️ Program not found in programs array, using fallback for code: ${programCode}`);
-                programObj = { id: null, code: programCode, name: programCode }; // fallback
+                console.warn(`⚠️ Program not found for code: ${programCode}, using fallback`);
+                programObj = { id: null, code: programCode, name: programCode };
             }
         }
 
-        // --- Generate registration number ---
+        // --- Generate registration number if empty ---
         const regNumberInput = document.getElementById('studentRegNumber');
         let regNumber = regNumberInput?.value;
         if (!regNumber) {
-            regNumber = await this.generateRegNumber(); // uses fallback method if DB fails
+            regNumber = await this.generateRegNumber();
         }
 
         // --- Prepare form data ---
@@ -513,9 +513,9 @@ async saveStudent(event) {
             address: document.getElementById('studentAddress')?.value.trim() || '',
 
             // Academic
-            program_id: programObj?.id || null,
-            program_name: programObj?.name || programCode || '',
-            program: programObj?.code || programCode || '',
+            program_id: programObj?.id || null,           // REQUIRED
+            program_name: programObj?.name || programCode || '', 
+            program: `${programObj?.code || programCode} - ${programObj?.name || programCode}`, 
             intake_year: parseInt(document.getElementById('studentIntake')?.value) || new Date().getFullYear(),
             centre_id: selectedCentreId || '',
             centre: centreName || '',
@@ -566,8 +566,8 @@ async saveStudent(event) {
             this.ui.showToast(`Student updated successfully!`, 'success');
         } else {
             result = await this.db.addStudent(formData);
-            const regNumber = result.reg_number || formData.reg_number;
-            this.ui.showToast(`Student registered successfully! Registration Number: ${regNumber}`, 'success');
+            const regNumberResult = result.reg_number || formData.reg_number;
+            this.ui.showToast(`Student registered successfully! Registration Number: ${regNumberResult}`, 'success');
         }
 
         this._resetStudentForm();
