@@ -385,7 +385,7 @@ class StudentManager {
     }
     
 /**
- * Save or update student - stores program_id and program_name
+ * Save or update student - robust version
  */
 async saveStudent(event) {
     event.preventDefault();
@@ -399,8 +399,7 @@ async saveStudent(event) {
         const selectedCentreId = centreSelect?.value || '';
         const selectedOption = centreSelect?.options[centreSelect?.selectedIndex];
         const selectedCentreText = selectedOption?.text || '';
-        
-        // Extract centre name from display text
+
         let centreName = '';
         if (selectedCentreText && selectedCentreText !== 'Select Centre') {
             const match = selectedCentreText.match(/^([^(]+)/);
@@ -410,22 +409,24 @@ async saveStudent(event) {
             centreName = centre ? centre.name : '';
         }
 
-        // --- Get selected program ---
+        // --- Get selected program robustly ---
         let programInput = document.getElementById('studentProgram')?.value || '';
-        
-        // If the input is full name, try to extract code (assume format "CODE - Name")
-        let programCode = programInput.includes(' - ') 
-            ? programInput.split(' - ')[0].trim() 
+
+        // Extract code if input is full name ("CODE - Name")
+        let programCode = programInput.includes(' - ')
+            ? programInput.split(' - ')[0].trim()
             : programInput.trim();
 
-        // Find the program object
-        let programObj = null;
-        if (programCode && this.programs.length > 0) {
-            programObj = this.programs.find(p => p.code === programCode);
-            if (!programObj) {
-                this.ui.showToast(`Program not found for code: ${programCode}`, 'error');
-                return;
-            }
+        let programObj = this.programs.find(p => p.code === programCode);
+
+        // If program not found, try match by name
+        if (!programObj) {
+            programObj = this.programs.find(p => programInput.includes(p.name));
+        }
+
+        if (!programObj) {
+            this.ui.showToast(`Program not found: ${programInput}`, 'error');
+            return;
         }
 
         // --- Prepare form data ---
@@ -446,9 +447,10 @@ async saveStudent(event) {
             village: document.getElementById('studentVillage')?.value.trim() || '',
             address: document.getElementById('studentAddress')?.value.trim() || '',
 
-            // Academic - store program_id and program_name
-            program_id: programObj?.id || null,        // ✅ main change
-            program_name: programObj?.name || null,    // ✅ new field
+            // Academic
+            program_id: programObj.id,
+            program_name: programObj.name,
+            program: programObj.code,
             intake_year: parseInt(document.getElementById('studentIntake')?.value) || new Date().getFullYear(),
             centre_id: selectedCentreId || '',
             centre: centreName || '',
@@ -488,7 +490,6 @@ async saveStudent(event) {
 
         // --- Save / Update ---
         const submitBtn = form.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
         submitBtn.disabled = true;
 
