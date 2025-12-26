@@ -753,8 +753,10 @@ class StudentManager {
         return emailRegex.test(email);
     }
     
-  /**
- * Load students into table - FIXED FOR YOUR SCHEMA
+ // Update the loadStudentsTable method to match your CSS structure:
+
+/**
+ * Load students into table - UPDATED FOR YOUR CSS
  */
 async loadStudentsTable(filterOptions = {}) {
     try {
@@ -773,24 +775,14 @@ async loadStudentsTable(filterOptions = {}) {
             return;
         }
         
-        // DEBUG: Check what fields are in student data
-        if (students.length > 0) {
-            console.log('🔍 Student data structure:', students[0]);
-            console.log('🔍 Program fields available:', {
-                program: students[0].program,
-                program_name: students[0].program_name,
-                program_code: students[0].program_code
-            });
-        }
-        
         // Render all rows with proper data mapping
         const html = students.map(student => {
-            // Get program display name - FIXED VERSION
+            // Get program display name - CORRECTED
             let programDisplay = '';
             if (student.program_name && student.program_name.trim() !== '') {
-                // Use program_name if available
+                // Use stored program_name from database
                 programDisplay = student.program_name;
-                console.log(`🎓 ${student.reg_number}: Using program_name = "${student.program_name}"`);
+                console.log(`🎓 ${student.reg_number}: Using stored program_name = "${programDisplay}"`);
             } else if (student.program && student.program.trim() !== '') {
                 // Look up from programs array
                 programDisplay = this._getProgramName(student.program);
@@ -809,9 +801,11 @@ async loadStudentsTable(filterOptions = {}) {
                 centreDisplay = this._getCentreName(student.centre_id);
             }
             
-            // Get region (from region or county field)
+            // Get region
             const regionDisplay = student.region || student.county || '';
             
+            // Extract initials for avatar
+            const initials = this._getInitials(student.full_name);
             const studentName = this._escapeHtml(student.full_name || '');
             const email = this._escapeHtml(student.email || '');
             const status = student.status || 'active';
@@ -820,40 +814,43 @@ async loadStudentsTable(filterOptions = {}) {
             
             return `
                 <tr data-student-id="${safeStudentId}" data-student-reg="${safeRegNumber}">
-                    <td class="reg-number-cell">
-                        <strong class="reg-number">${this._escapeHtml(student.reg_number)}</strong>
+                    <td>
+                        <div class="student-selection">
+                            <input type="checkbox" class="selection-checkbox student-checkbox" 
+                                   data-student-id="${safeStudentId}">
+                            <strong class="reg-number">${this._escapeHtml(student.reg_number)}</strong>
+                        </div>
                     </td>
-                    <td class="student-info-cell">
+                    <td>
                         <div class="student-avatar">
-                            <div class="avatar-icon" style="background-color: ${this._getAvatarColor(student.full_name)}">
-                                <i class="fas fa-user"></i>
+                            <div class="avatar-icon" style="background: linear-gradient(135deg, ${this._getAvatarColor(student.full_name)} 0%, ${this._getSecondaryColor(student.full_name)} 100%);">
+                                ${initials}
                             </div>
-                            <div class="student-details">
+                            <div class="student-info">
                                 <div class="student-name">${studentName}</div>
                                 <div class="student-email">${email}</div>
                             </div>
                         </div>
                     </td>
-                    <td class="program-cell">
+                    <td>
                         <div class="program-info">
                             <div class="program-name">${this._escapeHtml(programDisplay)}</div>
+                            ${student.study_mode ? `<small class="study-mode">${student.study_mode.toUpperCase()}</small>` : ''}
                         </div>
                     </td>
-                    <td class="location-cell">
+                    <td>
                         <div class="location-info">
-                            <div class="centre-name"><strong>${this._escapeHtml(centreDisplay)}</strong></div>
+                            <div class="centre-name">${this._escapeHtml(centreDisplay)}</div>
                             <div class="centre-region">${this._escapeHtml(regionDisplay)}</div>
                         </div>
                     </td>
-                    <td class="intake-cell">
-                        <span class="intake-year">${this._escapeHtml(student.intake_year)}</span>
-                    </td>
-                    <td class="status-cell">
+                    <td class="intake-year">${this._escapeHtml(student.intake_year)}</td>
+                    <td>
                         <span class="status-badge ${this._escapeAttr(status)}">
                             ${this._escapeHtml(status.toUpperCase())}
                         </span>
                     </td>
-                    <td class="action-buttons-cell">
+                    <td>
                         <div class="action-buttons">
                             <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
                                 <i class="fas fa-eye"></i>
@@ -877,6 +874,7 @@ async loadStudentsTable(filterOptions = {}) {
 
         // Attach event listeners
         this._attachStudentRowEventListeners();
+        this._attachCheckboxListeners();
 
         // Show bulk actions if we have students
         this._toggleBulkActions(true);
@@ -887,6 +885,81 @@ async loadStudentsTable(filterOptions = {}) {
         console.error('❌ Error loading students table:', error);
         this.ui.showToast('Error loading students data', 'error');
         this._renderErrorState();
+    }
+}
+
+/**
+ * Get initials from name
+ */
+_getInitials(name) {
+    if (!name) return '??';
+    const names = name.split(' ');
+    if (names.length >= 2) {
+        return (names[0][0] + names[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+}
+
+/**
+ * Get secondary color for gradient
+ */
+_getSecondaryColor(name) {
+    const colors = [
+        '#2ecc71', '#e74c3c', '#f39c12', 
+        '#9b59b6', '#1abc9c', '#d35400', '#3498db', '#c0392b'
+    ];
+    if (!name) return colors[1];
+    
+    const hash = name.split('').reduce((acc, char) => {
+        return char.charCodeAt(0) + ((acc << 5) - acc);
+    }, 1); // Start with 1 for different hash
+    
+    return colors[Math.abs(hash) % colors.length];
+}
+
+/**
+ * Attach checkbox listeners
+ */
+_attachCheckboxListeners() {
+    // Student checkboxes
+    document.querySelectorAll('.student-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+            const studentId = e.target.getAttribute('data-student-id');
+            if (e.target.checked) {
+                this.selectedStudents.add(studentId);
+            } else {
+                this.selectedStudents.delete(studentId);
+            }
+            this._updateSelectedCount();
+        });
+    });
+    
+    // Select all checkbox
+    const selectAll = document.getElementById('selectAllStudents');
+    if (selectAll) {
+        selectAll.addEventListener('change', (e) => {
+            const checkboxes = document.querySelectorAll('.student-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = e.target.checked;
+                const studentId = checkbox.getAttribute('data-student-id');
+                if (e.target.checked) {
+                    this.selectedStudents.add(studentId);
+                } else {
+                    this.selectedStudents.delete(studentId);
+                }
+            });
+            this._updateSelectedCount();
+        });
+    }
+}
+
+/**
+ * Update selected count display
+ */
+_updateSelectedCount() {
+    const countElement = document.getElementById('selectedCount');
+    if (countElement) {
+        countElement.textContent = this.selectedStudents.size;
     }
 }
             
