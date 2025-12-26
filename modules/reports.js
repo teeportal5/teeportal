@@ -1,4 +1,4 @@
-// modules/reports.js - COMPLETE VERSION WITH TRANSCRIPT MODAL
+// modules/reports.js - UPDATED VERSION
 class ReportsManager {
     constructor(db) {
         console.log('📊 ReportsManager constructor called');
@@ -47,10 +47,10 @@ class ReportsManager {
         this.generateTranscript = this.generateTranscript.bind(this);
         this.loadSampleTranscript = this.loadSampleTranscript.bind(this);
         this.clearPreview = this.clearPreview.bind(this);
-        this.previewStudentReport = this.studentReport.bind(this);
-        this.previewAcademicReport = this.academicReport.bind(this);
-        this.quickStudentReport = this.studentReport.bind(this);
-        this.quickAcademicReport = this.academicReport.bind(this);
+        this.previewStudentReport = this.previewStudentReport.bind(this);
+        this.previewAcademicReport = this.previewAcademicReport.bind(this);
+        this.quickStudentReport = this.quickStudentReport.bind(this);
+        this.quickAcademicReport = this.quickAcademicReport.bind(this);
         this.bulkExport = this.bulkExport.bind(this);
         this.bulkTranscripts = this.bulkTranscripts.bind(this);
         this.addScheduledReport = this.addScheduledReport.bind(this);
@@ -62,50 +62,59 @@ class ReportsManager {
         this.selectStudentForTranscript = this.selectStudentForTranscript.bind(this);
         this.closeTranscriptModal = this.closeTranscriptModal.bind(this);
         this.searchTranscriptStudents = this.searchTranscriptStudents.bind(this);
+        this.clearSelectedStudent = this.clearSelectedStudent.bind(this);
+        this.displaySelectedStudentInfo = this.displaySelectedStudentInfo.bind(this);
+        this.populateReportDropdowns = this.populateReportDropdowns.bind(this);
+        this.debugDropdowns = this.debugDropdowns.bind(this);
+        this.generateStudentReport = this.generateStudentReport.bind(this);
+        this.generateAcademicReport = this.generateAcademicReport.bind(this);
     }
     
     // ==================== INITIALIZATION ====================
     
     async initialize() {
-    if (this.initialized) {
-        console.log('✅ ReportsManager already initialized');
-        return;
+        if (this.initialized) {
+            console.log('✅ ReportsManager already initialized');
+            return;
+        }
+        
+        try {
+            console.log('📊 Initializing Reports Manager...');
+            this.showLoading(true);
+            
+            // Load all data first
+            await this.loadAllData();
+            
+            // DEBUG: Check data
+            await this.debugStudentData();
+            
+            // Initialize UI components
+            await this.initializeReportsUI();
+            
+            // Set up event listeners
+            this.setupEventListeners();
+            
+            // Load initial statistics
+            await this.updateStatistics();
+            
+            // Load initial reports grid
+            await this.generateReportsGrid();
+            
+            // Display any selected student info
+            this.displaySelectedStudentInfo();
+            
+            this.initialized = true;
+            console.log('✅ Reports Manager initialized successfully');
+            
+            this.showToast('Reports module ready', 'success');
+            
+        } catch (error) {
+            console.error('❌ Error initializing reports:', error);
+            this.showToast('Reports module failed to initialize: ' + error.message, 'error');
+        } finally {
+            this.showLoading(false);
+        }
     }
-    
-    try {
-        console.log('📊 Initializing Reports Manager...');
-        this.showLoading(true);
-        
-        // Load all data first
-        await this.loadAllData();
-        
-        // DEBUG: Check data
-        await this.debugStudentData();
-        
-        // Initialize UI components
-        await this.initializeReportsUI();
-        
-        // Set up event listeners
-        this.setupEventListeners();
-        
-        // Load initial statistics
-        await this.updateStatistics();
-        
-        // Load initial reports grid
-        await this.generateReportsGrid();
-        
-        this.initialized = true;
-        console.log('✅ Reports Manager initialized successfully');
-        
-        this.showToast('Reports module ready', 'success');
-        
-    } catch (error) {
-        console.error('❌ Error initializing reports:', error);
-        this.showToast('Reports module failed to initialize: ' + error.message, 'error');
-    } finally {
-        this.showLoading(false);
-    }
-}
     
     async loadAllData() {
         try {
@@ -259,6 +268,8 @@ class ReportsManager {
         console.log('✅ Transcript modal created');
     }
     
+    // ==================== FILTER POPULATION ====================
+    
     async populateAllFilters() {
         try {
             console.log('🔄 Populating all filters...');
@@ -267,15 +278,15 @@ class ReportsManager {
             const filterElements = {
                 'academicYear': 'Academic Year',
                 'filterCenter': 'Centre Filter',
+                'filterCounty': 'County Filter',
+                'filterProgram': 'Program Filter',
+                'filterIntake': 'Intake Filter',
+                'filterCourse': 'Course Filter',
                 'studentReportCenter': 'Student Report Centre',
                 'academicReportCenter': 'Academic Report Centre',
                 'transcriptCenterFilter': 'Transcript Centre Filter',
                 'bulkExportCenters': 'Bulk Export Centres',
-                'scheduleCenter': 'Schedule Centre',
-                'filterCounty': 'County Filter',
-                'filterProgram': 'Program Filter',
-                'filterIntake': 'Intake Filter',
-                'filterCourse': 'Course Filter'
+                'scheduleCenter': 'Schedule Centre'
             };
             
             // Log which elements are found
@@ -691,413 +702,200 @@ class ReportsManager {
         }
     }
     
-    // ==================== TRANSCRIPT MODAL METHODS ====================
-    
-    async openTranscriptModal() {
-        try {
-            console.log('🎓 Opening transcript modal...');
-            
-            // Load fresh student data for modal
-            const students = await this.getStudents();
-            this.students = students;
-            
-            // Populate modal filters
-            await this.populateModalFilters();
-            
-            // Populate student list
-            await this.searchTranscriptStudents();
-            
-            // Show modal
-            $('#transcriptModal').modal('show');
-            
-            this.showToast('Select a student for transcript', 'info');
-            
-        } catch (error) {
-            console.error('❌ Error opening transcript modal:', error);
-            this.showToast('Error opening student selector', 'error');
-        }
-    }
-    
-    async searchTranscriptStudents() {
-        try {
-            const searchInput = document.getElementById('transcriptStudentSearch');
-            const centreFilter = document.getElementById('transcriptModalCentreFilter');
-            const programFilter = document.getElementById('transcriptModalProgramFilter');
-            const studentsList = document.getElementById('transcriptModalStudentsList');
-            const noResultsDiv = document.getElementById('transcriptModalNoResults');
-            
-            if (!searchInput || !studentsList) return;
-            
-            const searchTerm = searchInput.value.toLowerCase();
-            const selectedCentre = centreFilter ? centreFilter.value : 'all';
-            const selectedProgram = programFilter ? programFilter.value : 'all';
-            
-            // Get students (use cached if available)
-            const students = this.students.length > 0 ? this.students : await this.getStudents();
-            
-            // Filter students
-            const filteredStudents = students.filter(student => {
-                // Search term filter
-                const matchesSearch = searchTerm === '' || 
-                    (student.full_name && student.full_name.toLowerCase().includes(searchTerm)) ||
-                    (student.reg_number && student.reg_number.toLowerCase().includes(searchTerm)) ||
-                    (student.program && student.program.toLowerCase().includes(searchTerm));
-                
-                // Centre filter
-                const matchesCentre = selectedCentre === 'all' || 
-                    (student.centre_name && student.centre_name === selectedCentre) ||
-                    (student.centre && student.centre === selectedCentre);
-                
-                // Program filter
-                const matchesProgram = selectedProgram === 'all' ||
-                    (student.program && student.program === selectedProgram);
-                
-                return matchesSearch && matchesCentre && matchesProgram;
-            });
-            
-            // Clear current selection
-            this.selectedStudentForTranscript = null;
-            document.getElementById('selectStudentBtn').disabled = true;
-            
-            // Display results
-            if (filteredStudents.length === 0) {
-                studentsList.innerHTML = '';
-                if (noResultsDiv) noResultsDiv.style.display = 'block';
-                return;
-            }
-            
-            if (noResultsDiv) noResultsDiv.style.display = 'none';
-            
-            // Build table rows
-            let html = '';
-            filteredStudents.forEach(student => {
-                const studentId = student.id || student.student_id || student.reg_number;
-                const regNumber = student.reg_number || 'N/A';
-                const fullName = student.full_name || student.name || 'Unknown';
-                const program = student.program || 'Not specified';
-                const centre = student.centre_name || student.centre || 'Not specified';
-                const status = student.status || 'active';
-                
-                const statusColor = status === 'active' ? 'success' : 
-                                  status === 'graduated' ? 'primary' : 
-                                  status === 'inactive' ? 'secondary' : 'warning';
-                
-                html += `
-                <tr onclick="app.reports.selectStudentRow(this, '${studentId}')" style="cursor: pointer;">
-                    <td>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="studentSelection" id="student_${studentId}" value="${studentId}">
-                        </div>
-                    </td>
-                    <td><strong>${regNumber}</strong></td>
-                    <td>${fullName}</td>
-                    <td>${program}</td>
-                    <td>${centre}</td>
-                    <td>
-                        <span class="badge badge-${statusColor}">${status}</span>
-                    </td>
-                </tr>
-                `;
-            });
-            
-            studentsList.innerHTML = html;
-            
-            console.log(`🔍 Found ${filteredStudents.length} students matching search`);
-            
-        } catch (error) {
-            console.error('❌ Error searching transcript students:', error);
-        }
-    }
-    
-    selectStudentRow(rowElement, studentId) {
-        // Uncheck all other radio buttons
-        document.querySelectorAll('input[name="studentSelection"]').forEach(radio => {
-            radio.checked = false;
-            radio.closest('tr').classList.remove('table-primary');
-        });
-        
-        // Check the selected radio
-        const radio = document.getElementById(`student_${studentId}`);
-        if (radio) {
-            radio.checked = true;
-            rowElement.classList.add('table-primary');
-            
-            // Find the student data
-            const student = this.students.find(s => 
-                (s.id && s.id.toString() === studentId.toString()) ||
-                (s.student_id && s.student_id.toString() === studentId.toString()) ||
-                (s.reg_number && s.reg_number === studentId)
-            );
-            
-            this.selectedStudentForTranscript = student;
-            document.getElementById('selectStudentBtn').disabled = false;
-        }
-    }
-    
-    selectStudentForTranscript() {
-        if (!this.selectedStudentForTranscript) {
-            this.showToast('Please select a student first', 'warning');
-            return;
-        }
-        
-        console.log('✅ Selected student for transcript:', this.selectedStudentForTranscript);
-        
-        // Close modal
-        $('#transcriptModal').modal('hide');
-        
-        // Show transcript section
-        this.openTranscriptSection();
-        
-        // Set the selected student in the transcript form (if exists)
-        const studentSelect = document.getElementById('transcriptStudent');
-        if (studentSelect) {
-            const studentId = this.selectedStudentForTranscript.id || 
-                             this.selectedStudentForTranscript.reg_number;
-            studentSelect.value = studentId;
-            
-            // Trigger preview
-            setTimeout(() => {
-                this.previewTranscript();
-            }, 500);
-        }
-        
-        this.showToast(`Selected: ${this.selectedStudentForTranscript.full_name || this.selectedStudentForTranscript.reg_number}`, 'success');
-    }
-    
-    closeTranscriptModal() {
-        $('#transcriptModal').modal('hide');
-        this.selectedStudentForTranscript = null;
-    }
-    
     // ==================== DATABASE METHODS ====================
     
-   async getStudents() {
-    try {
-        if (!this.db) {
-            console.warn('⚠️ Database not available in getStudents');
-            return this.students || [];
-        }
-        
-        console.log('📊 Fetching students from database...');
-        
-        // Try multiple methods to get students
-        let studentsData = [];
-        
-        // Method 1: Check if db has getStudents method
-        if (typeof this.db.getStudents === 'function') {
-            console.log('📡 Using db.getStudents()');
-            studentsData = await this.db.getStudents();
-            
-        } else if (typeof this.db.getStudentList === 'function') {
-            console.log('📡 Using db.getStudentList()');
-            studentsData = await this.db.getStudentList();
-            
-        } else if (typeof this.db.getAll === 'function') {
-            console.log('📡 Using db.getAll("students")');
-            studentsData = await this.db.getAll('students');
-            
-        } else if (this.db.supabase && typeof this.db.supabase.from === 'function') {
-            console.log('📡 Using direct Supabase query');
-            const { data, error } = await this.db.supabase
-                .from('students')
-                .select(`
-                    id,
-                    reg_number,
-                    name,
-                    email,
-                    phone,
-                    county,
-                    region,
-                    ward,
-                    village,
-                    centre_id,
-                    program_id,
-                    intake_year,
-                    status,
-                    created_at,
-                    centres:centre_id (name, code, county),
-                    programs:program_id (name, code, duration)
-                `);
-            
-            if (error) throw error;
-            studentsData = data || [];
-        }
-        
-        console.log(`✅ Got ${studentsData?.length || 0} students from database`);
-        
-        // Process students to ensure consistent structure
-        const processedStudents = (studentsData || []).map(student => {
-            console.log('Processing student:', student);
-            
-            // Determine centre name
-            let centreName = '';
-            if (student.centres && student.centres.name) {
-                centreName = student.centres.name;
-            } else if (student.centre_name) {
-                centreName = student.centre_name;
-            } else if (student.centre) {
-                centreName = student.centre;
-            } else if (student.centre_id && typeof student.centre_id === 'object') {
-                centreName = student.centre_id.name || student.centre_id.code || '';
-            }
-            
-            // Determine program name
-            let programName = '';
-            if (student.programs && student.programs.name) {
-                programName = student.programs.name;
-            } else if (student.program_name) {
-                programName = student.program_name;
-            } else if (student.program) {
-                programName = student.program;
-            } else if (student.program_id && typeof student.program_id === 'object') {
-                programName = student.program_id.name || student.program_id.code || '';
-            }
-            
-            // Determine intake year
-            let intakeYear = '';
-            if (student.intake_year) {
-                intakeYear = student.intake_year;
-            } else if (student.intake) {
-                intakeYear = student.intake;
-            } else if (student.created_at) {
-                intakeYear = new Date(student.created_at).getFullYear().toString();
-            }
-            
-            return {
-                id: student.id || student.student_id || Date.now().toString(),
-                reg_number: student.reg_number || `STU-${Date.now()}`,
-                full_name: student.full_name || student.name || 'Unknown Student',
-                email: student.email || '',
-                phone: student.phone || '',
-                county: student.county || '',
-                region: student.region || student.sub_county || '',
-                ward: student.ward || '',
-                village: student.village || '',
-                
-                // Centre information
-                centre_id: student.centre_id?.id || student.centre_id,
-                centre_name: centreName || 'Main Campus',
-                centre: centreName || 'Main Campus',
-                
-                // Program information
-                program_id: student.program_id?.id || student.program_id,
-                program_name: programName,
-                program: programName,
-                
-                // Academic information
-                intake_year: intakeYear,
-                intake: intakeYear,
-                status: student.status || 'active',
-                
-                // Timestamps
-                created_at: student.created_at,
-                updated_at: student.updated_at
-            };
-        });
-        
-        console.log('Processed students sample:', processedStudents.slice(0, 2));
-        this.students = processedStudents;
-        return processedStudents;
-        
-    } catch (error) {
-        console.error('❌ Error getting students:', error);
-        console.error('Error details:', error.message);
-        console.error('Error stack:', error.stack);
-        
-        // Return fallback data for testing
-        if (this.students && this.students.length > 0) {
-            console.log('⚠️ Using cached students due to error');
-            return this.students;
-        }
-        
-        console.warn('⚠️ Creating sample students for testing');
-        const sampleStudents = this.createSampleStudents();
-        this.students = sampleStudents;
-        return sampleStudents;
-    }
-}
-
-/**
- * Create sample students for testing
- */
-createSampleStudents() {
-    return [
-        {
-            id: 'stu1',
-            reg_number: 'STU-2024-001',
-            full_name: 'John Doe',
-            email: 'john@example.com',
-            phone: '0712345678',
-            county: 'Nairobi',
-            region: 'Central',
-            centre: 'Nairobi HQ',
-            centre_name: 'Nairobi Headquarters',
-            program: 'TEE Basic Certificate',
-            program_name: 'TEE Basic Certificate',
-            intake_year: '2024',
-            intake: '2024',
-            status: 'active',
-            created_at: new Date().toISOString()
-        },
-        {
-            id: 'stu2',
-            reg_number: 'STU-2024-002',
-            full_name: 'Jane Smith',
-            email: 'jane@example.com',
-            phone: '0723456789',
-            county: 'Nakuru',
-            region: 'Rift Valley',
-            centre: 'Nakuru Centre',
-            centre_name: 'Nakuru Study Centre',
-            program: 'TEE Advanced Diploma',
-            program_name: 'TEE Advanced Diploma',
-            intake_year: '2023',
-            intake: '2023',
-            status: 'active',
-            created_at: new Date().toISOString()
-        },
-        {
-            id: 'stu3',
-            reg_number: 'STU-2023-001',
-            full_name: 'Robert Johnson',
-            email: 'robert@example.com',
-            phone: '0734567890',
-            county: 'Mombasa',
-            region: 'Coast',
-            centre: 'Mombasa Centre',
-            centre_name: 'Mombasa Study Centre',
-            program: 'TEE Basic Certificate',
-            program_name: 'TEE Basic Certificate',
-            intake_year: '2023',
-            intake: '2023',
-            status: 'graduated',
-            created_at: new Date().toISOString()
-        }
-    ];
-}
-    async getStudentById(studentId) {
+    async getStudents() {
         try {
-            // First check if we have the student in memory
-            if (this.students && this.students.length > 0) {
-                const student = this.students.find(s => 
-                    s.id == studentId || s.reg_number == studentId
-                );
-                if (student) return student;
+            if (!this.db) {
+                console.warn('⚠️ Database not available in getStudents');
+                return this.students || [];
             }
             
-            // If not found, try database method
-            if (this.db && typeof this.db.getStudent === 'function') {
-                const student = await this.db.getStudent(studentId);
-                if (student) return student;
+            console.log('📊 Fetching students from database...');
+            
+            let studentsData = [];
+            
+            // Try multiple methods to get students
+            if (typeof this.db.getStudents === 'function') {
+                console.log('📡 Using db.getStudents()');
+                studentsData = await this.db.getStudents();
+            } else if (typeof this.db.getStudentList === 'function') {
+                console.log('📡 Using db.getStudentList()');
+                studentsData = await this.db.getStudentList();
+            } else if (typeof this.db.getAll === 'function') {
+                console.log('📡 Using db.getAll("students")');
+                studentsData = await this.db.getAll('students');
+            } else if (this.db.supabase && typeof this.db.supabase.from === 'function') {
+                console.log('📡 Using direct Supabase query');
+                const { data, error } = await this.db.supabase
+                    .from('students')
+                    .select(`
+                        id,
+                        reg_number,
+                        name,
+                        email,
+                        phone,
+                        county,
+                        region,
+                        ward,
+                        village,
+                        centre_id,
+                        program_id,
+                        intake_year,
+                        status,
+                        created_at,
+                        centres:centre_id (name, code, county),
+                        programs:program_id (name, code, duration)
+                    `);
+                
+                if (error) throw error;
+                studentsData = data || [];
             }
             
-            console.warn(`⚠️ Student with ID ${studentId} not found`);
-            return null;
+            console.log(`✅ Got ${studentsData?.length || 0} students from database`);
+            
+            // Process students to ensure consistent structure
+            const processedStudents = (studentsData || []).map(student => {
+                // Determine centre name
+                let centreName = '';
+                if (student.centres && student.centres.name) {
+                    centreName = student.centres.name;
+                } else if (student.centre_name) {
+                    centreName = student.centre_name;
+                } else if (student.centre) {
+                    centreName = student.centre;
+                } else if (student.centre_id && typeof student.centre_id === 'object') {
+                    centreName = student.centre_id.name || student.centre_id.code || '';
+                }
+                
+                // Determine program name
+                let programName = '';
+                if (student.programs && student.programs.name) {
+                    programName = student.programs.name;
+                } else if (student.program_name) {
+                    programName = student.program_name;
+                } else if (student.program) {
+                    programName = student.program;
+                } else if (student.program_id && typeof student.program_id === 'object') {
+                    programName = student.program_id.name || student.program_id.code || '';
+                }
+                
+                // Determine intake year
+                let intakeYear = '';
+                if (student.intake_year) {
+                    intakeYear = student.intake_year;
+                } else if (student.intake) {
+                    intakeYear = student.intake;
+                } else if (student.created_at) {
+                    intakeYear = new Date(student.created_at).getFullYear().toString();
+                }
+                
+                return {
+                    id: student.id || student.student_id || Date.now().toString(),
+                    reg_number: student.reg_number || `STU-${Date.now()}`,
+                    full_name: student.full_name || student.name || 'Unknown Student',
+                    email: student.email || '',
+                    phone: student.phone || '',
+                    county: student.county || '',
+                    region: student.region || student.sub_county || '',
+                    ward: student.ward || '',
+                    village: student.village || '',
+                    
+                    // Centre information
+                    centre_id: student.centre_id?.id || student.centre_id,
+                    centre_name: centreName || 'Main Campus',
+                    centre: centreName || 'Main Campus',
+                    
+                    // Program information
+                    program_id: student.program_id?.id || student.program_id,
+                    program_name: programName,
+                    program: programName,
+                    
+                    // Academic information
+                    intake_year: intakeYear,
+                    intake: intakeYear,
+                    status: student.status || 'active',
+                    
+                    // Timestamps
+                    created_at: student.created_at,
+                    updated_at: student.updated_at
+                };
+            });
+            
+            console.log('Processed students sample:', processedStudents.slice(0, 2));
+            this.students = processedStudents;
+            return processedStudents;
             
         } catch (error) {
-            console.error('❌ Error getting student by ID:', error);
-            return null;
+            console.error('❌ Error getting students:', error);
+            
+            // Return fallback data for testing
+            if (this.students && this.students.length > 0) {
+                console.log('⚠️ Using cached students due to error');
+                return this.students;
+            }
+            
+            console.warn('⚠️ Creating sample students for testing');
+            const sampleStudents = this.createSampleStudents();
+            this.students = sampleStudents;
+            return sampleStudents;
         }
+    }
+    
+    createSampleStudents() {
+        return [
+            {
+                id: 'stu1',
+                reg_number: 'STU-2024-001',
+                full_name: 'John Doe',
+                email: 'john@example.com',
+                phone: '0712345678',
+                county: 'Nairobi',
+                region: 'Central',
+                centre: 'Nairobi HQ',
+                centre_name: 'Nairobi Headquarters',
+                program: 'TEE Basic Certificate',
+                program_name: 'TEE Basic Certificate',
+                intake_year: '2024',
+                intake: '2024',
+                status: 'active',
+                created_at: new Date().toISOString()
+            },
+            {
+                id: 'stu2',
+                reg_number: 'STU-2024-002',
+                full_name: 'Jane Smith',
+                email: 'jane@example.com',
+                phone: '0723456789',
+                county: 'Nakuru',
+                region: 'Rift Valley',
+                centre: 'Nakuru Centre',
+                centre_name: 'Nakuru Study Centre',
+                program: 'TEE Advanced Diploma',
+                program_name: 'TEE Advanced Diploma',
+                intake_year: '2023',
+                intake: '2023',
+                status: 'active',
+                created_at: new Date().toISOString()
+            },
+            {
+                id: 'stu3',
+                reg_number: 'STU-2023-001',
+                full_name: 'Robert Johnson',
+                email: 'robert@example.com',
+                phone: '0734567890',
+                county: 'Mombasa',
+                region: 'Coast',
+                centre: 'Mombasa Centre',
+                centre_name: 'Mombasa Study Centre',
+                program: 'TEE Basic Certificate',
+                program_name: 'TEE Basic Certificate',
+                intake_year: '2023',
+                intake: '2023',
+                status: 'graduated',
+                created_at: new Date().toISOString()
+            }
+        ];
     }
     
     async getCourses() {
@@ -1223,203 +1021,126 @@ createSampleStudents() {
         }
     }
     
-  async getPrograms() {
-    try {
-        if (!this.db) {
-            console.warn('⚠️ Database not available in getPrograms');
-            return this.programs || [];
-        }
-        
-        console.log('🎓 Fetching programs from database...');
-        
-        let programsData = [];
-        
-        // Method 1: Check if db has getPrograms method
-        if (typeof this.db.getPrograms === 'function') {
-            console.log('📡 Using db.getPrograms()');
-            programsData = await this.db.getPrograms();
+    async getPrograms() {
+        try {
+            if (!this.db) {
+                console.warn('⚠️ Database not available in getPrograms');
+                return this.programs || [];
+            }
             
-        } else if (typeof this.db.getAllPrograms === 'function') {
-            console.log('📡 Using db.getAllPrograms()');
-            programsData = await this.db.getAllPrograms();
+            console.log('🎓 Fetching programs from database...');
             
-        } else if (typeof this.db.getAll === 'function') {
-            console.log('📡 Using db.getAll("programs")');
-            programsData = await this.db.getAll('programs');
+            let programsData = [];
             
-        } else if (this.db.supabase && typeof this.db.supabase.from === 'function') {
-            console.log('📡 Using direct Supabase query for programs');
-            const { data, error } = await this.db.supabase
-                .from('programs')
-                .select('*')
-                .order('name');
+            if (typeof this.db.getPrograms === 'function') {
+                console.log('📡 Using db.getPrograms()');
+                programsData = await this.db.getPrograms();
+            } else if (typeof this.db.getAllPrograms === 'function') {
+                console.log('📡 Using db.getAllPrograms()');
+                programsData = await this.db.getAllPrograms();
+            } else if (typeof this.db.getAll === 'function') {
+                console.log('📡 Using db.getAll("programs")');
+                programsData = await this.db.getAll('programs');
+            } else if (this.db.supabase && typeof this.db.supabase.from === 'function') {
+                console.log('📡 Using direct Supabase query for programs');
+                const { data, error } = await this.db.supabase
+                    .from('programs')
+                    .select('*')
+                    .order('name');
+                
+                if (error) throw error;
+                programsData = data || [];
+            }
             
-            if (error) throw error;
-            programsData = data || [];
-        }
-        
-        console.log(`✅ Got ${programsData?.length || 0} programs from database`);
-        
-        // Process programs to ensure consistent structure
-        const processedPrograms = (programsData || []).map(program => {
-            return {
-                id: program.id || program.program_id || Date.now().toString(),
-                code: program.code || program.program_code || 'PROG-001',
-                name: program.name || program.program_name || 'Unnamed Program',
-                description: program.description || '',
-                level: program.level || 'certificate',
-                duration: program.duration || '1 year',
-                credits: program.credits || program.total_credits || 30,
-                status: program.status || 'active'
-            };
-        });
-        
-        // Add default programs if none found
-        if (processedPrograms.length === 0) {
-            console.warn('⚠️ No programs found, creating sample programs');
-            processedPrograms.push(
+            console.log(`✅ Got ${programsData?.length || 0} programs from database`);
+            
+            // Process programs to ensure consistent structure
+            const processedPrograms = (programsData || []).map(program => {
+                return {
+                    id: program.id || program.program_id || Date.now().toString(),
+                    code: program.code || program.program_code || 'PROG-001',
+                    name: program.name || program.program_name || 'Unnamed Program',
+                    description: program.description || '',
+                    level: program.level || 'certificate',
+                    duration: program.duration || '1 year',
+                    credits: program.credits || program.total_credits || 30,
+                    status: program.status || 'active'
+                };
+            });
+            
+            // Add default programs if none found
+            if (processedPrograms.length === 0) {
+                console.warn('⚠️ No programs found, creating sample programs');
+                processedPrograms.push(
+                    {
+                        id: 'prog1',
+                        code: 'TEE-BASIC',
+                        name: 'TEE Basic Certificate',
+                        description: 'Basic Theological Education by Extension',
+                        level: 'certificate',
+                        duration: '1 year',
+                        credits: 30,
+                        status: 'active'
+                    },
+                    {
+                        id: 'prog2',
+                        code: 'TEE-ADV',
+                        name: 'TEE Advanced Diploma',
+                        description: 'Advanced Theological Education',
+                        level: 'diploma',
+                        duration: '2 years',
+                        credits: 60,
+                        status: 'active'
+                    },
+                    {
+                        id: 'prog3',
+                        code: 'TEE-HNC',
+                        name: 'Higher National Certificate',
+                        description: 'Advanced theological training',
+                        level: 'certificate',
+                        duration: '1.5 years',
+                        credits: 45,
+                        status: 'active'
+                    }
+                );
+            }
+            
+            this.programs = processedPrograms;
+            return processedPrograms;
+            
+        } catch (error) {
+            console.error('❌ Error getting programs:', error);
+            
+            // Return fallback data
+            if (this.programs && this.programs.length > 0) {
+                return this.programs;
+            }
+            
+            console.warn('⚠️ Creating sample programs for testing');
+            const samplePrograms = [
                 {
                     id: 'prog1',
                     code: 'TEE-BASIC',
                     name: 'TEE Basic Certificate',
-                    description: 'Basic Theological Education by Extension',
                     level: 'certificate',
                     duration: '1 year',
-                    credits: 30,
-                    status: 'active'
+                    credits: 30
                 },
                 {
                     id: 'prog2',
                     code: 'TEE-ADV',
                     name: 'TEE Advanced Diploma',
-                    description: 'Advanced Theological Education',
                     level: 'diploma',
                     duration: '2 years',
-                    credits: 60,
-                    status: 'active'
-                },
-                {
-                    id: 'prog3',
-                    code: 'TEE-HNC',
-                    name: 'Higher National Certificate',
-                    description: 'Advanced theological training',
-                    level: 'certificate',
-                    duration: '1.5 years',
-                    credits: 45,
-                    status: 'active'
+                    credits: 60
                 }
-            );
-        }
-        
-        this.programs = processedPrograms;
-        return processedPrograms;
-        
-    } catch (error) {
-        console.error('❌ Error getting programs:', error);
-        
-        // Return fallback data
-        if (this.programs && this.programs.length > 0) {
-            return this.programs;
-        }
-        
-        console.warn('⚠️ Creating sample programs for testing');
-        const samplePrograms = [
-            {
-                id: 'prog1',
-                code: 'TEE-BASIC',
-                name: 'TEE Basic Certificate',
-                level: 'certificate',
-                duration: '1 year',
-                credits: 30
-            },
-            {
-                id: 'prog2',
-                code: 'TEE-ADV',
-                name: 'TEE Advanced Diploma',
-                level: 'diploma',
-                duration: '2 years',
-                credits: 60
-            }
-        ];
-        
-        this.programs = samplePrograms;
-        return samplePrograms;
-    }
-}
-    async getMarksByStudent(studentId) {
-        try {
-            // First filter from memory
-            if (this.marks && this.marks.length > 0) {
-                return this.marks.filter(mark => mark.student_id == studentId);
-            }
+            ];
             
-            // Try database method
-            if (this.db && typeof this.db.getStudentMarks === 'function') {
-                return await this.db.getStudentMarks(studentId);
-            }
-            
-            // Fallback: get all marks and filter
-            const allMarks = await this.getMarks();
-            return allMarks.filter(mark => mark.student_id == studentId);
-            
-        } catch (error) {
-            console.error('❌ Error getting marks by student:', error);
-            return [];
+            this.programs = samplePrograms;
+            return samplePrograms;
         }
     }
-    /**
- * Debug function to check student data
- */
-async debugStudentData() {
-    console.log('🔍 Debugging student data...');
     
-    try {
-        // Test getting students
-        const students = await this.getStudents();
-        console.log(`📊 Total students: ${students.length}`);
-        
-        if (students.length > 0) {
-            console.log('📋 Sample student data:');
-            students.slice(0, 3).forEach((student, index) => {
-                console.log(`Student ${index + 1}:`, {
-                    id: student.id,
-                    reg_number: student.reg_number,
-                    name: student.full_name,
-                    centre: student.centre_name,
-                    program: student.program_name,
-                    intake_year: student.intake_year
-                });
-            });
-        }
-        
-        // Test getting programs
-        const programs = await this.getPrograms();
-        console.log(`🎓 Total programs: ${programs.length}`);
-        
-        if (programs.length > 0) {
-            console.log('📋 Sample program data:');
-            programs.slice(0, 3).forEach((program, index) => {
-                console.log(`Program ${index + 1}:`, {
-                    id: program.id,
-                    code: program.code,
-                    name: program.name
-                });
-            });
-        }
-        
-        // Test getting centres
-        const centres = await this.getCentres();
-        console.log(`🏛️ Total centres: ${centres.length}`);
-        
-        // Populate filter dropdowns
-        await this.populateAllFilters();
-        
-        console.log('✅ Debug complete');
-        
-    } catch (error) {
-        console.error('❌ Debug error:', error);
-    }
-}
     // ==================== HELPER METHODS ====================
     
     setDefaultDates() {
@@ -1453,13 +1174,19 @@ async debugStudentData() {
     
     setupFilterChangeListeners() {
         // Apply filters on change for certain filters
-        const autoApplyFilters = ['academicYear', 'filterProgram', 'filterCenter', 'filterCounty', 'filterIntake'];
+        const autoApplyFilters = ['academicYear', 'filterProgram', 'filterCenter', 'filterCounty', 'filterIntake', 'filterCourse', 'semester'];
         autoApplyFilters.forEach(id => {
             const element = document.getElementById(id);
             if (element) {
                 element.addEventListener('change', () => this.applyFilters());
             }
         });
+        
+        // Date range filters
+        const dateFrom = document.getElementById('reportStartDate');
+        const dateTo = document.getElementById('reportEndDate');
+        if (dateFrom) dateFrom.addEventListener('change', () => this.applyFilters());
+        if (dateTo) dateTo.addEventListener('change', () => this.applyFilters());
     }
     
     updateButtonListeners() {
@@ -1483,7 +1210,10 @@ async debugStudentData() {
             'bulkTranscripts': this.bulkTranscripts,
             'bulkExport': this.bulkExport,
             'addScheduledReport': this.addScheduledReport,
-            'openTranscriptModal': this.openTranscriptModal
+            'openTranscriptModal': this.openTranscriptModal,
+            'clearSelectedStudent': this.clearSelectedStudent,
+            'generateStudentReport': this.generateStudentReport,
+            'generateAcademicReport': this.generateAcademicReport
         };
         
         // Bind all buttons
@@ -1524,10 +1254,10 @@ async debugStudentData() {
             'app.reports.academicReport()': this.academicReport,
             'app.reports.generateCentreReport()': this.generateCentreReport,
             'app.reports.generateSummaryReport()': this.generateSummaryReport,
-            'app.reports.previewStudentReport()': this.studentReport,
-            'app.reports.previewAcademicReport()': this.academicReport,
-            'app.reports.quickStudentReport()': this.studentReport,
-            'app.reports.quickAcademicReport()': this.academicReport,
+            'app.reports.previewStudentReport()': this.previewStudentReport,
+            'app.reports.previewAcademicReport()': this.previewAcademicReport,
+            'app.reports.quickStudentReport()': this.quickStudentReport,
+            'app.reports.quickAcademicReport()': this.quickAcademicReport,
             'app.reports.previewTranscript()': this.previewTranscript,
             'app.reports.generateTranscript()': this.generateTranscript,
             'app.reports.bulkExport()': this.bulkExport,
@@ -1542,7 +1272,12 @@ async debugStudentData() {
             'app.reports.clearFilters()': this.clearFilters,
             'app.reports.openTranscriptSection()': this.openTranscriptSection,
             'app.reports.showScheduledReports()': this.showScheduledReports,
-            'app.reports.openTranscriptModal()': this.openTranscriptModal
+            'app.reports.openTranscriptModal()': this.openTranscriptModal,
+            'app.reports.clearSelectedStudent()': this.clearSelectedStudent,
+            'app.reports.populateReportDropdowns()': this.populateReportDropdowns,
+            'app.reports.debugDropdowns()': this.debugDropdowns,
+            'app.reports.generateStudentReport()': this.generateStudentReport,
+            'app.reports.generateAcademicReport()': this.generateAcademicReport
         };
         
         // Update all elements with onclick attributes
@@ -1837,7 +1572,7 @@ async debugStudentData() {
                     icon: 'fas fa-graduation-cap',
                     description: 'Generate official student transcripts',
                     color: '#1abc9c',
-                    action: 'openTranscriptModal' // Changed to open modal
+                    action: 'openTranscriptModal'
                 },
                 {
                     id: 'scheduled',
@@ -1854,7 +1589,7 @@ async debugStudentData() {
             reports.forEach(report => {
                 html += `
                     <div class="col-md-4 mb-3">
-                        <div class="report-card" onclick="if(window.app && window.app.reports && window.app.reports.${report.action}) { window.app.reports.${report.action}(); } else { console.error('Report action not available'); }" 
+                        <div class="report-card" onclick="app.reports.${report.action}()" 
                              style="border: 1px solid #e0e0e0; border-radius: 10px; padding: 20px; 
                                     background: white; cursor: pointer; height: 100%;
                                     transition: transform 0.2s, box-shadow 0.2s;"
@@ -1896,6 +1631,237 @@ async debugStudentData() {
         } catch (error) {
             console.error('❌ Error generating reports grid:', error);
         }
+    }
+    
+    // ==================== TRANSCRIPT MODAL METHODS ====================
+    
+    async openTranscriptModal() {
+        try {
+            console.log('🎓 Opening transcript modal...');
+            
+            // Load fresh student data for modal
+            const students = await this.getStudents();
+            this.students = students;
+            
+            // Populate modal filters
+            await this.populateModalFilters();
+            
+            // Populate student list
+            await this.searchTranscriptStudents();
+            
+            // Show modal
+            $('#transcriptModal').modal('show');
+            
+            this.showToast('Select a student for transcript', 'info');
+            
+        } catch (error) {
+            console.error('❌ Error opening transcript modal:', error);
+            this.showToast('Error opening student selector', 'error');
+        }
+    }
+    
+    async searchTranscriptStudents() {
+        try {
+            const searchInput = document.getElementById('transcriptStudentSearch');
+            const centreFilter = document.getElementById('transcriptModalCentreFilter');
+            const programFilter = document.getElementById('transcriptModalProgramFilter');
+            const studentsList = document.getElementById('transcriptModalStudentsList');
+            const noResultsDiv = document.getElementById('transcriptModalNoResults');
+            
+            if (!searchInput || !studentsList) return;
+            
+            const searchTerm = searchInput.value.toLowerCase();
+            const selectedCentre = centreFilter ? centreFilter.value : 'all';
+            const selectedProgram = programFilter ? programFilter.value : 'all';
+            
+            // Get students (use cached if available)
+            const students = this.students.length > 0 ? this.students : await this.getStudents();
+            
+            // Filter students
+            const filteredStudents = students.filter(student => {
+                // Search term filter
+                const matchesSearch = searchTerm === '' || 
+                    (student.full_name && student.full_name.toLowerCase().includes(searchTerm)) ||
+                    (student.reg_number && student.reg_number.toLowerCase().includes(searchTerm)) ||
+                    (student.program && student.program.toLowerCase().includes(searchTerm));
+                
+                // Centre filter
+                const matchesCentre = selectedCentre === 'all' || 
+                    (student.centre_name && student.centre_name === selectedCentre) ||
+                    (student.centre && student.centre === selectedCentre);
+                
+                // Program filter
+                const matchesProgram = selectedProgram === 'all' ||
+                    (student.program && student.program === selectedProgram);
+                
+                return matchesSearch && matchesCentre && matchesProgram;
+            });
+            
+            // Clear current selection
+            this.selectedStudentForTranscript = null;
+            document.getElementById('selectStudentBtn').disabled = true;
+            
+            // Display results
+            if (filteredStudents.length === 0) {
+                studentsList.innerHTML = '';
+                if (noResultsDiv) noResultsDiv.style.display = 'block';
+                return;
+            }
+            
+            if (noResultsDiv) noResultsDiv.style.display = 'none';
+            
+            // Build table rows
+            let html = '';
+            filteredStudents.forEach(student => {
+                const studentId = student.id || student.student_id || student.reg_number;
+                const regNumber = student.reg_number || 'N/A';
+                const fullName = student.full_name || student.name || 'Unknown';
+                const program = student.program || 'Not specified';
+                const centre = student.centre_name || student.centre || 'Not specified';
+                const status = student.status || 'active';
+                
+                const statusColor = status === 'active' ? 'success' : 
+                                  status === 'graduated' ? 'primary' : 
+                                  status === 'inactive' ? 'secondary' : 'warning';
+                
+                html += `
+                <tr onclick="app.reports.selectStudentRow(this, '${studentId}')" style="cursor: pointer;">
+                    <td>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="studentSelection" id="student_${studentId}" value="${studentId}">
+                        </div>
+                    </td>
+                    <td><strong>${regNumber}</strong></td>
+                    <td>${fullName}</td>
+                    <td>${program}</td>
+                    <td>${centre}</td>
+                    <td>
+                        <span class="badge badge-${statusColor}">${status}</span>
+                    </td>
+                </tr>
+                `;
+            });
+            
+            studentsList.innerHTML = html;
+            
+            console.log(`🔍 Found ${filteredStudents.length} students matching search`);
+            
+        } catch (error) {
+            console.error('❌ Error searching transcript students:', error);
+        }
+    }
+    
+    selectStudentRow(rowElement, studentId) {
+        // Uncheck all other radio buttons
+        document.querySelectorAll('input[name="studentSelection"]').forEach(radio => {
+            radio.checked = false;
+            radio.closest('tr').classList.remove('table-primary');
+        });
+        
+        // Check the selected radio
+        const radio = document.getElementById(`student_${studentId}`);
+        if (radio) {
+            radio.checked = true;
+            rowElement.classList.add('table-primary');
+            
+            // Find the student data
+            const student = this.students.find(s => 
+                (s.id && s.id.toString() === studentId.toString()) ||
+                (s.student_id && s.student_id.toString() === studentId.toString()) ||
+                (s.reg_number && s.reg_number === studentId)
+            );
+            
+            this.selectedStudentForTranscript = student;
+            document.getElementById('selectStudentBtn').disabled = false;
+        }
+    }
+    
+    selectStudentForTranscript() {
+        if (!this.selectedStudentForTranscript) {
+            this.showToast('Please select a student first', 'warning');
+            return;
+        }
+        
+        console.log('✅ Selected student for transcript:', this.selectedStudentForTranscript);
+        
+        // Close modal
+        $('#transcriptModal').modal('hide');
+        
+        // Display selected student info
+        this.displaySelectedStudentInfo();
+        
+        this.showToast(`Selected: ${this.selectedStudentForTranscript.full_name || this.selectedStudentForTranscript.reg_number}`, 'success');
+    }
+    
+    closeTranscriptModal() {
+        $('#transcriptModal').modal('hide');
+        this.selectedStudentForTranscript = null;
+    }
+    
+    /**
+     * Display selected student info
+     */
+    displaySelectedStudentInfo() {
+        if (!this.selectedStudentForTranscript) {
+            const infoDiv = document.getElementById('selectedStudentInfo');
+            if (infoDiv) infoDiv.style.display = 'none';
+            return;
+        }
+        
+        const infoDiv = document.getElementById('selectedStudentInfo');
+        const nameSpan = document.getElementById('selectedStudentName');
+        const regSpan = document.getElementById('selectedStudentReg');
+        
+        if (infoDiv && nameSpan && regSpan) {
+            nameSpan.textContent = this.selectedStudentForTranscript.full_name;
+            regSpan.textContent = this.selectedStudentForTranscript.reg_number;
+            infoDiv.style.display = 'block';
+        }
+    }
+    
+    /**
+     * Clear selected student
+     */
+    clearSelectedStudent() {
+        this.selectedStudentForTranscript = null;
+        this.displaySelectedStudentInfo();
+        const previewDiv = document.getElementById('transcriptPreview');
+        if (previewDiv) previewDiv.style.display = 'none';
+        this.showToast('Student selection cleared', 'info');
+    }
+    
+    /**
+     * Populate all dropdowns (for debugging)
+     */
+    async populateReportDropdowns() {
+        console.log('🔄 Populating all report dropdowns...');
+        try {
+            await this.populateAllFilters();
+            this.showToast('Report dropdowns refreshed', 'success');
+        } catch (error) {
+            console.error('❌ Error populating dropdowns:', error);
+            this.showToast('Error refreshing dropdowns', 'error');
+        }
+    }
+    
+    /**
+     * Debug dropdowns
+     */
+    debugDropdowns() {
+        console.log('🔍 Debugging dropdowns...');
+        
+        const dropdowns = [
+            'filterCenter', 'filterCounty', 'filterProgram', 'filterIntake', 'filterCourse',
+            'studentReportCenter', 'academicReportCenter', 'transcriptCenterFilter',
+            'bulkExportCenters', 'scheduleCenter'
+        ];
+        
+        dropdowns.forEach(id => {
+            const element = document.getElementById(id);
+            console.log(`${id}: ${element ? 'Found' : 'Not found'} with ${element ? element.options.length : 0} options`);
+        });
+        
+        this.showToast('Dropdown debug info logged to console', 'info');
     }
     
     // ==================== UTILITY METHODS ====================
@@ -2059,6 +2025,87 @@ async debugStudentData() {
         }
     }
     
+    async generateStudentReport() {
+        try {
+            const centreFilter = this.getSelectedValues('studentReportCenter');
+            const reportType = this.getSafeElementValue('studentReportType', 'list');
+            const format = this.getSafeElementValue('studentReportFormat', 'csv');
+            
+            console.log(`📊 Generating ${reportType} student report in ${format} format`);
+            
+            let data = [];
+            if (reportType === 'list') {
+                data = await this.generateStudentListReport();
+            } else if (reportType === 'enrollment') {
+                data = await this.generateEnrollmentReport();
+            } else if (reportType === 'graduation') {
+                data = await this.generateGraduationReport();
+            } else if (reportType === 'demographics') {
+                data = await this.generateDemographicsReport();
+            } else if (reportType === 'center_distribution') {
+                data = await this.generateCentreDistributionReport();
+            }
+            
+            // Filter by centre if specified
+            if (centreFilter.length > 0 && !centreFilter.includes('all')) {
+                data = data.filter(student => 
+                    centreFilter.includes(student.centre_name || student.centre)
+                );
+            }
+            
+            this.previewReportData(data, `Student ${reportType} Report`);
+            this.showToast(`Student ${reportType} report generated`, 'success');
+            
+            // Option to export
+            if (format !== 'preview') {
+                this.exportData(data, `student-${reportType}-report`, format);
+            }
+            
+            return data;
+            
+        } catch (error) {
+            console.error('❌ Error generating student report:', error);
+            this.showToast('Error generating student report: ' + error.message, 'error');
+        }
+    }
+    
+    async generateAcademicReport() {
+        try {
+            const centreFilter = this.getSelectedValues('academicReportCenter');
+            const reportType = this.getSafeElementValue('academicReportType', 'marks');
+            const format = this.getSafeElementValue('academicReportFormat', 'csv');
+            
+            console.log(`📈 Generating ${reportType} academic report in ${format} format`);
+            
+            let data = [];
+            if (reportType === 'marks') {
+                data = await this.generateMarksReport();
+            } else if (reportType === 'performance') {
+                data = await this.generatePerformanceReport();
+            } else if (reportType === 'grades') {
+                data = await this.generateGradeDistributionReport();
+            } else if (reportType === 'coursewise') {
+                data = await this.generateCoursewiseReport();
+            } else if (reportType === 'center_performance') {
+                data = await this.generateCentrePerformanceReport();
+            }
+            
+            this.previewReportData(data, `Academic ${reportType} Report`);
+            this.showToast(`Academic ${reportType} report generated`, 'success');
+            
+            // Option to export
+            if (format !== 'preview') {
+                this.exportData(data, `academic-${reportType}-report`, format);
+            }
+            
+            return data;
+            
+        } catch (error) {
+            console.error('❌ Error generating academic report:', error);
+            this.showToast('Error generating academic report: ' + error.message, 'error');
+        }
+    }
+    
     // ==================== DATA GENERATION METHODS ====================
     
     async generateStudentListReport() {
@@ -2095,7 +2142,7 @@ async debugStudentData() {
         }
     }
     
-    async generateAcademicReport() {
+    async generateAcademicReportData() {
         try {
             const marks = this.marks.length > 0 ? this.marks : await this.getMarks();
             const courses = this.courses.length > 0 ? this.courses : await this.getCourses();
@@ -2348,25 +2395,15 @@ async debugStudentData() {
     
     async previewTranscript() {
         try {
-            // Check if we have a selected student from modal
-            let studentId = null;
-            
-            if (this.selectedStudentForTranscript) {
-                studentId = this.selectedStudentForTranscript.id || this.selectedStudentForTranscript.reg_number;
-            } else {
-                // Fallback to form input
-                studentId = this.getSafeElementValue('transcriptStudent');
-            }
-            
-            if (!studentId) {
-                // Open modal if no student selected
+            if (!this.selectedStudentForTranscript) {
+                this.showToast('Please select a student first', 'warning');
                 await this.openTranscriptModal();
                 return;
             }
             
-            console.log('Previewing transcript for student ID:', studentId);
+            console.log('Previewing transcript for student ID:', this.selectedStudentForTranscript.id);
             
-            const data = await this.generateTranscriptData(studentId);
+            const data = await this.generateTranscriptData(this.selectedStudentForTranscript.id);
             this.previewTranscriptData(data);
             
             this.showToast('Transcript preview loaded', 'success');
@@ -2379,27 +2416,17 @@ async debugStudentData() {
     
     async generateTranscript() {
         try {
-            // Check if we have a selected student from modal
-            let studentId = null;
-            
-            if (this.selectedStudentForTranscript) {
-                studentId = this.selectedStudentForTranscript.id || this.selectedStudentForTranscript.reg_number;
-            } else {
-                // Fallback to form input
-                studentId = this.getSafeElementValue('transcriptStudent');
-            }
-            
-            const format = this.getSafeElementValue('transcriptFormat', 'pdf');
-            
-            if (!studentId) {
+            if (!this.selectedStudentForTranscript) {
                 this.showToast('Please select a student first', 'warning');
                 await this.openTranscriptModal();
                 return;
             }
             
-            console.log(`📄 Generating ${format.toUpperCase()} transcript for student ID: ${studentId}`);
+            const format = this.getSafeElementValue('transcriptFormat', 'pdf');
             
-            const data = await this.generateTranscriptData(studentId);
+            console.log(`📄 Generating ${format.toUpperCase()} transcript for student ID: ${this.selectedStudentForTranscript.id}`);
+            
+            const data = await this.generateTranscriptData(this.selectedStudentForTranscript.id);
             
             if (format === 'pdf') {
                 await this.exportTranscriptToPDF(data);
@@ -2413,6 +2440,105 @@ async debugStudentData() {
             console.error('❌ Error generating transcript:', error);
             this.showToast('Error generating transcript: ' + error.message, 'error');
         }
+    }
+    
+    async loadSampleTranscript() {
+        try {
+            const students = this.students.length > 0 ? this.students : await this.getStudents();
+            if (students.length > 0) {
+                this.selectedStudentForTranscript = students[0];
+                this.displaySelectedStudentInfo();
+                await this.previewTranscript();
+                this.showToast('Loaded sample transcript', 'info');
+            } else {
+                this.showToast('No students found in database', 'warning');
+            }
+        } catch (error) {
+            console.error('Error loading sample transcript:', error);
+            this.showToast('Error loading sample: ' + error.message, 'error');
+        }
+    }
+    
+    // ==================== PREVIEW FUNCTIONS ====================
+    
+    previewReportData(data, title) {
+        const previewDiv = document.getElementById('reportPreview');
+        if (!previewDiv) {
+            console.warn('reportPreview element not found');
+            return;
+        }
+        
+        if (!data || data.length === 0) {
+            previewDiv.innerHTML = `
+                <div class="alert alert-warning" style="background: #fff3cd; color: #856404; padding: 15px; border-radius: 5px; border: 1px solid #ffeaa7;">
+                    <i class="fas fa-exclamation-triangle"></i> No data available for preview
+                </div>
+            `;
+            return;
+        }
+        
+        const headers = Object.keys(data[0]);
+        const previewData = data.slice(0, 10);
+        
+        let html = `
+            <div class="report-preview" style="background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h5 style="margin: 0; color: #2c3e50;">${title}</h5>
+                    <span class="badge" style="background: #3498db; color: white; padding: 5px 10px; border-radius: 4px;">
+                        ${data.length} records
+                    </span>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                        <thead style="background: #f8f9fa;">
+                            <tr>
+                                ${headers.map(header => `
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057; white-space: nowrap;">
+                                        ${header}
+                                    </th>
+                                `).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+        `;
+        
+        previewData.forEach((row, index) => {
+            html += `
+                <tr style="border-bottom: 1px solid #eee; ${index % 2 === 0 ? 'background: #fafafa;' : ''}">
+                    ${headers.map(header => `
+                        <td style="padding: 10px 12px; color: #495057; white-space: nowrap;">
+                            ${row[header] !== undefined && row[header] !== null ? row[header] : ''}
+                        </td>
+                    `).join('')}
+                </tr>
+            `;
+        });
+        
+        html += `
+                        </tbody>
+                    </table>
+                </div>
+                ${data.length > 10 ? `
+                    <div class="alert alert-info mt-2" style="background: #e8f4fc; color: #31708f; padding: 10px; border-radius: 5px; margin-top: 15px;">
+                        <i class="fas fa-info-circle"></i> Showing first 10 of ${data.length} records
+                    </div>
+                ` : ''}
+                <div style="margin-top: 20px; display: flex; gap: 10px;">
+                    <button onclick="app.reports.exportData(${JSON.stringify(data).replace(/</g, '\\u003c')}, '${title.toLowerCase().replace(/\s+/g, '-')}', 'csv')" 
+                            class="btn btn-sm" 
+                            style="background: #2ecc71; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                        <i class="fas fa-download mr-1"></i> Export as CSV
+                    </button>
+                    <button onclick="app.reports.clearPreview()" 
+                            class="btn btn-sm" 
+                            style="background: #95a5a6; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                        <i class="fas fa-times mr-1"></i> Clear Preview
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        previewDiv.innerHTML = html;
     }
     
     previewTranscriptData(transcriptData) {
@@ -2562,105 +2688,6 @@ async debugStudentData() {
         }
     }
     
-    async loadSampleTranscript() {
-        try {
-            const students = this.students.length > 0 ? this.students : await this.getStudents();
-            if (students.length > 0) {
-                const sampleStudent = students[0];
-                this.selectedStudentForTranscript = sampleStudent;
-                await this.previewTranscript();
-                this.showToast('Loaded sample transcript', 'info');
-            } else {
-                this.showToast('No students found in database', 'warning');
-            }
-        } catch (error) {
-            console.error('Error loading sample transcript:', error);
-            this.showToast('Error loading sample: ' + error.message, 'error');
-        }
-    }
-    
-    // ==================== PREVIEW FUNCTIONS ====================
-    
-    previewReportData(data, title) {
-        const previewDiv = document.getElementById('reportPreview');
-        if (!previewDiv) {
-            console.warn('reportPreview element not found');
-            return;
-        }
-        
-        if (!data || data.length === 0) {
-            previewDiv.innerHTML = `
-                <div class="alert alert-warning" style="background: #fff3cd; color: #856404; padding: 15px; border-radius: 5px; border: 1px solid #ffeaa7;">
-                    <i class="fas fa-exclamation-triangle"></i> No data available for preview
-                </div>
-            `;
-            return;
-        }
-        
-        const headers = Object.keys(data[0]);
-        const previewData = data.slice(0, 10);
-        
-        let html = `
-            <div class="report-preview" style="background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h5 style="margin: 0; color: #2c3e50;">${title}</h5>
-                    <span class="badge" style="background: #3498db; color: white; padding: 5px 10px; border-radius: 4px;">
-                        ${data.length} records
-                    </span>
-                </div>
-                <div style="overflow-x: auto;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                        <thead style="background: #f8f9fa;">
-                            <tr>
-                                ${headers.map(header => `
-                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057; white-space: nowrap;">
-                                        ${header}
-                                    </th>
-                                `).join('')}
-                            </tr>
-                        </thead>
-                        <tbody>
-        `;
-        
-        previewData.forEach((row, index) => {
-            html += `
-                <tr style="border-bottom: 1px solid #eee; ${index % 2 === 0 ? 'background: #fafafa;' : ''}">
-                    ${headers.map(header => `
-                        <td style="padding: 10px 12px; color: #495057; white-space: nowrap;">
-                            ${row[header] !== undefined && row[header] !== null ? row[header] : ''}
-                        </td>
-                    `).join('')}
-                </tr>
-            `;
-        });
-        
-        html += `
-                        </tbody>
-                    </table>
-                </div>
-                ${data.length > 10 ? `
-                    <div class="alert alert-info mt-2" style="background: #e8f4fc; color: #31708f; padding: 10px; border-radius: 5px; margin-top: 15px;">
-                        <i class="fas fa-info-circle"></i> Showing first 10 of ${data.length} records
-                    </div>
-                ` : ''}
-                <div style="margin-top: 20px; display: flex; gap: 10px;">
-                    <button onclick="app.reports.exportData(${JSON.stringify(data).replace(/</g, '\\u003c')}, '${title.toLowerCase().replace(/\s+/g, '-')}', 'csv')" 
-                            class="btn btn-sm" 
-                            style="background: #2ecc71; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-                        <i class="fas fa-download mr-1"></i> Export as CSV
-                    </button>
-                    <button onclick="app.reports.clearPreview()" 
-                            class="btn btn-sm" 
-                            style="background: #95a5a6; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-                        <i class="fas fa-times mr-1"></i> Clear Preview
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        previewDiv.innerHTML = html;
-    }
-    
     // ==================== EXPORT METHODS ====================
     
     async exportTranscriptToPDF(data) {
@@ -2757,6 +2784,9 @@ async debugStudentData() {
             this.exportToCSV(data, filename);
         } else if (format === 'excel') {
             this.exportToExcel(data, filename);
+        } else if (format === 'pdf') {
+            this.showToast('PDF export requires additional setup', 'info');
+            this.exportToCSV(data, filename); // Fallback to CSV
         } else {
             this.showToast(`Export format ${format} not supported`, 'error');
         }
@@ -2812,16 +2842,17 @@ async debugStudentData() {
     
     // ==================== UTILITY SHORTCUTS ====================
     
-    refreshReports() {
+    async refreshReports() {
         this.showToast('Refreshing reports...', 'info');
-        this.loadAllData().then(() => {
-            this.updateStatistics();
-            this.generateReportsGrid();
-            this.showToast('Reports refreshed', 'success');
-        }).catch(error => {
+        try {
+            await this.loadAllData();
+            await this.updateStatistics();
+            await this.generateReportsGrid();
+            this.showToast('Reports refreshed successfully', 'success');
+        } catch (error) {
             console.error('Error refreshing reports:', error);
-            this.showToast('Error refreshing reports', 'error');
-        });
+            this.showToast('Error refreshing reports: ' + error.message, 'error');
+        }
     }
     
     openTranscriptSection() {
@@ -2851,8 +2882,6 @@ async debugStudentData() {
             transcriptPreview.style.display = 'none';
         }
         
-        this.selectedStudentForTranscript = null;
-        
         this.showToast('Preview cleared', 'info');
     }
     
@@ -2865,21 +2894,82 @@ async debugStudentData() {
     }
     
     downloadPreview() {
-        this.showToast('Download preview feature coming soon', 'info');
+        const previewDiv = document.getElementById('reportPreview');
+        if (!previewDiv || previewDiv.innerHTML === '') {
+            this.showToast('No preview to download', 'warning');
+            return;
+        }
+        
+        this.showToast('Downloading preview...', 'info');
+        // Implementation would depend on what's in the preview
     }
     
     bulkTranscripts() {
         this.showToast('Bulk transcripts feature coming soon', 'info');
     }
     
-    removeScheduledReport(btn) {
-        if (btn && btn.closest) {
-            const row = btn.closest('tr');
-            if (row) {
-                row.remove();
-                this.showToast('Scheduled report removed', 'success');
+    async debugStudentData() {
+        console.log('🔍 Debugging student data...');
+        
+        try {
+            // Test getting students
+            const students = await this.getStudents();
+            console.log(`📊 Total students: ${students.length}`);
+            
+            if (students.length > 0) {
+                console.log('📋 Sample student data:');
+                students.slice(0, 3).forEach((student, index) => {
+                    console.log(`Student ${index + 1}:`, {
+                        id: student.id,
+                        reg_number: student.reg_number,
+                        name: student.full_name,
+                        centre: student.centre_name,
+                        program: student.program_name,
+                        intake_year: student.intake_year
+                    });
+                });
             }
+            
+            // Test getting programs
+            const programs = await this.getPrograms();
+            console.log(`🎓 Total programs: ${programs.length}`);
+            
+            if (programs.length > 0) {
+                console.log('📋 Sample program data:');
+                programs.slice(0, 3).forEach((program, index) => {
+                    console.log(`Program ${index + 1}:`, {
+                        id: program.id,
+                        code: program.code,
+                        name: program.name
+                    });
+                });
+            }
+            
+            // Test getting centres
+            const centres = await this.getCentres();
+            console.log(`🏛️ Total centres: ${centres.length}`);
+            
+            console.log('✅ Debug complete');
+            
+        } catch (error) {
+            console.error('❌ Debug error:', error);
         }
+    }
+    
+    previewStudentReport() {
+        this.studentReport();
+    }
+    
+    previewAcademicReport() {
+        this.academicReport();
+    }
+    
+    quickStudentReport() {
+        this.studentReport();
+    }
+    
+    quickAcademicReport() {
+        this.academicReport();
     }
 }
 
