@@ -384,8 +384,8 @@ class StudentManager {
         console.log('✅ Modal handlers setup');
     }
     
-  /**
- * Save or update student - stores program_id only
+/**
+ * Save or update student - stores program_id and program_name
  */
 async saveStudent(event) {
     event.preventDefault();
@@ -411,9 +411,15 @@ async saveStudent(event) {
         }
 
         // --- Get selected program ---
-        const programCode = document.getElementById('studentProgram')?.value || '';
-        let programObj = null;
+        let programInput = document.getElementById('studentProgram')?.value || '';
+        
+        // If the input is full name, try to extract code (assume format "CODE - Name")
+        let programCode = programInput.includes(' - ') 
+            ? programInput.split(' - ')[0].trim() 
+            : programInput.trim();
 
+        // Find the program object
+        let programObj = null;
         if (programCode && this.programs.length > 0) {
             programObj = this.programs.find(p => p.code === programCode);
             if (!programObj) {
@@ -440,8 +446,9 @@ async saveStudent(event) {
             village: document.getElementById('studentVillage')?.value.trim() || '',
             address: document.getElementById('studentAddress')?.value.trim() || '',
 
-            // Academic - store program_id only
-            program_id: programObj?.id || null,    // ✅ main change
+            // Academic - store program_id and program_name
+            program_id: programObj?.id || null,        // ✅ main change
+            program_name: programObj?.name || null,    // ✅ new field
             intake_year: parseInt(document.getElementById('studentIntake')?.value) || new Date().getFullYear(),
             centre_id: selectedCentreId || '',
             centre: centreName || '',
@@ -466,7 +473,7 @@ async saveStudent(event) {
         };
 
         // --- Validate required fields ---
-        const requiredFields = ['reg_number', 'full_name', 'email', 'program_id', 'intake_year'];
+        const requiredFields = ['reg_number', 'full_name', 'email', 'program_id', 'program_name', 'intake_year'];
         const missingFields = requiredFields.filter(field => !formData[field]);
         if (missingFields.length > 0) {
             this.ui.showToast(`Missing required fields: ${missingFields.join(', ')}`, 'error');
@@ -512,6 +519,7 @@ async saveStudent(event) {
         }
     }
 }
+
 
     /**
      * Edit student - FIXED FOR YOUR SCHEMA
