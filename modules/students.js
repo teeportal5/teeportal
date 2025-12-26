@@ -784,10 +784,7 @@ async saveStudent(event) {
         return emailRegex.test(email);
     }
     
-   /**
- * Load students into table - FIXED FOR YOUR SCHEMA
- */
-async loadStudentsTable(filterOptions = {}) {
+  async loadStudentsTable(filterOptions = {}) {
     try {
         console.log('📋 Loading students table...');
         const students = await this.db.getStudents(filterOptions);
@@ -797,60 +794,45 @@ async loadStudentsTable(filterOptions = {}) {
             console.warn('Students table body not found');
             return;
         }
-        
+
         if (students.length === 0) {
             this._renderEmptyState(tbody);
             this._toggleBulkActions(false);
             return;
         }
-        
-        // DEBUG: Log first student to see the actual structure
-        if (students.length > 0) {
-            console.log('🔍 First student object:', students[0]);
-        }
-        
-        // Render all rows with proper data mapping
-        const html = students.map(student => {
-            // Get program display name
-            const programDisplay = student.program_name || this._getProgramName(student.program);
-            
-            // Get centre display name - FIXED VERSION
-            let centreDisplay = 'Not assigned';
-            
-            // PRIORITY 1: Use centre_name (all 15 students have this field)
-            if (student.centre_name && student.centre_name.trim() !== '') {
-                centreDisplay = student.centre_name;
-                console.log(`📍 ${student.reg_number}: Using centre_name = "${student.centre_name}"`);
-            }
-            // PRIORITY 2: Use centre field (10 students have this)
-            else if (student.centre && student.centre.trim() !== '') {
-                centreDisplay = student.centre;
-                console.log(`📍 ${student.reg_number}: Using centre = "${student.centre}"`);
-            }
-            // PRIORITY 3: Look up by centre_id (5 students have this)
-            else if (student.centre_id) {
-                const lookedUpName = this._getCentreName(student.centre_id);
-                centreDisplay = lookedUpName;
-                console.log(`📍 ${student.reg_number}: Looked up centre_id ${student.centre_id} = "${lookedUpName}"`);
-            }
-            
-            // For DHNC-2025-004 specifically: Clean up if it shows UUID
-            if (centreDisplay.includes('b3dec280')) {
-                console.warn(`⚠️ ${student.reg_number}: Centre has UUID "${centreDisplay}"`);
-                // Try to find the actual centre name
-                const centre = this.centres.find(c => c.id.includes('b3dec280'));
-                if (centre) {
-                    centreDisplay = centre.name;
-                    console.log(`✅ Corrected to: "${centre.name}"`);
+
+        // Ensure every student has program_name
+        students.forEach(student => {
+            if (!student.program_name) {
+                const programObj = this.programs.find(p => p.id === student.program_id);
+                if (programObj) {
+                    student.program_name = `${programObj.code} - ${programObj.name}`;
+                } else {
+                    student.program_name = student.program || 'Unknown Program';
                 }
             }
-            
+        });
+
+        const html = students.map(student => {
+            const programDisplay = student.program_name;
+
+            // Combine centre & region display
+            let centreDisplay = 'Not assigned';
+            if (student.centre_name && student.centre_name.trim() !== '') {
+                centreDisplay = student.centre_name;
+            } else if (student.centre && student.centre.trim() !== '') {
+                centreDisplay = student.centre;
+            } else if (student.centre_id) {
+                const lookedUpName = this._getCentreName(student.centre_id);
+                centreDisplay = lookedUpName;
+            }
+
             const studentName = this._escapeHtml(student.full_name || '');
             const email = this._escapeHtml(student.email || '');
             const status = student.status || 'active';
             const safeStudentId = this._escapeAttr(student.id);
             const safeRegNumber = this._escapeAttr(student.reg_number);
-            
+
             return `
                 <tr data-student-id="${safeStudentId}" data-student-reg="${safeRegNumber}">
                     <td><strong>${this._escapeHtml(student.reg_number)}</strong></td>
@@ -867,7 +849,6 @@ async loadStudentsTable(filterOptions = {}) {
                     </td>
                     <td>${this._escapeHtml(programDisplay)}</td>
                     <td>${this._escapeHtml(centreDisplay)}</td>
-                    <td>${this._escapeHtml(student.county)}</td>
                     <td>${this._escapeHtml(student.intake_year)}</td>
                     <td>
                         <span class="status-badge ${this._escapeAttr(status)}">
@@ -894,20 +875,18 @@ async loadStudentsTable(filterOptions = {}) {
 
         tbody.innerHTML = html;
 
-        // Attach event listeners
         this._attachStudentRowEventListeners();
-
-        // Show bulk actions if we have students
-        this._toggleBulkActions(true);
+        this._toggleBulkActions(students.length > 0);
 
         console.log(`✅ Loaded ${students.length} students`);
-        
+
     } catch (error) {
         console.error('❌ Error loading students table:', error);
         this.ui.showToast('Error loading students data', 'error');
         this._renderErrorState();
     }
 }
+
             
     /**
      * Search students
