@@ -77,24 +77,40 @@ class StudentManager {
     /**
      * Load centres and programs for dropdowns
      */
-    async _loadCentresAndPrograms() {
-        try {
-            // Load centres
-            if (this.db.getCentres) {
-                this.centres = await this.db.getCentres();
-                console.log(`📍 Loaded ${this.centres.length} centres`);
-            }
+   async _loadCentresAndPrograms() {
+    try {
+        console.log('🔍 Loading programs from database...');
+        
+        // Load programs
+        if (this.db.getPrograms) {
+            const programsData = await this.db.getPrograms();
+            console.log('📊 Raw programs data from DB:', programsData);
             
-            // Load programs
-            if (this.db.getPrograms) {
-                this.programs = await this.db.getPrograms();
-                console.log(`🎓 Loaded ${this.programs.length} programs`);
-            }
-        } catch (error) {
-            console.error('Error loading centres/programs:', error);
+            // Ensure we store the data properly
+            this.programs = Array.isArray(programsData) ? programsData : [];
+            console.log(`✅ Stored ${this.programs.length} programs in this.programs`);
+            
+            // Verify storage
+            console.log('🔍 this.programs after assignment:', this.programs);
+            console.log('🔍 Program codes:', this.programs.map(p => p.code));
+            
+        } else {
+            console.error('❌ this.db.getPrograms is not available');
+            this.programs = [];
         }
+        
+        // Load centres
+        if (this.db.getCentres) {
+            this.centres = await this.db.getCentres();
+            console.log(`✅ Loaded ${this.centres.length} centres`);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading centres/programs:', error);
+        this.programs = [];
+        this.centres = [];
     }
-    
+}
     /**
      * Get centre name by ID
      */
