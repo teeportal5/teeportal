@@ -54,25 +54,29 @@ class StudentManager {
         this.programs = []; // Store programs for display
     }
     
-    /**
-     * Initialize student module
-     */
-    async init() {
-        console.log('🎓 StudentManager initializing...');
-        
-        // Load centres and programs first
-        await this._loadCentresAndPrograms();
-        
-        this._attachEventListeners();
-        await this.loadStudentsTable();
-        this._setupBulkActions();
-        this._setupModalHandlers();
-        
-        // Populate intake years dropdown on page load
-        await this._populateIntakeYears();
-        
-        console.log('✅ StudentManager initialized');
-    }
+   /**
+ * Initialize student module
+ */
+async init() {
+    console.log('🎓 StudentManager initializing...');
+    
+    // Load centres and programs first
+    await this._loadCentresAndPrograms();
+    
+    // ✅ ADD THESE TWO LINES: Populate dropdowns in student form
+    this.populateProgramSelect();
+    this.populateCentreSelect();
+    
+    this._attachEventListeners();
+    await this.loadStudentsTable();
+    this._setupBulkActions();
+    this._setupModalHandlers();
+    
+    // Populate intake years dropdown on page load
+    await this._populateIntakeYears();
+    
+    console.log('✅ StudentManager initialized');
+}
     
     /**
      * Load centres and programs for dropdowns
@@ -94,7 +98,69 @@ class StudentManager {
             console.error('Error loading centres/programs:', error);
         }
     }
+   
+
+/**
+ * Populate program select dropdown - FIXED VERSION
+ */
+populateProgramSelect() {
+    const select = document.getElementById('studentProgram');
+    if (!select) {
+        console.warn('studentProgram select element not found');
+        return;
+    }
     
+    // Store current value if editing
+    const currentValue = select.value;
+    
+    // Clear existing options
+    select.innerHTML = '<option value="">Select Program</option>';
+    
+    // Add programs
+    if (this.programs && this.programs.length > 0) {
+        this.programs.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.code;  // ✅ Store code as value
+            option.textContent = `${p.code} - ${p.name}`; // Display format
+            option.setAttribute('data-program-id', p.id); // Store UUID in data attribute
+            select.appendChild(option);
+        });
+        
+        // Restore previous selection if editing
+        if (currentValue && currentValue !== '') {
+            select.value = currentValue;
+        }
+    } else {
+        console.warn('No programs available to populate dropdown');
+    }
+    
+    console.log(`✅ Populated ${this.programs?.length || 0} programs in dropdown`);
+}
+
+// Also add a method to populate centre dropdown:
+populateCentreSelect() {
+    const select = document.getElementById('studentCentre');
+    if (!select) {
+        console.warn('studentCentre select element not found');
+        return;
+    }
+    
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">Select Centre</option>';
+    
+    if (this.centres && this.centres.length > 0) {
+        this.centres.forEach(c => {
+            const option = document.createElement('option');
+            option.value = c.id;  // Store UUID as value
+            option.textContent = `${c.name} (${c.code || c.county || 'Centre'})`; // Display format
+            select.appendChild(option);
+        });
+        
+        if (currentValue && currentValue !== '') {
+            select.value = currentValue;
+        }
+    }
+}
     /**
      * Get centre name by ID
      */
@@ -384,6 +450,9 @@ class StudentManager {
         console.log('✅ Modal handlers setup');
     }
     
+/**
+ * Save or update student - final version
+ */
 async saveStudent(event) {
     event.preventDefault();
 
@@ -391,11 +460,13 @@ async saveStudent(event) {
     if (!form || form.id !== 'studentForm') return;
 
     try {
-        // --- Centre ---
+        // --- Get selected centre ---
         const centreSelect = document.getElementById('studentCentre');
         const selectedCentreId = centreSelect?.value || '';
         const selectedOption = centreSelect?.options[centreSelect?.selectedIndex];
         const selectedCentreText = selectedOption?.text || '';
+
+        // Extract centre name from display text
         let centreName = '';
         if (selectedCentreText && selectedCentreText !== 'Select Centre') {
             const match = selectedCentreText.match(/^([^(]+)/);
@@ -405,29 +476,22 @@ async saveStudent(event) {
             centreName = centre ? centre.name : '';
         }
 
-        // --- Program ---
-        const programValue = document.getElementById('studentProgram')?.value || '';
-        let programCode = '';
-        let programObj = null;
-
-        // Extract code if value is "CODE - Name"
-        if (programValue.includes(' - ')) {
-            programCode = programValue.split(' - ')[0].trim();
-        } else {
-            programCode = programValue.trim();
+        // --- Get selected program ---
+        const programCode = document.getElementById('studentProgram')?.value || '';
+        if (!programCode) {
+            this.ui.showToast('Please select a program', 'error');
+            return;
         }
 
-        // Find program in database by code
-        if (programCode && this.programs.length > 0) {
-            programObj = this.programs.find(p => p.code === programCode);
-            if (!programObj) {
-                this.ui.showToast(`Program not found: ${programCode}`, 'error');
-                return;
-            }
+        const programObj = this.programs.find(p => p.code === programCode);
+        if (!programObj) {
+            this.ui.showToast(`Program not found: ${programCode}`, 'error');
+            return;
         }
 
-        // --- Form Data ---
+        // --- Prepare form data ---
         const formData = {
+            // Personal
             reg_number: document.getElementById('studentRegNumber')?.value.trim() || '',
             full_name: document.getElementById('studentName')?.value.trim() || '',
             email: document.getElementById('studentEmail')?.value.trim() || '',
@@ -435,35 +499,44 @@ async saveStudent(event) {
             date_of_birth: document.getElementById('studentDOB')?.value || '',
             id_number: document.getElementById('studentIdNumber')?.value.trim() || '',
             gender: document.getElementById('studentGender')?.value || '',
+
+            // Location
             county: document.getElementById('studentCounty')?.value || '',
             region: document.getElementById('studentRegion')?.value.trim() || '',
             ward: document.getElementById('studentWard')?.value.trim() || '',
             village: document.getElementById('studentVillage')?.value.trim() || '',
             address: document.getElementById('studentAddress')?.value.trim() || '',
-            program_id: programObj?.id || null,
-            program_name: programObj?.name || programValue,
-            program: programObj?.code || programCode,
-            code: programObj?.code || programCode,
+
+            // Academic
+            program_id: programObj.id,        // ✅ guaranteed
+            program_name: programObj.name,    // ✅ guaranteed
+            program: programCode,             // optional
             intake_year: parseInt(document.getElementById('studentIntake')?.value) || new Date().getFullYear(),
             centre_id: selectedCentreId || '',
             centre: centreName || '',
             study_mode: document.getElementById('studentStudyMode')?.value || 'fulltime',
             status: document.getElementById('studentStatus')?.value || 'active',
             registration_date: new Date().toISOString().split('T')[0],
+
+            // Employment
             employment_status: document.getElementById('studentEmployment')?.value || '',
             employer: document.getElementById('studentEmployer')?.value.trim() || '',
             job_title: document.getElementById('studentJobTitle')?.value.trim() || '',
             years_experience: parseInt(document.getElementById('studentExperience')?.value) || 0,
+
+            // Emergency contact
             emergency_contact_name: document.getElementById('studentEmergencyName')?.value.trim() || '',
             emergency_contact_phone: document.getElementById('studentEmergencyPhone')?.value.trim() || '',
             emergency_contact_relationship: document.getElementById('studentEmergencyContact')?.value.trim() || '',
             emergency_contact: document.getElementById('studentEmergencyPhone')?.value.trim() || '',
+
+            // Additional
             notes: document.getElementById('studentNotes')?.value.trim() || ''
         };
 
         // --- Validate required fields ---
         const requiredFields = ['reg_number', 'full_name', 'email', 'program_id', 'program_name', 'intake_year'];
-        const missingFields = requiredFields.filter(field => !formData[field]);
+        const missingFields = requiredFields.filter(f => !formData[f]);
         if (missingFields.length > 0) {
             this.ui.showToast(`Missing required fields: ${missingFields.join(', ')}`, 'error');
             return;
@@ -498,6 +571,7 @@ async saveStudent(event) {
     } catch (error) {
         console.error('❌ Error saving student:', error);
         this.ui.showToast(error.message || 'Error saving student data', 'error');
+
         const submitBtn = form.querySelector('button[type="submit"]');
         if (submitBtn) {
             submitBtn.innerHTML = this.currentEditId 
