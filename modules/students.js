@@ -383,23 +383,191 @@ class StudentManager {
         
         console.log('✅ Modal handlers setup');
     }
-  // In loadStudentsTable method, update the program display:
-let programDisplay = '';
-
-if (student.program && student.program_name) {
-    // Show both code and name: "DHNC - Diploma in Holistic Nurturing of Children"
-    programDisplay = `${student.program} - ${student.program_name}`;
-    console.log(`✅ ${student.reg_number}: Showing code + name = "${programDisplay}"`);
-} else if (student.program_name) {
-    // Only name is available
-    programDisplay = student.program_name;
-} else if (student.program) {
-    // Only code is available
-    programDisplay = student.program;
-    console.log(`⚠️ ${student.reg_number}: Only code available = "${programDisplay}"`);
-} else {
-    programDisplay = 'Not assigned';
-}
+    
+    /**
+     * Save or update student - COMPLETE FIXED VERSION
+     */
+    async saveStudent(event) {
+        event.preventDefault();
+        
+        const form = event.target;
+        if (!form || form.id !== 'studentForm') {
+            console.error('Invalid form element');
+            return;
+        }
+        
+        try {
+            // Get the selected centre value
+            const centreSelect = document.getElementById('studentCentre');
+            const selectedCentreId = centreSelect?.value || '';
+            const selectedOption = centreSelect?.options[centreSelect?.selectedIndex];
+            const selectedCentreText = selectedOption?.text || '';
+            
+            console.log('📍 Centre selection:', {
+                value: selectedCentreId,
+                text: selectedCentreText,
+                isUUID: selectedCentreId.includes('-') && selectedCentreId.length === 36
+            });
+            
+            // Get centre name - FIXED LOGIC
+            let centreName = '';
+            if (selectedCentreText && selectedCentreText !== 'Select Centre') {
+                // Extract just the centre name from the display text
+                const match = selectedCentreText.match(/^([^(]+)/);
+                centreName = match ? match[0].trim() : selectedCentreText;
+            } else if (selectedCentreId && this.centres.length > 0) {
+                const centre = this.centres.find(c => c.id === selectedCentreId);
+                centreName = centre ? centre.name : '';
+            }
+            
+            console.log('📍 Centre name determined:', centreName);
+            
+            // Get selected program code and find program name from database
+            const programCode = document.getElementById('studentProgram')?.value || '';
+            let programName = '';
+            
+            // Look up program name from the programs array
+            if (programCode && this.programs.length > 0) {
+                const program = this.programs.find(p => p.code === programCode);
+                if (program) {
+                    programName = program.name || '';
+                    console.log('✅ Found program in database:', {
+                        code: program.code,
+                        name: program.name
+                    });
+                } else {
+                    console.error('❌ Program not found in database for code:', programCode);
+                    this.ui.showToast(`Program "${programCode}" not found in database`, 'error');
+                    return;
+                }
+            }
+            
+            console.log('🎓 Program info for saving:', {
+                code: programCode,
+                name: programName
+            });
+            
+            // Get region value
+            const regionValue = document.getElementById('studentRegion')?.value.trim() || '';
+            
+            // Get all form data - ONLY SAVE TO EXISTING COLUMNS IN YOUR DATABASE
+            const formData = {
+                // Registration Number (Auto-generated)
+                reg_number: document.getElementById('studentRegNumber')?.value.trim() || '',
+                
+                // Personal Information
+                full_name: document.getElementById('studentName')?.value.trim() || '',
+                email: document.getElementById('studentEmail')?.value.trim() || '',
+                phone: document.getElementById('studentPhone')?.value.trim() || '',
+                date_of_birth: document.getElementById('studentDOB')?.value || '',
+                id_number: document.getElementById('studentIdNumber')?.value.trim() || '',
+                gender: document.getElementById('studentGender')?.value || '',
+                
+                // Location Information
+                county: document.getElementById('studentCounty')?.value || '',
+                region: regionValue,
+                sub_county: regionValue,
+                ward: document.getElementById('studentWard')?.value.trim() || '',
+                village: document.getElementById('studentVillage')?.value.trim() || '',
+                address: document.getElementById('studentAddress')?.value.trim() || '',
+                
+                // Academic Information - ONLY SAVE TO EXISTING COLUMNS
+                program: programCode,
+                program_name: programName,
+                intake_year: parseInt(document.getElementById('studentIntake')?.value) || new Date().getFullYear(),
+                centre_id: selectedCentreId || '',
+                centre: centreName || '',
+                centre_name: centreName || '',
+                study_mode: document.getElementById('studentStudyMode')?.value || 'fulltime',
+                status: document.getElementById('studentStatus')?.value || 'active',
+                registration_date: new Date().toISOString().split('T')[0],
+                
+                // Employment Information
+                employment_status: document.getElementById('studentEmployment')?.value || '',
+                employer: document.getElementById('studentEmployer')?.value.trim() || '',
+                job_title: document.getElementById('studentJobTitle')?.value.trim() || '',
+                years_experience: parseInt(document.getElementById('studentExperience')?.value) || 0,
+                
+                // Emergency Contact
+                emergency_contact_name: document.getElementById('studentEmergencyName')?.value.trim() || '',
+                emergency_contact_phone: document.getElementById('studentEmergencyPhone')?.value.trim() || '',
+                emergency_contact_relationship: document.getElementById('studentEmergencyContact')?.value.trim() || '',
+                emergency_contact: document.getElementById('studentEmergencyPhone')?.value.trim() || '',
+                
+                // Additional Information
+                notes: document.getElementById('studentNotes')?.value.trim() || ''
+            };
+            
+            console.log('📤 Saving to database - ONLY EXISTING COLUMNS:', formData);
+            
+            // Validate required fields
+            const requiredFields = ['reg_number', 'full_name', 'email', 'program', 'intake_year'];
+            const missingFields = requiredFields.filter(field => !formData[field] || formData[field].toString().trim() === '');
+            
+            if (missingFields.length > 0) {
+                this.ui.showToast(`Missing required fields: ${missingFields.join(', ')}`, 'error');
+                return;
+            }
+            
+            // Validate email
+            if (!this._validateEmail(formData.email)) {
+                this.ui.showToast('Please enter a valid email address', 'error');
+                return;
+            }
+            
+            // Validate program
+            if (!programName) {
+                this.ui.showToast('Please select a valid program', 'error');
+                return;
+            }
+            
+            // Show loading state
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            submitBtn.disabled = true;
+            
+            let result;
+            if (this.currentEditId) {
+                // Update existing student
+                console.log(`🔄 Updating student ${this.currentEditId}...`);
+                result = await this.db.updateStudent(this.currentEditId, formData);
+                console.log('✅ Update result:', result);
+                this.ui.showToast(`Student updated successfully!`, 'success');
+            } else {
+                // Add new student
+                console.log('➕ Adding new student...');
+                result = await this.db.addStudent(formData);
+                console.log('✅ Add result:', result);
+                const regNumber = result.reg_number || formData.reg_number;
+                this.ui.showToast(`Student registered successfully! Registration Number: ${regNumber}`, 'success');
+            }
+            
+            // Reset form and close modal
+            this._resetStudentForm();
+            this.ui.closeModal('studentModal');
+            
+            // Refresh students table
+            console.log('🔄 Refreshing students table...');
+            await this.loadStudentsTable();
+            console.log('✅ Table refreshed');
+            
+        } catch (error) {
+            console.error('❌ Error saving student:', error);
+            console.error('Error details:', error.stack);
+            this.ui.showToast(error.message || 'Error saving student data', 'error');
+            
+            // Reset button if error
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = this.currentEditId 
+                    ? '<i class="fas fa-save"></i> Update Student'
+                    : '<i class="fas fa-plus"></i> Register Student';
+                submitBtn.disabled = false;
+            }
+        }
+    }
+    
     /**
      * Edit student - FIXED FOR YOUR SCHEMA
      */
@@ -435,14 +603,14 @@ if (student.program && student.program_name) {
                 
                 // Location Information
                 'studentCounty': student.county || '',
-                'studentRegion': student.region || student.sub_county || '', // Map region to sub_county
+                'studentRegion': student.region || student.sub_county || '',
                 'studentWard': student.ward || '',
                 'studentVillage': student.village || '',
                 'studentAddress': student.address || '',
                 
                 // Academic Information
-                'studentProgram': student.program || '', // TEXT program code
-                'studentCentre': student.centre_id || student.centre || '', // Centre UUID or name
+                'studentProgram': student.program || '',
+                'studentCentre': student.centre_id || student.centre || '',
                 'studentStudyMode': student.study_mode || 'fulltime',
                 'studentStatus': student.status || 'active',
                 
@@ -594,190 +762,157 @@ if (student.program && student.program_name) {
         return emailRegex.test(email);
     }
     
-/**
- * Load students into table - COMPLETE FIXED VERSION
- */
-async loadStudentsTable(filterOptions = {}) {
-    try {
-        console.log('📋 Loading students table...');
-        const students = await this.db.getStudents(filterOptions);
-        const tbody = document.getElementById('studentsTableBody');
-        
-        if (!tbody) {
-            console.warn('Students table body not found');
-            return;
-        }
-        
-        if (students.length === 0) {
-            this._renderEmptyState(tbody);
-            this._toggleBulkActions(false);
-            return;
-        }
-        
-        // DEBUG: Check data for first student
-        if (students.length > 0) {
-            const firstStudent = students[0];
-            console.log('🔍 Sample student data:', {
-                reg_number: firstStudent.reg_number,
-                program: firstStudent.program,
-                program_name: firstStudent.program_name,
-                centre: firstStudent.centre,
-                centre_name: firstStudent.centre_name,
-                region: firstStudent.region,
-                county: firstStudent.county,
-                sub_county: firstStudent.sub_county
-            });
-        }
-        
-        // Render all rows with proper data mapping
-        const html = students.map(student => {
-            // FIX 1: Get program display - ALWAYS show code + name
-            let programDisplay = '';
+    /**
+     * Load students into table - COMPLETE FIXED VERSION
+     */
+    async loadStudentsTable(filterOptions = {}) {
+        try {
+            console.log('📋 Loading students table...');
+            const students = await this.db.getStudents(filterOptions);
+            const tbody = document.getElementById('studentsTableBody');
             
-            if (student.program && student.program_name && student.program_name.trim() !== '') {
-                // Show "DHNC - Diploma in Holistic Nurturing of Children"
-                programDisplay = `${student.program} - ${student.program_name}`;
-            } else if (student.program_name && student.program_name.trim() !== '') {
-                // Only name available
-                programDisplay = student.program_name;
-            } else if (student.program && student.program.trim() !== '') {
-                // Only code available
-                programDisplay = student.program;
-            } else {
-                programDisplay = 'Not assigned';
+            if (!tbody) {
+                console.warn('Students table body not found');
+                return;
             }
             
-            // FIX 2: Get centre display name
-            let centreDisplay = 'Not assigned';
-            if (student.centre_name && student.centre_name.trim() !== '') {
-                centreDisplay = student.centre_name;
-            } else if (student.centre && student.centre.trim() !== '') {
-                centreDisplay = student.centre;
-            } else if (student.centre_id) {
-                centreDisplay = this._getCentreName(student.centre_id);
+            if (students.length === 0) {
+                this._renderEmptyState(tbody);
+                this._toggleBulkActions(false);
+                return;
             }
             
-            // FIX 3: Get region display (use region or sub_county)
-            const regionDisplay = student.region || student.sub_county || student.county || '';
-            
-            // FIX 4: Get county display
-            const countyDisplay = student.county || '';
-            
-            const studentName = this._escapeHtml(student.full_name || '');
-            const email = this._escapeHtml(student.email || '');
-            const status = student.status || 'active';
-            const safeStudentId = this._escapeAttr(student.id);
-            const safeRegNumber = this._escapeAttr(student.reg_number);
-            
-            // Generate avatar initials
-            const initials = this._getAvatarInitials(student.full_name);
-            const avatarColor = this._getAvatarColor(student.full_name);
-            
-            return `
-                <tr data-student-id="${safeStudentId}" data-student-reg="${safeRegNumber}">
-                    <td><strong class="reg-number">${this._escapeHtml(student.reg_number)}</strong></td>
-                    <td>
-                        <div class="student-avatar">
-                            <div class="avatar-icon" style="background-color: ${avatarColor}">
-                                ${initials}
+            // Render all rows with proper data mapping
+            const html = students.map(student => {
+                // FIX 1: Get program display - ALWAYS show code + name
+                let programDisplay = '';
+                
+                if (student.program && student.program_name && student.program_name.trim() !== '') {
+                    // Show "DHNC - Diploma in Holistic Nurturing of Children"
+                    programDisplay = `${student.program} - ${student.program_name}`;
+                } else if (student.program_name && student.program_name.trim() !== '') {
+                    // Only name available
+                    programDisplay = student.program_name;
+                } else if (student.program && student.program.trim() !== '') {
+                    // Only code available
+                    programDisplay = student.program;
+                } else {
+                    programDisplay = 'Not assigned';
+                }
+                
+                // FIX 2: Get centre display name
+                let centreDisplay = 'Not assigned';
+                if (student.centre_name && student.centre_name.trim() !== '') {
+                    centreDisplay = student.centre_name;
+                } else if (student.centre && student.centre.trim() !== '') {
+                    centreDisplay = student.centre;
+                } else if (student.centre_id) {
+                    centreDisplay = this._getCentreName(student.centre_id);
+                }
+                
+                // FIX 3: Get region display (use region or sub_county)
+                const regionDisplay = student.region || student.sub_county || student.county || '';
+                
+                // FIX 4: Get county display
+                const countyDisplay = student.county || '';
+                
+                const studentName = this._escapeHtml(student.full_name || '');
+                const email = this._escapeHtml(student.email || '');
+                const status = student.status || 'active';
+                const safeStudentId = this._escapeAttr(student.id);
+                const safeRegNumber = this._escapeAttr(student.reg_number);
+                
+                // Generate avatar initials
+                const initials = this._getAvatarInitials(student.full_name);
+                const avatarColor = this._getAvatarColor(student.full_name);
+                
+                return `
+                    <tr data-student-id="${safeStudentId}" data-student-reg="${safeRegNumber}">
+                        <td><strong class="reg-number">${this._escapeHtml(student.reg_number)}</strong></td>
+                        <td>
+                            <div class="student-avatar">
+                                <div class="avatar-icon" style="background-color: ${avatarColor}">
+                                    ${initials}
+                                </div>
+                                <div class="student-info">
+                                    <strong class="student-name">${studentName}</strong><br>
+                                    <small class="student-email">${email}</small>
+                                </div>
                             </div>
-                            <div class="student-info">
-                                <strong class="student-name">${studentName}</strong><br>
-                                <small class="student-email">${email}</small>
+                        </td>
+                        <td>
+                            <div class="program-display">
+                                <!-- This now shows: DHNC - Diploma in Holistic Nurturing of Children -->
+                                <strong>${this._escapeHtml(programDisplay)}</strong>
+                                ${student.study_mode ? `<br><small class="study-mode">${student.study_mode.toUpperCase()}</small>` : ''}
                             </div>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="program-display">
-                            <!-- This now shows: DHNC - Diploma in Holistic Nurturing of Children -->
-                            <strong>${this._escapeHtml(programDisplay)}</strong>
-                            ${student.study_mode ? `<br><small class="study-mode">${student.study_mode.toUpperCase()}</small>` : ''}
-                        </div>
-                    </td>
-                    <td>
-                        <div class="location-display">
-                            <!-- Centre and Region combined in one cell -->
-                            <div class="centre-name"><strong>${this._escapeHtml(centreDisplay)}</strong></div>
-                            <div class="centre-region">${this._escapeHtml(regionDisplay)}</div>
-                        </div>
-                    </td>
-                    <td>${this._escapeHtml(countyDisplay)}</td>
-                    <td class="intake-year">${this._escapeHtml(student.intake_year)}</td>
-                    <td>
-                        <span class="status-badge ${this._escapeAttr(status)}">
-                            ${this._escapeHtml(status.toUpperCase())}
-                        </span>
-                    </td>
-                    <td class="action-buttons-cell">
-                        <div class="action-buttons">
-                            <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="btn-action edit-student" data-id="${safeStudentId}" title="Edit Student">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn-action enter-marks" data-id="${safeStudentId}" title="Enter Marks">
-                                <i class="fas fa-chart-bar"></i>
-                            </button>
-                            <button class="btn-action delete-student" data-id="${safeStudentId}" title="Delete Student">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }).join('');
+                        </td>
+                        <td>
+                            <div class="location-display">
+                                <!-- Centre and Region combined in one cell -->
+                                <div class="centre-name"><strong>${this._escapeHtml(centreDisplay)}</strong></div>
+                                <div class="centre-region">${this._escapeHtml(regionDisplay)}</div>
+                            </div>
+                        </td>
+                        <td>${this._escapeHtml(countyDisplay)}</td>
+                        <td class="intake-year">${this._escapeHtml(student.intake_year)}</td>
+                        <td>
+                            <span class="status-badge ${this._escapeAttr(status)}">
+                                ${this._escapeHtml(status.toUpperCase())}
+                            </span>
+                        </td>
+                        <td class="action-buttons-cell">
+                            <div class="action-buttons">
+                                <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn-action edit-student" data-id="${safeStudentId}" title="Edit Student">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-action enter-marks" data-id="${safeStudentId}" title="Enter Marks">
+                                    <i class="fas fa-chart-bar"></i>
+                                </button>
+                                <button class="btn-action delete-student" data-id="${safeStudentId}" title="Delete Student">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
 
-        tbody.innerHTML = html;
+            tbody.innerHTML = html;
 
-        // Attach event listeners
-        this._attachStudentRowEventListeners();
+            // Attach event listeners
+            this._attachStudentRowEventListeners();
 
-        // Show bulk actions if we have students
-        this._toggleBulkActions(true);
+            // Show bulk actions if we have students
+            this._toggleBulkActions(true);
 
-        console.log(`✅ Loaded ${students.length} students with combined centre/region display`);
+            console.log(`✅ Loaded ${students.length} students with combined centre/region display`);
+            
+        } catch (error) {
+            console.error('❌ Error loading students table:', error);
+            this.ui.showToast('Error loading students data', 'error');
+            this._renderErrorState();
+        }
+    }
+    
+    /**
+     * Get avatar initials from name
+     */
+    _getAvatarInitials(name) {
+        if (!name || name.trim() === '') return '??';
         
-    } catch (error) {
-        console.error('❌ Error loading students table:', error);
-        this.ui.showToast('Error loading students data', 'error');
-        this._renderErrorState();
+        const names = name.trim().split(' ');
+        if (names.length >= 2) {
+            return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+        } else if (names[0].length >= 2) {
+            return names[0].substring(0, 2).toUpperCase();
+        }
+        return name[0].toUpperCase() + '?';
     }
-}
-/**
- * Get avatar initials from name
- */
-_getAvatarInitials(name) {
-    if (!name || name.trim() === '') return '??';
     
-    const names = name.trim().split(' ');
-    if (names.length >= 2) {
-        return (names[0][0] + names[names.length - 1][0]).toUpperCase();
-    } else if (names[0].length >= 2) {
-        return names[0].substring(0, 2).toUpperCase();
-    }
-    return name[0].toUpperCase() + '?';
-}
-
-/**
- * Get program name - FIXED to return proper format
- */
-_getProgramName(programCode) {
-    if (!programCode) return 'Not assigned';
-    
-    // Look for program in loaded programs array
-    const program = this.programs.find(p => p.code === programCode);
-    
-    if (program) {
-        // Return in format: "DHNC - Diploma in Health Nursing Community"
-        return `${program.code} - ${program.name}`;
-    } else {
-        console.warn(`⚠️ Program not found for code: ${programCode}`);
-        // Return just the code if not found
-        return programCode;
-    }
-}
-            
     /**
      * Search students
      */
@@ -822,7 +957,7 @@ _getProgramName(programCode) {
         if (students.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="9" class="empty-state">
+                    <td colspan="8" class="empty-state">
                         <i class="fas fa-search fa-3x"></i>
                         <h3>No Students Found</h3>
                         <p>No students match your search criteria.</p>
@@ -835,21 +970,51 @@ _getProgramName(programCode) {
         
         // Reuse the rendering logic from loadStudentsTable
         const html = students.map(student => {
-          const programDisplay = student.program_name || this._getProgramName(student.program);
-            const centreDisplay = student.centre || this._getCentreName(student.centre_id) || 'Not assigned';
+            // Get program display - show code + name
+            let programDisplay = '';
+            if (student.program && student.program_name && student.program_name.trim() !== '') {
+                programDisplay = `${student.program} - ${student.program_name}`;
+            } else if (student.program_name && student.program_name.trim() !== '') {
+                programDisplay = student.program_name;
+            } else if (student.program && student.program.trim() !== '') {
+                programDisplay = student.program;
+            } else {
+                programDisplay = 'Not assigned';
+            }
+            
+            // Get centre display name
+            let centreDisplay = 'Not assigned';
+            if (student.centre_name && student.centre_name.trim() !== '') {
+                centreDisplay = student.centre_name;
+            } else if (student.centre && student.centre.trim() !== '') {
+                centreDisplay = student.centre;
+            } else if (student.centre_id) {
+                centreDisplay = this._getCentreName(student.centre_id);
+            }
+            
+            // Get region
+            const regionDisplay = student.region || student.sub_county || student.county || '';
+            
+            // Get county
+            const countyDisplay = student.county || '';
+            
             const studentName = this._escapeHtml(student.full_name || '');
             const email = this._escapeHtml(student.email || '');
             const status = student.status || 'active';
             const safeStudentId = this._escapeAttr(student.id);
             const safeRegNumber = this._escapeAttr(student.reg_number);
             
+            // Generate avatar initials
+            const initials = this._getAvatarInitials(student.full_name);
+            const avatarColor = this._getAvatarColor(student.full_name);
+            
             return `
                 <tr data-student-id="${safeStudentId}" data-student-reg="${safeRegNumber}">
                     <td><strong>${this._escapeHtml(student.reg_number)}</strong></td>
                     <td>
                         <div class="student-avatar">
-                            <div class="avatar-icon" style="background-color: ${this._getAvatarColor(student.full_name)}">
-                                <i class="fas fa-user"></i>
+                            <div class="avatar-icon" style="background-color: ${avatarColor}">
+                                ${initials}
                             </div>
                             <div class="student-info">
                                 <strong>${studentName}</strong><br>
@@ -857,28 +1022,40 @@ _getProgramName(programCode) {
                             </div>
                         </div>
                     </td>
-                    <td>${this._escapeHtml(programDisplay)}</td>
-                    <td>${this._escapeHtml(centreDisplay)}</td>
-                    <td>${this._escapeHtml(student.county)}</td>
-                    <td>${this._escapeHtml(student.intake_year)}</td>
+                    <td>
+                        <div class="program-display">
+                            <strong>${this._escapeHtml(programDisplay)}</strong>
+                            ${student.study_mode ? `<br><small class="study-mode">${student.study_mode.toUpperCase()}</small>` : ''}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="location-display">
+                            <div class="centre-name"><strong>${this._escapeHtml(centreDisplay)}</strong></div>
+                            <div class="centre-region">${this._escapeHtml(regionDisplay)}</div>
+                        </div>
+                    </td>
+                    <td>${this._escapeHtml(countyDisplay)}</td>
+                    <td class="intake-year">${this._escapeHtml(student.intake_year)}</td>
                     <td>
                         <span class="status-badge ${this._escapeAttr(status)}">
                             ${this._escapeHtml(status.toUpperCase())}
                         </span>
                     </td>
-                    <td class="action-buttons">
-                        <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="btn-action edit-student" data-id="${safeStudentId}" title="Edit Student">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn-action enter-marks" data-id="${safeStudentId}" title="Enter Marks">
-                            <i class="fas fa-chart-bar"></i>
-                        </button>
-                        <button class="btn-action delete-student" data-id="${safeStudentId}" title="Delete Student">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                    <td class="action-buttons-cell">
+                        <div class="action-buttons">
+                            <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn-action edit-student" data-id="${safeStudentId}" title="Edit Student">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-action enter-marks" data-id="${safeStudentId}" title="Enter Marks">
+                                <i class="fas fa-chart-bar"></i>
+                            </button>
+                            <button class="btn-action delete-student" data-id="${safeStudentId}" title="Delete Student">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -1367,7 +1544,7 @@ _getProgramName(programCode) {
     _renderEmptyState(tbody) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="empty-state">
+                <td colspan="8" class="empty-state">
                     <i class="fas fa-user-graduate fa-3x"></i>
                     <h3>No Students Found</h3>
                     <p>Get started by adding your first student.</p>
@@ -1393,7 +1570,7 @@ _getProgramName(programCode) {
         if (tbody) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="9" class="error-state">
+                    <td colspan="8" class="error-state">
                         <i class="fas fa-exclamation-triangle fa-3x"></i>
                         <h3>Error Loading Students</h3>
                         <p>Unable to load student data. Please try again.</p>
