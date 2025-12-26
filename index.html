@@ -1018,7 +1018,7 @@
     </div>
 </section>
             
-  <!-- REPORTS SECTION -->
+  <!-- REPORTS SECTION - COMPLETE WORKING VERSION -->
 <section id="reports" class="content-section" aria-labelledby="reports-heading">
     <div class="section-header">
         <h2 id="reports-heading"><i class="fas fa-chart-bar" aria-hidden="true"></i> Reports & Analytics</h2>
@@ -1039,94 +1039,78 @@
         </div>
     </div>
     
-    <!-- SMALLER HORIZONTAL STATISTICS CARDS -->
+    <!-- STATISTICS CARDS - FIXED -->
     <div class="row mb-4">
         <div class="col-md-3 col-sm-6 mb-3">
-            <div class="card stat-card h-100">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center">
-                        <div class="stat-icon mr-3">
-                            <i class="fas fa-users"></i>
-                        </div>
-                        <div>
-                            <h5 class="stat-number mb-0" id="totalStudents">0</h5>
-                            <p class="text-muted mb-0" style="font-size: 0.8rem;">Total Students</p>
-                        </div>
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-3">
+                    <div class="mb-2">
+                        <i class="fas fa-users fa-2x text-primary"></i>
                     </div>
+                    <h3 class="mb-1" id="totalStudents">0</h3>
+                    <p class="text-muted mb-0 small">Total Students</p>
                 </div>
             </div>
         </div>
         <div class="col-md-3 col-sm-6 mb-3">
-            <div class="card stat-card h-100">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center">
-                        <div class="stat-icon mr-3">
-                            <i class="fas fa-graduation-cap"></i>
-                        </div>
-                        <div>
-                            <h5 class="stat-number mb-0" id="graduationRate">0%</h5>
-                            <p class="text-muted mb-0" style="font-size: 0.8rem;">Graduation Rate</p>
-                        </div>
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-3">
+                    <div class="mb-2">
+                        <i class="fas fa-graduation-cap fa-2x text-success"></i>
                     </div>
+                    <h3 class="mb-1" id="graduationRate">0%</h3>
+                    <p class="text-muted mb-0 small">Graduation Rate</p>
                 </div>
             </div>
         </div>
         <div class="col-md-3 col-sm-6 mb-3">
-            <div class="card stat-card h-100">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center">
-                        <div class="stat-icon mr-3">
-                            <i class="fas fa-chart-line"></i>
-                        </div>
-                        <div>
-                            <h5 class="stat-number mb-0" id="avgGPA">0.00</h5>
-                            <p class="text-muted mb-0" style="font-size: 0.8rem;">Average GPA</p>
-                        </div>
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-3">
+                    <div class="mb-2">
+                        <i class="fas fa-chart-line fa-2x text-info"></i>
                     </div>
+                    <h3 class="mb-1" id="avgGPA">0.00</h3>
+                    <p class="text-muted mb-0 small">Average GPA</p>
                 </div>
             </div>
         </div>
         <div class="col-md-3 col-sm-6 mb-3">
-            <div class="card stat-card h-100">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center">
-                        <div class="stat-icon mr-3">
-                            <i class="fas fa-building"></i>
-                        </div>
-                        <div>
-                            <h5 class="stat-number mb-0" id="centersCount">0</h5>
-                            <p class="text-muted mb-0" style="font-size: 0.8rem;">Active Centres</p>
-                        </div>
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-3">
+                    <div class="mb-2">
+                        <i class="fas fa-building fa-2x text-warning"></i>
                     </div>
+                    <h3 class="mb-1" id="centersCount">0</h3>
+                    <p class="text-muted mb-0 small">Active Centres</p>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- FILTERS SECTION -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5><i class="fas fa-filter"></i> Report Filters</h5>
+    <!-- FILTERS - WITH SEARCHABLE MULTI-SELECT -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="fas fa-filter"></i> Report Filters</h5>
         </div>
         <div class="card-body">
             <div class="row g-3">
                 <!-- Date Range -->
                 <div class="col-md-3">
-                    <label class="form-label">Start Date</label>
-                    <input type="date" id="reportStartDate" class="form-control form-control-sm">
+                    <label class="form-label small fw-bold">Start Date</label>
+                    <input type="date" id="reportStartDate" class="form-control form-control-sm" value="2024-01-01">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">End Date</label>
-                    <input type="date" id="reportEndDate" class="form-control form-control-sm">
+                    <label class="form-label small fw-bold">End Date</label>
+                    <input type="date" id="reportEndDate" class="form-control form-control-sm" value="2024-12-31">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Academic Year</label>
+                    <label class="form-label small fw-bold">Academic Year</label>
                     <select id="academicYear" class="form-select form-select-sm">
                         <option value="all">All Years</option>
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Semester</label>
+                    <label class="form-label small fw-bold">Semester</label>
                     <select id="semester" class="form-select form-select-sm">
                         <option value="all">All Semesters</option>
                         <option value="1">Semester 1</option>
@@ -1135,36 +1119,120 @@
                     </select>
                 </div>
                 
-                <!-- Centre Filter -->
+                <!-- Centre Filter - Improved -->
                 <div class="col-md-4">
-                    <label class="form-label">Filter by Centre</label>
-                    <select id="filterCenter" class="form-select form-select-sm" multiple size="3">
-                        <option value="all">All Centres</option>
-                    </select>
-                    <small class="text-muted">Hold Ctrl/Cmd to select multiple</small>
+                    <label class="form-label small fw-bold">Filter by Centre</label>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm w-100 text-start d-flex justify-content-between align-items-center" 
+                                type="button" 
+                                id="centreDropdownButton"
+                                data-bs-toggle="dropdown" 
+                                aria-expanded="false">
+                            <span id="centreButtonText">All Centres</span>
+                            <i class="fas fa-chevron-down ms-2"></i>
+                        </button>
+                        <div class="dropdown-menu p-3" style="width: 100%; max-height: 300px; overflow-y: auto;">
+                            <div class="mb-2">
+                                <input type="text" 
+                                       class="form-control form-control-sm" 
+                                       placeholder="Search centres..."
+                                       id="centreSearchFilter"
+                                       onkeyup="app.reports.searchFilter('centre', this.value)">
+                            </div>
+                            <div id="centreFilterOptions" style="max-height: 200px; overflow-y: auto;">
+                                <!-- Centres will be populated here -->
+                            </div>
+                            <div class="d-flex justify-content-between mt-2 pt-2 border-top">
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="app.reports.selectAllFilter('centre')">
+                                    Select All
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="app.reports.clearFilter('centre')">
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="filterCenter" value="all">
+                    <div id="centreSelectedBadges" class="mt-2"></div>
                 </div>
                 
-                <!-- County Filter -->
+                <!-- County Filter - Improved -->
                 <div class="col-md-4">
-                    <label class="form-label">Filter by County</label>
-                    <select id="filterCounty" class="form-select form-select-sm" multiple size="3">
-                        <option value="all">All Counties</option>
-                    </select>
-                    <small class="text-muted">Hold Ctrl/Cmd to select multiple</small>
+                    <label class="form-label small fw-bold">Filter by County</label>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm w-100 text-start d-flex justify-content-between align-items-center" 
+                                type="button" 
+                                id="countyDropdownButton"
+                                data-bs-toggle="dropdown" 
+                                aria-expanded="false">
+                            <span id="countyButtonText">All Counties</span>
+                            <i class="fas fa-chevron-down ms-2"></i>
+                        </button>
+                        <div class="dropdown-menu p-3" style="width: 100%; max-height: 300px; overflow-y: auto;">
+                            <div class="mb-2">
+                                <input type="text" 
+                                       class="form-control form-control-sm" 
+                                       placeholder="Search counties..."
+                                       id="countySearchFilter"
+                                       onkeyup="app.reports.searchFilter('county', this.value)">
+                            </div>
+                            <div id="countyFilterOptions" style="max-height: 200px; overflow-y: auto;">
+                                <!-- Counties will be populated here -->
+                            </div>
+                            <div class="d-flex justify-content-between mt-2 pt-2 border-top">
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="app.reports.selectAllFilter('county')">
+                                    Select All
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="app.reports.clearFilter('county')">
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="filterCounty" value="all">
+                    <div id="countySelectedBadges" class="mt-2"></div>
                 </div>
                 
-                <!-- Program Filter -->
+                <!-- Program Filter - Improved -->
                 <div class="col-md-4">
-                    <label class="form-label">Filter by Program</label>
-                    <select id="filterProgram" class="form-select form-select-sm" multiple size="3">
-                        <option value="all">All Programs</option>
-                    </select>
-                    <small class="text-muted">Hold Ctrl/Cmd to select multiple</small>
+                    <label class="form-label small fw-bold">Filter by Program</label>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm w-100 text-start d-flex justify-content-between align-items-center" 
+                                type="button" 
+                                id="programDropdownButton"
+                                data-bs-toggle="dropdown" 
+                                aria-expanded="false">
+                            <span id="programButtonText">All Programs</span>
+                            <i class="fas fa-chevron-down ms-2"></i>
+                        </button>
+                        <div class="dropdown-menu p-3" style="width: 100%; max-height: 300px; overflow-y: auto;">
+                            <div class="mb-2">
+                                <input type="text" 
+                                       class="form-control form-control-sm" 
+                                       placeholder="Search programs..."
+                                       id="programSearchFilter"
+                                       onkeyup="app.reports.searchFilter('program', this.value)">
+                            </div>
+                            <div id="programFilterOptions" style="max-height: 200px; overflow-y: auto;">
+                                <!-- Programs will be populated here -->
+                            </div>
+                            <div class="d-flex justify-content-between mt-2 pt-2 border-top">
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="app.reports.selectAllFilter('program')">
+                                    Select All
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="app.reports.clearFilter('program')">
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="filterProgram" value="all">
+                    <div id="programSelectedBadges" class="mt-2"></div>
                 </div>
                 
                 <!-- Intake Year Filter -->
                 <div class="col-md-4">
-                    <label class="form-label">Filter by Intake Year</label>
+                    <label class="form-label small fw-bold">Filter by Intake Year</label>
                     <select id="filterIntake" class="form-select form-select-sm">
                         <option value="all">All Intakes</option>
                     </select>
@@ -1172,7 +1240,7 @@
                 
                 <!-- Course Filter -->
                 <div class="col-md-4">
-                    <label class="form-label">Filter by Course</label>
+                    <label class="form-label small fw-bold">Filter by Course</label>
                     <select id="filterCourse" class="form-select form-select-sm">
                         <option value="all">All Courses</option>
                     </select>
@@ -1182,10 +1250,10 @@
                 <div class="col-md-4 d-flex align-items-end">
                     <div class="d-flex gap-2 w-100">
                         <button class="btn btn-sm btn-outline-primary flex-fill" onclick="app.reports.clearFilters()">
-                            <i class="fas fa-times"></i> Clear
+                            <i class="fas fa-times"></i> Clear Filters
                         </button>
                         <button class="btn btn-sm btn-primary flex-fill" onclick="app.reports.applyFilters()">
-                            <i class="fas fa-filter"></i> Apply
+                            <i class="fas fa-filter"></i> Apply Filters
                         </button>
                     </div>
                 </div>
@@ -1193,15 +1261,15 @@
         </div>
     </div>
     
-    <!-- REPORTS GRID (6 Reports) -->
+    <!-- REPORTS GRID -->
     <div id="reportsGrid" class="row mb-4">
-        <!-- Reports will be populated dynamically by JavaScript -->
+        <!-- Will be populated by JavaScript -->
     </div>
     
     <!-- REPORT PREVIEW AREA -->
-    <div class="card mt-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5><i class="fas fa-eye"></i> Report Preview</h5>
+    <div class="card mt-4 border-0 shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-eye"></i> Report Preview</h5>
             <div>
                 <button class="btn btn-sm btn-outline-secondary" onclick="app.reports.clearPreview()">
                     <i class="fas fa-times"></i> Clear
@@ -1212,72 +1280,13 @@
             <div id="reportPreview">
                 <div class="text-center text-muted p-4">
                     <i class="fas fa-chart-line fa-3x mb-3"></i>
-                    <p>Generate a report to preview it here</p>
-                    <small>Preview shows first 10 records only</small>
+                    <p class="mb-2">Generate a report to preview it here</p>
+                    <small class="text-muted">Preview shows first 10 records only</small>
                 </div>
             </div>
         </div>
     </div>
 </section>
-
-<!-- TRANSCRIPT MODAL (Will be created by JavaScript) -->
-          <!-- Centres Section -->
-<section id="centres" class="content-section">
-    <div class="section-header">
-        <h2>Centre Management</h2>
-        <div class="action-buttons">
-            <button class="btn btn-primary" onclick="openCentreModal()" data-action="add-centre">
-                <i class="fas fa-map-marker-alt"></i> Add Centre
-            </button>
-            <button class="btn btn-secondary" onclick="app.centres.exportCentres()" data-action="export-centres">
-                <i class="fas fa-download"></i> Export CSV
-            </button>
-            <button class="btn btn-secondary" onclick="app.centres.refresh()" data-action="refresh-centres">
-                <i class="fas fa-redo"></i> Refresh
-            </button>
-        </div>
-    </div>
-    
-    <!-- Search Box -->
-    <div class="search-box">
-        <i class="fas fa-search"></i>
-        <input type="text" id="centreSearch" placeholder="Search centres by name, county or code..." 
-               onkeyup="app.centres.searchCentres(this.value)">
-    </div>
-    
-    <!-- Centres Grid -->
-    <div class="cards-grid" id="centresGrid">
-        <div class="empty-state">
-            <i class="fas fa-map-marker-alt fa-3x"></i>
-            <h3>No Centres Found</h3>
-            <p>Get started by adding your first centre.</p>
-            <button class="btn btn-primary" onclick="openCentreModal()">
-                <i class="fas fa-plus"></i> Add Centre
-            </button>
-        </div>
-    </div>
-    
-    <!-- Centres Stats -->
-    <div class="centre-stats">
-        <div class="stat-row">
-            <div class="stat-item">
-                <span class="stat-label">Total Centres</span>
-                <span class="stat-value" id="totalCentres">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Counties Covered</span>
-                <span class="stat-value" id="totalCounties">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Active Centres</span>
-                <span class="stat-value" id="activeCentres">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Inactive Centres</span>
-                <span class="stat-value" id="inactiveCentres">0</span>
-            </div>
-        </div>
-    </div>
     
     <!-- Centre Modal -->
     <div id="centreModal" class="modal">
