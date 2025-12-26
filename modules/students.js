@@ -52,6 +52,7 @@ class StudentManager {
         this.selectedStudents = new Set();
         this.centres = []; // Store centres for display
         this.programs = []; // Store programs for display
+        this._programCache = new Map(); // Cache program lookups
     }
     
     /**
@@ -77,40 +78,155 @@ class StudentManager {
     /**
      * Load centres and programs for dropdowns
      */
-   async _loadCentresAndPrograms() {
-    try {
-        console.log('🔍 Loading programs from database...');
-        
-        // Load programs
-        if (this.db.getPrograms) {
-            const programsData = await this.db.getPrograms();
-            console.log('📊 Raw programs data from DB:', programsData);
+    async _loadCentresAndPrograms() {
+        try {
+            console.log('🔍 Loading programs from database...');
             
-            // Ensure we store the data properly
-            this.programs = Array.isArray(programsData) ? programsData : [];
-            console.log(`✅ Stored ${this.programs.length} programs in this.programs`);
+            // Load programs
+            if (this.db.getPrograms) {
+                const programsData = await this.db.getPrograms();
+                console.log('📊 Raw programs data from DB:', programsData);
+                
+                // Ensure we store the data properly
+                this.programs = Array.isArray(programsData) ? programsData : [];
+                console.log(`✅ Stored ${this.programs.length} programs in this.programs`);
+                
+                // Log all program codes for debugging
+                console.log('🔍 All program codes:', this.programs.map(p => ({
+                    code: p.code,
+                    name: p.name,
+                    id: p.id
+                })));
+                
+                // Populate program dropdown
+                await this._populateProgramDropdown();
+                
+            } else {
+                console.error('❌ this.db.getPrograms is not available');
+                this.programs = [];
+            }
             
-            // Verify storage
-            console.log('🔍 this.programs after assignment:', this.programs);
-            console.log('🔍 Program codes:', this.programs.map(p => p.code));
+            // Load centres
+            if (this.db.getCentres) {
+                this.centres = await this.db.getCentres();
+                console.log(`✅ Loaded ${this.centres.length} centres`);
+                
+                // Populate centre dropdown
+                await this._populateCentreDropdown();
+            }
             
-        } else {
-            console.error('❌ this.db.getPrograms is not available');
+        } catch (error) {
+            console.error('❌ Error loading centres/programs:', error);
             this.programs = [];
+            this.centres = [];
         }
-        
-        // Load centres
-        if (this.db.getCentres) {
-            this.centres = await this.db.getCentres();
-            console.log(`✅ Loaded ${this.centres.length} centres`);
-        }
-        
-    } catch (error) {
-        console.error('❌ Error loading centres/programs:', error);
-        this.programs = [];
-        this.centres = [];
     }
-}
+    
+    /**
+     * Populate program dropdown
+     */
+    async _populateProgramDropdown(selectedProgramCode = null) {
+        try {
+            const programSelect = document.getElementById('studentProgram');
+            const filterProgramSelect = document.getElementById('filterProgram');
+            
+            if (!programSelect) {
+                console.warn('studentProgram dropdown not found');
+                return;
+            }
+            
+            // Clear existing options
+            programSelect.innerHTML = '<option value="">Select Program</option>';
+            if (filterProgramSelect) {
+                filterProgramSelect.innerHTML = '<option value="">All Programs</option>';
+            }
+            
+            // Add programs to dropdowns
+            this.programs.forEach(program => {
+                if (!program.code || !program.name) return;
+                
+                // Main program select
+                const option = document.createElement('option');
+                option.value = program.code;
+                option.textContent = `${program.code} - ${program.name}`;
+                option.setAttribute('data-program-name', program.name);
+                
+                if (selectedProgramCode && program.code === selectedProgramCode) {
+                    option.selected = true;
+                }
+                
+                programSelect.appendChild(option);
+                
+                // Filter program select
+                if (filterProgramSelect) {
+                    const filterOption = option.cloneNode(true);
+                    filterOption.textContent = program.code;
+                    filterOption.setAttribute('value', program.code);
+                    filterProgramSelect.appendChild(filterOption);
+                }
+            });
+            
+            console.log(`✅ Populated program dropdown with ${this.programs.length} programs`);
+            
+        } catch (error) {
+            console.error('Error populating program dropdown:', error);
+        }
+    }
+    
+    /**
+     * Populate centre dropdown
+     */
+    async _populateCentreDropdown(selectedCentreId = null) {
+        try {
+            const centreSelect = document.getElementById('studentCentre');
+            const filterCentreSelect = document.getElementById('filterCentre');
+            
+            if (!centreSelect) {
+                console.warn('studentCentre dropdown not found');
+                return;
+            }
+            
+            // Clear existing options
+            centreSelect.innerHTML = '<option value="">Select Centre</option>';
+            if (filterCentreSelect) {
+                filterCentreSelect.innerHTML = '<option value="">All Centres</option>';
+            }
+            
+            // Add centres to dropdowns
+            this.centres.forEach(centre => {
+                if (!centre.id || !centre.name) return;
+                
+                // Main centre select
+                const option = document.createElement('option');
+                option.value = centre.id;
+                const displayText = centre.code ? 
+                    `${centre.name} (${centre.code}) - ${centre.county || ''}` :
+                    `${centre.name} - ${centre.county || ''}`;
+                option.textContent = displayText;
+                option.setAttribute('data-centre-name', centre.name);
+                
+                if (selectedCentreId && centre.id === selectedCentreId) {
+                    option.selected = true;
+                }
+                
+                centreSelect.appendChild(option);
+                
+                // Filter centre select
+                if (filterCentreSelect) {
+                    const filterOption = option.cloneNode(true);
+                    filterOption.textContent = centre.name;
+                    filterOption.setAttribute('value', centre.id);
+                    filterCentreSelect.appendChild(filterOption);
+                }
+            });
+            
+            console.log(`✅ Populated centre dropdown with ${this.centres.length} centres`);
+            
+        } catch (error) {
+            console.error('Error populating centre dropdown:', error);
+        }
+    }
+    
     /**
      * Get centre name by ID
      */
@@ -121,16 +237,41 @@ class StudentManager {
     }
     
     /**
-     * Get program name by code
+     * Get program name by code - WITH CACHING
      */
     _getProgramName(programCode) {
         if (!programCode) return 'Not assigned';
-        const program = this.programs.find(p => p.code === programCode);
-        return program ? `${program.code} - ${program.name}` : programCode;
+        
+        // Check cache first
+        if (this._programCache.has(programCode)) {
+            return this._programCache.get(programCode);
+        }
+        
+        // Normalize for search
+        const normalizedCode = String(programCode).trim().toUpperCase();
+        
+        // Find program
+        const program = this.programs.find(p => {
+            if (!p.code) return false;
+            const dbCode = String(p.code).trim().toUpperCase();
+            return dbCode === normalizedCode;
+        });
+        
+        let displayName = 'Not assigned';
+        if (program) {
+            displayName = program.name ? `${program.code} - ${program.name}` : program.code;
+        } else {
+            displayName = programCode; // Fallback to just the code
+        }
+        
+        // Cache result
+        this._programCache.set(programCode, displayName);
+        
+        return displayName;
     }
     
     /**
-     * Generate registration number based on program and intake year - FIXED
+     * Generate registration number based on program and intake year
      */
     async generateRegNumber() {
         try {
@@ -158,9 +299,8 @@ class StudentManager {
                 return;
             }
             
-            // METHOD 1: Try database method first
+            // Try database method first
             try {
-                // Your database method should accept programCode (TEXT) not programId (UUID)
                 const regNumber = await this.db.generateRegistrationNumber(programCode, intakeYear);
                 
                 if (regNumber) {
@@ -179,8 +319,7 @@ class StudentManager {
             } catch (dbError) {
                 console.warn('Database method failed, using fallback:', dbError);
                 
-                // METHOD 2: Manual generation as fallback
-                // Get all students to find the highest sequence
+                // Manual generation as fallback
                 const allStudents = await this.db.getStudents();
                 
                 // Filter students by program and intake year
@@ -234,6 +373,8 @@ class StudentManager {
     async _populateIntakeYears(studentIntakeYear = null) {
         try {
             const intakeSelect = document.getElementById('studentIntake');
+            const filterIntakeSelect = document.getElementById('filterIntake');
+            
             if (!intakeSelect) {
                 console.warn('studentIntake dropdown not found');
                 return;
@@ -241,13 +382,19 @@ class StudentManager {
             
             // Clear existing options
             intakeSelect.innerHTML = '<option value="">Select Intake Year</option>';
+            if (filterIntakeSelect) {
+                filterIntakeSelect.innerHTML = '<option value="">All Intake Years</option>';
+            }
             
             const currentYear = new Date().getFullYear();
+            const years = new Set();
             
             // Always include the student's intake year if provided
             if (studentIntakeYear) {
                 const year = parseInt(studentIntakeYear);
                 if (!isNaN(year)) {
+                    years.add(year);
+                    
                     const studentOption = document.createElement('option');
                     studentOption.value = year;
                     studentOption.textContent = year;
@@ -260,35 +407,104 @@ class StudentManager {
             // Add current year and previous 10 years
             for (let i = 0; i <= 10; i++) {
                 const year = currentYear - i;
-                
+                years.add(year);
+            }
+            
+            // Add future years (next 2 years)
+            for (let i = 1; i <= 2; i++) {
+                const year = currentYear + i;
+                years.add(year);
+            }
+            
+            // Convert to array and sort
+            const sortedYears = Array.from(years).sort((a, b) => b - a);
+            
+            // Populate intake year dropdown
+            sortedYears.forEach(year => {
                 // Don't add duplicate if it's the student's year
-                if (studentIntakeYear && year === parseInt(studentIntakeYear)) continue;
+                if (studentIntakeYear && year === parseInt(studentIntakeYear)) return;
                 
                 const option = document.createElement('option');
                 option.value = year;
                 option.textContent = year;
                 
                 // Select current year by default for new students
-                if (!studentIntakeYear && i === 0) {
+                if (!studentIntakeYear && year === currentYear) {
                     option.selected = true;
                 }
                 
                 intakeSelect.appendChild(option);
-            }
+                
+                // Add to filter dropdown
+                if (filterIntakeSelect) {
+                    const filterOption = option.cloneNode(true);
+                    filterIntakeSelect.appendChild(filterOption);
+                }
+            });
             
-            // Add future years (next 2 years)
-            for (let i = 1; i <= 2; i++) {
-                const year = currentYear + i;
-                const option = document.createElement('option');
-                option.value = year;
-                option.textContent = year;
-                intakeSelect.appendChild(option);
-            }
-            
-            console.log(`✅ Populated intake years dropdown`);
+            console.log(`✅ Populated intake years dropdown with ${sortedYears.length} years`);
             
         } catch (error) {
             console.error('Error populating intake years:', error);
+        }
+    }
+    
+    /**
+     * Populate county dropdown
+     */
+    async _populateCountyDropdown(selectedCounty = null) {
+        try {
+            const countySelect = document.getElementById('studentCounty');
+            const filterCountySelect = document.getElementById('filterCounty');
+            
+            if (!countySelect) {
+                console.warn('studentCounty dropdown not found');
+                return;
+            }
+            
+            // Kenyan counties
+            const kenyanCounties = [
+                'Baringo', 'Bomet', 'Bungoma', 'Busia', 'Elgeyo-Marakwet', 
+                'Embu', 'Garissa', 'Homa Bay', 'Isiolo', 'Kajiado', 
+                'Kakamega', 'Kericho', 'Kiambu', 'Kilifi', 'Kirinyaga', 
+                'Kisii', 'Kisumu', 'Kitui', 'Kwale', 'Laikipia', 
+                'Lamu', 'Machakos', 'Makueni', 'Mandera', 'Marsabit', 
+                'Meru', 'Migori', 'Mombasa', 'Murang\'a', 'Nairobi', 
+                'Nakuru', 'Nandi', 'Narok', 'Nyamira', 'Nyandarua', 
+                'Nyeri', 'Samburu', 'Siaya', 'Taita-Taveta', 'Tana River', 
+                'Tharaka-Nithi', 'Trans Nzoia', 'Turkana', 'Uasin Gishu', 
+                'Vihiga', 'Wajir', 'West Pokot'
+            ];
+            
+            // Clear existing options
+            countySelect.innerHTML = '<option value="">Select County</option>';
+            if (filterCountySelect) {
+                filterCountySelect.innerHTML = '<option value="">All Counties</option>';
+            }
+            
+            // Add counties to dropdowns
+            kenyanCounties.forEach(county => {
+                const option = document.createElement('option');
+                option.value = county;
+                option.textContent = county;
+                
+                if (selectedCounty && county === selectedCounty) {
+                    option.selected = true;
+                }
+                
+                countySelect.appendChild(option);
+                
+                // Add to filter dropdown
+                if (filterCountySelect) {
+                    const filterOption = option.cloneNode(true);
+                    filterCountySelect.appendChild(filterOption);
+                }
+            });
+            
+            console.log(`✅ Populated county dropdown with ${kenyanCounties.length} counties`);
+            
+        } catch (error) {
+            console.error('Error populating county dropdown:', error);
         }
     }
     
@@ -309,7 +525,7 @@ class StudentManager {
         }
         
         // Filter changes
-        ['filterCounty', 'filterCentre', 'filterProgram', 'filterStatus'].forEach(id => {
+        ['filterCounty', 'filterCentre', 'filterProgram', 'filterStatus', 'filterIntake'].forEach(id => {
             const element = document.getElementById(id);
             if (element) {
                 element.addEventListener('change', () => this.filterStudents());
@@ -358,6 +574,15 @@ class StudentManager {
             intakeSelect.addEventListener('change', () => this.generateRegNumber());
         }
         
+        // Add New Student button
+        const addStudentBtn = document.getElementById('addStudentBtn');
+        if (addStudentBtn) {
+            addStudentBtn.addEventListener('click', () => {
+                this._resetStudentForm();
+                this.ui.openModal('studentModal');
+            });
+        }
+        
         console.log('✅ Student event listeners attached');
     }
     
@@ -401,7 +626,7 @@ class StudentManager {
     }
     
     /**
-     * Save or update student - COMPLETE FIXED VERSION
+     * Save or update student - FIXED PROGRAM LOOKUP
      */
     async saveStudent(event) {
         event.preventDefault();
@@ -425,10 +650,9 @@ class StudentManager {
                 isUUID: selectedCentreId.includes('-') && selectedCentreId.length === 36
             });
             
-            // Get centre name - FIXED LOGIC
+            // Get centre name
             let centreName = '';
             if (selectedCentreText && selectedCentreText !== 'Select Centre') {
-                // Extract just the centre name from the display text
                 const match = selectedCentreText.match(/^([^(]+)/);
                 centreName = match ? match[0].trim() : selectedCentreText;
             } else if (selectedCentreId && this.centres.length > 0) {
@@ -438,24 +662,51 @@ class StudentManager {
             
             console.log('📍 Centre name determined:', centreName);
             
-            // Get selected program code and find program name from database
+            // FIXED: Get selected program code and find program name from database
             const programCode = document.getElementById('studentProgram')?.value || '';
             let programName = '';
             
-            // Look up program name from the programs array
-            if (programCode && this.programs.length > 0) {
-                const program = this.programs.find(p => p.code === programCode);
+            console.log('🔍 Looking for program with code:', programCode);
+            console.log('📊 Available programs:', this.programs);
+            
+            // IMPROVED PROGRAM LOOKUP
+            if (programCode) {
+                // Normalize the program code for comparison
+                const normalizedCode = programCode.trim().toUpperCase();
+                
+                // Look for exact match first
+                let program = this.programs.find(p => {
+                    if (!p.code) return false;
+                    const dbCode = String(p.code).trim().toUpperCase();
+                    return dbCode === normalizedCode;
+                });
+                
+                // If not found, try case-insensitive partial match
+                if (!program) {
+                    program = this.programs.find(p => {
+                        if (!p.code) return false;
+                        const dbCode = String(p.code).toUpperCase();
+                        return dbCode.includes(normalizedCode) || normalizedCode.includes(dbCode);
+                    });
+                }
+                
                 if (program) {
                     programName = program.name || '';
                     console.log('✅ Found program in database:', {
                         code: program.code,
-                        name: program.name
+                        name: program.name,
+                        foundBy: 'code match'
                     });
                 } else {
                     console.error('❌ Program not found in database for code:', programCode);
-                    this.ui.showToast(`Program "${programCode}" not found in database`, 'error');
+                    console.error('Available program codes:', this.programs.map(p => p.code));
+                    this.ui.showToast(`Program "${programCode}" not found. Please select a valid program.`, 'error');
                     return;
                 }
+            } else {
+                console.error('❌ No program code selected');
+                this.ui.showToast('Please select a program', 'error');
+                return;
             }
             
             console.log('🎓 Program info for saving:', {
@@ -531,12 +782,6 @@ class StudentManager {
                 return;
             }
             
-            // Validate program
-            if (!programName) {
-                this.ui.showToast('Please select a valid program', 'error');
-                return;
-            }
-            
             // Show loading state
             const submitBtn = form.querySelector('button[type="submit"]');
             const originalText = submitBtn.innerHTML;
@@ -601,8 +846,11 @@ class StudentManager {
             
             console.log('📋 Student data from database:', student);
             
-            // FIRST: Populate intake years with student's actual year
+            // Populate all dropdowns with student's data
             await this._populateIntakeYears(student.intake_year);
+            await this._populateProgramDropdown(student.program);
+            await this._populateCentreDropdown(student.centre_id);
+            await this._populateCountyDropdown(student.county);
             
             // Field mapping - matches the HTML form
             const fieldMap = {
@@ -618,15 +866,12 @@ class StudentManager {
                 'studentGender': student.gender || '',
                 
                 // Location Information
-                'studentCounty': student.county || '',
                 'studentRegion': student.region || student.sub_county || '',
                 'studentWard': student.ward || '',
                 'studentVillage': student.village || '',
                 'studentAddress': student.address || '',
                 
                 // Academic Information
-                'studentProgram': student.program || '',
-                'studentCentre': student.centre_id || student.centre || '',
                 'studentStudyMode': student.study_mode || 'fulltime',
                 'studentStatus': student.status || 'active',
                 
@@ -726,10 +971,8 @@ class StudentManager {
                 if (field.type === 'checkbox') {
                     field.checked = false;
                 } else if (field.tagName === 'SELECT') {
-                    // Don't reset intake year dropdown
-                    if (field.id !== 'studentIntake') {
-                        field.selectedIndex = 0;
-                    }
+                    // Reset dropdowns to first option
+                    field.selectedIndex = 0;
                 } else if (field.id === 'studentRegNumber') {
                     // Clear but keep field writable for new students
                     field.value = '';
@@ -757,8 +1000,11 @@ class StudentManager {
             // Clear edit ID
             this.currentEditId = null;
             
-            // Repopulate intake years for new student
+            // Repopulate dropdowns for new student
             this._populateIntakeYears();
+            this._populateProgramDropdown();
+            this._populateCentreDropdown();
+            this._populateCountyDropdown();
             
             // Clear any error messages
             document.querySelectorAll('.error-message').forEach(el => el.remove());
@@ -800,23 +1046,10 @@ class StudentManager {
             
             // Render all rows with proper data mapping
             const html = students.map(student => {
-                // FIX 1: Get program display - ALWAYS show code + name
-                let programDisplay = '';
+                // Get program display - ALWAYS show code + name
+                let programDisplay = this._getProgramName(student.program);
                 
-                if (student.program && student.program_name && student.program_name.trim() !== '') {
-                    // Show "DHNC - Diploma in Holistic Nurturing of Children"
-                    programDisplay = `${student.program} - ${student.program_name}`;
-                } else if (student.program_name && student.program_name.trim() !== '') {
-                    // Only name available
-                    programDisplay = student.program_name;
-                } else if (student.program && student.program.trim() !== '') {
-                    // Only code available
-                    programDisplay = student.program;
-                } else {
-                    programDisplay = 'Not assigned';
-                }
-                
-                // FIX 2: Get centre display name
+                // Get centre display name
                 let centreDisplay = 'Not assigned';
                 if (student.centre_name && student.centre_name.trim() !== '') {
                     centreDisplay = student.centre_name;
@@ -826,10 +1059,10 @@ class StudentManager {
                     centreDisplay = this._getCentreName(student.centre_id);
                 }
                 
-                // FIX 3: Get region display (use region or sub_county)
+                // Get region display (use region or sub_county)
                 const regionDisplay = student.region || student.sub_county || student.county || '';
                 
-                // FIX 4: Get county display
+                // Get county display
                 const countyDisplay = student.county || '';
                 
                 const studentName = this._escapeHtml(student.full_name || '');
@@ -858,14 +1091,12 @@ class StudentManager {
                         </td>
                         <td>
                             <div class="program-display">
-                                <!-- This now shows: DHNC - Diploma in Holistic Nurturing of Children -->
                                 <strong>${this._escapeHtml(programDisplay)}</strong>
                                 ${student.study_mode ? `<br><small class="study-mode">${student.study_mode.toUpperCase()}</small>` : ''}
                             </div>
                         </td>
                         <td>
                             <div class="location-display">
-                                <!-- Centre and Region combined in one cell -->
                                 <div class="centre-name"><strong>${this._escapeHtml(centreDisplay)}</strong></div>
                                 <div class="centre-region">${this._escapeHtml(regionDisplay)}</div>
                             </div>
@@ -905,7 +1136,7 @@ class StudentManager {
             // Show bulk actions if we have students
             this._toggleBulkActions(true);
 
-            console.log(`✅ Loaded ${students.length} students with combined centre/region display`);
+            console.log(`✅ Loaded ${students.length} students`);
             
         } catch (error) {
             console.error('❌ Error loading students table:', error);
@@ -951,7 +1182,8 @@ class StudentManager {
                     (student.full_name && student.full_name.toLowerCase().includes(searchTerm)) ||
                     (student.email && student.email.toLowerCase().includes(searchTerm)) ||
                     (student.phone && student.phone.includes(searchTerm)) ||
-                    (student.program && student.program.toLowerCase().includes(searchTerm))
+                    (student.program && student.program.toLowerCase().includes(searchTerm)) ||
+                    (student.program_name && student.program_name.toLowerCase().includes(searchTerm))
                 );
             });
             
@@ -986,17 +1218,8 @@ class StudentManager {
         
         // Reuse the rendering logic from loadStudentsTable
         const html = students.map(student => {
-            // Get program display - show code + name
-            let programDisplay = '';
-            if (student.program && student.program_name && student.program_name.trim() !== '') {
-                programDisplay = `${student.program} - ${student.program_name}`;
-            } else if (student.program_name && student.program_name.trim() !== '') {
-                programDisplay = student.program_name;
-            } else if (student.program && student.program.trim() !== '') {
-                programDisplay = student.program;
-            } else {
-                programDisplay = 'Not assigned';
-            }
+            // Get program display
+            let programDisplay = this._getProgramName(student.program);
             
             // Get centre display name
             let centreDisplay = 'Not assigned';
@@ -1091,12 +1314,13 @@ class StudentManager {
                 county: document.getElementById('filterCounty')?.value || '',
                 centre: document.getElementById('filterCentre')?.value || '',
                 program: document.getElementById('filterProgram')?.value || '',
-                status: document.getElementById('filterStatus')?.value || ''
+                status: document.getElementById('filterStatus')?.value || '',
+                intake: document.getElementById('filterIntake')?.value || ''
             };
             
             console.log('🔍 Applying filters:', filters);
             
-            // Get all students and filter locally (or use database filtering if available)
+            // Get all students and filter locally
             const allStudents = await this.db.getStudents();
             const filteredStudents = allStudents.filter(student => {
                 let matches = true;
@@ -1117,6 +1341,10 @@ class StudentManager {
                 }
                 
                 if (filters.status && student.status !== filters.status) {
+                    matches = false;
+                }
+                
+                if (filters.intake && student.intake_year !== parseInt(filters.intake)) {
                     matches = false;
                 }
                 
@@ -1223,7 +1451,7 @@ class StudentManager {
                             <!-- Student Header -->
                             <div style="display: flex; align-items: center; gap: 20px; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 2px solid #f0f0f0;">
                                 <div style="background-color: ${this._getAvatarColor(student.full_name)}; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                    <i class="fas fa-user fa-2x" style="color: white;"></i>
+                                    <span style="color: white; font-size: 24px; font-weight: bold;">${this._getAvatarInitials(student.full_name)}</span>
                                 </div>
                                 <div style="flex: 1;">
                                     <h2 style="margin: 0 0 5px 0; color: #333;">${this._escapeHtml(student.full_name)}</h2>
@@ -1291,6 +1519,12 @@ class StudentManager {
                                         <div style="display: flex; justify-content: space-between;">
                                             <span style="font-weight: 600; color: #555;">Intake Year:</span>
                                             <span style="color: #333;">${this._escapeHtml(student.intake_year)}</span>
+                                        </div>` : ''}
+                                        
+                                        ${student.study_mode ? `
+                                        <div style="display: flex; justify-content: space-between;">
+                                            <span style="font-weight: 600; color: #555;">Study Mode:</span>
+                                            <span style="color: #333; text-transform: capitalize;">${this._escapeHtml(student.study_mode)}</span>
                                         </div>` : ''}
                                     </div>
                                 </div>
@@ -1408,8 +1642,10 @@ class StudentManager {
                 'Program': this._getProgramName(student.program),
                 'Centre': student.centre || this._getCentreName(student.centre_id),
                 'County': student.county || '',
+                'Region': student.region || student.sub_county || '',
                 'Intake Year': student.intake_year,
                 'Status': student.status || 'active',
+                'Study Mode': student.study_mode || '',
                 'Date of Birth': student.date_of_birth ? new Date(student.date_of_birth).toISOString().split('T')[0] : '',
                 'Gender': student.gender || '',
                 'Registration Date': student.registration_date || student.created_at ? new Date(student.created_at).toISOString().split('T')[0] : ''
@@ -1634,6 +1870,25 @@ class StudentManager {
             this.ui.showToast(`Bulk delete for ${this.selectedStudents.size} students`, 'info');
             // Implement bulk delete logic here
         }
+    }
+    
+    /**
+     * Cleanup method to remove event listeners
+     */
+    destroy() {
+        console.log('🧹 Cleaning up StudentManager...');
+        
+        // Remove form event listener
+        const studentForm = document.getElementById('studentForm');
+        if (studentForm) {
+            studentForm.removeEventListener('submit', this.saveStudent);
+        }
+        
+        // Remove other event listeners as needed
+        this.selectedStudents.clear();
+        this._programCache.clear();
+        
+        console.log('✅ StudentManager cleanup complete');
     }
 }
 
