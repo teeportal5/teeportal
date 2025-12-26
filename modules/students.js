@@ -753,82 +753,76 @@ class StudentManager {
         return emailRegex.test(email);
     }
     
-    /**
+   /**
  * Load students into table - FIXED FOR YOUR SCHEMA
  */
 async loadStudentsTable(filterOptions = {}) {
     try {
-        console.log('📋 Loading students table with filter options:', filterOptions);
-        
-        // Step 1: Get students from database
+        console.log('📋 Loading students table...');
         const students = await this.db.getStudents(filterOptions);
-        console.log('📊 Students returned from database:', students);
-        console.log(`📊 Total students: ${students.length}`);
-        
-        // Step 2: Get table body element
         const tbody = document.getElementById('studentsTableBody');
-        console.log('🔍 Table body element found:', !!tbody);
         
         if (!tbody) {
-            console.error('❌ Students table body not found! Check your HTML structure');
+            console.warn('Students table body not found');
             return;
         }
         
-        // Step 3: Handle empty state
-        if (!students || students.length === 0) {
-            console.log('ℹ️ No students found, showing empty state');
+        if (students.length === 0) {
             this._renderEmptyState(tbody);
             this._toggleBulkActions(false);
             return;
         }
         
-        // Step 4: DEBUG - Log first student structure
-        console.log('🔍 First student object structure:', students[0]);
-        console.log('🔍 Student object keys:', Object.keys(students[0]));
+        // DEBUG: Log first student to see the actual structure
+        if (students.length > 0) {
+            console.log('🔍 First student object:', students[0]);
+        }
         
-        // Step 5: Clear table and show loading temporarily
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading students...</td></tr>';
-        
-        // Step 6: Render all rows with proper data mapping
-        const html = students.map((student, index) => {
-            console.log(`📝 Rendering student ${index + 1}:`, student.reg_number);
-            
+        // Render all rows with proper data mapping
+        const html = students.map(student => {
             // Get program display name
             const programDisplay = student.program_name || this._getProgramName(student.program);
             
-            // Get centre display name
+            // Get centre display name - FIXED VERSION
             let centreDisplay = 'Not assigned';
             
-            // PRIORITY 1: Use centre_name
+            // PRIORITY 1: Use centre_name (all 15 students have this field)
             if (student.centre_name && student.centre_name.trim() !== '') {
                 centreDisplay = student.centre_name;
+                console.log(`📍 ${student.reg_number}: Using centre_name = "${student.centre_name}"`);
             }
-            // PRIORITY 2: Use centre field
+            // PRIORITY 2: Use centre field (10 students have this)
             else if (student.centre && student.centre.trim() !== '') {
                 centreDisplay = student.centre;
+                console.log(`📍 ${student.reg_number}: Using centre = "${student.centre}"`);
             }
-            // PRIORITY 3: Look up by centre_id
+            // PRIORITY 3: Look up by centre_id (5 students have this)
             else if (student.centre_id) {
-                centreDisplay = this._getCentreName(student.centre_id);
+                const lookedUpName = this._getCentreName(student.centre_id);
+                centreDisplay = lookedUpName;
+                console.log(`📍 ${student.reg_number}: Looked up centre_id ${student.centre_id} = "${lookedUpName}"`);
             }
             
-            // For debugging, check if student has required fields
-            if (!student.reg_number) {
-                console.warn(`⚠️ Student ${index + 1} missing reg_number:`, student);
-            }
-            if (!student.full_name) {
-                console.warn(`⚠️ Student ${index + 1} missing full_name:`, student);
+            // For DHNC-2025-004 specifically: Clean up if it shows UUID
+            if (centreDisplay.includes('b3dec280')) {
+                console.warn(`⚠️ ${student.reg_number}: Centre has UUID "${centreDisplay}"`);
+                // Try to find the actual centre name
+                const centre = this.centres.find(c => c.id.includes('b3dec280'));
+                if (centre) {
+                    centreDisplay = centre.name;
+                    console.log(`✅ Corrected to: "${centre.name}"`);
+                }
             }
             
-            const studentName = this._escapeHtml(student.full_name || 'Unknown');
+            const studentName = this._escapeHtml(student.full_name || '');
             const email = this._escapeHtml(student.email || '');
             const status = student.status || 'active';
-            const safeStudentId = this._escapeAttr(student.id || student.reg_number || '');
-            const safeRegNumber = this._escapeAttr(student.reg_number || 'N/A');
+            const safeStudentId = this._escapeAttr(student.id);
+            const safeRegNumber = this._escapeAttr(student.reg_number);
             
             return `
                 <tr data-student-id="${safeStudentId}" data-student-reg="${safeRegNumber}">
-                    <td><strong>${this._escapeHtml(student.reg_number || 'N/A')}</strong></td>
+                    <td><strong>${this._escapeHtml(student.reg_number)}</strong></td>
                     <td>
                         <div class="student-avatar">
                             <div class="avatar-icon" style="background-color: ${this._getAvatarColor(student.full_name)}">
@@ -842,8 +836,8 @@ async loadStudentsTable(filterOptions = {}) {
                     </td>
                     <td>${this._escapeHtml(programDisplay)}</td>
                     <td>${this._escapeHtml(centreDisplay)}</td>
-                    <td>${this._escapeHtml(student.county || '')}</td>
-                    <td>${this._escapeHtml(student.intake_year || '')}</td>
+                    <td>${this._escapeHtml(student.county)}</td>
+                    <td>${this._escapeHtml(student.intake_year)}</td>
                     <td>
                         <span class="status-badge ${this._escapeAttr(status)}">
                             ${this._escapeHtml(status.toUpperCase())}
@@ -867,48 +861,20 @@ async loadStudentsTable(filterOptions = {}) {
             `;
         }).join('');
 
-        console.log('✅ Generated HTML length:', html.length);
-        
-        // Step 7: Update the table
         tbody.innerHTML = html;
-        console.log('✅ Table updated with students');
-        
-        // Step 8: Attach event listeners
+
+        // Attach event listeners
         this._attachStudentRowEventListeners();
-        console.log('✅ Event listeners attached');
-        
-        // Step 9: Show bulk actions if we have students
+
+        // Show bulk actions if we have students
         this._toggleBulkActions(true);
-        console.log('✅ Bulk actions toggled');
-        
-        console.log(`✅ Successfully loaded ${students.length} students into table`);
+
+        console.log(`✅ Loaded ${students.length} students`);
         
     } catch (error) {
         console.error('❌ Error loading students table:', error);
-        console.error('Error stack:', error.stack);
-        
-        // Show error in table
-        const tbody = document.getElementById('studentsTableBody');
-        if (tbody) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="8" class="error-state">
-                        <i class="fas fa-exclamation-triangle fa-3x"></i>
-                        <h3>Error Loading Students</h3>
-                        <p>${error.message || 'Unable to load student data'}</p>
-                        <button class="btn-primary" id="retryLoadStudents">
-                            <i class="fas fa-redo"></i> Try Again
-                        </button>
-                    </td>
-                </tr>
-            `;
-            
-            tbody.querySelector('#retryLoadStudents')?.addEventListener('click', () => {
-                this.loadStudentsTable();
-            });
-        }
-        
-        this.ui.showToast('Error loading students: ' + (error.message || 'Unknown error'), 'error');
+        this.ui.showToast('Error loading students data', 'error');
+        this._renderErrorState();
     }
 }
             
