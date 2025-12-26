@@ -1018,7 +1018,7 @@
     </div>
 </section>
             
-   <!-- REPORTS SECTION -->
+  <!-- REPORTS SECTION -->
 <section id="reports" class="content-section" aria-labelledby="reports-heading">
     <div class="section-header">
         <h2 id="reports-heading"><i class="fas fa-chart-bar" aria-hidden="true"></i> Reports & Analytics</h2>
@@ -1039,52 +1039,64 @@
         </div>
     </div>
     
-    <!-- STATISTICS AT THE TOP -->
+    <!-- SMALLER HORIZONTAL STATISTICS CARDS -->
     <div class="row mb-4">
-        <div class="col-md-3 mb-3">
-            <div class="card stat-card">
-                <div class="card-body">
-                    <h5 class="card-title">Total Students</h5>
-                    <h2 class="stat-number" id="totalStudents">0</h2>
-                    <div class="stat-trend">
-                        <i class="fas fa-users"></i>
-                        <span>All programs</span>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon mr-3">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div>
+                            <h5 class="stat-number mb-0" id="totalStudents">0</h5>
+                            <p class="text-muted mb-0" style="font-size: 0.8rem;">Total Students</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card stat-card">
-                <div class="card-body">
-                    <h5 class="card-title">Graduation Rate</h5>
-                    <h2 class="stat-number" id="graduationRate">0%</h2>
-                    <div class="stat-trend">
-                        <i class="fas fa-graduation-cap"></i>
-                        <span>Completion rate</span>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon mr-3">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                        <div>
+                            <h5 class="stat-number mb-0" id="graduationRate">0%</h5>
+                            <p class="text-muted mb-0" style="font-size: 0.8rem;">Graduation Rate</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card stat-card">
-                <div class="card-body">
-                    <h5 class="card-title">Average GPA</h5>
-                    <h2 class="stat-number" id="avgGPA">0.00</h2>
-                    <div class="stat-trend">
-                        <i class="fas fa-chart-line"></i>
-                        <span>Academic performance</span>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon mr-3">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div>
+                            <h5 class="stat-number mb-0" id="avgGPA">0.00</h5>
+                            <p class="text-muted mb-0" style="font-size: 0.8rem;">Average GPA</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card stat-card">
-                <div class="card-body">
-                    <h5 class="card-title">Active Centres</h5>
-                    <h2 class="stat-number" id="centersCount">0</h2>
-                    <div class="stat-trend">
-                        <i class="fas fa-building"></i>
-                        <span>Study locations</span>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon mr-3">
+                            <i class="fas fa-building"></i>
+                        </div>
+                        <div>
+                            <h5 class="stat-number mb-0" id="centersCount">0</h5>
+                            <p class="text-muted mb-0" style="font-size: 0.8rem;">Active Centres</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1101,21 +1113,21 @@
                 <!-- Date Range -->
                 <div class="col-md-3">
                     <label class="form-label">Start Date</label>
-                    <input type="date" id="reportStartDate" class="form-control">
+                    <input type="date" id="reportStartDate" class="form-control form-control-sm">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">End Date</label>
-                    <input type="date" id="reportEndDate" class="form-control">
+                    <input type="date" id="reportEndDate" class="form-control form-control-sm">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Academic Year</label>
-                    <select id="academicYear" class="form-select">
+                    <select id="academicYear" class="form-select form-select-sm">
                         <option value="all">All Years</option>
                     </select>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Semester</label>
-                    <select id="semester" class="form-select">
+                    <select id="semester" class="form-select form-select-sm">
                         <option value="all">All Semesters</option>
                         <option value="1">Semester 1</option>
                         <option value="2">Semester 2</option>
@@ -1126,34 +1138,34 @@
                 <!-- Centre Filter -->
                 <div class="col-md-4">
                     <label class="form-label">Filter by Centre</label>
-                    <select id="filterCenter" class="form-select" multiple size="3">
-                        <option value="all" selected>All Centres</option>
+                    <select id="filterCenter" class="form-select form-select-sm" multiple size="3">
+                        <option value="all">All Centres</option>
                     </select>
-                    <small class="text-muted">Hold Ctrl/Cmd to select multiple centres</small>
+                    <small class="text-muted">Hold Ctrl/Cmd to select multiple</small>
                 </div>
                 
                 <!-- County Filter -->
                 <div class="col-md-4">
                     <label class="form-label">Filter by County</label>
-                    <select id="filterCounty" class="form-select" multiple size="3">
-                        <option value="all" selected>All Counties</option>
+                    <select id="filterCounty" class="form-select form-select-sm" multiple size="3">
+                        <option value="all">All Counties</option>
                     </select>
-                    <small class="text-muted">Hold Ctrl/Cmd to select multiple counties</small>
+                    <small class="text-muted">Hold Ctrl/Cmd to select multiple</small>
                 </div>
                 
                 <!-- Program Filter -->
                 <div class="col-md-4">
                     <label class="form-label">Filter by Program</label>
-                    <select id="filterProgram" class="form-select" multiple size="3">
-                        <option value="all" selected>All Programs</option>
+                    <select id="filterProgram" class="form-select form-select-sm" multiple size="3">
+                        <option value="all">All Programs</option>
                     </select>
-                    <small class="text-muted">Hold Ctrl/Cmd to select multiple programs</small>
+                    <small class="text-muted">Hold Ctrl/Cmd to select multiple</small>
                 </div>
                 
                 <!-- Intake Year Filter -->
                 <div class="col-md-4">
                     <label class="form-label">Filter by Intake Year</label>
-                    <select id="filterIntake" class="form-select">
+                    <select id="filterIntake" class="form-select form-select-sm">
                         <option value="all">All Intakes</option>
                     </select>
                 </div>
@@ -1161,22 +1173,19 @@
                 <!-- Course Filter -->
                 <div class="col-md-4">
                     <label class="form-label">Filter by Course</label>
-                    <select id="filterCourse" class="form-select">
+                    <select id="filterCourse" class="form-select form-select-sm">
                         <option value="all">All Courses</option>
                     </select>
                 </div>
                 
                 <!-- Filter Actions -->
-                <div class="col-12 mt-2">
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-outline-primary" onclick="app.reports.clearFilters()">
-                            <i class="fas fa-times"></i> Clear Filters
+                <div class="col-md-4 d-flex align-items-end">
+                    <div class="d-flex gap-2 w-100">
+                        <button class="btn btn-sm btn-outline-primary flex-fill" onclick="app.reports.clearFilters()">
+                            <i class="fas fa-times"></i> Clear
                         </button>
-                        <button class="btn btn-primary" onclick="app.reports.applyFilters()">
-                            <i class="fas fa-filter"></i> Apply Filters
-                        </button>
-                        <button class="btn btn-outline-secondary" onclick="app.reports.saveFilterPreset()">
-                            <i class="fas fa-save"></i> Save Filter Preset
+                        <button class="btn btn-sm btn-primary flex-fill" onclick="app.reports.applyFilters()">
+                            <i class="fas fa-filter"></i> Apply
                         </button>
                     </div>
                 </div>
@@ -1189,314 +1198,11 @@
         <!-- Reports will be populated dynamically by JavaScript -->
     </div>
     
-    <!-- ADVANCED REPORTS CONFIGURATION -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5><i class="fas fa-cogs"></i> Advanced Report Generation</h5>
-        </div>
-        <div class="card-body">
-            <div class="row g-4">
-                <!-- Student Report Configuration -->
-                <div class="col-md-6">
-                    <div class="report-config">
-                        <h6><i class="fas fa-users"></i> Student Report</h6>
-                        
-                        <!-- Centre Filter for Student Report -->
-                        <div class="mb-3">
-                            <label class="form-label">Filter by Centre</label>
-                            <select id="studentReportCenter" class="form-select" multiple>
-                                <option value="all">All Centres</option>
-                            </select>
-                            <small class="text-muted">Leave empty for all centres</small>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label">Report Type</label>
-                            <select id="studentReportType" class="form-select">
-                                <option value="list">Student List</option>
-                                <option value="enrollment">Enrollment Statistics</option>
-                                <option value="graduation">Graduation Report</option>
-                                <option value="demographics">Demographics</option>
-                                <option value="center_distribution">Centre Distribution</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Export Format</label>
-                            <select id="studentReportFormat" class="form-select">
-                                <option value="csv">CSV</option>
-                                <option value="excel">Excel</option>
-                                <option value="pdf">PDF</option>
-                            </select>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-primary flex-fill" onclick="app.reports.previewStudentReport()">
-                                <i class="fas fa-eye"></i> Preview
-                            </button>
-                            <button class="btn btn-success flex-fill" onclick="app.reports.generateStudentReport()">
-                                <i class="fas fa-download"></i> Export
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Academic Report Configuration -->
-                <div class="col-md-6">
-                    <div class="report-config">
-                        <h6><i class="fas fa-chart-line"></i> Academic Report</h6>
-                        
-                        <!-- Centre Filter for Academic Report -->
-                        <div class="mb-3">
-                            <label class="form-label">Filter by Centre</label>
-                            <select id="academicReportCenter" class="form-select" multiple>
-                                <option value="all">All Centres</option>
-                            </select>
-                            <small class="text-muted">Leave empty for all centres</small>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label">Report Type</label>
-                            <select id="academicReportType" class="form-select">
-                                <option value="marks">Marks Report</option>
-                                <option value="performance">Performance Analysis</option>
-                                <option value="grades">Grade Distribution</option>
-                                <option value="coursewise">Course-wise Results</option>
-                                <option value="center_performance">Centre Performance</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Export Format</label>
-                            <select id="academicReportFormat" class="form-select">
-                                <option value="csv">CSV</option>
-                                <option value="excel">Excel</option>
-                                <option value="pdf">PDF</option>
-                            </select>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-primary flex-fill" onclick="app.reports.previewAcademicReport()">
-                                <i class="fas fa-eye"></i> Preview
-                            </button>
-                            <button class="btn btn-success flex-fill" onclick="app.reports.generateAcademicReport()">
-                                <i class="fas fa-download"></i> Export
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- TRANSCRIPT GENERATION -->
-    <div id="transcriptSection" class="card mb-4">
-        <div class="card-header">
-            <h5><i class="fas fa-graduation-cap"></i> Transcript Generation</h5>
-        </div>
-        <div class="card-body">
-            <div class="row mb-3">
-                <div class="col-md-4">
-                    <button class="btn btn-primary w-100" onclick="app.reports.openTranscriptModal()">
-                        <i class="fas fa-search"></i> Select Student for Transcript
-                    </button>
-                </div>
-                <div class="col-md-8">
-                    <div class="alert alert-info mb-0">
-                        <i class="fas fa-info-circle"></i> Click the button above to open student selector and generate transcripts
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Current Selection Display -->
-            <div id="selectedStudentInfo" class="alert alert-success" style="display: none;">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <strong>Selected Student:</strong>
-                        <span id="selectedStudentName">-</span>
-                        <span id="selectedStudentReg" class="badge bg-secondary ms-2">-</span>
-                    </div>
-                    <button class="btn btn-sm btn-outline-danger" onclick="app.reports.clearSelectedStudent()">
-                        <i class="fas fa-times"></i> Clear
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Transcript Options -->
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label class="form-label">Format</label>
-                        <select id="transcriptFormat" class="form-select">
-                            <option value="pdf">PDF Transcript</option>
-                            <option value="print">Print Version</option>
-                            <option value="digital">Digital Copy</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label class="form-label">Include in Transcript</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="includeGrades" checked>
-                            <label class="form-check-label" for="includeGrades">
-                                Grades & Marks
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="includeGPA" checked>
-                            <label class="form-check-label" for="includeGPA">
-                                GPA Calculation
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="includeSignatures" checked>
-                            <label class="form-check-label" for="includeSignatures">
-                                Official Signatures
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label class="form-label">Grading System</label>
-                        <select id="gradingSystem" class="form-select">
-                            <option value="distinction">Distinction/Credit/Pass/Fail</option>
-                            <option value="percentage">Percentage Only</option>
-                            <option value="both">Both Grades & Percentage</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Transcript Actions -->
-            <div class="d-flex gap-2 justify-content-end">
-                <button class="btn btn-outline-primary" onclick="app.reports.loadSampleTranscript()">
-                    <i class="fas fa-file-alt"></i> Load Sample
-                </button>
-                <button class="btn btn-primary" onclick="app.reports.previewTranscript()">
-                    <i class="fas fa-eye"></i> Preview Transcript
-                </button>
-                <button class="btn btn-success" onclick="app.reports.generateTranscript()">
-                    <i class="fas fa-file-pdf"></i> Generate PDF
-                </button>
-            </div>
-            
-            <!-- Transcript Preview Area -->
-            <div id="transcriptPreview" class="mt-4" style="display: none;">
-                <!-- Preview content will be loaded here -->
-            </div>
-        </div>
-    </div>
-    
-    <!-- BULK EXPORT -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5><i class="fas fa-database"></i> Bulk Export</h5>
-        </div>
-        <div class="card-body">
-            <div class="row align-items-center">
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label class="form-label">Export Type</label>
-                        <select id="bulkExportType" class="form-select">
-                            <option value="json">JSON Backup</option>
-                            <option value="excel">Excel Workbook</option>
-                            <option value="csv_all">CSV Archive</option>
-                            <option value="pdf_all">PDF Reports</option>
-                            <option value="center_wise">Centre-wise Export</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label class="form-label">Select Centres</label>
-                        <select id="bulkExportCenters" class="form-select" multiple>
-                            <option value="all">All Centres</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <p class="text-muted mb-0">
-                        <i class="fas fa-info-circle"></i> Export all data for backup
-                    </p>
-                </div>
-                <div class="col-md-2 text-end">
-                    <button class="btn btn-warning w-100" onclick="app.reports.bulkExport()">
-                        <i class="fas fa-file-export"></i> Export
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- SCHEDULED REPORTS -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5><i class="fas fa-calendar-alt"></i> Scheduled Reports</h5>
-        </div>
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <div class="mb-3">
-                        <label class="form-label">Report Type</label>
-                        <select id="scheduleReportType" class="form-select">
-                            <option value="weekly">Weekly Summary</option>
-                            <option value="monthly">Monthly Performance</option>
-                            <option value="quarterly">Quarterly Analysis</option>
-                            <option value="yearly">Annual Report</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="mb-3">
-                        <label class="form-label">Schedule</label>
-                        <select id="scheduleFrequency" class="form-select">
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly (Monday)</option>
-                            <option value="monthly">Monthly (1st)</option>
-                            <option value="quarterly">Quarterly</option>
-                            <option value="yearly">Yearly</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="mb-3">
-                        <label class="form-label">Recipients</label>
-                        <input type="email" id="scheduleRecipients" class="form-control" placeholder="Enter emails (comma separated)">
-                    </div>
-                </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button class="btn btn-primary w-100" onclick="app.reports.addScheduledReport()">
-                        <i class="fas fa-plus"></i> Add Schedule
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Scheduled Reports List -->
-            <div id="scheduledReportsList" class="mt-3">
-                <table class="table table-sm">
-                    <thead>
-                        <tr>
-                            <th>Report</th>
-                            <th>Schedule</th>
-                            <th>Recipients</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Will be populated dynamically -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    
     <!-- REPORT PREVIEW AREA -->
     <div class="card mt-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5><i class="fas fa-eye"></i> Report Preview</h5>
             <div>
-                <button class="btn btn-sm btn-outline-secondary me-2" onclick="app.reports.downloadPreview()">
-                    <i class="fas fa-download"></i> Download
-                </button>
                 <button class="btn btn-sm btn-outline-secondary" onclick="app.reports.clearPreview()">
                     <i class="fas fa-times"></i> Clear
                 </button>
@@ -1514,8 +1220,7 @@
     </div>
 </section>
 
-<!-- TRANSCRIPT MODAL (Dynamically created by JavaScript) -->
-<!-- This will be created by the ReportsManager -->
+<!-- TRANSCRIPT MODAL (Will be created by JavaScript) -->
           <!-- Centres Section -->
 <section id="centres" class="content-section">
     <div class="section-header">
