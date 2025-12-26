@@ -125,6 +125,17 @@ populateProgramSelect() {
     // Store current value if editing
     const currentValue = select.value;
     
+    // ✅ DON'T clear if already populated with data attributes
+    const existingOptions = Array.from(select.options);
+    const hasDataAttributes = existingOptions.some(opt => 
+        opt.value && opt.hasAttribute('data-program-id')
+    );
+    
+    if (hasDataAttributes && existingOptions.length > 1) {
+        console.log('✅ Dropdown already has data-program-id attributes, skipping repopulation');
+        return;
+    }
+    
     // Clear existing options
     select.innerHTML = '<option value="">Select Program</option>';
     
@@ -807,64 +818,68 @@ async saveStudent(event) {
             return '';
         }
     }
+   /**
+ * Reset student form
+ */
+_resetStudentForm() {
+    console.log('🔄 Resetting student form...');
     
-    /**
-     * Reset student form
-     */
-    _resetStudentForm() {
-        console.log('🔄 Resetting student form...');
-        
-        const form = document.getElementById('studentForm');
-        if (form) {
-            // Reset all input fields
-            form.querySelectorAll('input, select, textarea').forEach(field => {
-                if (field.type === 'checkbox') {
-                    field.checked = false;
-                } else if (field.tagName === 'SELECT') {
-                    // Don't reset intake year dropdown
-                    if (field.id !== 'studentIntake') {
-                        field.selectedIndex = 0;
-                    }
-                } else if (field.id === 'studentRegNumber') {
-                    // Clear but keep field writable for new students
-                    field.value = '';
-                    field.readOnly = false;
-                    field.title = '';
-                } else {
-                    field.value = '';
+    const form = document.getElementById('studentForm');
+    if (form) {
+        // Reset all input fields
+        form.querySelectorAll('input, select, textarea').forEach(field => {
+            if (field.type === 'checkbox') {
+                field.checked = false;
+            } else if (field.tagName === 'SELECT') {
+                // Don't reset intake year dropdown
+                if (field.id !== 'studentIntake') {
+                    field.selectedIndex = 0;
                 }
-            });
-            
-            // Reset modal title
-            const modalTitle = document.getElementById('studentModalTitle');
-            if (modalTitle) {
-                modalTitle.textContent = 'Register New Student';
+            } else if (field.id === 'studentRegNumber') {
+                // Clear but keep field writable for new students
+                field.value = '';
+                field.readOnly = false;
+                field.title = '';
+            } else {
+                field.value = '';
             }
-            
-            // Reset submit button
-            const submitBtn = form.querySelector('button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.innerHTML = '<i class="fas fa-plus"></i> Register Student';
-                submitBtn.removeAttribute('data-editing');
-                submitBtn.disabled = false;
-            }
-            
-            // Clear edit ID
-            this.currentEditId = null;
-            
-            // Repopulate intake years for new student
-            this._populateIntakeYears();
-            
-            // Clear any error messages
-            document.querySelectorAll('.error-message').forEach(el => el.remove());
-            document.querySelectorAll('.form-control.error').forEach(el => {
-                el.classList.remove('error');
-            });
-            
-            console.log('✅ Form reset complete');
+        });
+        
+        // ✅ CRITICAL FIX: Repopulate dropdowns after reset
+        setTimeout(() => {
+            this.populateProgramSelect();
+            this.populateCentreSelect();
+        }, 100);
+        
+        // Reset modal title
+        const modalTitle = document.getElementById('studentModalTitle');
+        if (modalTitle) {
+            modalTitle.textContent = 'Register New Student';
         }
+        
+        // Reset submit button
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-plus"></i> Register Student';
+            submitBtn.removeAttribute('data-editing');
+            submitBtn.disabled = false;
+        }
+        
+        // Clear edit ID
+        this.currentEditId = null;
+        
+        // Repopulate intake years for new student
+        this._populateIntakeYears();
+        
+        // Clear any error messages
+        document.querySelectorAll('.error-message').forEach(el => el.remove());
+        document.querySelectorAll('.form-control.error').forEach(el => {
+            el.classList.remove('error');
+        });
+        
+        console.log('✅ Form reset complete');
     }
-    
+}
     /**
      * Validate email format
      */
