@@ -425,6 +425,29 @@ class StudentManager {
         
         console.log('📍 Centre name determined:', centreName);
         
+        // Get selected program code and find program name from database
+        const programCode = document.getElementById('studentProgram')?.value || '';
+        let programName = '';
+        
+        // Look up program name from the programs array
+        if (programCode && this.programs.length > 0) {
+            const program = this.programs.find(p => p.code === programCode);
+            if (program) {
+                programName = program.name || '';
+                console.log('🎓 Found program in database:', {
+                    code: program.code,
+                    name: program.name
+                });
+            } else {
+                console.warn('⚠️ Program not found in database for code:', programCode);
+            }
+        }
+        
+        console.log('🎓 Program info:', {
+            code: programCode,
+            name: programName
+        });
+        
         // Get all form data with CORRECT field names for your schema
         const formData = {
             // Registration Number (Auto-generated)
@@ -445,8 +468,10 @@ class StudentManager {
             village: document.getElementById('studentVillage')?.value.trim() || '',
             address: document.getElementById('studentAddress')?.value.trim() || '',
             
-            // Academic Information - FIXED CENTRE HANDLING
-            program: document.getElementById('studentProgram')?.value || '',
+            // Academic Information - FIXED PROGRAM HANDLING
+            program: programCode, // Program code (e.g., "DHNC")
+            program_name: programName, // Program full name from database (e.g., "Diploma in Health Nursing Community")
+            program_code: programCode, // Also save code separately for consistency
             intake_year: parseInt(document.getElementById('studentIntake')?.value) || new Date().getFullYear(),
             centre_id: selectedCentreId || '', // UUID centre_id (if selected)
             centre: centreName || '', // Centre name
@@ -533,7 +558,7 @@ class StudentManager {
             submitBtn.disabled = false;
         }
     }
-} 
+}
     /**
      * Edit student - FIXED FOR YOUR SCHEMA
      */
@@ -756,7 +781,7 @@ class StudentManager {
            // Render all rows with proper data mapping
 const html = students.map(student => {
     // Get program display name
-    const programDisplay = this._getProgramName(student.program);
+    const programDisplay = student.program_name || this._getProgramName(student.program);
     
     // Get centre display name - FIXED VERSION
     let centreDisplay = 'Not assigned';
@@ -909,7 +934,7 @@ console.log(`✅ Loaded ${students.length} students`);
         
         // Reuse the rendering logic from loadStudentsTable
         const html = students.map(student => {
-            const programDisplay = this._getProgramName(student.program);
+            coconst programDisplay = student.program_name || this._getProgramName(student.program);
             const centreDisplay = student.centre || this._getCentreName(student.centre_id) || 'Not assigned';
             const studentName = this._escapeHtml(student.full_name || '');
             const email = this._escapeHtml(student.email || '');
