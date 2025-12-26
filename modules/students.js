@@ -184,6 +184,42 @@ populateProgramSelect() {
         }
     });
 }
+
+    /**
+ * Populate centre select dropdown
+ */
+populateCentreSelect() {
+    const select = document.getElementById('studentCentre');
+    if (!select) {
+        console.warn('studentCentre select element not found');
+        return;
+    }
+    
+    // Store current value if editing
+    const currentValue = select.value;
+    
+    // Clear existing options
+    select.innerHTML = '<option value="">Select Centre</option>';
+    
+    // Add centres if available
+    if (this.centres && this.centres.length > 0) {
+        this.centres.forEach(c => {
+            const option = document.createElement('option');
+            option.value = c.id;  // Store UUID as value
+            option.textContent = `${c.name} (${c.code || c.county || 'Centre'})`;
+            select.appendChild(option);
+        });
+        
+        // Restore previous selection if editing
+        if (currentValue && currentValue !== '') {
+            select.value = currentValue;
+        }
+        
+        console.log(`✅ Populated ${this.centres.length} centres in dropdown`);
+    } else {
+        console.warn('No centres available to populate dropdown');
+    }
+}
     /**
  * Emergency fix for missing data-program-id attributes
  */
