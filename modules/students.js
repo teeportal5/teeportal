@@ -753,7 +753,7 @@ class StudentManager {
         return emailRegex.test(email);
     }
     
-   /**
+  /**
  * Load students into table - FIXED FOR YOUR SCHEMA
  */
 async loadStudentsTable(filterOptions = {}) {
@@ -773,46 +773,44 @@ async loadStudentsTable(filterOptions = {}) {
             return;
         }
         
-        // DEBUG: Log first student to see the actual structure
+        // DEBUG: Check what fields are in student data
         if (students.length > 0) {
-            console.log('🔍 First student object:', students[0]);
+            console.log('🔍 Student data structure:', students[0]);
+            console.log('🔍 Program fields available:', {
+                program: students[0].program,
+                program_name: students[0].program_name,
+                program_code: students[0].program_code
+            });
         }
         
         // Render all rows with proper data mapping
         const html = students.map(student => {
-            // Get program display name
-            const programDisplay = student.program_name || this._getProgramName(student.program);
+            // Get program display name - FIXED VERSION
+            let programDisplay = '';
+            if (student.program_name && student.program_name.trim() !== '') {
+                // Use program_name if available
+                programDisplay = student.program_name;
+                console.log(`🎓 ${student.reg_number}: Using program_name = "${student.program_name}"`);
+            } else if (student.program && student.program.trim() !== '') {
+                // Look up from programs array
+                programDisplay = this._getProgramName(student.program);
+                console.log(`🎓 ${student.reg_number}: Looked up program "${student.program}" = "${programDisplay}"`);
+            } else {
+                programDisplay = 'Not assigned';
+            }
             
-            // Get centre display name - FIXED VERSION
+            // Get centre display name
             let centreDisplay = 'Not assigned';
-            
-            // PRIORITY 1: Use centre_name (all 15 students have this field)
             if (student.centre_name && student.centre_name.trim() !== '') {
                 centreDisplay = student.centre_name;
-                console.log(`📍 ${student.reg_number}: Using centre_name = "${student.centre_name}"`);
-            }
-            // PRIORITY 2: Use centre field (10 students have this)
-            else if (student.centre && student.centre.trim() !== '') {
+            } else if (student.centre && student.centre.trim() !== '') {
                 centreDisplay = student.centre;
-                console.log(`📍 ${student.reg_number}: Using centre = "${student.centre}"`);
-            }
-            // PRIORITY 3: Look up by centre_id (5 students have this)
-            else if (student.centre_id) {
-                const lookedUpName = this._getCentreName(student.centre_id);
-                centreDisplay = lookedUpName;
-                console.log(`📍 ${student.reg_number}: Looked up centre_id ${student.centre_id} = "${lookedUpName}"`);
+            } else if (student.centre_id) {
+                centreDisplay = this._getCentreName(student.centre_id);
             }
             
-            // For DHNC-2025-004 specifically: Clean up if it shows UUID
-            if (centreDisplay.includes('b3dec280')) {
-                console.warn(`⚠️ ${student.reg_number}: Centre has UUID "${centreDisplay}"`);
-                // Try to find the actual centre name
-                const centre = this.centres.find(c => c.id.includes('b3dec280'));
-                if (centre) {
-                    centreDisplay = centre.name;
-                    console.log(`✅ Corrected to: "${centre.name}"`);
-                }
-            }
+            // Get region (from region or county field)
+            const regionDisplay = student.region || student.county || '';
             
             const studentName = this._escapeHtml(student.full_name || '');
             const email = this._escapeHtml(student.email || '');
@@ -822,40 +820,54 @@ async loadStudentsTable(filterOptions = {}) {
             
             return `
                 <tr data-student-id="${safeStudentId}" data-student-reg="${safeRegNumber}">
-                    <td><strong>${this._escapeHtml(student.reg_number)}</strong></td>
-                    <td>
+                    <td class="reg-number-cell">
+                        <strong class="reg-number">${this._escapeHtml(student.reg_number)}</strong>
+                    </td>
+                    <td class="student-info-cell">
                         <div class="student-avatar">
                             <div class="avatar-icon" style="background-color: ${this._getAvatarColor(student.full_name)}">
                                 <i class="fas fa-user"></i>
                             </div>
-                            <div class="student-info">
-                                <strong>${studentName}</strong><br>
-                                <small>${email}</small>
+                            <div class="student-details">
+                                <div class="student-name">${studentName}</div>
+                                <div class="student-email">${email}</div>
                             </div>
                         </div>
                     </td>
-                    <td>${this._escapeHtml(programDisplay)}</td>
-                    <td>${this._escapeHtml(centreDisplay)}</td>
-                    <td>${this._escapeHtml(student.county)}</td>
-                    <td>${this._escapeHtml(student.intake_year)}</td>
-                    <td>
+                    <td class="program-cell">
+                        <div class="program-info">
+                            <div class="program-name">${this._escapeHtml(programDisplay)}</div>
+                        </div>
+                    </td>
+                    <td class="location-cell">
+                        <div class="location-info">
+                            <div class="centre-name"><strong>${this._escapeHtml(centreDisplay)}</strong></div>
+                            <div class="centre-region">${this._escapeHtml(regionDisplay)}</div>
+                        </div>
+                    </td>
+                    <td class="intake-cell">
+                        <span class="intake-year">${this._escapeHtml(student.intake_year)}</span>
+                    </td>
+                    <td class="status-cell">
                         <span class="status-badge ${this._escapeAttr(status)}">
                             ${this._escapeHtml(status.toUpperCase())}
                         </span>
                     </td>
-                    <td class="action-buttons">
-                        <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="btn-action edit-student" data-id="${safeStudentId}" title="Edit Student">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn-action enter-marks" data-id="${safeStudentId}" title="Enter Marks">
-                            <i class="fas fa-chart-bar"></i>
-                        </button>
-                        <button class="btn-action delete-student" data-id="${safeStudentId}" title="Delete Student">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                    <td class="action-buttons-cell">
+                        <div class="action-buttons">
+                            <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn-action edit-student" data-id="${safeStudentId}" title="Edit Student">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-action enter-marks" data-id="${safeStudentId}" title="Enter Marks">
+                                <i class="fas fa-chart-bar"></i>
+                            </button>
+                            <button class="btn-action delete-student" data-id="${safeStudentId}" title="Delete Student">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;
