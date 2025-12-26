@@ -1,4 +1,4 @@
-// modules/students.js - COMPLETE FIXED VERSION FOR YOUR DATABASE SCHEMA
+// modules/students.js - COMPLETE FIXED VERSION
 class StudentManager {
     constructor(db, app = null) {
         this.db = db;
@@ -50,198 +50,261 @@ class StudentManager {
         };
         this.currentEditId = null;
         this.selectedStudents = new Set();
-        this.centres = []; // Store centres for display
-        this.programs = []; // Store programs for display
+        this.centres = [];
+        this.programs = [];
+        this.isDataLoaded = false;
+        this.loadingAttempts = 0;
+        this.maxLoadingAttempts = 5;
     }
-    
-   /**
- * Initialize student module
- */
-async init() {
-    console.log('🎓 StudentManager initializing...');
-    
-    // Load centres and programs first
-    await this._loadCentresAndPrograms();
-    
-    // ✅ ADD THESE TWO LINES: Populate dropdowns in student form
-    this.populateProgramSelect();
-    this.populateCentreSelect();
-    
-    this._attachEventListeners();
-    await this.loadStudentsTable();
-    this._setupBulkActions();
-    this._setupModalHandlers();
-    
-    // Populate intake years dropdown on page load
-    await this._populateIntakeYears();
-    
-    console.log('✅ StudentManager initialized');
-}
-    
-  async _loadCentresAndPrograms() {
-    try {
-        // Load programs
-        if (this.db.getPrograms) {
-            const rawPrograms = await this.db.getPrograms();
-            console.log('📦 Raw programs data from database:', rawPrograms);
+
+    /**
+     * Initialize student module with retry logic
+     */
+    async init() {
+        console.log('🎓 StudentManager initializing...');
+        
+        // Load centres and programs with retry mechanism
+        await this._loadDataWithRetry();
+        
+        // Attach event listeners
+        this._attachEventListeners();
+        
+        // Load students table
+        await this.loadStudentsTable();
+        
+        // Setup bulk actions and modal handlers
+        this._setupBulkActions();
+        this._setupModalHandlers();
+        
+        // Populate intake years
+        await this._populateIntakeYears();
+        
+        console.log('✅ StudentManager initialized successfully');
+        this.isDataLoaded = true;
+    }
+
+    /**
+     * Load data with retry mechanism
+     */
+    async _loadDataWithRetry() {
+        while (this.loadingAttempts < this.maxLoadingAttempts && !this.isDataLoaded) {
+            try {
+                console.log(`🔄 Loading data (attempt ${this.loadingAttempts + 1}/${this.maxLoadingAttempts})...`);
+                
+                // Load programs
+                if (this.db.getPrograms) {
+                    const rawPrograms = await this.db.getPrograms();
+                    console.log('📦 Raw programs data:', rawPrograms);
+                    
+                    if (rawPrograms && rawPrograms.length > 0) {
+                        this.programs = rawPrograms;
+                        console.log(`✅ Loaded ${this.programs.length} programs`);
+                        
+                        // Populate program dropdown
+                        this.populateProgramSelect();
+                    } else {
+                        console.warn('⚠️ No programs returned from database');
+                    }
+                }
+                
+                // Load centres
+                if (this.db.getCentres) {
+                    this.centres = await this.db.getCentres();
+                    console.log(`📍 Loaded ${this.centres.length} centres`);
+                    
+                    // Populate centre dropdown
+                    this.populateCentreSelect();
+                }
+                
+                // If we got here without errors, break the loop
+                if (this.programs.length > 0 || this.centres.length > 0) {
+                    this.isDataLoaded = true;
+                    break;
+                }
+                
+            } catch (error) {
+                console.error(`❌ Loading attempt ${this.loadingAttempts + 1} failed:`, error);
+                this.loadingAttempts++;
+                
+                // Wait before retrying (exponential backoff)
+                const delay = Math.min(1000 * Math.pow(2, this.loadingAttempts), 10000);
+                console.log(`⏳ Waiting ${delay}ms before next attempt...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                
+                // On last attempt, initialize with empty arrays
+                if (this.loadingAttempts >= this.maxLoadingAttempts) {
+                    console.warn('⚠️ Max loading attempts reached, initializing with empty data');
+                    this.programs = this.programs || [];
+                    this.centres = this.centres || [];
+                    
+                    // Still populate dropdowns (will show empty/placeholder)
+                    this.populateProgramSelect();
+                    this.populateCentreSelect();
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Load centres and programs
+     */
+    async _loadCentresAndPrograms() {
+        try {
+            // Load programs
+            if (this.db.getPrograms) {
+                const rawPrograms = await this.db.getPrograms();
+                console.log('📦 Raw programs data from database:', rawPrograms);
+                
+                this.programs = rawPrograms || [];
+                console.log(`🎓 Loaded ${this.programs.length} programs`);
+                
+                // Debug each program
+                this.programs.forEach((p, i) => {
+                    console.log(`Program ${i}: id="${p.id}", code="${p.code}", name="${p.name}"`);
+                });
+            }
             
-            // Check if programs have IDs
-            this.programs = rawPrograms;
+            // Load centres
+            if (this.db.getCentres) {
+                this.centres = await this.db.getCentres() || [];
+                console.log(`📍 Loaded ${this.centres.length} centres`);
+            }
+        } catch (error) {
+            console.error('Error loading centres/programs:', error);
+            // Ensure arrays are initialized even if empty
+            this.programs = this.programs || [];
+            this.centres = this.centres || [];
+        }
+    }
+
+    /**
+     * Populate program select dropdown
+     */
+    populateProgramSelect() {
+        const select = document.getElementById('studentProgram');
+        if (!select) {
+            console.warn('studentProgram select element not found');
+            return;
+        }
+        
+        const currentValue = select.value;
+        select.innerHTML = '<option value="">Select Program</option>';
+        
+        console.log('🔍 Available programs:', this.programs);
+        
+        if (this.programs && this.programs.length > 0) {
+            console.log(`📝 Adding ${this.programs.length} programs to dropdown`);
             
-            console.log(`🎓 Loaded ${this.programs.length} programs`);
-            
-            // Debug each program
-            this.programs.forEach((p, i) => {
-                console.log(`Program ${i}: id="${p.id}", code="${p.code}", name="${p.name}"`);
+            this.programs.forEach(p => {
+                const option = document.createElement('option');
+                
+                // Use program CODE as value
+                const programCode = p.code ? p.code.trim() : '';
+                option.value = programCode;
+                
+                // Display format
+                option.textContent = `${programCode} - ${p.name || 'Unnamed Program'}`;
+                
+                // Set data-program-id attribute
+                if (p.id) {
+                    option.setAttribute('data-program-id', p.id);
+                } else {
+                    console.warn(`⚠️ Program "${programCode}" has no ID`);
+                }
+                
+                select.appendChild(option);
             });
             
-            // Check for missing IDs
-            const programsWithoutId = this.programs.filter(p => !p.id);
-            if (programsWithoutId.length > 0) {
-                console.error('❌ Programs missing ID:', programsWithoutId);
+            if (currentValue && currentValue !== '') {
+                select.value = currentValue;
             }
-        }
-        
-        // Load centres
-        if (this.db.getCentres) {
-            this.centres = await this.db.getCentres();
-            console.log(`📍 Loaded ${this.centres.length} centres`);
-        }
-    } catch (error) {
-        console.error('Error loading centres/programs:', error);
-    }
-}
-
-/**
- * Populate program select dropdown - FIXED VERSION
- */
-populateProgramSelect() {
-    const select = document.getElementById('studentProgram');
-    if (!select) {
-        console.warn('studentProgram select element not found');
-        return;
-    }
-    
-    // Store current value if editing
-    const currentValue = select.value;
-    
-    // ✅ ALWAYS clear and repopulate - don't check for existing data
-    select.innerHTML = '<option value="">Select Program</option>';
-    
-    console.log('🔍 DEBUG: Available programs:', this.programs);
-    
-    // Add programs
-    if (this.programs && this.programs.length > 0) {
-        console.log(`📝 Adding ${this.programs.length} programs to dropdown`);
-        
-        this.programs.forEach(p => {
+            
+            console.log(`✅ Populated ${this.programs.length} programs in dropdown`);
+        } else {
+            console.warn('⚠️ No programs available to populate dropdown');
+            
             const option = document.createElement('option');
-            
-            // ✅ Use program CODE as value
-            option.value = p.code ? p.code.trim() : '';
-            
-            // ✅ Display format
-            option.textContent = `${p.code ? p.code.trim() : ''} - ${p.name}`;
-            
-            // ✅ CRITICAL: Set data-program-id attribute
-            if (p.id) {
-                option.setAttribute('data-program-id', p.id);
-                console.log(`➕ Added program "${p.code}" with data-program-id="${p.id}"`);
-            } else {
-                console.error(`❌ Program "${p.code}" has no ID!`);
-            }
-            
+            option.value = '';
+            option.textContent = 'No programs available - Loading...';
+            option.disabled = true;
             select.appendChild(option);
-        });
-        
-        // Restore previous selection if editing
-        if (currentValue && currentValue !== '') {
-            select.value = currentValue;
+            
+            // Try to reload after delay
+            setTimeout(() => {
+                if (this.programs.length === 0) {
+                    console.log('🔄 Attempting to reload programs...');
+                    this._loadCentresAndPrograms().then(() => {
+                        this.populateProgramSelect();
+                    });
+                }
+            }, 2000);
         }
-        
-        console.log(`✅ Populated ${this.programs.length} programs in dropdown`);
-    } else {
-        console.warn('⚠️ No programs available to populate dropdown');
-        
-        // If no programs, show a helpful message
-        const option = document.createElement('option');
-        option.value = '';
-        option.textContent = 'No programs available';
-        option.disabled = true;
-        select.appendChild(option);
     }
-    
-    // Final verification
-    const options = Array.from(select.options);
-    console.log('🔍 Final check - Dropdown options:', options.map(opt => ({
-        value: opt.value,
-        text: opt.textContent,
-        hasDataId: opt.hasAttribute('data-program-id'),
-        dataId: opt.getAttribute('data-program-id')
-    })));
-}
 
     /**
- * Populate centre select dropdown
- */
-populateCentreSelect() {
-    const select = document.getElementById('studentCentre');
-    if (!select) {
-        console.warn('studentCentre select element not found');
-        return;
-    }
-    
-    // Store current value if editing
-    const currentValue = select.value;
-    
-    // Clear existing options
-    select.innerHTML = '<option value="">Select Centre</option>';
-    
-    // Add centres if available
-    if (this.centres && this.centres.length > 0) {
-        this.centres.forEach(c => {
+     * Populate centre select dropdown
+     */
+    populateCentreSelect() {
+        const select = document.getElementById('studentCentre');
+        if (!select) {
+            console.warn('studentCentre select element not found');
+            return;
+        }
+        
+        const currentValue = select.value;
+        select.innerHTML = '<option value="">Select Centre</option>';
+        
+        if (this.centres && this.centres.length > 0) {
+            this.centres.forEach(c => {
+                const option = document.createElement('option');
+                option.value = c.id;
+                option.textContent = `${c.name} (${c.code || c.county || 'Centre'})`;
+                select.appendChild(option);
+            });
+            
+            if (currentValue && currentValue !== '') {
+                select.value = currentValue;
+            }
+            
+            console.log(`✅ Populated ${this.centres.length} centres in dropdown`);
+        } else {
+            console.warn('No centres available to populate dropdown');
+            
             const option = document.createElement('option');
-            option.value = c.id;  // Store UUID as value
-            option.textContent = `${c.name} (${c.code || c.county || 'Centre'})`;
+            option.value = '';
+            option.textContent = 'No centres available - Loading...';
+            option.disabled = true;
             select.appendChild(option);
+        }
+    }
+
+    /**
+     * Emergency fix for missing data-program-id attributes
+     */
+    _fixMissingProgramIds() {
+        const programSelect = document.getElementById('studentProgram');
+        if (!programSelect) return;
+        
+        const options = Array.from(programSelect.options);
+        let fixedCount = 0;
+        
+        options.forEach(option => {
+            if (option.value && !option.hasAttribute('data-program-id')) {
+                const program = this.programs.find(p => p.code === option.value);
+                if (program && program.id) {
+                    option.setAttribute('data-program-id', program.id);
+                    fixedCount++;
+                    console.log(`🛠️ Fixed: Added data-program-id="${program.id}" to "${option.value}"`);
+                }
+            }
         });
         
-        // Restore previous selection if editing
-        if (currentValue && currentValue !== '') {
-            select.value = currentValue;
+        if (fixedCount > 0) {
+            console.log(`✅ Fixed ${fixedCount} missing data-program-id attributes`);
         }
-        
-        console.log(`✅ Populated ${this.centres.length} centres in dropdown`);
-    } else {
-        console.warn('No centres available to populate dropdown');
     }
-}
-    /**
- * Emergency fix for missing data-program-id attributes
- */
-_fixMissingProgramIds() {
-    const programSelect = document.getElementById('studentProgram');
-    if (!programSelect) return;
-    
-    const options = Array.from(programSelect.options);
-    let fixedCount = 0;
-    
-    options.forEach(option => {
-        if (option.value && !option.hasAttribute('data-program-id')) {
-            // Find the program in our loaded programs
-            const program = this.programs.find(p => p.code === option.value);
-            if (program && program.id) {
-                option.setAttribute('data-program-id', program.id);
-                fixedCount++;
-                console.log(`🛠️ Emergency fix: Added data-program-id="${program.id}" to "${option.value}"`);
-            }
-        }
-    });
-    
-    if (fixedCount > 0) {
-        console.log(`✅ Emergency fix completed: Added ${fixedCount} missing data-program-id attributes`);
-    }
-}
+
     /**
      * Get centre name by ID
      */
@@ -250,7 +313,7 @@ _fixMissingProgramIds() {
         const centre = this.centres.find(c => c.id === centreId);
         return centre ? centre.name : `Centre ${centreId.substring(0, 8)}`;
     }
-    
+
     /**
      * Get program name by code
      */
@@ -259,9 +322,9 @@ _fixMissingProgramIds() {
         const program = this.programs.find(p => p.code === programCode);
         return program ? `${program.code} - ${program.name}` : programCode;
     }
-    
+
     /**
-     * Generate registration number based on program and intake year - FIXED
+     * Generate registration number based on program and intake year
      */
     async generateRegNumber() {
         try {
@@ -274,14 +337,10 @@ _fixMissingProgramIds() {
                 return;
             }
             
-            // Get program CODE (TEXT), not UUID
             const programCode = programSelect.value;
             const intakeYear = intakeSelect.value;
             
-            console.log('🔢 Generating reg number with:', { 
-                programCode, 
-                intakeYear 
-            });
+            console.log('🔢 Generating reg number with:', { programCode, intakeYear });
             
             if (!programCode || !intakeYear) {
                 regNumberInput.value = '';
@@ -289,16 +348,14 @@ _fixMissingProgramIds() {
                 return;
             }
             
-            // METHOD 1: Try database method first
+            // Try database method first
             try {
-                // Your database method should accept programCode (TEXT) not programId (UUID)
                 const regNumber = await this.db.generateRegistrationNumber(programCode, intakeYear);
                 
                 if (regNumber) {
                     console.log('✅ Generated registration number (database):', regNumber);
                     regNumberInput.value = regNumber;
                     
-                    // Update format display
                     const formatSpan = document.getElementById('regNumberFormat');
                     if (formatSpan) {
                         formatSpan.textContent = `${programCode}-${intakeYear}-###`;
@@ -306,21 +363,16 @@ _fixMissingProgramIds() {
                 } else {
                     throw new Error('Database method returned null');
                 }
-                
             } catch (dbError) {
                 console.warn('Database method failed, using fallback:', dbError);
                 
-                // METHOD 2: Manual generation as fallback
-                // Get all students to find the highest sequence
+                // Manual generation as fallback
                 const allStudents = await this.db.getStudents();
-                
-                // Filter students by program and intake year
                 const matchingStudents = allStudents.filter(student => 
                     student.program === programCode && 
                     student.intake_year === parseInt(intakeYear)
                 );
                 
-                // Find highest sequence number
                 let highestSeq = 0;
                 matchingStudents.forEach(student => {
                     if (student.reg_number) {
@@ -334,16 +386,12 @@ _fixMissingProgramIds() {
                     }
                 });
                 
-                // Next sequence number
                 const sequenceNumber = highestSeq + 1;
-                
-                // Format: DHNC-2025-001
                 const regNumber = `${programCode}-${intakeYear}-${sequenceNumber.toString().padStart(3, '0')}`;
                 
                 console.log('✅ Generated registration number (fallback):', regNumber);
                 regNumberInput.value = regNumber;
                 
-                // Update format display
                 const formatSpan = document.getElementById('regNumberFormat');
                 if (formatSpan) {
                     formatSpan.textContent = `${programCode}-${intakeYear}-###`;
@@ -351,14 +399,13 @@ _fixMissingProgramIds() {
             }
             
             return regNumberInput.value;
-            
         } catch (error) {
             console.error('Error generating registration number:', error);
             this.ui.showToast('Error generating registration number', 'error');
             return null;
         }
     }
-    
+
     /**
      * Populate intake year dropdown
      */
@@ -370,12 +417,9 @@ _fixMissingProgramIds() {
                 return;
             }
             
-            // Clear existing options
             intakeSelect.innerHTML = '<option value="">Select Intake Year</option>';
-            
             const currentYear = new Date().getFullYear();
             
-            // Always include the student's intake year if provided
             if (studentIntakeYear) {
                 const year = parseInt(studentIntakeYear);
                 if (!isNaN(year)) {
@@ -388,18 +432,14 @@ _fixMissingProgramIds() {
                 }
             }
             
-            // Add current year and previous 10 years
             for (let i = 0; i <= 10; i++) {
                 const year = currentYear - i;
-                
-                // Don't add duplicate if it's the student's year
                 if (studentIntakeYear && year === parseInt(studentIntakeYear)) continue;
                 
                 const option = document.createElement('option');
                 option.value = year;
                 option.textContent = year;
                 
-                // Select current year by default for new students
                 if (!studentIntakeYear && i === 0) {
                     option.selected = true;
                 }
@@ -407,7 +447,6 @@ _fixMissingProgramIds() {
                 intakeSelect.appendChild(option);
             }
             
-            // Add future years (next 2 years)
             for (let i = 1; i <= 2; i++) {
                 const year = currentYear + i;
                 const option = document.createElement('option');
@@ -417,12 +456,11 @@ _fixMissingProgramIds() {
             }
             
             console.log(`✅ Populated intake years dropdown`);
-            
         } catch (error) {
             console.error('Error populating intake years:', error);
         }
     }
-    
+
     /**
      * Attach all event listeners
      */
@@ -491,15 +529,13 @@ _fixMissingProgramIds() {
         
         console.log('✅ Student event listeners attached');
     }
-    
+
     /**
      * Setup modal handlers
      */
     _setupModalHandlers() {
-        // Student modal close handler
         const studentModal = document.getElementById('studentModal');
         if (studentModal) {
-            // Close button
             const closeBtn = studentModal.querySelector('.close');
             if (closeBtn) {
                 closeBtn.addEventListener('click', () => {
@@ -508,7 +544,6 @@ _fixMissingProgramIds() {
                 });
             }
             
-            // Click outside to close
             studentModal.addEventListener('click', (e) => {
                 if (e.target === studentModal) {
                     this._resetStudentForm();
@@ -517,7 +552,6 @@ _fixMissingProgramIds() {
             });
         }
         
-        // Escape key to close modal
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 const activeModal = document.querySelector('.modal.active');
@@ -530,200 +564,159 @@ _fixMissingProgramIds() {
         
         console.log('✅ Modal handlers setup');
     }
-    
-/**
- * Save or update student - bulletproof version
- */
 
-async saveStudent(event) {
-    event.preventDefault();
-// ✅ EMERGENCY FIX: Add missing data-program-id attributes
-    this._fixMissingProgramIds();
-    
-    const form = event.target;
-    if (!form || form.id !== 'studentForm') return;
+    /**
+     * Save or update student
+     */
+    async saveStudent(event) {
+        event.preventDefault();
+        
+        // Emergency fix for missing data-program-id attributes
+        this._fixMissingProgramIds();
+        
+        const form = event.target;
+        if (!form || form.id !== 'studentForm') return;
 
-    try {
-        // --- Get Program Information ---
-        const programSelect = document.getElementById('studentProgram');
-        const selectedOption = programSelect?.options[programSelect?.selectedIndex];
-        
-        let programCode = '';
-        let programId = null;
-        let programName = '';
-        
-        if (selectedOption && selectedOption.value) {
-            // ✅ Get JUST the code (should be "CTOT", not "CTOT - CTOT")
-            programCode = selectedOption.value;
+        try {
+            const programSelect = document.getElementById('studentProgram');
+            const selectedOption = programSelect?.options[programSelect?.selectedIndex];
             
-            // ✅ Get program ID from data attribute
-            programId = selectedOption.getAttribute('data-program-id');
+            let programCode = '';
+            let programId = null;
+            let programName = '';
             
-            // ✅ Extract program name from text (format: "CTOT - Certificate in Tailoring")
-            const optionText = selectedOption.textContent || '';
-            if (optionText.includes(' - ')) {
-                programName = optionText.split(' - ')[1].trim();
+            if (selectedOption && selectedOption.value) {
+                programCode = selectedOption.value;
+                programId = selectedOption.getAttribute('data-program-id');
+                const optionText = selectedOption.textContent || '';
+                if (optionText.includes(' - ')) {
+                    programName = optionText.split(' - ')[1].trim();
+                }
+                
+                console.log('📊 Program selection debug:', {
+                    optionText: optionText,
+                    value: selectedOption.value,
+                    programCode: programCode,
+                    programId: programId,
+                    programName: programName
+                });
             }
-            
-            console.log('📊 Program selection debug:', {
-                optionText: optionText,
-                value: selectedOption.value,
-                programCode: programCode,
-                programId: programId,
-                programName: programName,
-                hasDataId: selectedOption.hasAttribute('data-program-id')
-            });
-        }
 
-        // If programCode still contains " - ", clean it up
-        if (programCode.includes(' - ')) {
-            console.warn('⚠️ Program code contains " - ", cleaning up...');
-            programCode = programCode.split(' - ')[0].trim();
-        }
+            if (programCode.includes(' - ')) {
+                console.warn('⚠️ Program code contains " - ", cleaning up...');
+                programCode = programCode.split(' - ')[0].trim();
+            }
 
-        // --- Get Centre Information ---
-        const centreSelect = document.getElementById('studentCentre');
-        const selectedCentreId = centreSelect?.value || '';
-        const selectedCentreOption = centreSelect?.options[centreSelect?.selectedIndex];
-        const selectedCentreText = selectedCentreOption?.text || '';
-        let centreName = '';
-        
-        if (selectedCentreText && selectedCentreText !== 'Select Centre') {
-            // Extract centre name from text (e.g., "MUKINYI (KAKAMEGA)" -> "MUKINYI")
-            const match = selectedCentreText.match(/^([^(]+)/);
-            centreName = match ? match[0].trim() : selectedCentreText;
-        } else if (selectedCentreId && this.centres.length > 0) {
-            const centre = this.centres.find(c => c.id === selectedCentreId);
-            centreName = centre ? centre.name : '';
-        }
+            const centreSelect = document.getElementById('studentCentre');
+            const selectedCentreId = centreSelect?.value || '';
+            const selectedCentreOption = centreSelect?.options[centreSelect?.selectedIndex];
+            const selectedCentreText = selectedCentreOption?.text || '';
+            let centreName = '';
+            
+            if (selectedCentreText && selectedCentreText !== 'Select Centre') {
+                const match = selectedCentreText.match(/^([^(]+)/);
+                centreName = match ? match[0].trim() : selectedCentreText;
+            } else if (selectedCentreId && this.centres.length > 0) {
+                const centre = this.centres.find(c => c.id === selectedCentreId);
+                centreName = centre ? centre.name : '';
+            }
 
-        // --- Prepare Form Data ---
-        const formData = {
-            // Personal Information
-            reg_number: document.getElementById('studentRegNumber')?.value.trim() || '',
-            full_name: document.getElementById('studentName')?.value.trim() || '',
-            email: document.getElementById('studentEmail')?.value.trim() || '',
-            phone: document.getElementById('studentPhone')?.value.trim() || '',
-            date_of_birth: document.getElementById('studentDOB')?.value || '',
-            id_number: document.getElementById('studentIdNumber')?.value.trim() || '',
-            gender: document.getElementById('studentGender')?.value || '',
-            
-            // Location
-            county: document.getElementById('studentCounty')?.value || '',
-            region: document.getElementById('studentRegion')?.value.trim() || '',
-            ward: document.getElementById('studentWard')?.value.trim() || '',
-            village: document.getElementById('studentVillage')?.value.trim() || '',
-            address: document.getElementById('studentAddress')?.value.trim() || '',
-            
-            // ✅ PROGRAM DATA - FIXED!
-            program_id: programId,           // UUID (from data-program-id)
-            program: programCode,            // Code only (e.g., "CTOT")
-            code: programCode,               // Same as program (for compatibility)
-            program_name: programName || programCode, // Full name
-            
-            // Academic Information
-            intake_year: parseInt(document.getElementById('studentIntake')?.value) || new Date().getFullYear(),
-            centre_id: selectedCentreId || '',
-            centre: centreName || '',
-            study_mode: document.getElementById('studentStudyMode')?.value || 'fulltime',
-            status: document.getElementById('studentStatus')?.value || 'active',
-            registration_date: new Date().toISOString().split('T')[0],
-            
-            // Employment
-            employment_status: document.getElementById('studentEmployment')?.value || '',
-            employer: document.getElementById('studentEmployer')?.value.trim() || '',
-            job_title: document.getElementById('studentJobTitle')?.value.trim() || '',
-            years_experience: parseInt(document.getElementById('studentExperience')?.value) || 0,
-            
-            // Emergency Contact
-            emergency_contact_name: document.getElementById('studentEmergencyName')?.value.trim() || '',
-            emergency_contact_phone: document.getElementById('studentEmergencyPhone')?.value.trim() || '',
-            emergency_contact_relationship: document.getElementById('studentEmergencyContact')?.value.trim() || '',
-            emergency_contact: document.getElementById('studentEmergencyPhone')?.value.trim() || '',
-            
-            // Notes
-            notes: document.getElementById('studentNotes')?.value.trim() || ''
-        };
+            const formData = {
+                reg_number: document.getElementById('studentRegNumber')?.value.trim() || '',
+                full_name: document.getElementById('studentName')?.value.trim() || '',
+                email: document.getElementById('studentEmail')?.value.trim() || '',
+                phone: document.getElementById('studentPhone')?.value.trim() || '',
+                date_of_birth: document.getElementById('studentDOB')?.value || '',
+                id_number: document.getElementById('studentIdNumber')?.value.trim() || '',
+                gender: document.getElementById('studentGender')?.value || '',
+                county: document.getElementById('studentCounty')?.value || '',
+                region: document.getElementById('studentRegion')?.value.trim() || '',
+                ward: document.getElementById('studentWard')?.value.trim() || '',
+                village: document.getElementById('studentVillage')?.value.trim() || '',
+                address: document.getElementById('studentAddress')?.value.trim() || '',
+                program_id: programId,
+                program: programCode,
+                code: programCode,
+                program_name: programName || programCode,
+                intake_year: parseInt(document.getElementById('studentIntake')?.value) || new Date().getFullYear(),
+                centre_id: selectedCentreId || '',
+                centre: centreName || '',
+                study_mode: document.getElementById('studentStudyMode')?.value || 'fulltime',
+                status: document.getElementById('studentStatus')?.value || 'active',
+                registration_date: new Date().toISOString().split('T')[0],
+                employment_status: document.getElementById('studentEmployment')?.value || '',
+                employer: document.getElementById('studentEmployer')?.value.trim() || '',
+                job_title: document.getElementById('studentJobTitle')?.value.trim() || '',
+                years_experience: parseInt(document.getElementById('studentExperience')?.value) || 0,
+                emergency_contact_name: document.getElementById('studentEmergencyName')?.value.trim() || '',
+                emergency_contact_phone: document.getElementById('studentEmergencyPhone')?.value.trim() || '',
+                emergency_contact_relationship: document.getElementById('studentEmergencyContact')?.value.trim() || '',
+                emergency_contact: document.getElementById('studentEmergencyPhone')?.value.trim() || '',
+                notes: document.getElementById('studentNotes')?.value.trim() || ''
+            };
 
-        // --- Validation ---
-        console.log('✅ Form data prepared for insert/update:', formData);
-        
-        // Check if program_id is null (this is a problem!)
-        if (!formData.program_id) {
-            console.error('❌ PROGRAM_ID IS NULL! Dropdown might not have data-program-id attribute');
-            console.error('Selected option:', selectedOption);
-            console.error('All program options:', 
-                Array.from(programSelect?.options || []).map(opt => ({
-                    value: opt.value,
-                    text: opt.textContent,
-                    hasId: opt.hasAttribute('data-program-id'),
-                    id: opt.getAttribute('data-program-id')
-                }))
-            );
+            console.log('✅ Form data prepared for insert/update:', formData);
             
-            // Try to find program ID from loaded programs as fallback
-            if (programCode && this.programs.length > 0) {
-                const programObj = this.programs.find(p => p.code === programCode);
-                if (programObj) {
-                    formData.program_id = programObj.id;
-                    console.log('✅ Found program ID from loaded programs:', programObj.id);
+            if (!formData.program_id) {
+                console.error('❌ PROGRAM_ID IS NULL!');
+                if (programCode && this.programs.length > 0) {
+                    const programObj = this.programs.find(p => p.code === programCode);
+                    if (programObj) {
+                        formData.program_id = programObj.id;
+                        console.log('✅ Found program ID from loaded programs:', programObj.id);
+                    }
                 }
             }
-        }
 
-        // Required fields validation
-        const requiredFields = ['reg_number', 'full_name', 'email', 'program_id', 'intake_year'];
-        const missingFields = requiredFields.filter(field => !formData[field]);
-        
-        if (missingFields.length > 0) {
-            console.error('❌ Missing required fields:', missingFields);
-            this.ui.showToast(`Missing required fields: ${missingFields.join(', ')}`, 'error');
-            return;
-        }
+            const requiredFields = ['reg_number', 'full_name', 'email', 'program_id', 'intake_year'];
+            const missingFields = requiredFields.filter(field => !formData[field]);
+            
+            if (missingFields.length > 0) {
+                console.error('❌ Missing required fields:', missingFields);
+                this.ui.showToast(`Missing required fields: ${missingFields.join(', ')}`, 'error');
+                return;
+            }
 
-        // Email validation
-        if (!this._validateEmail(formData.email)) {
-            this.ui.showToast('Please enter a valid email address', 'error');
-            return;
-        }
+            if (!this._validateEmail(formData.email)) {
+                this.ui.showToast('Please enter a valid email address', 'error');
+                return;
+            }
 
-        // --- Save to Database ---
-        const submitBtn = form.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-        submitBtn.disabled = true;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            submitBtn.disabled = true;
 
-        let result;
-        if (this.currentEditId) {
-            result = await this.db.updateStudent(this.currentEditId, formData);
-            this.ui.showToast(`Student updated successfully!`, 'success');
-        } else {
-            result = await this.db.addStudent(formData);
-            const regNumber = result.reg_number || formData.reg_number;
-            this.ui.showToast(`Student registered successfully! Registration Number: ${regNumber}`, 'success');
-        }
+            let result;
+            if (this.currentEditId) {
+                result = await this.db.updateStudent(this.currentEditId, formData);
+                this.ui.showToast(`Student updated successfully!`, 'success');
+            } else {
+                result = await this.db.addStudent(formData);
+                const regNumber = result.reg_number || formData.reg_number;
+                this.ui.showToast(`Student registered successfully! Registration Number: ${regNumber}`, 'success');
+            }
 
-        // --- Cleanup ---
-        this._resetStudentForm();
-        this.ui.closeModal('studentModal');
-        await this.loadStudentsTable();
+            this._resetStudentForm();
+            this.ui.closeModal('studentModal');
+            await this.loadStudentsTable();
 
-    } catch (error) {
-        console.error('❌ Error saving student:', error);
-        this.ui.showToast(error.message || 'Error saving student data', 'error');
-        
-        // Reset button state
-        const submitBtn = form.querySelector('button[type="submit"]');
-        if (submitBtn) {
-            submitBtn.innerHTML = this.currentEditId 
-                ? '<i class="fas fa-save"></i> Update Student'
-                : '<i class="fas fa-plus"></i> Register Student';
-            submitBtn.disabled = false;
+        } catch (error) {
+            console.error('❌ Error saving student:', error);
+            this.ui.showToast(error.message || 'Error saving student data', 'error');
+            
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = this.currentEditId 
+                    ? '<i class="fas fa-save"></i> Update Student'
+                    : '<i class="fas fa-plus"></i> Register Student';
+                submitBtn.disabled = false;
+            }
         }
     }
-}
+
     /**
-     * Edit student - FIXED FOR YOUR SCHEMA
+     * Edit student
      */
     async editStudent(studentId) {
         try {
@@ -739,51 +732,35 @@ async saveStudent(event) {
             
             console.log('📋 Student data from database:', student);
             
-            // FIRST: Populate intake years with student's actual year
             await this._populateIntakeYears(student.intake_year);
             
-            // Field mapping - matches the HTML form
             const fieldMap = {
-                // Registration Number
                 'studentRegNumber': student.reg_number || '',
-                
-                // Personal Information
                 'studentName': student.full_name || '',
                 'studentEmail': student.email || '',
                 'studentPhone': student.phone || '',
                 'studentDOB': student.date_of_birth ? this._formatDateForInput(student.date_of_birth) : '',
                 'studentIdNumber': student.id_number || '',
                 'studentGender': student.gender || '',
-                
-                // Location Information
                 'studentCounty': student.county || '',
-                'studentRegion': student.region || student.sub_county || '', // Map region to sub_county
+                'studentRegion': student.region || student.sub_county || '',
                 'studentWard': student.ward || '',
                 'studentVillage': student.village || '',
                 'studentAddress': student.address || '',
-                
-                // Academic Information
-                'studentProgram': student.program || '', // TEXT program code
-                'studentCentre': student.centre_id || student.centre || '', // Centre UUID or name
+                'studentProgram': student.program || '',
+                'studentCentre': student.centre_id || student.centre || '',
                 'studentStudyMode': student.study_mode || 'fulltime',
                 'studentStatus': student.status || 'active',
-                
-                // Employment Information
                 'studentEmployment': student.employment_status || '',
                 'studentEmployer': student.employer || '',
                 'studentJobTitle': student.job_title || '',
                 'studentExperience': student.years_experience || 0,
-                
-                // Emergency Contact
                 'studentEmergencyName': student.emergency_contact_name || '',
                 'studentEmergencyPhone': student.emergency_contact_phone || student.emergency_contact || '',
                 'studentEmergencyContact': student.emergency_contact_relationship || '',
-                
-                // Notes
                 'studentNotes': student.notes || ''
             };
             
-            // Populate form fields
             let populatedCount = 0;
             Object.entries(fieldMap).forEach(([fieldId, value]) => {
                 const element = document.getElementById(fieldId);
@@ -798,36 +775,30 @@ async saveStudent(event) {
             
             console.log(`📊 Populated ${populatedCount}/${Object.keys(fieldMap).length} fields`);
             
-            // Update modal title
             const modalTitle = document.getElementById('studentModalTitle');
             if (modalTitle) {
                 modalTitle.textContent = 'Edit Student';
             }
             
-            // Update submit button
             const submitBtn = document.querySelector('#studentForm button[type="submit"]');
             if (submitBtn) {
                 submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Student';
                 submitBtn.setAttribute('data-editing', 'true');
             }
             
-            // Disable registration number field when editing
             const regNumberInput = document.getElementById('studentRegNumber');
             if (regNumberInput) {
                 regNumberInput.readOnly = true;
                 regNumberInput.title = "Registration number cannot be changed";
             }
             
-            // Open modal
             this.ui.openModal('studentModal');
             
-            // Scroll to top of modal
             const modalBody = document.querySelector('#studentModal .modal-body');
             if (modalBody) {
                 modalBody.scrollTop = 0;
             }
             
-            // Focus on first field
             setTimeout(() => {
                 document.getElementById('studentName')?.focus();
             }, 100);
@@ -837,7 +808,7 @@ async saveStudent(event) {
             this.ui.showToast('Error loading student data: ' + error.message, 'error');
         }
     }
-    
+
     /**
      * Format date for input field (YYYY-MM-DD)
      */
@@ -850,81 +821,63 @@ async saveStudent(event) {
             return '';
         }
     }
-   /**
- * Reset student form
- */
-_resetStudentForm() {
-    console.log('🔄 Resetting student form...');
-    
-    const form = document.getElementById('studentForm');
-    if (form) {
-        // Reset all input fields
-        form.querySelectorAll('input, select, textarea').forEach(field => {
-            if (field.type === 'checkbox') {
-                field.checked = false;
-            } else if (field.tagName === 'SELECT') {
-                // Don't reset intake year dropdown
-                if (field.id !== 'studentIntake') {
-                    field.selectedIndex = 0;
-                }
-            } else if (field.id === 'studentRegNumber') {
-                // Clear but keep field writable for new students
-                field.value = '';
-                field.readOnly = false;
-                field.title = '';
-            } else {
-                field.value = '';
-            }
-        });
+
+    /**
+     * Reset student form
+     */
+    _resetStudentForm() {
+        console.log('🔄 Resetting student form...');
         
-        // ✅ CRITICAL: Always populate dropdowns, but ensure data is loaded first
-        const populateIfReady = () => {
-            if (this.programs && this.programs.length > 0) {
-                console.log('✅ Programs loaded, populating dropdown');
+        const form = document.getElementById('studentForm');
+        if (form) {
+            form.querySelectorAll('input, select, textarea').forEach(field => {
+                if (field.type === 'checkbox') {
+                    field.checked = false;
+                } else if (field.tagName === 'SELECT') {
+                    if (field.id !== 'studentIntake') {
+                        field.selectedIndex = 0;
+                    }
+                } else if (field.id === 'studentRegNumber') {
+                    field.value = '';
+                    field.readOnly = false;
+                    field.title = '';
+                } else {
+                    field.value = '';
+                }
+            });
+            
+            // Populate dropdowns if data is loaded
+            if (this.isDataLoaded) {
                 this.populateProgramSelect();
+                this.populateCentreSelect();
             } else {
-                console.warn('⚠️ Programs not loaded yet, waiting...');
-                // Wait and try again
-                setTimeout(populateIfReady, 300);
+                console.warn('⚠️ Data not loaded yet, dropdowns will be populated on next load');
             }
             
-            if (this.centres && this.centres.length > 0) {
-                this.populateCentreSelect();
+            const modalTitle = document.getElementById('studentModalTitle');
+            if (modalTitle) {
+                modalTitle.textContent = 'Register New Student';
             }
-        };
-        
-        // Start the population process
-        setTimeout(populateIfReady, 100);
-        
-        // Reset modal title
-        const modalTitle = document.getElementById('studentModalTitle');
-        if (modalTitle) {
-            modalTitle.textContent = 'Register New Student';
+            
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-plus"></i> Register Student';
+                submitBtn.removeAttribute('data-editing');
+                submitBtn.disabled = false;
+            }
+            
+            this.currentEditId = null;
+            this._populateIntakeYears();
+            
+            document.querySelectorAll('.error-message').forEach(el => el.remove());
+            document.querySelectorAll('.form-control.error').forEach(el => {
+                el.classList.remove('error');
+            });
+            
+            console.log('✅ Form reset complete');
         }
-        
-        // Reset submit button
-        const submitBtn = form.querySelector('button[type="submit"]');
-        if (submitBtn) {
-            submitBtn.innerHTML = '<i class="fas fa-plus"></i> Register Student';
-            submitBtn.removeAttribute('data-editing');
-            submitBtn.disabled = false;
-        }
-        
-        // Clear edit ID
-        this.currentEditId = null;
-        
-        // Repopulate intake years for new student
-        this._populateIntakeYears();
-        
-        // Clear any error messages
-        document.querySelectorAll('.error-message').forEach(el => el.remove());
-        document.querySelectorAll('.form-control.error').forEach(el => {
-            el.classList.remove('error');
-        });
-        
-        console.log('✅ Form reset complete');
     }
-}
+
     /**
      * Validate email format
      */
@@ -932,111 +885,110 @@ _resetStudentForm() {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
     }
-    
-  async loadStudentsTable(filterOptions = {}) {
-    try {
-        console.log('📋 Loading students table...');
-        const students = await this.db.getStudents(filterOptions);
-        const tbody = document.getElementById('studentsTableBody');
-        
-        if (!tbody) {
-            console.warn('Students table body not found');
-            return;
-        }
 
-        if (students.length === 0) {
-            this._renderEmptyState(tbody);
-            this._toggleBulkActions(false);
-            return;
-        }
-
-        // Ensure every student has program_name
-        students.forEach(student => {
-            if (!student.program_name) {
-                const programObj = this.programs.find(p => p.id === student.program_id);
-                if (programObj) {
-                    student.program_name = `${programObj.code} - ${programObj.name}`;
-                } else {
-                    student.program_name = student.program || 'Unknown Program';
-                }
-            }
-        });
-
-        const html = students.map(student => {
-            const programDisplay = student.program_name;
-
-            // Combine centre & region display
-            let centreDisplay = 'Not assigned';
-            if (student.centre_name && student.centre_name.trim() !== '') {
-                centreDisplay = student.centre_name;
-            } else if (student.centre && student.centre.trim() !== '') {
-                centreDisplay = student.centre;
-            } else if (student.centre_id) {
-                const lookedUpName = this._getCentreName(student.centre_id);
-                centreDisplay = lookedUpName;
-            }
-
-            const studentName = this._escapeHtml(student.full_name || '');
-            const email = this._escapeHtml(student.email || '');
-            const status = student.status || 'active';
-            const safeStudentId = this._escapeAttr(student.id);
-            const safeRegNumber = this._escapeAttr(student.reg_number);
-
-            return `
-                <tr data-student-id="${safeStudentId}" data-student-reg="${safeRegNumber}">
-                    <td><strong>${this._escapeHtml(student.reg_number)}</strong></td>
-                    <td>
-                        <div class="student-avatar">
-                            <div class="avatar-icon" style="background-color: ${this._getAvatarColor(student.full_name)}">
-                                <i class="fas fa-user"></i>
-                            </div>
-                            <div class="student-info">
-                                <strong>${studentName}</strong><br>
-                                <small>${email}</small>
-                            </div>
-                        </div>
-                    </td>
-                    <td>${this._escapeHtml(programDisplay)}</td>
-                    <td>${this._escapeHtml(centreDisplay)}</td>
-                    <td>${this._escapeHtml(student.intake_year)}</td>
-                    <td>
-                        <span class="status-badge ${this._escapeAttr(status)}">
-                            ${this._escapeHtml(status.toUpperCase())}
-                        </span>
-                    </td>
-                    <td class="action-buttons">
-                        <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="btn-action edit-student" data-id="${safeStudentId}" title="Edit Student">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn-action enter-marks" data-id="${safeStudentId}" title="Enter Marks">
-                            <i class="fas fa-chart-bar"></i>
-                        </button>
-                        <button class="btn-action delete-student" data-id="${safeStudentId}" title="Delete Student">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-        }).join('');
-
-        tbody.innerHTML = html;
-
-        this._attachStudentRowEventListeners();
-        this._toggleBulkActions(students.length > 0);
-
-        console.log(`✅ Loaded ${students.length} students`);
-
-    } catch (error) {
-        console.error('❌ Error loading students table:', error);
-        this.ui.showToast('Error loading students data', 'error');
-        this._renderErrorState();
-    }
-}
-
+    /**
+     * Load students table
+     */
+    async loadStudentsTable(filterOptions = {}) {
+        try {
+            console.log('📋 Loading students table...');
+            const students = await this.db.getStudents(filterOptions);
+            const tbody = document.getElementById('studentsTableBody');
             
+            if (!tbody) {
+                console.warn('Students table body not found');
+                return;
+            }
+
+            if (students.length === 0) {
+                this._renderEmptyState(tbody);
+                this._toggleBulkActions(false);
+                return;
+            }
+
+            // Ensure every student has program_name
+            students.forEach(student => {
+                if (!student.program_name) {
+                    const programObj = this.programs.find(p => p.id === student.program_id);
+                    if (programObj) {
+                        student.program_name = `${programObj.code} - ${programObj.name}`;
+                    } else {
+                        student.program_name = student.program || 'Unknown Program';
+                    }
+                }
+            });
+
+            const html = students.map(student => {
+                const programDisplay = student.program_name;
+
+                let centreDisplay = 'Not assigned';
+                if (student.centre_name && student.centre_name.trim() !== '') {
+                    centreDisplay = student.centre_name;
+                } else if (student.centre && student.centre.trim() !== '') {
+                    centreDisplay = student.centre;
+                } else if (student.centre_id) {
+                    const lookedUpName = this._getCentreName(student.centre_id);
+                    centreDisplay = lookedUpName;
+                }
+
+                const studentName = this._escapeHtml(student.full_name || '');
+                const email = this._escapeHtml(student.email || '');
+                const status = student.status || 'active';
+                const safeStudentId = this._escapeAttr(student.id);
+                const safeRegNumber = this._escapeAttr(student.reg_number);
+
+                return `
+                    <tr data-student-id="${safeStudentId}" data-student-reg="${safeRegNumber}">
+                        <td><strong>${this._escapeHtml(student.reg_number)}</strong></td>
+                        <td>
+                            <div class="student-avatar">
+                                <div class="avatar-icon" style="background-color: ${this._getAvatarColor(student.full_name)}">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div class="student-info">
+                                    <strong>${studentName}</strong><br>
+                                    <small>${email}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>${this._escapeHtml(programDisplay)}</td>
+                        <td>${this._escapeHtml(centreDisplay)}</td>
+                        <td>${this._escapeHtml(student.intake_year)}</td>
+                        <td>
+                            <span class="status-badge ${this._escapeAttr(status)}">
+                                ${this._escapeHtml(status.toUpperCase())}
+                            </span>
+                        </td>
+                        <td class="action-buttons">
+                            <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn-action edit-student" data-id="${safeStudentId}" title="Edit Student">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-action enter-marks" data-id="${safeStudentId}" title="Enter Marks">
+                                <i class="fas fa-chart-bar"></i>
+                            </button>
+                            <button class="btn-action delete-student" data-id="${safeStudentId}" title="Delete Student">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            tbody.innerHTML = html;
+            this._attachStudentRowEventListeners();
+            this._toggleBulkActions(students.length > 0);
+            console.log(`✅ Loaded ${students.length} students`);
+
+        } catch (error) {
+            console.error('❌ Error loading students table:', error);
+            this.ui.showToast('Error loading students data', 'error');
+            this._renderErrorState();
+        }
+    }
+
     /**
      * Search students
      */
@@ -1063,14 +1015,12 @@ _resetStudentForm() {
                 );
             });
             
-            // Update table with filtered results
             this._renderFilteredStudents(filteredStudents);
-            
         } catch (error) {
             console.error('Error searching students:', error);
         }
     }
-    
+
     /**
      * Render filtered students
      */
@@ -1092,7 +1042,6 @@ _resetStudentForm() {
             return;
         }
         
-        // Reuse the rendering logic from loadStudentsTable
         const html = students.map(student => {
             const programDisplay = student.program_name || this._getProgramName(student.program);
             const centreDisplay = student.centre || this._getCentreName(student.centre_id) || 'Not assigned';
@@ -1147,7 +1096,7 @@ _resetStudentForm() {
         this._attachStudentRowEventListeners();
         this._toggleBulkActions(true);
     }
-    
+
     /**
      * Filter students by dropdown filters
      */
@@ -1162,7 +1111,6 @@ _resetStudentForm() {
             
             console.log('🔍 Applying filters:', filters);
             
-            // Get all students and filter locally (or use database filtering if available)
             const allStudents = await this.db.getStudents();
             const filteredStudents = allStudents.filter(student => {
                 let matches = true;
@@ -1172,7 +1120,6 @@ _resetStudentForm() {
                 }
                 
                 if (filters.centre) {
-                    // Check both centre_id (UUID) and centre (name)
                     const centreMatch = student.centre_id === filters.centre || 
                                        student.centre === filters.centre;
                     if (!centreMatch) matches = false;
@@ -1190,17 +1137,15 @@ _resetStudentForm() {
             });
             
             this._renderFilteredStudents(filteredStudents);
-            
         } catch (error) {
             console.error('Error filtering students:', error);
         }
     }
-    
+
     /**
      * Attach event listeners to student row buttons
      */
     _attachStudentRowEventListeners() {
-        // View student buttons
         document.querySelectorAll('.view-student').forEach(button => {
             button.addEventListener('click', (e) => {
                 const studentId = e.currentTarget.getAttribute('data-id');
@@ -1208,7 +1153,6 @@ _resetStudentForm() {
             });
         });
         
-        // Edit student buttons
         document.querySelectorAll('.edit-student').forEach(button => {
             button.addEventListener('click', (e) => {
                 const studentId = e.currentTarget.getAttribute('data-id');
@@ -1216,7 +1160,6 @@ _resetStudentForm() {
             });
         });
         
-        // Enter marks buttons
         document.querySelectorAll('.enter-marks').forEach(button => {
             button.addEventListener('click', (e) => {
                 const studentId = e.currentTarget.getAttribute('data-id');
@@ -1224,7 +1167,6 @@ _resetStudentForm() {
             });
         });
         
-        // Delete student buttons
         document.querySelectorAll('.delete-student').forEach(button => {
             button.addEventListener('click', (e) => {
                 const studentId = e.currentTarget.getAttribute('data-id');
@@ -1234,7 +1176,7 @@ _resetStudentForm() {
         
         console.log('✅ Attached row event listeners');
     }
-    
+
     /**
      * Delete student with confirmation
      */
@@ -1253,17 +1195,14 @@ _resetStudentForm() {
             await this.db.deleteStudent(studentId);
             this.ui.showToast('Student deleted successfully', 'success');
             
-            // Remove from selected if present
             this.selectedStudents.delete(studentId);
-            
             await this.loadStudentsTable();
-            
         } catch (error) {
             console.error('Error deleting student:', error);
             this.ui.showToast('Error deleting student', 'error');
         }
     }
-    
+
     /**
      * View student details
      */
@@ -1277,7 +1216,6 @@ _resetStudentForm() {
                 return;
             }
             
-            // Create modal content
             const modalContent = `
                 <div class="modal-content" style="max-width: 800px; margin: 50px auto;">
                     <div class="modal-header" style="padding: 20px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;">
@@ -1286,7 +1224,6 @@ _resetStudentForm() {
                     </div>
                     <div class="modal-body" style="padding: 20px; max-height: 70vh; overflow-y: auto;">
                         <div class="student-profile">
-                            <!-- Student Header -->
                             <div style="display: flex; align-items: center; gap: 20px; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 2px solid #f0f0f0;">
                                 <div style="background-color: ${this._getAvatarColor(student.full_name)}; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
                                     <i class="fas fa-user fa-2x" style="color: white;"></i>
@@ -1302,10 +1239,7 @@ _resetStudentForm() {
                                 </div>
                             </div>
                             
-                            <!-- Details Grid -->
                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px;">
-                                
-                                <!-- Personal Information -->
                                 <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0;">
                                     <h4 style="margin: 0 0 15px 0; color: #4f46e5;">
                                         <i class="fas fa-user"></i> Personal Information
@@ -1337,7 +1271,6 @@ _resetStudentForm() {
                                     </div>
                                 </div>
                                 
-                                <!-- Academic Information -->
                                 <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0;">
                                     <h4 style="margin: 0 0 15px 0; color: #4f46e5;">
                                         <i class="fas fa-graduation-cap"></i> Academic Information
@@ -1361,7 +1294,6 @@ _resetStudentForm() {
                                     </div>
                                 </div>
                                 
-                                <!-- Additional Info -->
                                 ${student.notes || student.address ? `
                                 <div style="background: #f0f7ff; padding: 15px; border-radius: 8px; border-left: 4px solid #4f46e5; grid-column: span 2;">
                                     <h4 style="margin: 0 0 15px 0; color: #4f46e5;">
@@ -1393,7 +1325,6 @@ _resetStudentForm() {
                 </div>
             `;
             
-            // Create and show modal
             const modalId = 'viewStudentModal';
             let modal = document.getElementById(modalId);
             
@@ -1408,51 +1339,41 @@ _resetStudentForm() {
             modal.innerHTML = modalContent;
             modal.style.display = 'block';
             
-            // Close when clicking outside
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) {
                     modal.style.display = 'none';
                 }
             });
-            
         } catch (error) {
             console.error('Error viewing student:', error);
             this.ui.showToast('Error loading student details', 'error');
         }
     }
-    
+
     /**
      * Enter marks for a student
      */
     async enterMarks(studentId) {
         try {
-            // Get student details
             const student = await this.db.getStudent(studentId);
             if (!student) {
                 this.ui.showToast('Student not found', 'error');
                 return;
             }
             
-            // Redirect to marks page or open marks modal
             this.ui.showToast(`Redirecting to marks entry for ${student.full_name}`, 'info');
             
-            // You can either:
-            // 1. Redirect to marks page
-            // window.location.hash = '#marks';
-            
-            // 2. Or open marks modal if available
             if (this.app?.marks?.openMarksModal) {
                 this.app.marks.openMarksModal(studentId);
             } else {
                 this.ui.showToast('Please use the Marks page to enter marks', 'info');
             }
-            
         } catch (error) {
             console.error('Error entering marks:', error);
             this.ui.showToast('Error opening marks entry', 'error');
         }
     }
-    
+
     /**
      * Export students
      */
@@ -1465,7 +1386,6 @@ _resetStudentForm() {
                 return;
             }
             
-            // Format data for export
             const data = students.map(student => ({
                 'Registration Number': student.reg_number,
                 'Full Name': student.full_name,
@@ -1486,13 +1406,12 @@ _resetStudentForm() {
             }
             
             this.ui.showToast(`Exported ${students.length} students`, 'success');
-            
         } catch (error) {
             console.error('Error exporting students:', error);
             this.ui.showToast('Error exporting students', 'error');
         }
     }
-    
+
     /**
      * Export to CSV
      */
@@ -1515,7 +1434,7 @@ _resetStudentForm() {
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         this._downloadBlob(blob, `${fileName}-${new Date().toISOString().split('T')[0]}.csv`);
     }
-    
+
     /**
      * Download blob as file
      */
@@ -1533,7 +1452,7 @@ _resetStudentForm() {
         
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
-    
+
     /**
      * Escape HTML for text content
      */
@@ -1544,7 +1463,7 @@ _resetStudentForm() {
         div.textContent = text;
         return div.innerHTML;
     }
-    
+
     /**
      * Escape HTML for attributes
      */
@@ -1558,7 +1477,7 @@ _resetStudentForm() {
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
     }
-    
+
     /**
      * Get avatar color based on name
      */
@@ -1575,14 +1494,14 @@ _resetStudentForm() {
         
         return colors[Math.abs(hash) % colors.length];
     }
-    
+
     /**
      * Setup bulk actions
      */
     _setupBulkActions() {
         this._toggleBulkActions(false);
     }
-    
+
     /**
      * Toggle bulk actions visibility
      */
@@ -1592,7 +1511,7 @@ _resetStudentForm() {
             bulkActions.style.display = show ? 'flex' : 'none';
         }
     }
-    
+
     /**
      * Toggle select all students
      */
@@ -1609,7 +1528,7 @@ _resetStudentForm() {
         });
         this._updateSelectedCount();
     }
-    
+
     /**
      * Update selected students count
      */
@@ -1619,7 +1538,7 @@ _resetStudentForm() {
             countElement.textContent = this.selectedStudents.size;
         }
     }
-    
+
     /**
      * Render empty state
      */
@@ -1637,13 +1556,12 @@ _resetStudentForm() {
             </tr>
         `;
         
-        // Add event listener for the button
         tbody.querySelector('#addFirstStudent')?.addEventListener('click', () => {
             this._resetStudentForm();
             this.ui.openModal('studentModal');
         });
     }
-    
+
     /**
      * Render error state
      */
@@ -1668,14 +1586,14 @@ _resetStudentForm() {
             });
         }
     }
-    
+
     /**
      * Open import modal
      */
     _openImportModal() {
         this.ui.showToast('Import feature coming soon!', 'info');
     }
-    
+
     /**
      * Show bulk status modal
      */
@@ -1686,7 +1604,7 @@ _resetStudentForm() {
         }
         this.ui.showToast(`Bulk status update for ${this.selectedStudents.size} students`, 'info');
     }
-    
+
     /**
      * Show bulk delete modal
      */
@@ -1698,7 +1616,6 @@ _resetStudentForm() {
         
         if (confirm(`Are you sure you want to delete ${this.selectedStudents.size} selected students? This action cannot be undone.`)) {
             this.ui.showToast(`Bulk delete for ${this.selectedStudents.size} students`, 'info');
-            // Implement bulk delete logic here
         }
     }
 }
