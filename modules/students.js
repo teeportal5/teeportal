@@ -753,10 +753,8 @@ class StudentManager {
         return emailRegex.test(email);
     }
     
- // Update the loadStudentsTable method to match your CSS structure:
-
 /**
- * Load students into table - UPDATED FOR YOUR CSS
+ * Load students into table - FIXED FOR YOUR EXACT HTML STRUCTURE
  */
 async loadStudentsTable(filterOptions = {}) {
     try {
@@ -775,23 +773,42 @@ async loadStudentsTable(filterOptions = {}) {
             return;
         }
         
+        // DEBUG: Check first student data
+        if (students.length > 0) {
+            const firstStudent = students[0];
+            console.log('🔍 First student data for debugging:', {
+                reg_number: firstStudent.reg_number,
+                full_name: firstStudent.full_name,
+                program: firstStudent.program,
+                program_name: firstStudent.program_name,
+                centre_name: firstStudent.centre_name,
+                centre: firstStudent.centre,
+                centre_id: firstStudent.centre_id,
+                county: firstStudent.county,
+                region: firstStudent.region,
+                intake_year: firstStudent.intake_year,
+                status: firstStudent.status
+            });
+        }
+        
         // Render all rows with proper data mapping
         const html = students.map(student => {
-            // Get program display name - CORRECTED
+            // FIX 1: Get program display name - This is what's showing in your table
             let programDisplay = '';
             if (student.program_name && student.program_name.trim() !== '') {
-                // Use stored program_name from database
+                // Use program_name if available in student data
                 programDisplay = student.program_name;
                 console.log(`🎓 ${student.reg_number}: Using stored program_name = "${programDisplay}"`);
             } else if (student.program && student.program.trim() !== '') {
-                // Look up from programs array
+                // Look up from programs array (this is likely what's happening)
                 programDisplay = this._getProgramName(student.program);
-                console.log(`🎓 ${student.reg_number}: Looked up program "${student.program}" = "${programDisplay}"`);
+                console.log(`🎓 ${student.reg_number}: Looking up program code "${student.program}" = "${programDisplay}"`);
             } else {
                 programDisplay = 'Not assigned';
+                console.warn(`⚠️ ${student.reg_number}: No program information found`);
             }
             
-            // Get centre display name
+            // FIX 2: Get centre name
             let centreDisplay = 'Not assigned';
             if (student.centre_name && student.centre_name.trim() !== '') {
                 centreDisplay = student.centre_name;
@@ -801,70 +818,70 @@ async loadStudentsTable(filterOptions = {}) {
                 centreDisplay = this._getCentreName(student.centre_id);
             }
             
-            // Get region
-            const regionDisplay = student.region || student.county || '';
+            // FIX 3: Get county and region separately (based on your HTML)
+            const countyDisplay = student.county || '';
+            const regionDisplay = student.region || student.sub_county || '';
             
-            // Extract initials for avatar
-            const initials = this._getInitials(student.full_name);
             const studentName = this._escapeHtml(student.full_name || '');
             const email = this._escapeHtml(student.email || '');
             const status = student.status || 'active';
             const safeStudentId = this._escapeAttr(student.id);
             const safeRegNumber = this._escapeAttr(student.reg_number);
             
+            // FIX 4: Generate avatar initials
+            const avatarInitials = this._getAvatarInitials(student.full_name);
+            const avatarColor = this._getAvatarColor(student.full_name);
+            
+            // FIX 5: Create action buttons HTML
+            const actionButtons = `
+                <div class="action-buttons">
+                    <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn-action edit-student" data-id="${safeStudentId}" title="Edit Student">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-action enter-marks" data-id="${safeStudentId}" title="Enter Marks">
+                        <i class="fas fa-chart-bar"></i>
+                    </button>
+                    <button class="btn-action delete-student" data-id="${safeStudentId}" title="Delete Student">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            
+            // FIX 6: Return exact HTML structure matching your table headers
             return `
                 <tr data-student-id="${safeStudentId}" data-student-reg="${safeRegNumber}">
-                    <td>
-                        <div class="student-selection">
-                            <input type="checkbox" class="selection-checkbox student-checkbox" 
-                                   data-student-id="${safeStudentId}">
-                            <strong class="reg-number">${this._escapeHtml(student.reg_number)}</strong>
-                        </div>
-                    </td>
+                    <td><strong class="reg-number">${this._escapeHtml(student.reg_number)}</strong></td>
                     <td>
                         <div class="student-avatar">
-                            <div class="avatar-icon" style="background: linear-gradient(135deg, ${this._getAvatarColor(student.full_name)} 0%, ${this._getSecondaryColor(student.full_name)} 100%);">
-                                ${initials}
+                            <div class="avatar-icon" style="background-color: ${avatarColor}">
+                                ${avatarInitials}
                             </div>
                             <div class="student-info">
-                                <div class="student-name">${studentName}</div>
-                                <div class="student-email">${email}</div>
+                                <strong class="student-name">${studentName}</strong><br>
+                                <small class="student-email">${email}</small>
                             </div>
                         </div>
                     </td>
-                    <td>
-                        <div class="program-info">
-                            <div class="program-name">${this._escapeHtml(programDisplay)}</div>
-                            ${student.study_mode ? `<small class="study-mode">${student.study_mode.toUpperCase()}</small>` : ''}
+                    <td class="program-cell">
+                        <div class="program-display">
+                            <strong>${this._escapeHtml(programDisplay)}</strong>
+                            ${student.study_mode ? `<br><small class="study-mode">${student.study_mode}</small>` : ''}
                         </div>
                     </td>
-                    <td>
-                        <div class="location-info">
-                            <div class="centre-name">${this._escapeHtml(centreDisplay)}</div>
-                            <div class="centre-region">${this._escapeHtml(regionDisplay)}</div>
-                        </div>
-                    </td>
+                    <td>${this._escapeHtml(centreDisplay)}</td>
+                    <td>${this._escapeHtml(countyDisplay)}</td>
+                    <td>${this._escapeHtml(regionDisplay)}</td>
                     <td class="intake-year">${this._escapeHtml(student.intake_year)}</td>
                     <td>
                         <span class="status-badge ${this._escapeAttr(status)}">
                             ${this._escapeHtml(status.toUpperCase())}
                         </span>
                     </td>
-                    <td>
-                        <div class="action-buttons">
-                            <button class="btn-action view-student" data-id="${safeStudentId}" title="View Details">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="btn-action edit-student" data-id="${safeStudentId}" title="Edit Student">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn-action enter-marks" data-id="${safeStudentId}" title="Enter Marks">
-                                <i class="fas fa-chart-bar"></i>
-                            </button>
-                            <button class="btn-action delete-student" data-id="${safeStudentId}" title="Delete Student">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
+                    <td class="action-buttons-cell">
+                        ${actionButtons}
                     </td>
                 </tr>
             `;
@@ -874,7 +891,6 @@ async loadStudentsTable(filterOptions = {}) {
 
         // Attach event listeners
         this._attachStudentRowEventListeners();
-        this._attachCheckboxListeners();
 
         // Show bulk actions if we have students
         this._toggleBulkActions(true);
@@ -889,77 +905,36 @@ async loadStudentsTable(filterOptions = {}) {
 }
 
 /**
- * Get initials from name
+ * Get avatar initials from name
  */
-_getInitials(name) {
-    if (!name) return '??';
-    const names = name.split(' ');
+_getAvatarInitials(name) {
+    if (!name || name.trim() === '') return '??';
+    
+    const names = name.trim().split(' ');
     if (names.length >= 2) {
-        return (names[0][0] + names[1][0]).toUpperCase();
+        return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+    } else if (names[0].length >= 2) {
+        return names[0].substring(0, 2).toUpperCase();
     }
-    return name.substring(0, 2).toUpperCase();
+    return name[0].toUpperCase() + '?';
 }
 
 /**
- * Get secondary color for gradient
+ * Get program name - FIXED to return proper format
  */
-_getSecondaryColor(name) {
-    const colors = [
-        '#2ecc71', '#e74c3c', '#f39c12', 
-        '#9b59b6', '#1abc9c', '#d35400', '#3498db', '#c0392b'
-    ];
-    if (!name) return colors[1];
+_getProgramName(programCode) {
+    if (!programCode) return 'Not assigned';
     
-    const hash = name.split('').reduce((acc, char) => {
-        return char.charCodeAt(0) + ((acc << 5) - acc);
-    }, 1); // Start with 1 for different hash
+    // Look for program in loaded programs array
+    const program = this.programs.find(p => p.code === programCode);
     
-    return colors[Math.abs(hash) % colors.length];
-}
-
-/**
- * Attach checkbox listeners
- */
-_attachCheckboxListeners() {
-    // Student checkboxes
-    document.querySelectorAll('.student-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', (e) => {
-            const studentId = e.target.getAttribute('data-student-id');
-            if (e.target.checked) {
-                this.selectedStudents.add(studentId);
-            } else {
-                this.selectedStudents.delete(studentId);
-            }
-            this._updateSelectedCount();
-        });
-    });
-    
-    // Select all checkbox
-    const selectAll = document.getElementById('selectAllStudents');
-    if (selectAll) {
-        selectAll.addEventListener('change', (e) => {
-            const checkboxes = document.querySelectorAll('.student-checkbox');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = e.target.checked;
-                const studentId = checkbox.getAttribute('data-student-id');
-                if (e.target.checked) {
-                    this.selectedStudents.add(studentId);
-                } else {
-                    this.selectedStudents.delete(studentId);
-                }
-            });
-            this._updateSelectedCount();
-        });
-    }
-}
-
-/**
- * Update selected count display
- */
-_updateSelectedCount() {
-    const countElement = document.getElementById('selectedCount');
-    if (countElement) {
-        countElement.textContent = this.selectedStudents.size;
+    if (program) {
+        // Return in format: "DHNC - Diploma in Health Nursing Community"
+        return `${program.code} - ${program.name}`;
+    } else {
+        console.warn(`⚠️ Program not found for code: ${programCode}`);
+        // Return just the code if not found
+        return programCode;
     }
 }
             
