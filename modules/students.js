@@ -1,6 +1,4 @@
-STILL Uncaught SyntaxError: Unexpected identifier 'programDisplay' (at students.js:938:21)
-
-  // modules/students.js - COMPLETE FIXED VERSION FOR YOUR DATABASE SCHEMA
+ // modules/students.js - COMPLETE FIXED VERSION FOR YOUR DATABASE SCHEMA
 class StudentManager {
     constructor(db, app = null) {
         this.db = db;
@@ -937,7 +935,7 @@ async loadStudentsTable(filterOptions = {}) {
         
         // Reuse the rendering logic from loadStudentsTable
         const html = students.map(student => {
-            coconst programDisplay = student.program_name || this._getProgramName(student.program);
+            const programDisplay = student.program_name || this._getProgramName(student.program);
             const centreDisplay = student.centre || this._getCentreName(student.centre_id) || 'Not assigned';
             const studentName = this._escapeHtml(student.full_name || '');
             const email = this._escapeHtml(student.email || '');
