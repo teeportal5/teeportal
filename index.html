@@ -1070,16 +1070,113 @@
 
 <!-- ========== MARKS SECTION ========== -->
 <section id="marks" class="content-section">
-    <!-- Your existing marks HTML here - EXACTLY as you had it -->
+    <!-- Header -->
     <div class="section-header">
         <div class="header-left">
             <h2>Academic Records</h2>
             <p class="section-subtitle">Manage and track student academic performance</p>
         </div>
         <div class="header-actions">
+            <!-- View Mode Switcher -->
+            <div class="view-mode-switcher">
+                <button class="view-mode-btn active" data-view="table">
+                    <i class="fas fa-table"></i> Table
+                </button>
+                <button class="view-mode-btn" data-view="cards">
+                    <i class="fas fa-th-large"></i> Cards
+                </button>
+                <button class="view-mode-btn" data-view="compact">
+                    <i class="fas fa-list"></i> Compact
+                </button>
+            </div>
+            
             <button class="btn btn-primary" onclick="window.app?.marks?.openMarksModal()">
                 <i class="fas fa-plus"></i> New Record
             </button>
+        </div>
+    </div>
+    
+    <!-- Summary Stats - Horizontal Scrollable Cards -->
+    <div class="marks-summary-stats">
+        <div class="marks-stat-card">
+            <div class="marks-stat-header">
+                <div class="marks-stat-icon total">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <div class="marks-stat-info">
+                    <div class="marks-stat-label">Total Records</div>
+                    <div class="marks-stat-value" id="totalRecords">0</div>
+                </div>
+            </div>
+            <div class="marks-stat-subtitle">All academic records</div>
+        </div>
+        
+        <div class="marks-stat-card">
+            <div class="marks-stat-header">
+                <div class="marks-stat-icon students">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="marks-stat-info">
+                    <div class="marks-stat-label">Students</div>
+                    <div class="marks-stat-value" id="distinctStudents">0</div>
+                </div>
+            </div>
+            <div class="marks-stat-subtitle">Distinct students</div>
+        </div>
+        
+        <div class="marks-stat-card">
+            <div class="marks-stat-header">
+                <div class="marks-stat-icon average">
+                    <i class="fas fa-percentage"></i>
+                </div>
+                <div class="marks-stat-info">
+                    <div class="marks-stat-label">Average Score</div>
+                    <div class="marks-stat-value" id="avgScore">0%</div>
+                </div>
+            </div>
+            <div class="marks-stat-trend">
+                <i class="fas fa-arrow-up trend-up"></i>
+                <span>+2.5% this month</span>
+            </div>
+        </div>
+        
+        <div class="marks-stat-card">
+            <div class="marks-stat-header">
+                <div class="marks-stat-icon distinction">
+                    <i class="fas fa-award"></i>
+                </div>
+                <div class="marks-stat-info">
+                    <div class="marks-stat-label">Distinctions</div>
+                    <div class="marks-stat-value" id="distinctionCount">0</div>
+                </div>
+            </div>
+            <div class="marks-stat-subtitle">Top performing students</div>
+        </div>
+        
+        <div class="marks-stat-card">
+            <div class="marks-stat-header">
+                <div class="marks-stat-icon highest">
+                    <i class="fas fa-trophy"></i>
+                </div>
+                <div class="marks-stat-info">
+                    <div class="marks-stat-label">Highest Score</div>
+                    <div class="marks-stat-value">98%</div>
+                </div>
+            </div>
+            <div class="marks-stat-subtitle">John Doe - Mathematics</div>
+        </div>
+        
+        <div class="marks-stat-card">
+            <div class="marks-stat-header">
+                <div class="marks-stat-icon lowest">
+                    <i class="fas fa-chart-line-down"></i>
+                </div>
+                <div class="marks-stat-info">
+                    <div class="marks-stat-label">Lowest Score</div>
+                    <div class="marks-stat-value">42%</div>
+                </div>
+            </div>
+            <div class="marks-stat-subtitle">Needs attention</div>
         </div>
     </div>
     
@@ -1092,6 +1189,10 @@
         <div class="filter-controls">
             <select id="courseFilter" class="filter-select">
                 <option value="">All Courses</option>
+                <!-- Will be populated -->
+            </select>
+            <select id="studentFilter" class="filter-select">
+                <option value="">All Students</option>
                 <!-- Will be populated -->
             </select>
             <select id="gradeFilter" class="filter-select">
@@ -1107,58 +1208,56 @@
         </div>
     </div>
     
-    <!-- Summary Stats -->
-    <div class="summary-stats">
-        <div class="stat-item">
-            <span class="stat-label">Total Records</span>
-            <span class="stat-value" id="totalRecords">0</span>
+    <!-- Selected Actions Bar (hidden by default) -->
+    <div id="selectedActions" class="selected-actions-bar">
+        <div class="selected-count">
+            <i class="fas fa-check-circle"></i>
+            <span>Selected</span>
+            <span class="selected-count-badge" id="selectedCount">0</span>
         </div>
-        <div class="stat-item">
-            <span class="stat-label">Students</span>
-            <span class="stat-value" id="distinctStudents">0</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-label">Avg Score</span>
-            <span class="stat-value" id="avgScore">0%</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-label">Distinctions</span>
-            <span class="stat-value" id="distinctionCount">0</span>
+        <div class="selected-actions">
+            <button class="selected-action-btn" onclick="window.app?.marks?.exportSelected()">
+                <i class="fas fa-download"></i> Export
+            </button>
+            <button class="selected-action-btn" onclick="window.app?.marks?.bulkEdit()">
+                <i class="fas fa-edit"></i> Edit
+            </button>
+            <button class="selected-action-btn btn-danger" onclick="window.app?.marks?.deleteSelected()">
+                <i class="fas fa-trash"></i> Delete
+            </button>
         </div>
     </div>
     
-    <!-- Marks Table - FIXED: Removed checkbox column to match your HTML -->
-    <div class="table-container">
-        <table class="data-table" id="marksTable">
-    <thead>
-        <tr>
-            <th>Student</th>
-            <th>Course</th>
-            <th>Centre</th>
-            <th>Score</th>
-            <th>Grade</th>
-            <th>Date</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody id="marksTableBody">
-        <!-- Data will be loaded here -->
-    </tbody>
-</table>
-            <tbody id="marksTableBody">
-                <!-- Data will be loaded here -->
-                <tr>
-                    <td colspan="8" class="empty-state">
-                        <i class="fas fa-chart-bar fa-3x"></i>
-                        <h3>No Academic Records Found</h3>
-                        <p>Get started by adding your first record</p>
-                        <button class="btn-primary" onclick="window.app?.marks?.openMarksModal()">
-                            <i class="fas fa-plus"></i> Add First Record
-                        </button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+    <!-- TABLE VIEW -->
+    <div id="tableView" class="table-view-container">
+        <div class="table-container">
+            <table id="marksTable">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Course</th>
+                        <th>Centre</th>
+                        <th>Score</th>
+                        <th>Grade</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="marksTableBody">
+                    <!-- Data will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- CARDS VIEW (Horizontal) -->
+    <div id="cardsView" class="cards-view-container" style="display: none;">
+        <!-- Cards will be rendered here by JavaScript -->
+    </div>
+    
+    <!-- COMPACT VIEW -->
+    <div id="compactView" class="compact-view-container" style="display: none;">
+        <!-- Compact list will be rendered here by JavaScript -->
     </div>
     
     <!-- Pagination -->
@@ -1190,7 +1289,6 @@
 </section>
 
 <!-- ========== MARKS MODAL ========== -->
-<!-- Marks Modal - COMPACT VERSION -->
 <div id="marksModal" class="modal">
     <div class="modal-content" style="max-width: 500px;">
         <div class="modal-header">
@@ -1331,6 +1429,41 @@
         </div>
     </div>
 </div>
+
+<!-- Toast Container for Notifications -->
+<div id="toastContainer"></div>
+
+<!-- JavaScript to handle view mode switching -->
+<script>
+// Add view mode switching functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const viewModeButtons = document.querySelectorAll('.view-mode-btn');
+    const tableView = document.getElementById('tableView');
+    const cardsView = document.getElementById('cardsView');
+    const compactView = document.getElementById('compactView');
+    
+    viewModeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const viewMode = this.getAttribute('data-view');
+            
+            // Update active button
+            viewModeButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Show/hide appropriate view
+            tableView.style.display = viewMode === 'table' ? 'block' : 'none';
+            cardsView.style.display = viewMode === 'cards' ? 'block' : 'none';
+            compactView.style.display = viewMode === 'compact' ? 'block' : 'none';
+            
+            // Trigger the MarksManager to render the current view
+            if (window.app?.marks) {
+                window.app.marks.viewMode = viewMode;
+                window.app.marks.renderCurrentView();
+            }
+        });
+    });
+});
+</script>
 
 <!-- ========== REPORTS SECTION ========== -->
 <section id="reports" class="content-section" aria-labelledby="reports-heading">
