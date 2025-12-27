@@ -1,4 +1,4 @@
-// modules/marks.js - COMPLETE WITH FULL FUNCTIONALITY
+// modules/marks.js - COMPLETE WITH HORIZONTAL CARDS VIEW
 class MarksManager {
     constructor(db, app) {
         this.db = db;
@@ -29,19 +29,25 @@ class MarksManager {
         this.isSaving = false;
         
         // Initialize when ready
-        setTimeout(() => this.initEventListeners(), 100);
+        setTimeout(() => this.initialize(), 100);
     }
     
     // ==================== INITIALIZATION ====================
     
+    initialize() {
+        console.log('🎯 Initializing MarksManager...');
+        this.addDuplicateCheckingStyles();
+        this.addHorizontalCardsStyles();
+        this.initEventListeners();
+        this.preventDuplicateFormSubmissions();
+    }
+    
     initEventListeners() {
         console.log('🎯 Initializing MarksManager event listeners');
-        // Add CSS styles
-    this.addDuplicateCheckingStyles();
+        
         // Initialize modal handlers first
         this.initModalHandlers();
-         // ✅ ADD THIS LINE - Prevent duplicate form submissions
-    this.preventDuplicateFormSubmissions();
+        
         // Search input with debounce
         const searchInput = document.getElementById('marksSearch');
         if (searchInput) {
@@ -157,77 +163,77 @@ class MarksManager {
         this.setupMarksModalValidation();
     }
     
-   setupMarksModalValidation() {
-    // Student change - check for duplicates IMMEDIATELY
-    const studentSelect = document.getElementById('marksStudent');
-    if (studentSelect) {
-        studentSelect.addEventListener('change', () => {
-            // Show loading state
-            this.showDuplicateChecking();
-            // Check immediately
-            this.checkForDuplicateMarks();
-        });
+    setupMarksModalValidation() {
+        // Student change - check for duplicates IMMEDIATELY
+        const studentSelect = document.getElementById('marksStudent');
+        if (studentSelect) {
+            studentSelect.addEventListener('change', () => {
+                // Show loading state
+                this.showDuplicateChecking();
+                // Check immediately
+                this.checkForDuplicateMarks();
+            });
+        }
+        
+        // Course change - check for duplicates IMMEDIATELY
+        const courseSelect = document.getElementById('marksCourse');
+        if (courseSelect) {
+            courseSelect.addEventListener('change', () => {
+                this.showDuplicateChecking();
+                this.checkForDuplicateMarks();
+            });
+        }
+        
+        // Assessment type change - check for duplicates IMMEDIATELY
+        const assessmentSelect = document.getElementById('assessmentType');
+        if (assessmentSelect) {
+            assessmentSelect.addEventListener('change', () => {
+                this.showDuplicateChecking();
+                this.checkForDuplicateMarks();
+            });
+        }
+        
+        // Date change - check for duplicates IMMEDIATELY
+        const dateInput = document.getElementById('assessmentDate');
+        if (dateInput) {
+            dateInput.addEventListener('change', () => {
+                this.showDuplicateChecking();
+                this.checkForDuplicateMarks();
+            });
+        }
+        
+        // Also add input event listeners for score fields
+        const scoreInput = document.getElementById('marksScore');
+        const maxScoreInput = document.getElementById('marksMaxScore');
+        
+        if (scoreInput) {
+            scoreInput.addEventListener('input', () => {
+                this.updateMarksGradeDisplay();
+            });
+        }
+        
+        if (maxScoreInput) {
+            maxScoreInput.addEventListener('input', () => {
+                this.updateMarksGradeDisplay();
+            });
+        }
     }
     
-    // Course change - check for duplicates IMMEDIATELY
-    const courseSelect = document.getElementById('marksCourse');
-    if (courseSelect) {
-        courseSelect.addEventListener('change', () => {
-            this.showDuplicateChecking();
-            this.checkForDuplicateMarks();
-        });
+    // ADD THIS NEW METHOD
+    showDuplicateChecking() {
+        const duplicateStatus = document.getElementById('duplicateStatus');
+        if (duplicateStatus) {
+            duplicateStatus.style.display = 'block';
+        }
     }
     
-    // Assessment type change - check for duplicates IMMEDIATELY
-    const assessmentSelect = document.getElementById('assessmentType');
-    if (assessmentSelect) {
-        assessmentSelect.addEventListener('change', () => {
-            this.showDuplicateChecking();
-            this.checkForDuplicateMarks();
-        });
+    // UPDATE THIS METHOD
+    hideDuplicateChecking() {
+        const duplicateStatus = document.getElementById('duplicateStatus');
+        if (duplicateStatus) {
+            duplicateStatus.style.display = 'none';
+        }
     }
-    
-    // Date change - check for duplicates IMMEDIATELY
-    const dateInput = document.getElementById('assessmentDate');
-    if (dateInput) {
-        dateInput.addEventListener('change', () => {
-            this.showDuplicateChecking();
-            this.checkForDuplicateMarks();
-        });
-    }
-    
-    // Also add input event listeners for score fields
-    const scoreInput = document.getElementById('marksScore');
-    const maxScoreInput = document.getElementById('marksMaxScore');
-    
-    if (scoreInput) {
-        scoreInput.addEventListener('input', () => {
-            this.updateMarksGradeDisplay();
-        });
-    }
-    
-    if (maxScoreInput) {
-        maxScoreInput.addEventListener('input', () => {
-            this.updateMarksGradeDisplay();
-        });
-    }
-}
-
-// ADD THIS NEW METHOD
-showDuplicateChecking() {
-    const duplicateStatus = document.getElementById('duplicateStatus');
-    if (duplicateStatus) {
-        duplicateStatus.style.display = 'block';
-    }
-}
-
-// UPDATE THIS METHOD
-hideDuplicateChecking() {
-    const duplicateStatus = document.getElementById('duplicateStatus');
-    if (duplicateStatus) {
-        duplicateStatus.style.display = 'none';
-    }
-}
     
     initModalHandlers() {
         // Global modal close handlers
@@ -262,187 +268,480 @@ hideDuplicateChecking() {
     /**
      * Handle single save marks - prevents multiple saves
      */
-  async handleSingleSaveMarks(event) {
-    event.preventDefault();
-    
-    console.log('🛡️ Single save protection check...');
-    
-    // ✅ STRICTER: Check if already saving
-    if (this.isSaving) {
-        console.log('⚠️ BLOCKED: Already saving, ignoring duplicate click');
-        this.showToast('Already saving, please wait...', 'warning');
-        return false;
-    }
-    
-    // ✅ Set saving flag IMMEDIATELY
-    this.isSaving = true;
-    console.log('🔒 Save lock activated');
-    
-    // Disable submit button
-    const submitBtn = document.getElementById('saveMarksBtn');
-    const originalText = submitBtn.innerHTML;
-    const originalDisabled = submitBtn.disabled;
-    
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-    submitBtn.disabled = true;
-    
-    // Also disable form inputs temporarily
-    const formInputs = document.querySelectorAll('#marksForm input, #marksForm select, #marksForm button');
-    formInputs.forEach(input => {
-        if (input !== submitBtn) {
-            input.disabled = true;
-        }
-    });
-    
-    try {
-        console.log('📝 Handling single marks submission...');
+    async handleSingleSaveMarks(event) {
+        event.preventDefault();
         
-        // Get form data
-        const formData = this.getMarksFormData();
-        console.log('📊 Form data:', formData);
+        console.log('🛡️ Single save protection check...');
         
-        // Validate form data
-        if (!this.validateMarksForm(formData)) {
-            console.log('❌ Form validation failed');
-            throw new Error('Form validation failed');
+        // ✅ STRICTER: Check if already saving
+        if (this.isSaving) {
+            console.log('⚠️ BLOCKED: Already saving, ignoring duplicate click');
+            this.showToast('Already saving, please wait...', 'warning');
+            return false;
         }
         
-        // Check if this is an overwrite operation
-        const isDuplicate = document.getElementById('isDuplicate')?.value === 'true';
-        const existingId = document.getElementById('existingMarksId')?.value;
+        // ✅ Set saving flag IMMEDIATELY
+        this.isSaving = true;
+        console.log('🔒 Save lock activated');
         
-        let result;
+        // Disable submit button
+        const submitBtn = document.getElementById('saveMarksBtn');
+        const originalText = submitBtn.innerHTML;
+        const originalDisabled = submitBtn.disabled;
         
-        if (isDuplicate && existingId) {
-            // Overwrite existing marks
-            console.log(`🔄 Overwriting existing marks ID: ${existingId}`);
-            result = await this.db.updateMark(existingId, formData);
-            this.showToast('✅ Marks updated successfully!', 'success');
-        } else {
-            // Save new marks - SINGLE SAVE
-            console.log('💾 Saving new marks (single save)...');
-            result = await this.db.addMark(formData);
-            this.showToast('✅ Marks saved successfully!', 'success');
-        }
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        submitBtn.disabled = true;
         
-        // Close modal and refresh table
-        console.log('✅ Save successful, closing modal...');
-        this.closeModal('marksModal');
-        
-        // Small delay before refreshing table
-        setTimeout(async () => {
-            await this.loadMarksTable();
-            console.log('✅ Table refreshed');
-        }, 500);
-        
-        return true;
-        
-    } catch (error) {
-        console.error('❌ Error saving marks:', error);
-        this.showToast(`Error: ${error.message || 'Failed to save marks'}`, 'error');
-        return false;
-        
-    } finally {
-        console.log('🔓 Releasing save lock...');
-        
-        // ✅ Always reset saving flag
-        this.isSaving = false;
-        
-        // ✅ Reset button state
-        if (submitBtn) {
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = originalDisabled;
-        }
-        
-        // ✅ Re-enable form inputs
+        // Also disable form inputs temporarily
         const formInputs = document.querySelectorAll('#marksForm input, #marksForm select, #marksForm button');
         formInputs.forEach(input => {
-            input.disabled = false;
-        });
-        
-        console.log('🔄 Form reset complete');
-    }
-}
-    // Add this method to prevent multiple event listeners
-preventDuplicateFormSubmissions() {
-    const marksForm = document.getElementById('marksForm');
-    if (!marksForm) return;
-    
-    console.log('🛡️ Setting up form submission protection...');
-    
-    // Remove ALL existing submit event listeners
-    const newForm = marksForm.cloneNode(true);
-    marksForm.parentNode.replaceChild(newForm, marksForm);
-    
-    // Add single submit handler
-    newForm.addEventListener('submit', (e) => {
-        console.log('📝 Form submit event fired');
-        this.handleSingleSaveMarks(e);
-    });
-    
-    // Also prevent double-clicks on the save button
-    const saveBtn = document.getElementById('saveMarksBtn');
-    if (saveBtn) {
-        saveBtn.addEventListener('click', (e) => {
-            console.log('🖱️ Save button clicked');
-            if (this.isSaving) {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('⚠️ Save button blocked (already saving)');
-                return false;
+            if (input !== submitBtn) {
+                input.disabled = true;
             }
         });
+        
+        try {
+            console.log('📝 Handling single marks submission...');
+            
+            // Get form data
+            const formData = this.getMarksFormData();
+            console.log('📊 Form data:', formData);
+            
+            // Validate form data
+            if (!this.validateMarksForm(formData)) {
+                console.log('❌ Form validation failed');
+                throw new Error('Form validation failed');
+            }
+            
+            // Check if this is an overwrite operation
+            const isDuplicate = document.getElementById('isDuplicate')?.value === 'true';
+            const existingId = document.getElementById('existingMarksId')?.value;
+            
+            let result;
+            
+            if (isDuplicate && existingId) {
+                // Overwrite existing marks
+                console.log(`🔄 Overwriting existing marks ID: ${existingId}`);
+                result = await this.db.updateMark(existingId, formData);
+                this.showToast('✅ Marks updated successfully!', 'success');
+            } else {
+                // Save new marks - SINGLE SAVE
+                console.log('💾 Saving new marks (single save)...');
+                result = await this.db.addMark(formData);
+                this.showToast('✅ Marks saved successfully!', 'success');
+            }
+            
+            // Close modal and refresh table
+            console.log('✅ Save successful, closing modal...');
+            this.closeModal('marksModal');
+            
+            // Small delay before refreshing table
+            setTimeout(async () => {
+                await this.loadMarksTable();
+                console.log('✅ Table refreshed');
+            }, 500);
+            
+            return true;
+            
+        } catch (error) {
+            console.error('❌ Error saving marks:', error);
+            this.showToast(`Error: ${error.message || 'Failed to save marks'}`, 'error');
+            return false;
+            
+        } finally {
+            console.log('🔓 Releasing save lock...');
+            
+            // ✅ Always reset saving flag
+            this.isSaving = false;
+            
+            // ✅ Reset button state
+            if (submitBtn) {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = originalDisabled;
+            }
+            
+            // ✅ Re-enable form inputs
+            const formInputs = document.querySelectorAll('#marksForm input, #marksForm select, #marksForm button');
+            formInputs.forEach(input => {
+                input.disabled = false;
+            });
+            
+            console.log('🔄 Form reset complete');
+        }
     }
-}
+    
+    // Add this method to prevent multiple event listeners
+    preventDuplicateFormSubmissions() {
+        const marksForm = document.getElementById('marksForm');
+        if (!marksForm) return;
+        
+        console.log('🛡️ Setting up form submission protection...');
+        
+        // Remove ALL existing submit event listeners
+        const newForm = marksForm.cloneNode(true);
+        marksForm.parentNode.replaceChild(newForm, marksForm);
+        
+        // Add single submit handler
+        newForm.addEventListener('submit', (e) => {
+            console.log('📝 Form submit event fired');
+            this.handleSingleSaveMarks(e);
+        });
+        
+        // Also prevent double-clicks on the save button
+        const saveBtn = document.getElementById('saveMarksBtn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', (e) => {
+                console.log('🖱️ Save button clicked');
+                if (this.isSaving) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('⚠️ Save button blocked (already saving)');
+                    return false;
+                }
+            });
+        }
+    }
+    
     addDuplicateCheckingStyles() {
-    const styleId = 'duplicate-checking-styles';
-    if (document.getElementById(styleId)) return;
+        const styleId = 'duplicate-checking-styles';
+        if (document.getElementById(styleId)) return;
+        
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+            /* Duplicate checking status */
+            #duplicateStatus {
+                transition: all 0.3s ease;
+            }
+            
+            #duplicateStatus .status-message {
+                background: #e3f2fd;
+                border: 1px solid #bbdefb;
+                color: #1565c0;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 0.9em;
+                font-weight: 500;
+            }
+            
+            /* Form loading states */
+            .form-loading {
+                position: absolute;
+                right: 10px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #6c757d;
+                font-size: 0.8em;
+            }
+            
+            .form-group {
+                position: relative;
+            }
+            
+            /* Real-time validation */
+            .form-control:invalid {
+                border-color: #dc3545;
+            }
+            
+            .form-control:valid {
+                border-color: #28a745;
+            }
+        `;
+        
+        document.head.appendChild(style);
+    }
     
-    const style = document.createElement('style');
-    style.id = styleId;
-    style.textContent = `
-        /* Duplicate checking status */
-        #duplicateStatus {
-            transition: all 0.3s ease;
-        }
+    addHorizontalCardsStyles() {
+        const styleId = 'horizontal-cards-styles';
+        if (document.getElementById(styleId)) return;
         
-        #duplicateStatus .status-message {
-            background: #e3f2fd;
-            border: 1px solid #bbdefb;
-            color: #1565c0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.9em;
-            font-weight: 500;
-        }
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+            /* Horizontal Cards Container */
+            .cards-container-horizontal {
+                width: 100%;
+                overflow-x: auto;
+                padding: 20px 10px;
+                margin: -10px;
+            }
+            
+            .cards-scroll-wrapper {
+                min-width: min-content;
+            }
+            
+            .cards-grid-horizontal {
+                display: flex;
+                gap: 20px;
+                padding: 10px;
+            }
+            
+            /* Individual Card Styling */
+            .mark-card-horizontal {
+                flex: 0 0 auto;
+                width: 320px;
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+                border: 1px solid #e5e7eb;
+                overflow: hidden;
+                transition: all 0.3s ease;
+                cursor: pointer;
+            }
+            
+            .mark-card-horizontal:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+                border-color: #3b82f6;
+            }
+            
+            /* Card Header */
+            .card-header-horizontal {
+                display: flex;
+                align-items: center;
+                padding: 16px;
+                background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+                border-bottom: 1px solid #e5e7eb;
+            }
+            
+            .student-avatar-horizontal {
+                width: 48px;
+                height: 48px;
+                border-radius: 12px;
+                border: 2px solid;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-right: 12px;
+                flex-shrink: 0;
+            }
+            
+            .avatar-initials-horizontal {
+                font-size: 1.125rem;
+                font-weight: 700;
+            }
+            
+            .student-info-horizontal {
+                flex: 1;
+                min-width: 0;
+            }
+            
+            .student-name-horizontal {
+                font-weight: 600;
+                color: #1f2937;
+                font-size: 1rem;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            
+            .student-reg-horizontal {
+                font-size: 0.75rem;
+                color: #6b7280;
+                font-family: monospace;
+                margin-top: 2px;
+            }
+            
+            .card-actions-horizontal {
+                display: flex;
+                gap: 6px;
+                margin-left: 8px;
+            }
+            
+            .card-action-btn {
+                width: 32px;
+                height: 32px;
+                border-radius: 8px;
+                border: 1px solid #d1d5db;
+                background: white;
+                color: #6b7280;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            
+            .card-action-btn:hover {
+                background: #3b82f6;
+                color: white;
+                border-color: #3b82f6;
+            }
+            
+            /* Card Body */
+            .card-body-horizontal {
+                padding: 16px;
+            }
+            
+            .course-info-horizontal {
+                margin-bottom: 16px;
+            }
+            
+            .course-code-horizontal {
+                font-weight: 700;
+                color: #1f2937;
+                font-size: 1.125rem;
+            }
+            
+            .course-name-horizontal {
+                font-size: 0.875rem;
+                color: #6b7280;
+                margin-top: 2px;
+            }
+            
+            .score-display-horizontal {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 16px;
+                padding: 12px;
+                background: #f8fafc;
+                border-radius: 8px;
+            }
+            
+            .score-main-horizontal {
+                display: flex;
+                align-items: baseline;
+            }
+            
+            .score-value {
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: #1f2937;
+            }
+            
+            .score-separator {
+                font-size: 1rem;
+                color: #9ca3af;
+                margin: 0 4px;
+            }
+            
+            .score-max {
+                font-size: 1rem;
+                color: #6b7280;
+                font-weight: 600;
+            }
+            
+            .score-percentage {
+                font-size: 1rem;
+                font-weight: 700;
+            }
+            
+            .grade-display-horizontal {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 16px;
+            }
+            
+            .grade-badge-horizontal {
+                padding: 8px 16px;
+                border-radius: 20px;
+                color: white;
+                font-weight: 700;
+                font-size: 0.875rem;
+            }
+            
+            .grade-points {
+                font-size: 0.875rem;
+                color: #6b7280;
+                font-weight: 600;
+            }
+            
+            /* Card Footer */
+            .card-footer-horizontal {
+                border-top: 1px solid #e5e7eb;
+                padding-top: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            
+            .assessment-info {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+            
+            .assessment-type,
+            .assessment-date {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 0.75rem;
+                color: #6b7280;
+            }
+            
+            .assessment-type i,
+            .assessment-date i {
+                width: 12px;
+            }
+            
+            .status-indicator-horizontal {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 0.75rem;
+                font-weight: 600;
+            }
+            
+            /* Empty state for cards */
+            .empty-state-cards {
+                text-align: center;
+                padding: 60px 20px;
+                color: #6b7280;
+            }
+            
+            .empty-state-cards i {
+                color: #d1d5db;
+                margin-bottom: 16px;
+            }
+            
+            .empty-state-cards h3 {
+                color: #374151;
+                margin-bottom: 8px;
+                font-size: 1.25rem;
+            }
+            
+            .empty-state-cards p {
+                margin-bottom: 20px;
+            }
+            
+            /* Scrollbar styling */
+            .cards-container-horizontal::-webkit-scrollbar {
+                height: 8px;
+            }
+            
+            .cards-container-horizontal::-webkit-scrollbar-track {
+                background: #f1f5f9;
+                border-radius: 4px;
+            }
+            
+            .cards-container-horizontal::-webkit-scrollbar-thumb {
+                background: #cbd5e1;
+                border-radius: 4px;
+            }
+            
+            .cards-container-horizontal::-webkit-scrollbar-thumb:hover {
+                background: #94a3b8;
+            }
+            
+            /* Responsive adjustments */
+            @media (max-width: 768px) {
+                .mark-card-horizontal {
+                    width: 280px;
+                }
+                
+                .cards-grid-horizontal {
+                    gap: 12px;
+                }
+            }
+        `;
         
-        /* Form loading states */
-        .form-loading {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #6c757d;
-            font-size: 0.8em;
-        }
-        
-        .form-group {
-            position: relative;
-        }
-        
-        /* Real-time validation */
-        .form-control:invalid {
-            border-color: #dc3545;
-        }
-        
-        .form-control:valid {
-            border-color: #28a745;
-        }
-    `;
+        document.head.appendChild(style);
+    }
     
-    document.head.appendChild(style);
-}
     /**
      * Reset save button to original state
      */
@@ -527,376 +826,378 @@ preventDuplicateFormSubmissions() {
     
     // ==================== DUPLICATE VALIDATION ====================
     
-   async checkForDuplicateMarks() {
-    try {
-        const studentId = document.getElementById('marksStudent')?.value;
-        const courseId = document.getElementById('marksCourse')?.value;
-        const assessmentType = document.getElementById('assessmentType')?.value;
-        const assessmentDate = document.getElementById('assessmentDate')?.value;
-        
-        // Hide checking status
-        this.hideDuplicateChecking();
-        
-        if (!studentId || !courseId || !assessmentType || !assessmentDate) {
-            this.hideDuplicateWarning();
-            return null;
-        }
-        
-        console.log('🔍 Checking for duplicate marks in real-time...');
-        
-        const existingMarks = await this.db.checkDuplicateMarks(
-            studentId, 
-            courseId, 
-            assessmentType,
-            assessmentDate
-        );
-        
-        if (existingMarks && existingMarks.length > 0) {
-            // Show duplicate warning IMMEDIATELY
-            this.showDuplicateWarning(existingMarks[0]);
-            return existingMarks[0];
-        } else {
-            this.hideDuplicateWarning();
+    async checkForDuplicateMarks() {
+        try {
+            const studentId = document.getElementById('marksStudent')?.value;
+            const courseId = document.getElementById('marksCourse')?.value;
+            const assessmentType = document.getElementById('assessmentType')?.value;
+            const assessmentDate = document.getElementById('assessmentDate')?.value;
             
-            // Update save button back to normal
-            const submitBtn = document.getElementById('saveMarksBtn');
-            if (submitBtn) {
-                submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Marks';
-                submitBtn.className = 'btn btn-primary';
-                submitBtn.disabled = false;
+            // Hide checking status
+            this.hideDuplicateChecking();
+            
+            if (!studentId || !courseId || !assessmentType || !assessmentDate) {
+                this.hideDuplicateWarning();
+                return null;
             }
             
+            console.log('🔍 Checking for duplicate marks in real-time...');
+            
+            const existingMarks = await this.db.checkDuplicateMarks(
+                studentId, 
+                courseId, 
+                assessmentType,
+                assessmentDate
+            );
+            
+            if (existingMarks && existingMarks.length > 0) {
+                // Show duplicate warning IMMEDIATELY
+                this.showDuplicateWarning(existingMarks[0]);
+                return existingMarks[0];
+            } else {
+                this.hideDuplicateWarning();
+                
+                // Update save button back to normal
+                const submitBtn = document.getElementById('saveMarksBtn');
+                if (submitBtn) {
+                    submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Marks';
+                    submitBtn.className = 'btn btn-primary';
+                    submitBtn.disabled = false;
+                }
+                
+                return null;
+            }
+            
+        } catch (error) {
+            console.error('❌ Error checking for duplicate marks:', error);
+            this.hideDuplicateWarning();
+            this.hideDuplicateChecking();
             return null;
         }
+    }
+    
+    showDuplicateWarning(existingMark) {
+        this.existingMarksId = existingMark.id;
+        this.isDuplicateEntry = true;
         
-    } catch (error) {
-        console.error('❌ Error checking for duplicate marks:', error);
-        this.hideDuplicateWarning();
-        this.hideDuplicateChecking();
-        return null;
-    }
-}
-   showDuplicateWarning(existingMark) {
-    this.existingMarksId = existingMark.id;
-    this.isDuplicateEntry = true;
-    
-    const score = existingMark.score || 0;
-    const maxScore = existingMark.max_score || 100;
-    const percentage = existingMark.percentage || 0;
-    const grade = existingMark.grade || 'N/A';
-    
-    const warningHtml = `
-        <div style="background: #fef3c7; border: 2px solid #fbbf24; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; color: #92400e;">
-                <i class="fas fa-exclamation-triangle"></i>
-                <strong style="font-size: 0.95rem;">Duplicate Entry Found!</strong>
-            </div>
-            <div style="font-size: 0.875rem; color: #78350f;">
-                <div style="margin-bottom: 8px;">This student already has marks for this assessment.</div>
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: rgba(255,255,255,0.5); padding: 8px; border-radius: 6px;">
-                    <div>
-                        <div style="font-size: 0.75rem; color: #6b7280;">Existing Score</div>
-                        <div style="font-weight: 600;">${score}/${maxScore}</div>
+        const score = existingMark.score || 0;
+        const maxScore = existingMark.max_score || 100;
+        const percentage = existingMark.percentage || 0;
+        const grade = existingMark.grade || 'N/A';
+        
+        const warningHtml = `
+            <div style="background: #fef3c7; border: 2px solid #fbbf24; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; color: #92400e;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong style="font-size: 0.95rem;">Duplicate Entry Found!</strong>
+                </div>
+                <div style="font-size: 0.875rem; color: #78350f;">
+                    <div style="margin-bottom: 8px;">This student already has marks for this assessment.</div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: rgba(255,255,255,0.5); padding: 8px; border-radius: 6px;">
+                        <div>
+                            <div style="font-size: 0.75rem; color: #6b7280;">Existing Score</div>
+                            <div style="font-weight: 600;">${score}/${maxScore}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #6b7280;">Grade</div>
+                            <div style="font-weight: 600; color: ${this.getGradeColor(grade)}">${grade}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #6b7280;">Percentage</div>
+                            <div style="font-weight: 600;">${percentage.toFixed(1)}%</div>
+                        </div>
                     </div>
-                    <div>
-                        <div style="font-size: 0.75rem; color: #6b7280;">Grade</div>
-                        <div style="font-weight: 600; color: ${this.getGradeColor(grade)}">${grade}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.75rem; color: #6b7280;">Percentage</div>
-                        <div style="font-weight: 600;">${percentage.toFixed(1)}%</div>
+                    <div style="display: flex; gap: 10px; margin-top: 12px;">
+                        <button type="button" class="btn-warning-overwrite" 
+                                onclick="window.app.marks.overwriteExistingMarks()"
+                                style="flex: 1; background: #f59e0b; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                            <i class="fas fa-redo"></i> Overwrite
+                        </button>
+                        <button type="button" class="btn-warning-cancel" 
+                                onclick="window.app.marks.hideDuplicateWarning()"
+                                style="flex: 1; background: #6b7280; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
                     </div>
                 </div>
-                <div style="display: flex; gap: 10px; margin-top: 12px;">
-                    <button type="button" class="btn-warning-overwrite" 
-                            onclick="window.app.marks.overwriteExistingMarks()"
-                            style="flex: 1; background: #f59e0b; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: 600; cursor: pointer;">
-                        <i class="fas fa-redo"></i> Overwrite
-                    </button>
-                    <button type="button" class="btn-warning-cancel" 
-                            onclick="window.app.marks.hideDuplicateWarning()"
-                            style="flex: 1; background: #6b7280; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: 600; cursor: pointer;">
-                        <i class="fas fa-times"></i> Cancel
-                    </button>
-                </div>
             </div>
-        </div>
-    `;
-    
-    const duplicateWarning = document.getElementById('duplicateWarning');
-    if (duplicateWarning) {
-        duplicateWarning.innerHTML = warningHtml;
-        duplicateWarning.style.display = 'block';
-    }
-    
-    const submitBtn = document.getElementById('saveMarksBtn');
-    if (submitBtn) {
-        submitBtn.textContent = 'Overwrite Marks';
-        submitBtn.className = 'btn btn-warning';
-        submitBtn.style.background = '#f59e0b';
-    }
-}
-
-// Add this helper method
-getGradeColor(grade) {
-    const colors = {
-        'DISTINCTION': '#10b981',
-        'CREDIT': '#3b82f6',
-        'PASS': '#f59e0b',
-        'FAIL': '#ef4444'
-    };
-    return colors[grade] || '#6b7280';
-}
-    
-    hideDuplicateWarning() {
-    const duplicateWarning = document.getElementById('duplicateWarning');
-    if (duplicateWarning) {
-        duplicateWarning.style.display = 'none';
-    }
-    
-    const submitBtn = document.getElementById('saveMarksBtn');
-    if (submitBtn) {
-        submitBtn.textContent = 'Save Marks';
-        submitBtn.className = 'btn btn-primary';
-        submitBtn.style.background = '#3b82f6';
-    }
-    
-    this.existingMarksId = null;
-    this.isDuplicateEntry = false;
-}
-    
-    overwriteExistingMarks() {
-    document.getElementById('isDuplicate').value = 'true';
-    document.getElementById('existingMarksId').value = this.existingMarksId;
-    
-    const submitBtn = document.getElementById('saveMarksBtn');
-    if (submitBtn) {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fas fa-check"></i> Confirm Overwrite';
-        submitBtn.style.background = '#dc2626';
-        submitBtn.className = 'btn btn-danger';
-    }
-    
-    const warningDiv = document.querySelector('#duplicateWarning > div');
-    if (warningDiv) {
-        const messageDiv = warningDiv.querySelector('div:nth-child(2) > div:nth-child(1)');
-        if (messageDiv) {
-            messageDiv.innerHTML = '<strong>⚠️ Confirm overwrite?</strong> This will replace the existing marks.';
+        `;
+        
+        const duplicateWarning = document.getElementById('duplicateWarning');
+        if (duplicateWarning) {
+            duplicateWarning.innerHTML = warningHtml;
+            duplicateWarning.style.display = 'block';
+        }
+        
+        const submitBtn = document.getElementById('saveMarksBtn');
+        if (submitBtn) {
+            submitBtn.textContent = 'Overwrite Marks';
+            submitBtn.className = 'btn btn-warning';
+            submitBtn.style.background = '#f59e0b';
         }
     }
-}
+    
+    // Add this helper method
+    getGradeColor(grade) {
+        const colors = {
+            'DISTINCTION': '#10b981',
+            'CREDIT': '#3b82f6',
+            'PASS': '#f59e0b',
+            'FAIL': '#ef4444'
+        };
+        return colors[grade] || '#6b7280';
+    }
+    
+    hideDuplicateWarning() {
+        const duplicateWarning = document.getElementById('duplicateWarning');
+        if (duplicateWarning) {
+            duplicateWarning.style.display = 'none';
+        }
+        
+        const submitBtn = document.getElementById('saveMarksBtn');
+        if (submitBtn) {
+            submitBtn.textContent = 'Save Marks';
+            submitBtn.className = 'btn btn-primary';
+            submitBtn.style.background = '#3b82f6';
+        }
+        
+        this.existingMarksId = null;
+        this.isDuplicateEntry = false;
+    }
+    
+    overwriteExistingMarks() {
+        document.getElementById('isDuplicate').value = 'true';
+        document.getElementById('existingMarksId').value = this.existingMarksId;
+        
+        const submitBtn = document.getElementById('saveMarksBtn');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-check"></i> Confirm Overwrite';
+            submitBtn.style.background = '#dc2626';
+            submitBtn.className = 'btn btn-danger';
+        }
+        
+        const warningDiv = document.querySelector('#duplicateWarning > div');
+        if (warningDiv) {
+            const messageDiv = warningDiv.querySelector('div:nth-child(2) > div:nth-child(1)');
+            if (messageDiv) {
+                messageDiv.innerHTML = '<strong>⚠️ Confirm overwrite?</strong> This will replace the existing marks.';
+            }
+        }
+    }
     
     // ==================== FORM DATA HANDLING ====================
     
-  getMarksFormData() {
-    console.log('📝 Getting form data...');
-    
-    // Get form field values
-    const studentSelect = document.getElementById('marksStudent');
-    const courseSelect = document.getElementById('marksCourse');
-    const scoreInput = document.getElementById('marksScore');
-    const maxScoreInput = document.getElementById('marksMaxScore');
-    const assessmentTypeSelect = document.getElementById('assessmentType');
-    const assessmentDateInput = document.getElementById('assessmentDate');
-    
-    // ✅ FIXED: Get radio button values CORRECTLY
-    const statusPublished = document.getElementById('statusPublished');
-    const statusDraft = document.getElementById('statusDraft');
-    
-    console.log('🔍 Radio button states:', {
-        published: statusPublished?.checked,
-        draft: statusDraft?.checked
-    });
-    
-    let visibleToStudent = true; // Default to published
-    
-    if (statusPublished && statusPublished.checked) {
-        visibleToStudent = true;
-        console.log('📢 Status: Published (visible to student)');
-    } else if (statusDraft && statusDraft.checked) {
-        visibleToStudent = false;
-        console.log('📢 Status: Draft (hidden from student)');
-    } else {
-        console.warn('⚠️ No radio button selected, defaulting to published');
-    }
-    
-    const studentId = studentSelect?.value;
-    const courseId = courseSelect?.value;
-    const score = parseFloat(scoreInput?.value) || 0;
-    const maxScore = parseFloat(maxScoreInput?.value) || 100;
-    const assessmentType = assessmentTypeSelect?.value || 'exam';
-    const assessmentDate = assessmentDateInput?.value || new Date().toISOString().split('T')[0];
-    
-    console.log('📊 Form values:', {
-        studentId,
-        courseId,
-        score,
-        maxScore,
-        assessmentType,
-        assessmentDate,
-        visibleToStudent
-    });
-    
-    // Validate required fields
-    if (!studentId) {
-        console.error('❌ Student not selected');
-        throw new Error('Please select a student');
-    }
-    
-    if (!courseId) {
-        console.error('❌ Course not selected');
-        throw new Error('Please select a course');
-    }
-    
-    if (isNaN(score) || score < 0) {
-        console.error('❌ Invalid score:', score);
-        throw new Error('Please enter a valid score');
-    }
-    
-    if (maxScore <= 0) {
-        console.error('❌ Invalid max score:', maxScore);
-        throw new Error('Maximum score must be greater than 0');
-    }
-    
-    if (score > maxScore) {
-        console.error('❌ Score exceeds max:', score, '>', maxScore);
-        throw new Error(`Score cannot exceed maximum score of ${maxScore}`);
-    }
-    
-    // Assessment name mapping
-    let assessmentName;
-    switch(assessmentType) {
-        case 'exam':
-            assessmentName = 'Final Exam';
-            break;
-        case 'test':
-            assessmentName = 'Test';
-            break;
-        case 'assignment':
-            assessmentName = 'Assignment';
-            break;
-        case 'practical':
-            assessmentName = 'Practical';
-            break;
-        case 'cat':
-            assessmentName = 'CAT';
-            break;
-        default:
-            assessmentName = 'Assessment';
-    }
-    
-    // Calculate percentage
-    let percentage = 0;
-    if (maxScore > 0) {
-        percentage = (score / maxScore) * 100;
-    }
-    percentage = parseFloat(percentage.toFixed(2));
-    
-    // Calculate grade
-    const grade = this.calculateGrade(percentage);
-    const gradePoints = this.getGradePoints(grade);
-    
-    console.log('🎓 Calculated grade:', {
-        percentage,
-        grade,
-        gradePoints
-    });
-    
-    // Return form data object
-    return {
-        student_id: studentId,
-        course_id: courseId,
-        assessment_type: assessmentType,
-        assessment_name: assessmentName,
-        score: score,
-        max_score: maxScore,
-        percentage: percentage,
-        grade: grade,
-        grade_points: gradePoints,
-        visible_to_student: visibleToStudent, // ✅ FIXED: Now properly defined
-        entered_by: this.app.user?.id || 'system',
-        assessment_date: assessmentDate
-    };
-}
-    validateMarksForm(formData) {
-    console.log('✅ Validating form data...');
-    
-    const errors = [];
-    
-    if (!formData.student_id) {
-        errors.push('Please select a student');
-        this.showFieldError('marksStudent', 'Please select a student');
-    }
-    
-    if (!formData.course_id) {
-        errors.push('Please select a course');
-        this.showFieldError('marksCourse', 'Please select a course');
-    }
-    
-    if (formData.score < 0) {
-        errors.push('Score cannot be negative');
-        this.showFieldError('marksScore', 'Score cannot be negative');
-    }
-    
-    if (formData.max_score <= 0) {
-        errors.push('Maximum score must be greater than 0');
-        this.showFieldError('marksMaxScore', 'Maximum score must be greater than 0');
-    }
-    
-    if (formData.score > formData.max_score) {
-        errors.push(`Score cannot exceed maximum score of ${formData.max_score}`);
-        this.showFieldError('marksScore', `Score cannot exceed maximum score of ${formData.max_score}`);
-    }
-    
-    if (!formData.assessment_date) {
-        errors.push('Please select an assessment date');
-        this.showFieldError('assessmentDate', 'Please select an assessment date');
-    }
-    
-    if (errors.length > 0) {
-        console.error('❌ Validation errors:', errors);
-        this.showToast(errors[0], 'error');
-        return false;
-    }
-    
-    console.log('✅ Form validation passed');
-    return true;
-}
-
-// Add helper method for field errors
-showFieldError(fieldId, message) {
-    const field = document.getElementById(fieldId);
-    if (field) {
-        field.style.borderColor = '#ef4444';
+    getMarksFormData() {
+        console.log('📝 Getting form data...');
         
-        // Create or update error message
-        let errorElement = document.getElementById(`${fieldId}Error`);
-        if (!errorElement) {
-            errorElement = document.createElement('div');
-            errorElement.id = `${fieldId}Error`;
-            errorElement.className = 'field-error';
-            errorElement.style.cssText = 'color: #ef4444; font-size: 0.75rem; margin-top: 4px;';
-            field.parentNode.appendChild(errorElement);
+        // Get form field values
+        const studentSelect = document.getElementById('marksStudent');
+        const courseSelect = document.getElementById('marksCourse');
+        const scoreInput = document.getElementById('marksScore');
+        const maxScoreInput = document.getElementById('marksMaxScore');
+        const assessmentTypeSelect = document.getElementById('assessmentType');
+        const assessmentDateInput = document.getElementById('assessmentDate');
+        
+        // ✅ FIXED: Get radio button values CORRECTLY
+        const statusPublished = document.getElementById('statusPublished');
+        const statusDraft = document.getElementById('statusDraft');
+        
+        console.log('🔍 Radio button states:', {
+            published: statusPublished?.checked,
+            draft: statusDraft?.checked
+        });
+        
+        let visibleToStudent = true; // Default to published
+        
+        if (statusPublished && statusPublished.checked) {
+            visibleToStudent = true;
+            console.log('📢 Status: Published (visible to student)');
+        } else if (statusDraft && statusDraft.checked) {
+            visibleToStudent = false;
+            console.log('📢 Status: Draft (hidden from student)');
+        } else {
+            console.warn('⚠️ No radio button selected, defaulting to published');
         }
-        errorElement.textContent = message;
+        
+        const studentId = studentSelect?.value;
+        const courseId = courseSelect?.value;
+        const score = parseFloat(scoreInput?.value) || 0;
+        const maxScore = parseFloat(maxScoreInput?.value) || 100;
+        const assessmentType = assessmentTypeSelect?.value || 'exam';
+        const assessmentDate = assessmentDateInput?.value || new Date().toISOString().split('T')[0];
+        
+        console.log('📊 Form values:', {
+            studentId,
+            courseId,
+            score,
+            maxScore,
+            assessmentType,
+            assessmentDate,
+            visibleToStudent
+        });
+        
+        // Validate required fields
+        if (!studentId) {
+            console.error('❌ Student not selected');
+            throw new Error('Please select a student');
+        }
+        
+        if (!courseId) {
+            console.error('❌ Course not selected');
+            throw new Error('Please select a course');
+        }
+        
+        if (isNaN(score) || score < 0) {
+            console.error('❌ Invalid score:', score);
+            throw new Error('Please enter a valid score');
+        }
+        
+        if (maxScore <= 0) {
+            console.error('❌ Invalid max score:', maxScore);
+            throw new Error('Maximum score must be greater than 0');
+        }
+        
+        if (score > maxScore) {
+            console.error('❌ Score exceeds max:', score, '>', maxScore);
+            throw new Error(`Score cannot exceed maximum score of ${maxScore}`);
+        }
+        
+        // Assessment name mapping
+        let assessmentName;
+        switch(assessmentType) {
+            case 'exam':
+                assessmentName = 'Final Exam';
+                break;
+            case 'test':
+                assessmentName = 'Test';
+                break;
+            case 'assignment':
+                assessmentName = 'Assignment';
+                break;
+            case 'practical':
+                assessmentName = 'Practical';
+                break;
+            case 'cat':
+                assessmentName = 'CAT';
+                break;
+            default:
+                assessmentName = 'Assessment';
+        }
+        
+        // Calculate percentage
+        let percentage = 0;
+        if (maxScore > 0) {
+            percentage = (score / maxScore) * 100;
+        }
+        percentage = parseFloat(percentage.toFixed(2));
+        
+        // Calculate grade
+        const grade = this.calculateGrade(percentage);
+        const gradePoints = this.getGradePoints(grade);
+        
+        console.log('🎓 Calculated grade:', {
+            percentage,
+            grade,
+            gradePoints
+        });
+        
+        // Return form data object
+        return {
+            student_id: studentId,
+            course_id: courseId,
+            assessment_type: assessmentType,
+            assessment_name: assessmentName,
+            score: score,
+            max_score: maxScore,
+            percentage: percentage,
+            grade: grade,
+            grade_points: gradePoints,
+            visible_to_student: visibleToStudent, // ✅ FIXED: Now properly defined
+            entered_by: this.app.user?.id || 'system',
+            assessment_date: assessmentDate
+        };
     }
-}
-
-// Clear field errors when modal opens
-clearFieldErrors() {
-    const errorFields = ['marksStudent', 'marksCourse', 'marksScore', 'marksMaxScore', 'assessmentDate'];
-    errorFields.forEach(fieldId => {
+    
+    validateMarksForm(formData) {
+        console.log('✅ Validating form data...');
+        
+        const errors = [];
+        
+        if (!formData.student_id) {
+            errors.push('Please select a student');
+            this.showFieldError('marksStudent', 'Please select a student');
+        }
+        
+        if (!formData.course_id) {
+            errors.push('Please select a course');
+            this.showFieldError('marksCourse', 'Please select a course');
+        }
+        
+        if (formData.score < 0) {
+            errors.push('Score cannot be negative');
+            this.showFieldError('marksScore', 'Score cannot be negative');
+        }
+        
+        if (formData.max_score <= 0) {
+            errors.push('Maximum score must be greater than 0');
+            this.showFieldError('marksMaxScore', 'Maximum score must be greater than 0');
+        }
+        
+        if (formData.score > formData.max_score) {
+            errors.push(`Score cannot exceed maximum score of ${formData.max_score}`);
+            this.showFieldError('marksScore', `Score cannot exceed maximum score of ${formData.max_score}`);
+        }
+        
+        if (!formData.assessment_date) {
+            errors.push('Please select an assessment date');
+            this.showFieldError('assessmentDate', 'Please select an assessment date');
+        }
+        
+        if (errors.length > 0) {
+            console.error('❌ Validation errors:', errors);
+            this.showToast(errors[0], 'error');
+            return false;
+        }
+        
+        console.log('✅ Form validation passed');
+        return true;
+    }
+    
+    // Add helper method for field errors
+    showFieldError(fieldId, message) {
         const field = document.getElementById(fieldId);
         if (field) {
-            field.style.borderColor = '';
+            field.style.borderColor = '#ef4444';
+            
+            // Create or update error message
+            let errorElement = document.getElementById(`${fieldId}Error`);
+            if (!errorElement) {
+                errorElement = document.createElement('div');
+                errorElement.id = `${fieldId}Error`;
+                errorElement.className = 'field-error';
+                errorElement.style.cssText = 'color: #ef4444; font-size: 0.75rem; margin-top: 4px;';
+                field.parentNode.appendChild(errorElement);
+            }
+            errorElement.textContent = message;
         }
-        
-        const errorElement = document.getElementById(`${fieldId}Error`);
-        if (errorElement) {
-            errorElement.remove();
-        }
-    });
-}
+    }
+    
+    // Clear field errors when modal opens
+    clearFieldErrors() {
+        const errorFields = ['marksStudent', 'marksCourse', 'marksScore', 'marksMaxScore', 'assessmentDate'];
+        errorFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.style.borderColor = '';
+            }
+            
+            const errorElement = document.getElementById(`${fieldId}Error`);
+            if (errorElement) {
+                errorElement.remove();
+            }
+        });
+    }
     
     // ==================== CORE DATA LOADING ====================
     
@@ -938,130 +1239,291 @@ clearFieldErrors() {
         this.updateSelectedCounts();
     }
     
-  renderTableView() {
-    const tbody = document.querySelector('#marksTableBody');
-    if (!tbody) return;
-    
-    const startIndex = (this.currentPage - 1) * this.pageSize;
-    const endIndex = startIndex + this.pageSize;
-    const pageData = this.filteredData.slice(startIndex, endIndex);
-    
-    if (pageData.length === 0) {
-        tbody.innerHTML = this.getEmptyStateHTML();
-        return;
+    renderTableView() {
+        const tbody = document.querySelector('#marksTableBody');
+        if (!tbody) return;
+        
+        const startIndex = (this.currentPage - 1) * this.pageSize;
+        const endIndex = startIndex + this.pageSize;
+        const pageData = this.filteredData.slice(startIndex, endIndex);
+        
+        if (pageData.length === 0) {
+            tbody.innerHTML = this.getEmptyStateHTML();
+            return;
+        }
+        
+        let html = '';
+        
+        pageData.forEach((mark) => {
+            const student = mark.students || {};
+            const course = mark.courses || {};
+            
+            const score = mark.score || 0;
+            const maxScore = mark.max_score || 100;
+            let percentage = mark.percentage;
+            if (!percentage && maxScore > 0) {
+                percentage = (score / maxScore) * 100;
+            }
+            
+            let grade = mark.grade;
+            if (!grade && percentage !== undefined) {
+                grade = this.calculateGrade(parseFloat(percentage));
+            }
+            
+            const gradeCSSClass = this.getGradeCSSClass(grade);
+            const status = mark.visible_to_student ? 'published' : 'hidden';
+            const statusIcon = status === 'published' ? 'fa-eye' : 'fa-eye-slash';
+            const statusText = status === 'published' ? 'Visible' : 'Hidden';
+            
+            // Get student centre - use the processed centre_display field
+            const studentCentre = student.centre_display || student.centre || student.centre_name || 'Main Campus';
+            
+            // Format date
+            const formattedDate = mark.created_at ? this.formatDate(mark.created_at) : 'N/A';
+            
+            // Simple escape function inline
+            const escape = (str) => {
+                if (!str) return '';
+                return str.toString()
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+            };
+            
+            html += `
+                <tr data-mark-id="${mark.id}">
+                    <!-- Student Column (Name + Reg No combined) -->
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 36px; height: 36px; border-radius: 50%; background: #3b82f6; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.875rem; flex-shrink: 0;">
+                                ${this.getInitials(student.full_name || 'N/A')}
+                            </div>
+                            <div>
+                                <div style="font-weight: 600; color: #1f2937; margin-bottom: 2px;">${escape(student.full_name || 'N/A')}</div>
+                                <div style="font-size: 0.75rem; color: #6b7280; font-family: monospace;">${escape(student.reg_number || 'N/A')}</div>
+                            </div>
+                        </div>
+                    </td>
+                    
+                    <!-- Course Column -->
+                    <td>
+                        <div style="font-weight: 600; color: #1f2937; margin-bottom: 2px;">${escape(course.course_code || 'N/A')}</div>
+                        <div style="font-size: 0.75rem; color: #6b7280;">${escape(course.course_name || '')}</div>
+                    </td>
+                    
+                    <!-- Centre Column -->
+                    <td>
+                        <div style="font-weight: 600; color: #1f2937;">${escape(studentCentre)}</div>
+                        <div style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: ${status === 'published' ? '#d1fae5' : '#f3f4f6'}; color: ${status === 'published' ? '#065f46' : '#6b7280'}; margin-top: 4px;">
+                            <i class="fas ${statusIcon}"></i>
+                            ${statusText}
+                        </div>
+                    </td>
+                    
+                    <!-- Score Column -->
+                    <td>
+                        <div style="text-align: center;">
+                            <div style="font-weight: 700; color: #1f2937; font-size: 1rem;">${score}/${maxScore}</div>
+                            <div style="font-size: 0.75rem; color: #6b7280; font-weight: 600;">${percentage ? percentage.toFixed(1) : '0.0'}%</div>
+                        </div>
+                    </td>
+                    
+                    <!-- Grade Column -->
+                    <td>
+                        <span style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; ${gradeCSSClass === 'grade-distinction' ? 'background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;' : gradeCSSClass === 'grade-credit' ? 'background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white;' : gradeCSSClass === 'grade-pass' ? 'background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;' : 'background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white;'}">
+                            ${grade || 'FAIL'}
+                        </span>
+                    </td>
+                    
+                    <!-- Date Column -->
+                    <td style="color: #6b7280; font-size: 0.875rem;">
+                        ${formattedDate}
+                    </td>
+                    
+                    <!-- Actions Column -->
+                    <td>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="action-btn btn-edit" data-mark-id="${mark.id}" title="Edit" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid #d1d5db; background: white; color: #6b7280; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="action-btn btn-view" data-mark-id="${mark.id}" title="View Details" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid #d1d5db; background: white; color: #6b7280; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="action-btn btn-delete" data-mark-id="${mark.id}" title="Delete" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid #d1d5db; background: white; color: #6b7280; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
+        
+        // Attach event listeners to table buttons
+        this.attachTableButtonListeners();
     }
     
-    let html = '';
+    // ==================== CARDS VIEW (HORIZONTAL) ====================
     
-    pageData.forEach((mark) => {
-        const student = mark.students || {};
-        const course = mark.courses || {};
+    renderCardsView() {
+        const container = document.querySelector('#marksCards');
+        if (!container) return;
         
-        const score = mark.score || 0;
-        const maxScore = mark.max_score || 100;
-        let percentage = mark.percentage;
-        if (!percentage && maxScore > 0) {
-            percentage = (score / maxScore) * 100;
+        const startIndex = (this.currentPage - 1) * this.pageSize;
+        const endIndex = startIndex + this.pageSize;
+        const pageData = this.filteredData.slice(startIndex, endIndex);
+        
+        if (pageData.length === 0) {
+            container.innerHTML = this.getEmptyStateHTML(true);
+            return;
         }
         
-        let grade = mark.grade;
-        if (!grade && percentage !== undefined) {
-            grade = this.calculateGrade(parseFloat(percentage));
-        }
+        let html = `
+            <div class="cards-container-horizontal">
+                <div class="cards-scroll-wrapper">
+                    <div class="cards-grid-horizontal">
+        `;
         
-        const gradeCSSClass = this.getGradeCSSClass(grade);
-        const status = mark.visible_to_student ? 'published' : 'hidden';
-        const statusIcon = status === 'published' ? 'fa-eye' : 'fa-eye-slash';
-        const statusText = status === 'published' ? 'Visible' : 'Hidden';
-        
-        // Get student centre - use the processed centre_display field
-const studentCentre = student.centre_display || student.centre || student.centre_name || 'Main Campus';
-        
-        // Format date
-        const formattedDate = mark.created_at ? this.formatDate(mark.created_at) : 'N/A';
-        
-        // Simple escape function inline
-        const escape = (str) => {
-            if (!str) return '';
-            return str.toString()
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;');
-        };
+        pageData.forEach((mark) => {
+            const student = mark.students || {};
+            const course = mark.courses || {};
+            const score = mark.score || 0;
+            const maxScore = mark.max_score || 100;
+            let percentage = mark.percentage;
+            if (!percentage && maxScore > 0) {
+                percentage = (score / maxScore) * 100;
+            }
+            
+            let grade = mark.grade;
+            if (!grade && percentage !== undefined) {
+                grade = this.calculateGrade(parseFloat(percentage));
+            }
+            
+            const gradeColor = this.getGradeColor(grade);
+            const status = mark.visible_to_student ? 'published' : 'hidden';
+            const statusIcon = status === 'published' ? 'fa-eye' : 'fa-eye-slash';
+            const statusColor = status === 'published' ? '#10b981' : '#6b7280';
+            const studentInitials = this.getInitials(student.full_name || 'N/A');
+            
+            // Escape function
+            const escape = (str) => {
+                if (!str) return '';
+                return str.toString()
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+            };
+            
+            html += `
+                <div class="mark-card-horizontal" data-mark-id="${mark.id}">
+                    <div class="card-header-horizontal">
+                        <div class="student-avatar-horizontal" style="background: ${gradeColor}20; border-color: ${gradeColor};">
+                            <div class="avatar-initials-horizontal" style="color: ${gradeColor};">${studentInitials}</div>
+                        </div>
+                        <div class="student-info-horizontal">
+                            <div class="student-name-horizontal">${escape(student.full_name || 'N/A')}</div>
+                            <div class="student-reg-horizontal">${escape(student.reg_number || 'N/A')}</div>
+                        </div>
+                        <div class="card-actions-horizontal">
+                            <button class="card-action-btn" data-mark-id="${mark.id}" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="card-action-btn" data-mark-id="${mark.id}" title="View">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="card-body-horizontal">
+                        <div class="course-info-horizontal">
+                            <div class="course-code-horizontal">${escape(course.course_code || 'N/A')}</div>
+                            <div class="course-name-horizontal">${escape(course.course_name || 'Course')}</div>
+                        </div>
+                        
+                        <div class="score-display-horizontal">
+                            <div class="score-main-horizontal">
+                                <span class="score-value">${score}</span>
+                                <span class="score-separator">/</span>
+                                <span class="score-max">${maxScore}</span>
+                            </div>
+                            <div class="score-percentage" style="color: ${gradeColor};">
+                                ${percentage ? percentage.toFixed(1) : '0.0'}%
+                            </div>
+                        </div>
+                        
+                        <div class="grade-display-horizontal">
+                            <div class="grade-badge-horizontal" style="background: ${gradeColor};">
+                                ${grade || 'N/A'}
+                            </div>
+                            <div class="grade-points">
+                                ${mark.grade_points || 0} pts
+                            </div>
+                        </div>
+                        
+                        <div class="card-footer-horizontal">
+                            <div class="assessment-info">
+                                <div class="assessment-type">
+                                    <i class="fas fa-tasks"></i>
+                                    ${mark.assessment_type || 'Assessment'}
+                                </div>
+                                <div class="assessment-date">
+                                    <i class="fas fa-calendar"></i>
+                                    ${mark.assessment_date ? this.formatDate(mark.assessment_date) : 'N/A'}
+                                </div>
+                            </div>
+                            <div class="status-indicator-horizontal" style="color: ${statusColor};">
+                                <i class="fas ${statusIcon}"></i>
+                                ${status === 'published' ? 'Visible' : 'Hidden'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
         
         html += `
-            <tr data-mark-id="${mark.id}">
-                <!-- Student Column (Name + Reg No combined) -->
-                <td>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <div style="width: 36px; height: 36px; border-radius: 50%; background: #3b82f6; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.875rem; flex-shrink: 0;">
-                            ${this.getInitials(student.full_name || 'N/A')}
-                        </div>
-                        <div>
-                            <div style="font-weight: 600; color: #1f2937; margin-bottom: 2px;">${escape(student.full_name || 'N/A')}</div>
-                            <div style="font-size: 0.75rem; color: #6b7280; font-family: monospace;">${escape(student.reg_number || 'N/A')}</div>
-                        </div>
                     </div>
-                </td>
-                
-                <!-- Course Column -->
-                <td>
-                    <div style="font-weight: 600; color: #1f2937; margin-bottom: 2px;">${escape(course.course_code || 'N/A')}</div>
-                    <div style="font-size: 0.75rem; color: #6b7280;">${escape(course.course_name || '')}</div>
-                </td>
-                
-                <!-- Centre Column -->
-                <td>
-                    <div style="font-weight: 600; color: #1f2937;">${escape(studentCentre)}</div>
-                    <div style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: ${status === 'published' ? '#d1fae5' : '#f3f4f6'}; color: ${status === 'published' ? '#065f46' : '#6b7280'}; margin-top: 4px;">
-                        <i class="fas ${statusIcon}"></i>
-                        ${statusText}
-                    </div>
-                </td>
-                
-                <!-- Score Column -->
-                <td>
-                    <div style="text-align: center;">
-                        <div style="font-weight: 700; color: #1f2937; font-size: 1rem;">${score}/${maxScore}</div>
-                        <div style="font-size: 0.75rem; color: #6b7280; font-weight: 600;">${percentage ? percentage.toFixed(1) : '0.0'}%</div>
-                    </div>
-                </td>
-                
-                <!-- Grade Column -->
-                <td>
-                    <span style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; ${gradeCSSClass === 'grade-distinction' ? 'background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;' : gradeCSSClass === 'grade-credit' ? 'background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white;' : gradeCSSClass === 'grade-pass' ? 'background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;' : 'background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white;'}">
-                        ${grade || 'FAIL'}
-                    </span>
-                </td>
-                
-                <!-- Date Column -->
-                <td style="color: #6b7280; font-size: 0.875rem;">
-                    ${formattedDate}
-                </td>
-                
-                <!-- Actions Column -->
-                <td>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="action-btn btn-edit" data-mark-id="${mark.id}" title="Edit" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid #d1d5db; background: white; color: #6b7280; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="action-btn btn-view" data-mark-id="${mark.id}" title="View Details" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid #d1d5db; background: white; color: #6b7280; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="action-btn btn-delete" data-mark-id="${mark.id}" title="Delete" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid #d1d5db; background: white; color: #6b7280; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
+                </div>
+            </div>
         `;
-    });
+        
+        container.innerHTML = html;
+        
+        // Attach event listeners
+        this.attachCardsViewListeners();
+    }
     
-    tbody.innerHTML = html;
+    attachCardsViewListeners() {
+        // Edit buttons
+        document.querySelectorAll('.card-action-btn .fa-edit, .card-action-btn .fa-edit').forEach(btn => {
+            btn.closest('.card-action-btn').addEventListener('click', (e) => {
+                const markId = e.currentTarget.getAttribute('data-mark-id');
+                this.editMark(markId);
+                e.stopPropagation();
+            });
+        });
+        
+        // View buttons
+        document.querySelectorAll('.card-action-btn .fa-eye, .card-action-btn .fa-eye').forEach(btn => {
+            btn.closest('.card-action-btn').addEventListener('click', (e) => {
+                const markId = e.currentTarget.getAttribute('data-mark-id');
+                this.viewMarkDetails(markId);
+                e.stopPropagation();
+            });
+        });
+        
+        // Card click to view details
+        document.querySelectorAll('.mark-card-horizontal').forEach(card => {
+            card.addEventListener('click', (e) => {
+                if (!e.target.closest('.card-action-btn')) {
+                    const markId = card.getAttribute('data-mark-id');
+                    this.viewMarkDetails(markId);
+                }
+            });
+        });
+    }
     
-    // Attach event listeners to table buttons
-    this.attachTableButtonListeners();
-}
     attachTableButtonListeners() {
         // Edit buttons
         document.querySelectorAll('.btn-edit').forEach(btn => {
@@ -1090,27 +1552,27 @@ const studentCentre = student.centre_display || student.centre || student.centre
     
     // ==================== BUTTON FUNCTIONS ====================
     
-   async editMark(markId) {
-    try {
-        console.log(`✏️ Editing mark: ${markId}`);
-        
-        // ✅ FIXED: Use getMarkById() instead of getMark()
-        const mark = await this.db.getMarkById(markId);
-        if (!mark) {
-            this.showToast('Mark record not found', 'error');
-            return;
+    async editMark(markId) {
+        try {
+            console.log(`✏️ Editing mark: ${markId}`);
+            
+            // ✅ FIXED: Use getMarkById() instead of getMark()
+            const mark = await this.db.getMarkById(markId);
+            if (!mark) {
+                this.showToast('Mark record not found', 'error');
+                return;
+            }
+            
+            // Populate modal with mark data
+            await this.openMarksModalForEdit(mark);
+            
+            this.showToast('Edit mode activated', 'info');
+            
+        } catch (error) {
+            console.error('❌ Error editing mark:', error);
+            this.showToast('Error loading mark data', 'error');
         }
-        
-        // Populate modal with mark data
-        await this.openMarksModalForEdit(mark);
-        
-        this.showToast('Edit mode activated', 'info');
-        
-    } catch (error) {
-        console.error('❌ Error editing mark:', error);
-        this.showToast('Error loading mark data', 'error');
     }
-}
     
     async openMarksModalForEdit(mark) {
         await this.populateStudentDropdown();
@@ -1147,33 +1609,33 @@ const studentCentre = student.centre_display || student.centre || student.centre
     }
     
     async viewMarkDetails(markId) {
-    try {
-        console.log(`👁️ Viewing mark details: ${markId}`);
-        
-        // ✅ FIXED: Use getMarkById() instead of getMark()
-        const mark = await this.db.getMarkById(markId);
-        if (!mark) {
-            this.showToast('Mark record not found', 'error');
-            return;
+        try {
+            console.log(`👁️ Viewing mark details: ${markId}`);
+            
+            // ✅ FIXED: Use getMarkById() instead of getMark()
+            const mark = await this.db.getMarkById(markId);
+            if (!mark) {
+                this.showToast('Mark record not found', 'error');
+                return;
+            }
+            
+            console.log('📄 Mark data:', mark);
+            
+            // ✅ FIXED: Get student details correctly
+            const student = await this.db.getStudent(mark.student_id);
+            const course = await this.db.getCourse(mark.course_id);
+            
+            console.log('👤 Student data:', student);
+            console.log('📚 Course data:', course);
+            
+            // Create details modal
+            this.showMarkDetailsModal(mark, student, course);
+            
+        } catch (error) {
+            console.error('❌ Error viewing mark details:', error);
+            this.showToast('Error loading mark details', 'error');
         }
-        
-        console.log('📄 Mark data:', mark);
-        
-        // ✅ FIXED: Get student details correctly
-        const student = await this.db.getStudent(mark.student_id);
-        const course = await this.db.getCourse(mark.course_id);
-        
-        console.log('👤 Student data:', student);
-        console.log('📚 Course data:', course);
-        
-        // Create details modal
-        this.showMarkDetailsModal(mark, student, course);
-        
-    } catch (error) {
-        console.error('❌ Error viewing mark details:', error);
-        this.showToast('Error loading mark details', 'error');
     }
-}
     
     showMarkDetailsModal(mark, student, course) {
         const modalHtml = `
@@ -1636,152 +2098,152 @@ const studentCentre = student.centre_display || student.centre || student.centre
     // ==================== MODAL POPULATION ====================
     
     async openMarksModal() {
-    try {
-        await this.populateStudentDropdown();
-        await this.populateCourseDropdown();
-        
-        const dateField = document.getElementById('assessmentDate');
-        if (dateField) {
-            dateField.value = new Date().toISOString().split('T')[0];
+        try {
+            await this.populateStudentDropdown();
+            await this.populateCourseDropdown();
+            
+            const dateField = document.getElementById('assessmentDate');
+            if (dateField) {
+                dateField.value = new Date().toISOString().split('T')[0];
+            }
+            
+            const maxScoreField = document.getElementById('marksMaxScore');
+            if (maxScoreField) {
+                maxScoreField.value = '100';
+            }
+            
+            const scoreField = document.getElementById('marksScore');
+            if (scoreField) {
+                scoreField.value = '';
+            }
+            
+            // ✅ Clear any existing field errors
+            this.clearFieldErrors();
+            
+            // ✅ Ensure radio buttons are in correct state
+            const statusPublished = document.getElementById('statusPublished');
+            const statusDraft = document.getElementById('statusDraft');
+            
+            if (statusPublished) statusPublished.checked = true;
+            if (statusDraft) statusDraft.checked = false;
+            
+            this.setupMarksModalListeners();
+            this.openModal('marksModal');
+            this.updateMarksGradeDisplay();
+            
+            console.log('✅ Marks modal opened successfully');
+            
+        } catch (error) {
+            console.error('Error opening marks modal:', error);
+            this.showToast('Error opening form', 'error');
         }
-        
-        const maxScoreField = document.getElementById('marksMaxScore');
-        if (maxScoreField) {
-            maxScoreField.value = '100';
-        }
-        
-        const scoreField = document.getElementById('marksScore');
-        if (scoreField) {
-            scoreField.value = '';
-        }
-        
-        // ✅ Clear any existing field errors
-        this.clearFieldErrors();
-        
-        // ✅ Ensure radio buttons are in correct state
-        const statusPublished = document.getElementById('statusPublished');
-        const statusDraft = document.getElementById('statusDraft');
-        
-        if (statusPublished) statusPublished.checked = true;
-        if (statusDraft) statusDraft.checked = false;
-        
-        this.setupMarksModalListeners();
-        this.openModal('marksModal');
-        this.updateMarksGradeDisplay();
-        
-        console.log('✅ Marks modal opened successfully');
-        
-    } catch (error) {
-        console.error('Error opening marks modal:', error);
-        this.showToast('Error opening form', 'error');
     }
-}
     
     async populateStudentDropdown() {
-    const select = document.getElementById('marksStudent');
-    if (!select) return;
-    
-    try {
-        console.log('📋 Fetching students for dropdown...');
-        const students = await this.db.getStudents();
-        console.log('📊 Students data received:', students);
+        const select = document.getElementById('marksStudent');
+        if (!select) return;
         
-        select.innerHTML = '<option value="">Select student...</option>';
-        
-        if (!students || !Array.isArray(students)) {
-            console.error('❌ Invalid students data:', students);
-            select.innerHTML += '<option value="">Error loading students</option>';
-            return;
-        }
-        
-        // Debug: Check first student's properties
-        if (students.length > 0) {
-            console.log('🔍 First student object keys:', Object.keys(students[0]));
-            console.log('🔍 First student:', students[0]);
-        }
-        
-        students.forEach((student, index) => {
-            // Try multiple possible property names
-            const studentId = student.id || student.student_id || student.ID;
-            const regNumber = student.registration_number || student.reg_number || student.reg_no || student.regNumber || `STU${index + 1000}`;
-            const fullName = student.name || student.full_name || student.fullName || 
-                           `${student.first_name || ''} ${student.last_name || ''}`.trim() || 
-                           student.student_name || `Student ${index + 1}`;
-            const status = student.status || student.active || 'active';
+        try {
+            console.log('📋 Fetching students for dropdown...');
+            const students = await this.db.getStudents();
+            console.log('📊 Students data received:', students);
             
-            if (studentId && (status === 'active' || status === true || status === 1)) {
-                const option = document.createElement('option');
-                option.value = studentId;
-                option.textContent = `${regNumber} - ${fullName}`;
-                select.appendChild(option);
+            select.innerHTML = '<option value="">Select student...</option>';
+            
+            if (!students || !Array.isArray(students)) {
+                console.error('❌ Invalid students data:', students);
+                select.innerHTML += '<option value="">Error loading students</option>';
+                return;
             }
-        });
-        
-        // If no students were added
-        if (select.options.length === 1) {
-            console.warn('⚠️ No active students found in data');
-            select.innerHTML += '<option value="">No active students available</option>';
+            
+            // Debug: Check first student's properties
+            if (students.length > 0) {
+                console.log('🔍 First student object keys:', Object.keys(students[0]));
+                console.log('🔍 First student:', students[0]);
+            }
+            
+            students.forEach((student, index) => {
+                // Try multiple possible property names
+                const studentId = student.id || student.student_id || student.ID;
+                const regNumber = student.registration_number || student.reg_number || student.reg_no || student.regNumber || `STU${index + 1000}`;
+                const fullName = student.name || student.full_name || student.fullName || 
+                               `${student.first_name || ''} ${student.last_name || ''}`.trim() || 
+                               student.student_name || `Student ${index + 1}`;
+                const status = student.status || student.active || 'active';
+                
+                if (studentId && (status === 'active' || status === true || status === 1)) {
+                    const option = document.createElement('option');
+                    option.value = studentId;
+                    option.textContent = `${regNumber} - ${fullName}`;
+                    select.appendChild(option);
+                }
+            });
+            
+            // If no students were added
+            if (select.options.length === 1) {
+                console.warn('⚠️ No active students found in data');
+                select.innerHTML += '<option value="">No active students available</option>';
+            }
+            
+            console.log(`✅ Populated ${select.options.length - 1} students`);
+            
+        } catch (error) {
+            console.error('❌ Error populating student dropdown:', error);
+            select.innerHTML = '<option value="">Error loading students</option>';
         }
-        
-        console.log(`✅ Populated ${select.options.length - 1} students`);
-        
-    } catch (error) {
-        console.error('❌ Error populating student dropdown:', error);
-        select.innerHTML = '<option value="">Error loading students</option>';
     }
-}
     
     async populateCourseDropdown() {
-    const select = document.getElementById('marksCourse');
-    if (!select) return;
-    
-    try {
-        console.log('📚 Fetching courses for dropdown...');
-        const courses = await this.db.getCourses();
-        console.log('📊 Courses data received:', courses);
+        const select = document.getElementById('marksCourse');
+        if (!select) return;
         
-        select.innerHTML = '<option value="">Select course...</option>';
-        
-        if (!courses || !Array.isArray(courses)) {
-            console.error('❌ Invalid courses data:', courses);
-            select.innerHTML += '<option value="">Error loading courses</option>';
-            return;
-        }
-        
-        // Debug: Check first course's properties
-        if (courses.length > 0) {
-            console.log('🔍 First course object keys:', Object.keys(courses[0]));
-            console.log('🔍 First course:', courses[0]);
-        }
-        
-        courses.forEach((course, index) => {
-            // Try multiple possible property names
-            const courseId = course.id || course.course_id || course.ID;
-            const courseCode = course.code || course.course_code || course.courseCode || course.Code || `CRS${index + 100}`;
-            const courseName = course.name || course.course_name || course.courseName || course.title || `Course ${index + 1}`;
-            const status = course.status || course.active || 'active';
+        try {
+            console.log('📚 Fetching courses for dropdown...');
+            const courses = await this.db.getCourses();
+            console.log('📊 Courses data received:', courses);
             
-            if (courseId && (status === 'active' || status === true || status === 1)) {
-                const option = document.createElement('option');
-                option.value = courseId;
-                option.textContent = `${courseCode} - ${courseName}`;
-                select.appendChild(option);
+            select.innerHTML = '<option value="">Select course...</option>';
+            
+            if (!courses || !Array.isArray(courses)) {
+                console.error('❌ Invalid courses data:', courses);
+                select.innerHTML += '<option value="">Error loading courses</option>';
+                return;
             }
-        });
-        
-        // If no courses were added
-        if (select.options.length === 1) {
-            console.warn('⚠️ No active courses found in data');
-            select.innerHTML += '<option value="">No active courses available</option>';
+            
+            // Debug: Check first course's properties
+            if (courses.length > 0) {
+                console.log('🔍 First course object keys:', Object.keys(courses[0]));
+                console.log('🔍 First course:', courses[0]);
+            }
+            
+            courses.forEach((course, index) => {
+                // Try multiple possible property names
+                const courseId = course.id || course.course_id || course.ID;
+                const courseCode = course.code || course.course_code || course.courseCode || course.Code || `CRS${index + 100}`;
+                const courseName = course.name || course.course_name || course.courseName || course.title || `Course ${index + 1}`;
+                const status = course.status || course.active || 'active';
+                
+                if (courseId && (status === 'active' || status === true || status === 1)) {
+                    const option = document.createElement('option');
+                    option.value = courseId;
+                    option.textContent = `${courseCode} - ${courseName}`;
+                    select.appendChild(option);
+                }
+            });
+            
+            // If no courses were added
+            if (select.options.length === 1) {
+                console.warn('⚠️ No active courses found in data');
+                select.innerHTML += '<option value="">No active courses available</option>';
+            }
+            
+            console.log(`✅ Populated ${select.options.length - 1} courses`);
+            
+        } catch (error) {
+            console.error('❌ Error populating course dropdown:', error);
+            select.innerHTML = '<option value="">Error loading courses</option>';
         }
-        
-        console.log(`✅ Populated ${select.options.length - 1} courses`);
-        
-    } catch (error) {
-        console.error('❌ Error populating course dropdown:', error);
-        select.innerHTML = '<option value="">Error loading courses</option>';
     }
-}
     
     setupMarksModalListeners() {
         const scoreInput = document.getElementById('marksScore');
@@ -1859,65 +2321,54 @@ const studentCentre = student.centre_display || student.centre || student.centre
     }
     
     updateMarksGradeDisplay() {
-    try {
-        const scoreInput = document.getElementById('marksScore');
-        const maxScoreInput = document.getElementById('marksMaxScore');
-        const percentageDisplay = document.getElementById('marksPercentage');
-        const gradeBadge = document.getElementById('gradeBadge');
-        
-        if (!scoreInput || !gradeBadge || !maxScoreInput) return;
-        
-        const score = parseFloat(scoreInput.value);
-        const maxScore = parseFloat(maxScoreInput.value);
-        
-        if (isNaN(score) || isNaN(maxScore) || maxScore <= 0) {
-            this.resetMarksGradeDisplay(gradeBadge, percentageDisplay);
-            return;
+        try {
+            const scoreInput = document.getElementById('marksScore');
+            const maxScoreInput = document.getElementById('marksMaxScore');
+            const percentageDisplay = document.getElementById('marksPercentage');
+            const gradeBadge = document.getElementById('gradeBadge');
+            
+            if (!scoreInput || !gradeBadge || !maxScoreInput) return;
+            
+            const score = parseFloat(scoreInput.value);
+            const maxScore = parseFloat(maxScoreInput.value);
+            
+            if (isNaN(score) || isNaN(maxScore) || maxScore <= 0) {
+                this.resetMarksGradeDisplay(gradeBadge, percentageDisplay);
+                return;
+            }
+            
+            const validScore = Math.min(score, maxScore);
+            if (score !== validScore) {
+                scoreInput.value = validScore;
+            }
+            
+            const percentage = (validScore / maxScore) * 100;
+            const cappedPercentage = Math.min(percentage, 100);
+            
+            const grade = this.calculateGrade(cappedPercentage);
+            const gradeCSSClass = this.getGradeCSSClass(grade);
+            
+            if (percentageDisplay) {
+                percentageDisplay.textContent = `${cappedPercentage.toFixed(2)}%`;
+            }
+            
+            // Update grade badge with new HTML structure
+            gradeBadge.textContent = grade;
+            gradeBadge.className = gradeCSSClass;
+            
+        } catch (error) {
+            console.error('Error updating grade display:', error);
         }
-        
-        const validScore = Math.min(score, maxScore);
-        if (score !== validScore) {
-            scoreInput.value = validScore;
-        }
-        
-        const percentage = (validScore / maxScore) * 100;
-        const cappedPercentage = Math.min(percentage, 100);
-        
-        const grade = this.calculateGrade(cappedPercentage);
-        const gradeCSSClass = this.getGradeCSSClass(grade);
-        
-        if (percentageDisplay) {
-            percentageDisplay.textContent = `${cappedPercentage.toFixed(2)}%`;
-        }
-        
-        // Update grade badge with new HTML structure
-        gradeBadge.textContent = grade;
-        gradeBadge.className = gradeCSSClass;
-        
-    } catch (error) {
-        console.error('Error updating grade display:', error);
-    }
-}
-
-resetMarksGradeDisplay(gradeBadge, percentageDisplay) {
-    if (gradeBadge) {
-        gradeBadge.textContent = '--';
-        gradeBadge.className = 'grade-default';
     }
     
-    if (percentageDisplay) {
-        percentageDisplay.textContent = '0.00%';
-    }
-}
     resetMarksGradeDisplay(gradeBadge, percentageDisplay) {
         if (gradeBadge) {
-            gradeBadge.innerHTML = '<span>Enter score to see grade</span>';
-            gradeBadge.className = 'grade-badge';
-            gradeBadge.title = '';
+            gradeBadge.textContent = '--';
+            gradeBadge.className = 'grade-default';
         }
         
         if (percentageDisplay) {
-            percentageDisplay.value = '0.00%';
+            percentageDisplay.textContent = '0.00%';
         }
     }
     
@@ -1952,6 +2403,120 @@ resetMarksGradeDisplay(gradeBadge, percentageDisplay) {
         }
         
         return value;
+    }
+    
+    // ==================== COMPACT VIEW ====================
+    
+    renderCompactView() {
+        const container = document.getElementById('compactView');
+        if (!container) return;
+        
+        const startIndex = (this.currentPage - 1) * this.pageSize;
+        const endIndex = startIndex + this.pageSize;
+        const pageData = this.filteredData.slice(startIndex, endIndex);
+        
+        if (pageData.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-list fa-3x"></i>
+                    <h3>No Records Found</h3>
+                    <p>${this.filteredData.length === 0 ? 'Get started by adding your first academic record' : 'No records match your filters'}</p>
+                    ${this.filteredData.length === 0 ? `
+                        <button class="btn-primary" onclick="window.app.marks.openMarksModal()">
+                            <i class="fas fa-plus"></i> Add First Record
+                        </button>
+                    ` : `
+                        <button class="btn-secondary" onclick="window.app.marks.clearFilters()">
+                            <i class="fas fa-filter"></i> Clear Filters
+                        </button>
+                    `}
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '<div class="compact-list">';
+        
+        pageData.forEach((mark) => {
+            const student = mark.students || {};
+            const course = mark.courses || {};
+            const score = mark.score || 0;
+            const maxScore = mark.max_score || 100;
+            let percentage = mark.percentage;
+            if (!percentage && maxScore > 0) {
+                percentage = (score / maxScore) * 100;
+            }
+            
+            let grade = mark.grade;
+            if (!grade && percentage !== undefined) {
+                grade = this.calculateGrade(parseFloat(percentage));
+            }
+            
+            const gradeColor = this.getGradeColor(grade);
+            
+            html += `
+                <div class="compact-item" data-mark-id="${mark.id}">
+                    <div class="compact-header">
+                        <div class="compact-student">
+                            <strong>${student.full_name || 'N/A'}</strong>
+                            <small>${student.reg_number || 'N/A'} • ${course.course_code || 'N/A'}</small>
+                        </div>
+                        <div class="compact-grade" style="color: ${gradeColor}">
+                            <strong>${grade}</strong>
+                        </div>
+                    </div>
+                    <div class="compact-details">
+                        <div class="compact-score">
+                            ${score}/${maxScore} (${percentage ? percentage.toFixed(1) : '0.0'}%)
+                        </div>
+                        <div class="compact-actions">
+                            <button class="compact-action-btn" data-mark-id="${mark.id}" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="compact-action-btn" data-mark-id="${mark.id}" title="View">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        container.innerHTML = html;
+        
+        // Add event listeners for compact view
+        this.attachCompactViewListeners();
+    }
+    
+    attachCompactViewListeners() {
+        // Edit buttons
+        document.querySelectorAll('.compact-action-btn .fa-edit').forEach(btn => {
+            btn.closest('.compact-action-btn').addEventListener('click', (e) => {
+                const markId = e.currentTarget.getAttribute('data-mark-id');
+                this.editMark(markId);
+                e.stopPropagation();
+            });
+        });
+        
+        // View buttons
+        document.querySelectorAll('.compact-action-btn .fa-eye').forEach(btn => {
+            btn.closest('.compact-action-btn').addEventListener('click', (e) => {
+                const markId = e.currentTarget.getAttribute('data-mark-id');
+                this.viewMarkDetails(markId);
+                e.stopPropagation();
+            });
+        });
+        
+        // Item click to view details
+        document.querySelectorAll('.compact-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (!e.target.closest('.compact-action-btn')) {
+                    const markId = item.getAttribute('data-mark-id');
+                    this.viewMarkDetails(markId);
+                }
+            });
+        });
     }
     
     // ==================== UTILITY METHODS ====================
@@ -2251,40 +2816,6 @@ resetMarksGradeDisplay(gradeBadge, percentageDisplay) {
         if (compactView) compactView.style.display = mode === 'compact' ? 'block' : 'none';
         
         this.renderCurrentView();
-    }
-    
-    renderCardsView() {
-        console.log('Cards view not implemented yet');
-        const container = document.querySelector('#marksCards');
-        if (container) {
-            container.innerHTML = `
-                <div class="empty-state-cards">
-                    <i class="fas fa-th-large fa-3x"></i>
-                    <h3>Cards View Coming Soon</h3>
-                    <p>We're working on an enhanced cards view</p>
-                    <button class="btn-secondary" onclick="window.app.marks.setViewMode('table')">
-                        <i class="fas fa-table"></i> Switch to Table View
-                    </button>
-                </div>
-            `;
-        }
-    }
-    
-    renderCompactView() {
-        console.log('Compact view not implemented yet');
-        const container = document.getElementById('compactView');
-        if (container) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-list fa-3x"></i>
-                    <h3>Compact View Coming Soon</h3>
-                    <p>We're working on a compact view for faster browsing</p>
-                    <button class="btn-secondary" onclick="window.app.marks.setViewMode('table')">
-                        <i class="fas fa-table"></i> Switch to Table View
-                    </button>
-                </div>
-            `;
-        }
     }
     
     // ==================== DASHBOARD & STATISTICS ====================
