@@ -176,30 +176,7 @@
                 </div>
             </div>
         </div>
-      <!-- Theme toggle -->
-        <div class="theme-toggle-container" style="margin-top: 10px;">
-            <button id="themeToggle" class="theme-toggle-btn" style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: white; border: 1px solid #e5e7eb; border-radius: 20px; color: #4b5563; cursor: pointer;">
-                <i class="fas fa-sun"></i>
-                <span>Light Theme</span>
-                <i class="fas fa-chevron-down"></i>
-            </button>
-            
-            <div class="theme-dropdown" style="display: none; position: absolute; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 8px; min-width: 160px; margin-top: 5px;">
-                <button class="theme-option active" data-theme="default" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; border: none; background: none; cursor: pointer;">
-                    <i class="fas fa-sun"></i>
-                    <span>Default Light</span>
-                </button>
-                <button class="theme-option" data-theme="blue-light" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; border: none; background: none; cursor: pointer;">
-                    <i class="fas fa-water"></i>
-                    <span>Blue Light</span>
-                </button>
-                <button class="theme-option" data-theme="warm-light" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; border: none; background: none; cursor: pointer;">
-                    <i class="fas fa-fire"></i>
-                    <span>Warm Light</span>
-                </button>
-            </div>
-        </div>
-    </div>
+
     <!-- Statistics Grid -->
     <div class="dashboard-stats-grid">
         <!-- Card 1: Total Students -->
@@ -2461,15 +2438,7 @@
             }
         }
     });
-   // Simple theme toggle - ONLY IF YOU WANT TO KEEP IT
-document.addEventListener('DOMContentLoaded', function() {
-    const themeToggle = document.getElementById('themeToggle');
-    if (themeToggle) {
-        themeToggle.addEventListener('click', function() {
-            alert('Theme toggle will be implemented later!');
-        });
-    }
-});
+   
     // Add this JavaScript fallback
     if (typeof window !== 'undefined') {
         // Try to get from app first, then fallback to global
