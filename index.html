@@ -676,7 +676,7 @@
     </div>
 </section>
 
-<!-- ========== ENHANCED STUDENT MODAL ========== -->
+       <!-- ========== ENHANCED STUDENT MODAL ========== -->
 <div id="studentModal" class="modal enhanced-modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -699,7 +699,7 @@
         
         <form id="studentForm" class="modal-form">
             <div class="form-scroll">
-                <!-- Registration Section (Always Visible) -->
+                <!-- Registration Section -->
                 <div class="form-section sticky">
                     <div class="section-header">
                         <h4><i class="fas fa-id-card"></i> Registration Details</h4>
@@ -709,7 +709,7 @@
                         <div class="form-group">
                             <label>
                                 Registration Number *
-                                <span class="form-hint" id="regNumberFormat">Format: [PROGRAM]-[YEAR]-[###]</span>
+                                <span class="form-hint" id="regNumberFormat">Auto-generated</span>
                             </label>
                             <div class="input-with-action">
                                 <input type="text" id="studentRegNumber" 
@@ -733,10 +733,10 @@
                     </div>
                 </div>
 
-                <!-- Personal Information -->
+                <!-- Student Information -->
                 <div class="form-section">
                     <div class="section-header">
-                        <h4><i class="fas fa-user"></i> Personal Information</h4>
+                        <h4><i class="fas fa-user"></i> Student Information</h4>
                     </div>
                     <div class="form-grid">
                         <div class="form-group">
@@ -752,12 +752,18 @@
                         </div>
                         
                         <div class="form-group">
-                            <label>Phone Number</label>
+                            <label>Phone Number *</label>
                             <div class="input-with-prefix">
                                 <span class="input-prefix">+254</span>
                                 <input type="tel" id="studentPhone" class="form-control" 
-                                       placeholder="7XX XXX XXX">
+                                       required placeholder="7XX XXX XXX">
                             </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>ID/Passport Number</label>
+                            <input type="text" id="studentIdNumber" class="form-control" 
+                                   placeholder="National ID or Passport">
                         </div>
                         
                         <div class="form-group">
@@ -766,30 +772,7 @@
                                 <option value="">Select Gender</option>
                                 <option value="male">Male</option>
                                 <option value="female">Female</option>
-                                <option value="other">Other</option>
                             </select>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Location Information -->
-                <div class="form-section">
-                    <div class="section-header">
-                        <h4><i class="fas fa-map-marker-alt"></i> Location Information</h4>
-                    </div>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>County</label>
-                            <select id="studentCounty" class="form-control">
-                                <option value="">Select County</option>
-                                <!-- Kenya counties will be loaded -->
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Region</label>
-                            <input type="text" id="studentRegion" class="form-control" 
-                                   placeholder="Region or Sub-county">
                         </div>
                     </div>
                 </div>
@@ -814,7 +797,6 @@
                                 <option value="">Select Program</option>
                                 <!-- Programs will be loaded -->
                             </select>
-                            <div class="program-info" id="programInfoDisplay"></div>
                         </div>
                         
                         <div class="form-group">
@@ -826,29 +808,18 @@
                         </div>
                         
                         <div class="form-group">
-                            <label>Study Mode</label>
-                            <select id="studentStudyMode" class="form-control">
-                                <option value="fulltime">Full-time</option>
-                                <option value="parttime">Part-time</option>
-                                <option value="distance">Distance Learning</option>
-                                <option value="online">Online</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
                             <label>Status *</label>
                             <select id="studentStatus" class="form-control" required>
                                 <option value="active">Active</option>
                                 <option value="inactive">Inactive</option>
                                 <option value="suspended">Suspended</option>
                                 <option value="graduated">Graduated</option>
-                                <option value="withdrawn">Withdrawn</option>
-                                <option value="deferred">Deferred</option>
                             </select>
                         </div>
                     </div>
                 </div>
-                
+            </div>
+            
             <!-- Fixed Footer -->
             <div class="modal-footer">
                 <div class="footer-left">
