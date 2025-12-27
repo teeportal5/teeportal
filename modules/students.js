@@ -1,4 +1,4 @@
-// modules/students.js - UPDATED FOR YOUR CURRENT HTML
+// modules/students.js - FIXED ACTION BUTTONS OVERLAP
 class StudentManager {
     constructor(db, app = null) {
         this.db = db;
@@ -385,6 +385,7 @@ class StudentManager {
                 const option = document.createElement('option');
                 option.value = year;
                 option.textContent = year;
+                option.disabled = true;
                 intakeSelect.appendChild(option);
             }
             
@@ -465,7 +466,45 @@ class StudentManager {
             });
         });
         
+        // Action buttons in control panel
+        this._setupActionButtonListeners();
+        
         console.log('✅ Enhanced event listeners setup complete');
+    }
+    
+    /**
+     * Setup action button listeners
+     */
+    _setupActionButtonListeners() {
+        // Add New Student
+        const addStudentBtn = document.querySelector('.action-btn.primary');
+        if (addStudentBtn) {
+            addStudentBtn.addEventListener('click', () => this.openStudentModal());
+        }
+        
+        // Bulk Upload
+        const bulkUploadBtn = document.querySelector('.action-btn[data-action="bulk-upload"]');
+        if (bulkUploadBtn) {
+            bulkUploadBtn.addEventListener('click', () => this.bulkUpload());
+        }
+        
+        // Export Data
+        const exportBtn = document.querySelector('.action-btn[data-action="export-data"]');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => this.exportStudents());
+        }
+        
+        // Generate Reports
+        const reportsBtn = document.querySelector('.action-btn[data-action="generate-reports"]');
+        if (reportsBtn) {
+            reportsBtn.addEventListener('click', () => this.generateReports());
+        }
+        
+        // Send Communications
+        const commsBtn = document.querySelector('.action-btn[data-action="send-communications"]');
+        if (commsBtn) {
+            commsBtn.addEventListener('click', () => this.sendCommunications());
+        }
     }
     
     /**
@@ -659,7 +698,7 @@ class StudentManager {
     }
     
     /**
-     * Create student row
+     * Create student row - FIXED ACTION BUTTONS
      */
     _createStudentRow(student, index) {
         const programDisplay = this._getProgramDisplayName(student.program);
@@ -673,15 +712,15 @@ class StudentManager {
                 data-student-reg="${this._escapeAttr(student.reg_number)}"
                 class="${status === 'inactive' ? 'inactive-student' : ''}">
                 
-                <td style="width: 50px; text-align: center;">
-                    <input type="checkbox" data-student-id="${student.id}">
+                <td style="width: 40px; text-align: center; padding: 8px;">
+                    <input type="checkbox" data-student-id="${student.id}" style="margin: 0; width: 16px; height: 16px;">
                 </td>
                 
                 <td style="width: 120px;">
                     <strong class="student-id">${this._escapeHtml(student.reg_number)}</strong>
                 </td>
                 
-                <td>
+                <td style="min-width: 280px;">
                     <div class="student-info-enhanced">
                         <div class="student-avatar" style="background-color: ${this._getAvatarColor(student.full_name)}">
                             ${this._getStudentInitials(student.full_name)}
@@ -707,7 +746,7 @@ class StudentManager {
                     </div>
                 </td>
                 
-                <td style="width: 200px;">
+                <td style="width: 180px;">
                     <div class="academic-info">
                         <div class="program-badge">
                             ${this._escapeHtml(programDisplay)}
@@ -735,8 +774,8 @@ class StudentManager {
                     </span>
                 </td>
                 
-                <td style="width: 180px;" class="action-buttons">
-                    <div class="btn-group">
+                <td style="width: 200px;" class="action-buttons">
+                    <div class="btn-group" style="display: flex; gap: 6px; justify-content: center; flex-wrap: nowrap; min-width: 160px;">
                         <button class="btn-action btn-view" data-id="${this._escapeAttr(student.id)}" 
                                 title="View Details" onclick="app.students?.viewStudent('${student.id}')">
                             <i class="fas fa-eye"></i>
@@ -918,6 +957,7 @@ class StudentManager {
         if (advancedFilters) {
             const isVisible = advancedFilters.style.display !== 'none';
             advancedFilters.style.display = isVisible ? 'none' : 'block';
+            advancedFilters.classList.toggle('active', !isVisible);
         }
     }
     
