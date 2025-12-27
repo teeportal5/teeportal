@@ -1269,65 +1269,75 @@ class StudentManager {
         return true;
     }
     
-    /**
-     * Prepare form data for SIMPLIFIED FORM
-     */
-    _prepareFormData() {
-        const programSelect = document.getElementById('studentProgram');
-        const selectedOption = programSelect?.options[programSelect?.selectedIndex];
+   /**
+ * Prepare form data with County and Region
+ */
+_prepareFormData() {
+    const programSelect = document.getElementById('studentProgram');
+    const selectedOption = programSelect?.options[programSelect?.selectedIndex];
+    
+    let programCode = '';
+    let programName = '';
+    
+    if (selectedOption && selectedOption.value) {
+        programCode = selectedOption.value;
         
-        let programCode = '';
-        let programName = '';
-        
-        if (selectedOption && selectedOption.value) {
-            programCode = selectedOption.value;
-            
-            // Extract program name from text
-            const optionText = selectedOption.textContent || '';
-            if (optionText.includes(' - ')) {
-                programName = optionText.split(' - ')[1].trim();
-            } else {
-                programName = programCode;
-            }
+        // Extract program name from text
+        const optionText = selectedOption.textContent || '';
+        if (optionText.includes(' - ')) {
+            programName = optionText.split(' - ')[1].trim();
+        } else {
+            programName = programCode;
         }
-        
-        const centreSelect = document.getElementById('studentCentre');
-        const selectedCentreId = centreSelect?.value || '';
-        const selectedCentreOption = centreSelect?.options[centreSelect?.selectedIndex];
-        const selectedCentreText = selectedCentreOption?.text || '';
-        let centreName = '';
-        
-        if (selectedCentreText && selectedCentreText !== 'Select Centre') {
-            centreName = selectedCentreText;
-        } else if (selectedCentreId && this.centres.length > 0) {
-            const centre = this.centres.find(c => c.id === selectedCentreId);
-            centreName = centre ? centre.name : '';
-        }
-        
-        // Format phone number
-        let phone = document.getElementById('studentPhone')?.value.trim() || '';
-        if (phone && !phone.startsWith('+254')) {
-            phone = '+254' + phone.replace(/^0/, '');
-        }
-        
-        return {
-            reg_number: document.getElementById('studentRegNumber')?.value.trim() || '',
-            full_name: document.getElementById('studentName')?.value.trim() || '',
-            email: document.getElementById('studentEmail')?.value.trim() || '',
-            phone: phone,
-            id_number: document.getElementById('studentIdNumber')?.value.trim() || '',
-            gender: document.getElementById('studentGender')?.value || '',
-            program: programCode,
-            code: programCode,
-            program_name: programName || programCode,
-            intake_year: parseInt(document.getElementById('studentIntake')?.value) || new Date().getFullYear(),
-            centre_id: selectedCentreId || '',
-            centre: centreName || '',
-            status: document.getElementById('studentStatus')?.value || 'active',
-            registration_date: document.getElementById('studentRegDate')?.value || new Date().toISOString().split('T')[0]
-        };
     }
     
+    const centreSelect = document.getElementById('studentCentre');
+    const selectedCentreId = centreSelect?.value || '';
+    const selectedCentreOption = centreSelect?.options[centreSelect?.selectedIndex];
+    const selectedCentreText = selectedCentreOption?.text || '';
+    let centreName = '';
+    
+    if (selectedCentreText && selectedCentreText !== 'Select Centre') {
+        centreName = selectedCentreText;
+    } else if (selectedCentreId && this.centres.length > 0) {
+        const centre = this.centres.find(c => c.id === selectedCentreId);
+        centreName = centre ? centre.name : '';
+    }
+    
+    // Format phone number (optional)
+    let phone = document.getElementById('studentPhone')?.value.trim() || '';
+    if (phone && phone.trim() !== '' && !phone.startsWith('+254')) {
+        // Remove any spaces and format
+        phone = phone.replace(/\s+/g, '');
+        if (phone.startsWith('0')) {
+            phone = '+254' + phone.substring(1);
+        } else if (phone.startsWith('7')) {
+            phone = '+254' + phone;
+        }
+    }
+    
+    // Get county and region values
+    const county = document.getElementById('studentCounty')?.value || '';
+    const region = document.getElementById('studentRegion')?.value || '';
+    
+    return {
+        reg_number: document.getElementById('studentRegNumber')?.value.trim() || '',
+        full_name: document.getElementById('studentName')?.value.trim() || '',
+        email: document.getElementById('studentEmail')?.value.trim() || '',
+        phone: phone, // Optional
+        county: county, // New field
+        region: region, // New field
+        gender: document.getElementById('studentGender')?.value || '',
+        program: programCode,
+        code: programCode,
+        program_name: programName || programCode,
+        intake_year: parseInt(document.getElementById('studentIntake')?.value) || new Date().getFullYear(),
+        centre_id: selectedCentreId || '',
+        centre: centreName || '',
+        status: document.getElementById('studentStatus')?.value || 'active',
+        registration_date: document.getElementById('studentRegDate')?.value || new Date().toISOString().split('T')[0]
+    };
+}
     /**
      * Open student modal
      */
