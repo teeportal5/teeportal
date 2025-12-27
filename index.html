@@ -163,30 +163,6 @@
         
 <!-- Main Content Area -->
 <main class="main-content">
-    <!-- ========== THEME TOGGLE ========== -->
-    <div class="theme-toggle-container">
-        <button id="themeToggle" class="theme-toggle-btn">
-            <i class="fas fa-sun"></i>
-            <span>Light Theme</span>
-            <i class="fas fa-chevron-down"></i>
-        </button>
-        
-        <div class="theme-dropdown">
-            <button class="theme-option active" data-theme="default">
-                <i class="fas fa-sun"></i>
-                <span>Default Light</span>
-            </button>
-            <button class="theme-option" data-theme="blue-light">
-                <i class="fas fa-water"></i>
-                <span>Blue Light</span>
-            </button>
-            <button class="theme-option" data-theme="warm-light">
-                <i class="fas fa-fire"></i>
-                <span>Warm Light</span>
-            </button>
-        </div>
-    </div>
-
     <!-- ========== DASHBOARD SECTION ========== -->
     <section id="dashboard" class="content-section active">
         <!-- Your existing dashboard HTML here - EXACTLY as you had it -->
@@ -200,7 +176,30 @@
                 </div>
             </div>
         </div>
-    
+      <!-- Theme toggle -->
+        <div class="theme-toggle-container" style="margin-top: 10px;">
+            <button id="themeToggle" class="theme-toggle-btn" style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: white; border: 1px solid #e5e7eb; border-radius: 20px; color: #4b5563; cursor: pointer;">
+                <i class="fas fa-sun"></i>
+                <span>Light Theme</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            
+            <div class="theme-dropdown" style="display: none; position: absolute; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 8px; min-width: 160px; margin-top: 5px;">
+                <button class="theme-option active" data-theme="default" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; border: none; background: none; cursor: pointer;">
+                    <i class="fas fa-sun"></i>
+                    <span>Default Light</span>
+                </button>
+                <button class="theme-option" data-theme="blue-light" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; border: none; background: none; cursor: pointer;">
+                    <i class="fas fa-water"></i>
+                    <span>Blue Light</span>
+                </button>
+                <button class="theme-option" data-theme="warm-light" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; border: none; background: none; cursor: pointer;">
+                    <i class="fas fa-fire"></i>
+                    <span>Warm Light</span>
+                </button>
+            </div>
+        </div>
+    </div>
     <!-- Statistics Grid -->
     <div class="dashboard-stats-grid">
         <!-- Card 1: Total Students -->
@@ -2462,63 +2461,13 @@
             }
         }
     });
-    // Theme Toggle Functionality
+   // Simple theme toggle - ONLY IF YOU WANT TO KEEP IT
 document.addEventListener('DOMContentLoaded', function() {
     const themeToggle = document.getElementById('themeToggle');
-    const themeOptions = document.querySelectorAll('.theme-option');
-    
-    // Set initial theme
-    const savedTheme = localStorage.getItem('teeTheme') || 'default';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    updateThemeButton(savedTheme);
-    
-    // Set active option based on saved theme
-    themeOptions.forEach(option => {
-        if (option.getAttribute('data-theme') === savedTheme) {
-            option.classList.add('active');
-        } else {
-            option.classList.remove('active');
-        }
-    });
-    
-    // Theme options click handler
-    themeOptions.forEach(option => {
-        option.addEventListener('click', function() {
-            const theme = this.getAttribute('data-theme');
-            
-            // Update active state
-            themeOptions.forEach(opt => opt.classList.remove('active'));
-            this.classList.add('active');
-            
-            // Apply theme
-            document.documentElement.setAttribute('data-theme', theme);
-            localStorage.setItem('teeTheme', theme);
-            updateThemeButton(theme);
+    if (themeToggle) {
+        themeToggle.addEventListener('click', function() {
+            alert('Theme toggle will be implemented later!');
         });
-    });
-    
-    function updateThemeButton(theme) {
-        const icon = themeToggle.querySelector('i:first-child');
-        const text = themeToggle.querySelector('span');
-        
-        if (theme === 'default') {
-            icon.className = 'fas fa-sun';
-            text.textContent = 'Light Theme';
-        } else if (theme === 'blue-light') {
-            icon.className = 'fas fa-water';
-            text.textContent = 'Blue Theme';
-        } else if (theme === 'warm-light') {
-            icon.className = 'fas fa-fire';
-            text.textContent = 'Warm Theme';
-        }
-    }
-});
-
-// Optional: Close dropdown when clicking outside
-document.addEventListener('click', function(event) {
-    const themeContainer = document.querySelector('.theme-toggle-container');
-    if (!themeContainer.contains(event.target)) {
-        themeContainer.querySelector('.theme-dropdown').style.display = 'none';
     }
 });
     // Add this JavaScript fallback
