@@ -161,21 +161,45 @@
             </div>
         </nav>
         
-        <!-- Main Content Area -->
-        <main class="main-content">
-           <!-- ========== DASHBOARD SECTION ========== -->
-<section id="dashboard" class="content-section">
-    <!-- Your existing dashboard HTML here - EXACTLY as you had it -->
-    <div class="dashboard-welcome">
-        <div class="dashboard-welcome-content">
-            <h2>Welcome Back, Administrator!</h2>
-            <p>Here's what's happening with your TEE College today.</p>
-            <div class="dashboard-date">
-                <i class="fas fa-calendar-alt"></i>
-                <span id="currentDate"></span>
-            </div>
+<!-- Main Content Area -->
+<main class="main-content">
+    <!-- ========== THEME TOGGLE ========== -->
+    <div class="theme-toggle-container">
+        <button id="themeToggle" class="theme-toggle-btn">
+            <i class="fas fa-sun"></i>
+            <span>Light Theme</span>
+            <i class="fas fa-chevron-down"></i>
+        </button>
+        
+        <div class="theme-dropdown">
+            <button class="theme-option active" data-theme="default">
+                <i class="fas fa-sun"></i>
+                <span>Default Light</span>
+            </button>
+            <button class="theme-option" data-theme="blue-light">
+                <i class="fas fa-water"></i>
+                <span>Blue Light</span>
+            </button>
+            <button class="theme-option" data-theme="warm-light">
+                <i class="fas fa-fire"></i>
+                <span>Warm Light</span>
+            </button>
         </div>
     </div>
+
+    <!-- ========== DASHBOARD SECTION ========== -->
+    <section id="dashboard" class="content-section active">
+        <!-- Your existing dashboard HTML here - EXACTLY as you had it -->
+        <div class="dashboard-welcome">
+            <div class="dashboard-welcome-content">
+                <h2>Welcome Back, Administrator!</h2>
+                <p>Here's what's happening with your TEE College today.</p>
+                <div class="dashboard-date">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span id="currentDate"></span>
+                </div>
+            </div>
+        </div>
     
     <!-- Statistics Grid -->
     <div class="dashboard-stats-grid">
@@ -2438,7 +2462,65 @@
             }
         }
     });
+    // Theme Toggle Functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const themeToggle = document.getElementById('themeToggle');
+    const themeOptions = document.querySelectorAll('.theme-option');
     
+    // Set initial theme
+    const savedTheme = localStorage.getItem('teeTheme') || 'default';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeButton(savedTheme);
+    
+    // Set active option based on saved theme
+    themeOptions.forEach(option => {
+        if (option.getAttribute('data-theme') === savedTheme) {
+            option.classList.add('active');
+        } else {
+            option.classList.remove('active');
+        }
+    });
+    
+    // Theme options click handler
+    themeOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            const theme = this.getAttribute('data-theme');
+            
+            // Update active state
+            themeOptions.forEach(opt => opt.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Apply theme
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('teeTheme', theme);
+            updateThemeButton(theme);
+        });
+    });
+    
+    function updateThemeButton(theme) {
+        const icon = themeToggle.querySelector('i:first-child');
+        const text = themeToggle.querySelector('span');
+        
+        if (theme === 'default') {
+            icon.className = 'fas fa-sun';
+            text.textContent = 'Light Theme';
+        } else if (theme === 'blue-light') {
+            icon.className = 'fas fa-water';
+            text.textContent = 'Blue Theme';
+        } else if (theme === 'warm-light') {
+            icon.className = 'fas fa-fire';
+            text.textContent = 'Warm Theme';
+        }
+    }
+});
+
+// Optional: Close dropdown when clicking outside
+document.addEventListener('click', function(event) {
+    const themeContainer = document.querySelector('.theme-toggle-container');
+    if (!themeContainer.contains(event.target)) {
+        themeContainer.querySelector('.theme-dropdown').style.display = 'none';
+    }
+});
     // Add this JavaScript fallback
     if (typeof window !== 'undefined') {
         // Try to get from app first, then fallback to global
