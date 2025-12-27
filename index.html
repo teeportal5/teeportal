@@ -687,143 +687,147 @@
         
         <form id="studentForm" class="modal-form">
             <div class="form-scroll">
-                <!-- Registration Section -->
-                <div class="form-section sticky">
-                    <div class="section-header">
-                        <h4><i class="fas fa-id-card"></i> Registration Details</h4>
-                        <span class="required-indicator">* Required</span>
-                    </div>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>
-                                Registration Number *
-                                <span class="form-hint" id="regNumberFormat">Auto-generated</span>
-                            </label>
-                            <div class="input-with-action">
-                                <input type="text" id="studentRegNumber" 
-                                       class="form-control reg-number-display" 
-                                       required readonly 
-                                       placeholder="Will be auto-generated">
-                                <button type="button" class="btn-action" 
-                                        onclick="app.students?.generateRegNumber()"
-                                        title="Generate new number">
-                                    <i class="fas fa-redo"></i>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Registration Date</label>
-                            <input type="date" id="studentRegDate" 
-                                   class="form-control" 
-                                   value="<?php echo date('Y-m-d'); ?>">
-                        </div>
-                    </div>
-                </div>
+              <!-- Registration Section - COMPACT FIXED -->
+<div class="form-section sticky">
+    <div class="section-header">
+        <h4><i class="fas fa-id-card"></i> Registration Details</h4>
+    </div>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>
+                Registration Number
+                <span class="auto-generated-badge">Auto-generated</span>
+            </label>
+            <div class="input-with-prefix">
+                <div class="input-prefix" id="regNumberFormat">REG-2024-###</div>
+                <input type="text" 
+                       id="studentRegNumber" 
+                       class="form-control" 
+                       readonly 
+                       placeholder="Will be auto-generated">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>Registration Date</label>
+            <input type="date" 
+                   id="studentRegDate" 
+                   class="form-control" 
+                   value="<?php echo date('Y-m-d'); ?>">
+        </div>
+    </div>
+</div>
 
-                <!-- Student Information -->
-                <div class="form-section">
-                    <div class="section-header">
-                        <h4><i class="fas fa-user"></i> Student Information</h4>
-                    </div>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>Full Name *</label>
-                            <input type="text" id="studentName" class="form-control" 
-                                   required placeholder="John Doe">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Email Address *</label>
-                            <input type="email" id="studentEmail" class="form-control" 
-                                   required placeholder="john.doe@example.com">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Phone Number *</label>
-                            <div class="input-with-prefix">
-                                <span class="input-prefix">+254</span>
-                                <input type="tel" id="studentPhone" class="form-control" 
-                                       required placeholder="7XX XXX XXX">
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>ID/Passport Number</label>
-                            <input type="text" id="studentIdNumber" class="form-control" 
-                                   placeholder="National ID or Passport">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Gender</label>
-                            <select id="studentGender" class="form-control">
-                                <option value="">Select Gender</option>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Academic Information -->
-                <div class="form-section">
-                    <div class="section-header">
-                        <h4><i class="fas fa-graduation-cap"></i> Academic Information</h4>
-                    </div>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>Study Centre *</label>
-                            <select id="studentCentre" class="form-control" required>
-                                <option value="">Select Centre</option>
-                                <!-- Centres will be loaded -->
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Program *</label>
-                            <select id="studentProgram" class="form-control" required>
-                                <option value="">Select Program</option>
-                                <!-- Programs will be loaded -->
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Intake Year *</label>
-                            <select id="studentIntake" class="form-control" required>
-                                <option value="">Select Intake Year</option>
-                                <!-- Years will be populated -->
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Status *</label>
-                            <select id="studentStatus" class="form-control" required>
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                                <option value="suspended">Suspended</option>
-                                <option value="graduated">Graduated</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
+<!-- Student Information -->
+<div class="form-section">
+    <div class="section-header">
+        <h4><i class="fas fa-user"></i> Student Information</h4>
+    </div>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Full Name *</label>
+            <input type="text" 
+                   id="studentName" 
+                   class="form-control" 
+                   required 
+                   placeholder="John Doe">
+        </div>
+        
+        <div class="form-group">
+            <label>Email Address *</label>
+            <input type="email" 
+                   id="studentEmail" 
+                   class="form-control" 
+                   required 
+                   placeholder="john.doe@example.com">
+        </div>
+        
+        <div class="form-group">
+            <label>Phone Number *</label>
+            <div class="input-with-prefix">
+                <span class="input-prefix">+254</span>
+                <input type="tel" 
+                       id="studentPhone" 
+                       class="form-control" 
+                       required 
+                       placeholder="7XX XXX XXX">
             </div>
-            
-            <!-- Fixed Footer -->
-            <div class="modal-footer">
-                <div class="footer-left">
-                    <span class="form-status" id="formStatus"></span>
-                </div>
-                <div class="footer-right">
-                    <button type="button" class="btn btn-outline" data-modal-close>
-                        Cancel
-                    </button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-check"></i>
-                        <span id="submitButtonText">Register Student</span>
-                    </button>
-                </div>
-            </div>
-        </form>
+        </div>
+        
+        <div class="form-group">
+            <label>ID/Passport Number</label>
+            <input type="text" 
+                   id="studentIdNumber" 
+                   class="form-control" 
+                   placeholder="National ID or Passport">
+        </div>
+        
+        <div class="form-group">
+            <label>Gender</label>
+            <select id="studentGender" class="form-control">
+                <option value="">Select Gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- Academic Information -->
+<div class="form-section">
+    <div class="section-header">
+        <h4><i class="fas fa-graduation-cap"></i> Academic Information</h4>
+    </div>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Study Centre *</label>
+            <select id="studentCentre" class="form-control" required>
+                <option value="">Select Centre</option>
+                <!-- Centres will be loaded -->
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Program *</label>
+            <select id="studentProgram" class="form-control" required>
+                <option value="">Select Program</option>
+                <!-- Programs will be loaded -->
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Intake Year *</label>
+            <select id="studentIntake" class="form-control" required>
+                <option value="">Select Intake Year</option>
+                <!-- Years will be populated -->
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Status *</label>
+            <select id="studentStatus" class="form-control" required>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="suspended">Suspended</option>
+                <option value="graduated">Graduated</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- Fixed Footer -->
+<div class="modal-footer">
+    <div class="footer-left">
+        <span class="form-status" id="formStatus"></span>
+    </div>
+    <div class="footer-right">
+        <button type="button" class="btn btn-outline" data-modal-close>
+            Cancel
+        </button>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-check"></i>
+            <span id="submitButtonText">Register Student</span>
+        </button>
     </div>
 </div>
 
