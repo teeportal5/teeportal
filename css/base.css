@@ -7,6 +7,9 @@
 /* CSS VARIABLES - NEW COLOR SCHEME */
 /* ==================== */
 :root {
+    /* ADD THIS LINE HERE ↓↓↓ */
+    color-scheme: light only !important;
+   
     /* PRIMARY COLOR PALETTE - Professional Blue */
     --primary: #2563eb;
     --primary-dark: #1d4ed8;
@@ -164,6 +167,8 @@ html {
     height: 100%;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+   /* ADD THIS LINE HERE ↓↓↓ */
+    color-scheme: light only !important;
 }
 
 body {
@@ -174,6 +179,8 @@ body {
     min-height: 100vh;
     overflow-x: hidden;
     position: relative;
+    /* ADD THIS LINE HERE ↓↓↓ */
+    color-scheme: light only !important;
 }
 
 /* Background pattern */
@@ -670,6 +677,66 @@ small {
     border-top-color: var(--primary);
     border-radius: 50%;
     animation: spin 1s linear infinite;
+}
+/* ==================== */
+/* FORCE LIGHT MODE - OVERRIDE DARK MODE */
+/* ==================== */
+@media (prefers-color-scheme: dark) {
+    :root, html, body {
+        color-scheme: light only !important;
+    }
+    
+    body {
+        background: var(--bg-body) !important;
+        color: var(--text-primary) !important;
+    }
+}
+
+/* ==================== */
+/* FORCE LIGHT MODE ON FORM ELEMENTS */
+/* ==================== */
+input,
+textarea,
+select,
+button {
+    color-scheme: light only !important;
+}
+
+.card,
+.modal-content,
+.dropdown-menu,
+.table,
+.pagination {
+    background-color: var(--bg-surface) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border) !important;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="search"],
+input[type="date"],
+textarea,
+select {
+    background-color: white !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-dark) !important;
+}
+
+::placeholder {
+    color: var(--text-muted) !important;
+    opacity: 1 !important;
+}
+
+::-webkit-scrollbar-track {
+    background-color: var(--gray-100) !important;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--gray-400) !important;
 }
 
 /* ==================== */
