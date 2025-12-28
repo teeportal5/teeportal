@@ -2130,26 +2130,83 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
     
-    <!-- ========== TRANSCRIPT GENERATION SECTION ========== -->
+  <!-- ========== TRANSCRIPT GENERATION SECTION ========== -->
 <div id="transcriptSection" class="card mb-4">
     <div class="card-header">
-        <h5><i class="fas fa-graduation-cap"></i> Transcript Generation</h5>
+        <h5><i class="fas fa-graduation-cap"></i> Bulk Transcript Generation</h5>
     </div>
     <div class="card-body">
-        <div class="row mb-3">
-            <div class="col-md-4">
-                <button class="btn btn-primary w-100" onclick="window.app?.transcripts?.openTranscriptModal()">
-                    <i class="fas fa-search"></i> Select Student for Transcript
-                </button>
+        <!-- Main Bulk Action -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <div class="display-1 text-primary mb-3">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h4>Generate Multiple Transcripts</h4>
+                        <p class="text-muted">Select multiple students and generate their transcripts in batch</p>
+                        <button class="btn btn-primary btn-lg mt-3" onclick="window.app?.transcripts?.generateStudentTranscriptPrompt()">
+                            <i class="fas fa-graduation-cap"></i> Open Student Selector
+                        </button>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-8">
-                <div class="alert alert-info mb-0">
-                    <i class="fas fa-info-circle"></i> Click the button above to open student selector and generate transcripts
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5><i class="fas fa-info-circle"></i> How to Generate Transcripts</h5>
+                        <ol class="mt-3">
+                            <li>Click "Open Student Selector"</li>
+                            <li>Select students using checkboxes</li>
+                            <li>Choose export format (PDF/Excel/CSV)</li>
+                            <li>Click "Generate Transcripts"</li>
+                            <li>Download will start automatically</li>
+                        </ol>
+                        <div class="alert alert-info mt-3">
+                            <i class="fas fa-lightbulb"></i> <strong>Tip:</strong> Use filters to find specific students by program or intake year
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        
-        <!-- Current Selection Display -->
+
+        <!-- Quick Actions -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="fas fa-bolt"></i> Quick Actions</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-primary w-100" onclick="window.app?.transcripts?.loadSampleTranscript()">
+                                    <i class="fas fa-file-alt"></i> Load Sample
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-success w-100" onclick="window.app?.transcripts?.generateTranscriptsBatch('graduated', 'pdf')">
+                                    <i class="fas fa-user-graduate"></i> Graduated Students
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-info w-100" onclick="window.app?.transcripts?.generateTranscriptsBatch('active', 'pdf')">
+                                    <i class="fas fa-user-check"></i> Active Students
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-warning w-100" onclick="window.app?.transcripts?.generateTranscriptsBatch('all', 'excel')">
+                                    <i class="fas fa-table"></i> Export All to Excel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Selection -->
         <div id="selectedStudentInfo" class="alert alert-success" style="display: none;">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
@@ -2162,76 +2219,180 @@ document.addEventListener('DOMContentLoaded', function() {
                 </button>
             </div>
         </div>
-        
-        <!-- Transcript Options -->
-        <div class="row">
-            <div class="col-md-4">
-                <div class="mb-3">
-                    <label class="form-label">Format</label>
-                    <select id="transcriptFormat" class="form-select">
-                        <option value="pdf">PDF Transcript</option>
-                        <option value="print">Print Version</option>
-                        <option value="digital">Digital Copy</option>
-                    </select>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="mb-3">
-                    <label class="form-label">Include in Transcript</label>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="includeGrades" checked>
-                        <label class="form-check-label" for="includeGrades">
-                            Grades & Marks
-                        </label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="includeGPA" checked>
-                        <label class="form-check-label" for="includeGPA">
-                            GPA Calculation
-                        </label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="includeSignatures" checked>
-                        <label class="form-check-label" for="includeSignatures">
-                            Official Signatures
-                        </label>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="mb-3">
-                    <label class="form-label">Grading System</label>
-                    <select id="gradingSystem" class="form-select">
-                        <option value="distinction">Distinction/Credit/Pass/Fail</option>
-                        <option value="percentage">Percentage Only</option>
-                        <option value="both">Both Grades & Percentage</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Transcript Actions -->
-        <div class="d-flex gap-2 justify-content-end">
-            <button class="btn btn-outline-primary" onclick="window.app?.transcripts?.loadSampleTranscript()">
-                <i class="fas fa-file-alt"></i> Load Sample
-            </button>
-            <button class="btn btn-primary" onclick="window.app?.transcripts?.previewTranscript()">
-                <i class="fas fa-eye"></i> Preview Transcript
-            </button>
-            <button class="btn btn-success" onclick="window.app?.transcripts?.generateTranscript()">
-                <i class="fas fa-file-pdf"></i> Generate PDF
-            </button>
-        </div>
-        
+
         <!-- Transcript Preview Area -->
         <div id="transcriptPreview" class="mt-4" style="display: none;">
-            <!-- Preview content will be loaded here -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-eye"></i> Transcript Preview</h6>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary me-2" onclick="window.app?.transcripts?.downloadCurrentTranscript()">
+                            <i class="fas fa-download"></i> Download
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="window.app?.transcripts?.emailTranscript()">
+                            <i class="fas fa-envelope"></i> Email
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="transcriptPreviewContent">
+                        <!-- Preview will be loaded here -->
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-graduation-cap fa-3x mb-3"></i>
+                            <p>No transcript preview available</p>
+                            <p class="small">Generate a transcript to see preview here</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transcript History -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6><i class="fas fa-history"></i> Recent Transcripts</h6>
+            </div>
+            <div class="card-body">
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p class="mt-2">Transcript history will appear here</p>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- TRANSCRIPT MODAL (Will be managed by transcripts.js) -->
-<div id="transcriptModal" class="modal" style="display: none;"></div>
+<!-- JavaScript to enhance bulk functionality -->
+<script>
+// Add these helper functions to your app.js or keep them here
+if (!window.app) window.app = {};
+if (!window.app.transcripts) window.app.transcripts = {};
+
+// Bulk generation shortcuts
+window.app.transcripts.generateTranscriptsBatch = async function(filter = 'all', format = 'pdf') {
+    try {
+        console.log(`Generating ${filter} transcripts in ${format} format...`);
+        
+        // Show loading
+        const toast = document.createElement('div');
+        toast.className = 'alert alert-info';
+        toast.innerHTML = `
+            <i class="fas fa-spinner fa-spin"></i>
+            Fetching ${filter} students...
+        `;
+        document.getElementById('transcriptPreviewContent').innerHTML = '';
+        document.getElementById('transcriptPreview').style.display = 'block';
+        document.getElementById('transcriptPreviewContent').appendChild(toast);
+        
+        // Get students based on filter
+        let students = [];
+        try {
+            students = await this.db.getStudents();
+            
+            if (filter === 'graduated') {
+                students = students.filter(s => s.status === 'graduated');
+            } else if (filter === 'active') {
+                students = students.filter(s => s.status === 'active');
+            }
+            // 'all' includes all students
+            
+            if (students.length === 0) {
+                throw new Error(`No ${filter} students found`);
+            }
+            
+        } catch (error) {
+            document.getElementById('transcriptPreviewContent').innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Error: ${error.message}
+                </div>
+            `;
+            return;
+        }
+        
+        // Update message
+        toast.innerHTML = `
+            <i class="fas fa-spinner fa-spin"></i>
+            Generating ${students.length} transcripts in ${format.toUpperCase()} format...
+            <div class="progress mt-2">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+            </div>
+        `;
+        
+        // Generate transcripts
+        const studentIds = students.map(s => s.id);
+        const options = {
+            includeAllAssessments: true,
+            includeGPA: true,
+            includeRemarks: true
+        };
+        
+        const results = await this.generateTranscriptsBatch(studentIds, format, options);
+        
+        // Show results
+        const successful = results.filter(r => r.success);
+        const failed = results.filter(r => !r.success);
+        
+        let resultHtml = `
+            <div class="alert ${failed.length > 0 ? 'alert-warning' : 'alert-success'}">
+                <i class="fas ${failed.length > 0 ? 'fa-exclamation-triangle' : 'fa-check-circle'}"></i>
+                <strong>Batch Generation Complete</strong><br>
+                <small>Successfully generated: ${successful.length} transcripts<br>
+                Failed: ${failed.length} transcripts</small>
+            </div>
+        `;
+        
+        if (failed.length > 0) {
+            resultHtml += `
+                <div class="alert alert-danger">
+                    <h6>Failed Transcripts:</h6>
+                    <ul class="small">
+                        ${failed.map(f => `<li>Student ID: ${f.studentId} - ${f.error}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        document.getElementById('transcriptPreviewContent').innerHTML = resultHtml;
+        
+        // Auto-scroll to preview
+        document.getElementById('transcriptPreview').scrollIntoView({ behavior: 'smooth' });
+        
+    } catch (error) {
+        console.error('Error in bulk generation:', error);
+        document.getElementById('transcriptPreviewContent').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle"></i>
+                Error generating transcripts: ${error.message}
+            </div>
+        `;
+    }
+};
+
+// Simple toast function if not in transcripts.js
+window.app.transcripts.showToast = function(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+        <span>${message}</span>
+        <button onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999;';
+        document.body.appendChild(container);
+    }
+    
+    container.appendChild(toast);
+    setTimeout(() => { if (toast.parentElement) toast.remove(); }, 5000);
+};
+</script>
     
     <!-- BULK EXPORT -->
     <div class="card mb-4">
