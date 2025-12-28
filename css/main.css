@@ -1,5 +1,5 @@
 /* ==================== */
-/* TEEPportal MAIN CSS */
+/* TEEPportal MAIN CSS - FIXED VERSION */
 /* Imports all modules */
 /* ==================== */
 
@@ -25,6 +25,291 @@
 @import url('modules/settings.css');
 
 /* ==================== */
+/* CRITICAL FIXES FOR SECTION SWITCHING */
+/* ==================== */
+
+/* DON'T override base.css section styles - Remove these conflicting rules: */
+/*
+.content-section {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    position: absolute !important;
+    width: 100% !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    transition: opacity 0.3s ease !important;
+}
+*/
+
+/* Let base.css handle .active state */
+/*
+.content-section.active {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    position: relative !important;
+    height: auto !important;
+    overflow: visible !important;
+    animation: fadeIn 0.5s ease forwards !important;
+}
+*/
+
+/* ==================== */
+/* MAIN HEADER STYLES */
+/* ==================== */
+.main-header {
+    background: white;
+    padding: 0 2rem;
+    height: var(--header-height);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+}
+
+/* ==================== */
+/* SECTION HEADERS */
+/* ==================== */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid var(--border);
+}
+
+.section-header h1,
+.section-header h2 {
+    margin: 0;
+    font-weight: 600;
+}
+
+/* ==================== */
+/* FILTER BAR */
+/* ==================== */
+.filter-bar {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding: 1.25rem;
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 200px;
+}
+
+.filter-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+/* ==================== */
+/* LAYOUT GRIDS */
+/* ==================== */
+
+/* Cards Grid */
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Charts Grid */
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* ==================== */
+/* LOADING STATES */
+/* ==================== */
+
+/* Loading Spinner */
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--gray-300);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.spinner-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+    width: 100%;
+}
+
+/* Loading Skeleton */
+.skeleton {
+    background: linear-gradient(90deg, var(--gray-200) 25%, var(--gray-300) 50%, var(--gray-200) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--radius);
+}
+
+.skeleton-text {
+    height: 1rem;
+    margin-bottom: 0.5rem;
+    border-radius: var(--radius-sm);
+}
+
+.skeleton-title {
+    height: 1.5rem;
+    margin-bottom: 1rem;
+    width: 60%;
+}
+
+/* ==================== */
+/* EMPTY STATES */
+/* ==================== */
+.empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+    border: 2px dashed var(--border);
+    color: var(--text-muted);
+}
+
+.empty-state-icon {
+    font-size: 3rem;
+    color: var(--gray-400);
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-state-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+}
+
+.empty-state-description {
+    margin-bottom: 1.5rem;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* ==================== */
+/* ACTION BAR */
+/* ==================== */
+.action-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: var(--bg-surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+}
+
+/* ==================== */
+/* RESPONSIVE DESIGN */
+/* ==================== */
+@media (max-width: 1200px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .main-header {
+        padding: 0 1.5rem;
+    }
+}
+
+@media (max-width: 992px) {
+    .cards-grid {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
+    
+    .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filter-group {
+        width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .cards-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .stats-grid,
+    .charts-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .action-bar {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .main-header {
+        padding: 0 1rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .filter-bar {
+        padding: 1rem;
+    }
+    
+    .empty-state {
+        padding: 2rem 1rem;
+    }
+    
+    .empty-state-icon {
+        font-size: 2.5rem;
+    }
+}
+
+/* ==================== */
 /* ANIMATIONS */
 /* ==================== */
 @keyframes fadeIn {
@@ -47,174 +332,54 @@
     50% { opacity: 0.5; }
 }
 
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
 /* ==================== */
-/* OVERRIDES & UTILITIES */
+/* UTILITY CLASSES */
 /* ==================== */
+.text-center { text-align: center !important; }
+.text-left { text-align: left !important; }
+.text-right { text-align: right !important; }
 
-/* Ensure content sections display correctly */
-.content-section {
-    display: none;
-    padding: 2rem;
-    animation: fadeIn 0.5s ease;
-}
+.w-100 { width: 100% !important; }
+.h-100 { height: 100% !important; }
 
-.content-section.active {
-    display: block;
-}
+.gap-1 { gap: 0.5rem !important; }
+.gap-2 { gap: 1rem !important; }
+.gap-3 { gap: 1.5rem !important; }
+.gap-4 { gap: 2rem !important; }
 
-/* Main Header */
-.main-header {
-    background: white;
-    padding: 0 2rem;
-    height: var(--header-height);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    box-shadow: var(--shadow);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--gray-200);
-}
-
-/* Section Headers */
-.section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-    padding-bottom: 1rem;
-    border-bottom: 2px solid var(--gray-200);
-}
-
-/* Filter Bar */
-.filter-bar {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    padding: 1rem;
-    background: white;
-    border-radius: var(--border-radius);
-    box-shadow: var(--shadow);
-    border: 1px solid var(--gray-200);
-}
-
-/* Cards Grid */
-.cards-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1.5rem;
-}
-
-/* Stats Grid */
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-}
-
-/* Charts Grid */
-.charts-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-}
-
-/* Loading Spinner */
-.spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid var(--gray-300);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .cards-grid {
-        grid-template-columns: 1fr;
+/* ==================== */
+/* PRINT STYLES */
+/* ==================== */
+@media print {
+    .main-header,
+    .sidebar,
+    .action-bar,
+    .filter-bar,
+    .btn:not(.print-only) {
+        display: none !important;
     }
     
-    .filter-bar {
-        flex-direction: column;
+    .content-section {
+        display: block !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
     
-    .stats-grid,
-    .charts-grid {
-        grid-template-columns: 1fr;
+    body {
+        background: white !important;
     }
-}
-/* ==================== */
-/* CRITICAL FIXES FOR SECTION SWITCHING */
-/* ==================== */
-
-/* Hide ALL sections by default */
-.content-section {
-    display: none !important;
-    opacity: 0 !important;
-    visibility: hidden !important;
-    position: absolute !important;
-    width: 100% !important;
-    height: 0 !important;
-    overflow: hidden !important;
-    transition: opacity 0.3s ease !important;
-}
-
-/* Show ONLY the active section */
-.content-section.active {
-    display: block !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-    position: relative !important;
-    height: auto !important;
-    overflow: visible !important;
-    animation: fadeIn 0.5s ease forwards !important;
-}
-
-/* Dashboard specific styles */
-#dashboard.content-section {
-    padding: 0 !important;
-}
-
-#dashboard.content-section.active {
-    padding: 0 !important;
-}
-
-/* Force all active sections to be visible */
-.content-section.active {
-    background: white !important;
-    border-radius: var(--border-radius) !important;
-    box-shadow: var(--shadow) !important;
-    margin: 20px !important;
-    padding: 20px !important;
-    min-height: calc(100vh - 120px) !important;
-}
-
-/* Ensure main content shows the active section */
-.main-content {
-    position: relative !important;
-    min-height: 100vh !important;
-}
-
-/* Make sure sidebar doesn't hide content */
-.sidebar {
-    position: fixed !important;
-    z-index: 100 !important;
-}
-
-/* Animation for section transition */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
+    
+    * {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
     }
 }
