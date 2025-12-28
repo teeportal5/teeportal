@@ -696,107 +696,107 @@ class StudentManager {
         // Update counters
         this._updateCounters();
     }
-    
     /**
-     * Create student row - FIXED ACTION BUTTONS
-     */
-    _createStudentRow(student, index) {
-        const programDisplay = this._getProgramDisplayName(student.program);
-        const centreDisplay = this._getCentreDisplayName(student.centre_id, student.centre);
-        const status = student.status || 'active';
-        const hasEmail = student.email && student.email.trim() !== '';
-        const hasPhone = student.phone && student.phone.trim() !== '';
-        
-        return `
-            <tr data-student-id="${this._escapeAttr(student.id)}" 
-                data-student-reg="${this._escapeAttr(student.reg_number)}"
-                class="${status === 'inactive' ? 'inactive-student' : ''}">
-                
-                <td style="width: 40px; text-align: center; padding: 8px;">
-                    <input type="checkbox" data-student-id="${student.id}" style="margin: 0; width: 16px; height: 16px;">
-                </td>
-                
-                <td style="width: 120px;">
-                    <strong class="student-id">${this._escapeHtml(student.reg_number)}</strong>
-                </td>
-                
-                <td style="min-width: 280px;">
-                    <div class="student-info-enhanced">
-                        <div class="student-avatar" style="background-color: ${this._getAvatarColor(student.full_name)}">
-                            ${this._getStudentInitials(student.full_name)}
-                        </div>
-                        <div class="student-details">
-                            <div class="student-name">
-                                <strong>${this._escapeHtml(student.full_name)}</strong>
-                                ${!hasEmail ? '<span class="warning-badge" title="No email"><i class="fas fa-exclamation-circle"></i></span>' : ''}
-                            </div>
-                            <div class="student-meta">
-                                ${student.email ? `
-                                    <span class="student-email">
-                                        <i class="fas fa-envelope"></i> ${this._escapeHtml(student.email)}
-                                    </span>
-                                ` : ''}
-                                ${student.phone ? `
-                                    <span class="student-phone">
-                                        <i class="fas fa-phone"></i> ${this._escapeHtml(student.phone)}
-                                    </span>
-                                ` : ''}
-                            </div>
-                        </div>
+ * Create student row - FIXED ACTION BUTTONS
+ */
+_createStudentRow(student, index) {
+    const programDisplay = this._getProgramDisplayName(student.program);
+    const centreDisplay = this._getCentreDisplayName(student.centre_id, student.centre);
+    const status = student.status || 'active';
+    const hasEmail = student.email && student.email.trim() !== '';
+    const hasPhone = student.phone && student.phone.trim() !== '';
+    
+    return `
+        <tr data-student-id="${this._escapeAttr(student.id)}" 
+            data-student-reg="${this._escapeAttr(student.reg_number)}"
+            class="${status === 'inactive' ? 'inactive-student' : ''}">
+            
+            <td style="width: 40px; text-align: center; padding: 8px;">
+                <input type="checkbox" data-student-id="${student.id}" style="margin: 0; width: 16px; height: 16px;">
+            </td>
+            
+            <td style="width: 120px;">
+                <strong class="student-id">${this._escapeHtml(student.reg_number)}</strong>
+            </td>
+            
+            <td style="min-width: 280px;">
+                <div class="student-info-enhanced">
+                    <div class="student-avatar" style="background-color: ${this._getAvatarColor(student.full_name)}">
+                        ${this._getStudentInitials(student.full_name)}
                     </div>
-                </td>
-                
-                <td style="width: 180px;">
-                    <div class="academic-info">
-                        <div class="program-badge">
-                            ${this._escapeHtml(programDisplay)}
+                    <div class="student-details">
+                        <div class="student-name">
+                            <strong>${this._escapeHtml(student.full_name)}</strong>
+                            ${!hasEmail ? '<span class="warning-badge" title="No email"><i class="fas fa-exclamation-circle"></i></span>' : ''}
                         </div>
-                        <div class="year-level">
-                            Year ${student.year_level || '1'}
+                        <div class="student-meta">
+                            ${student.email ? `
+                                <span class="student-email">
+                                    <i class="fas fa-envelope"></i> ${this._escapeHtml(student.email)}
+                                </span>
+                            ` : ''}
+                            ${student.phone ? `
+                                <span class="student-phone">
+                                    <i class="fas fa-phone"></i> ${this._escapeHtml(student.phone)}
+                                </span>
+                            ` : ''}
                         </div>
                     </div>
-                </td>
-                
-                <td style="width: 150px;">
-                    <div class="contact-info">
-                        ${centreDisplay ? `
-                            <div class="centre-info">
-                                <i class="fas fa-school"></i> ${this._escapeHtml(centreDisplay)}
-                            </div>
-                        ` : ''}
+                </div>
+            </td>
+            
+            <td style="width: 180px;">
+                <div class="academic-info">
+                    <div class="program-badge">
+                        ${this._escapeHtml(programDisplay)}
                     </div>
-                </td>
-                
-                <td style="width: 100px;">
-                    <span class="status-badge status-${status}">
-                        <i class="fas fa-circle"></i>
-                        ${status.charAt(0).toUpperCase() + status.slice(1)}
-                    </span>
-                </td>
-                
-                <td style="width: 200px;" class="action-buttons">
-                    <div class="btn-group" style="display: flex; gap: 6px; justify-content: center; flex-wrap: nowrap; min-width: 160px;">
-                        <button class="btn-action btn-view" data-id="${this._escapeAttr(student.id)}" 
-                                title="View Details" onclick="app.students?.viewStudent('${student.id}')">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="btn-action btn-edit" data-id="${this._escapeAttr(student.id)}" 
-                                title="Edit Student" onclick="app.students?.editStudent('${student.id}')">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn-action btn-marks" data-id="${this._escapeAttr(student.id)}" 
-                                title="Enter Marks" onclick="app.students?.enterMarks('${student.id}')">
-                            <i class="fas fa-chart-bar"></i>
-                        </button>
-                        <button class="btn-action btn-delete" data-id="${this._escapeAttr(student.id)}" 
-                                title="Delete Student" onclick="app.students?.deleteStudent('${student.id}')">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                    <div class="year-level">
+                        Year ${student.year_level || '1'}
                     </div>
-                </td>
-            </tr>
-        `;
-    }
+                </div>
+            </td>
+            
+            <td style="width: 150px;">
+                <div class="contact-info">
+                    ${centreDisplay ? `
+                        <div class="centre-info">
+                            <i class="fas fa-school"></i> ${this._escapeHtml(centreDisplay)}
+                        </div>
+                    ` : ''}
+                </div>
+            </td>
+            
+            <td style="width: 100px;">
+                <span class="status-badge status-${status}">
+                    <i class="fas fa-circle"></i>
+                    ${status.charAt(0).toUpperCase() + status.slice(1)}
+                </span>
+            </td>
+            
+            <!-- FIXED: Remove the fixed width from this cell -->
+            <td class="action-buttons">
+                <div class="btn-group">
+                    <button class="btn-action btn-view" data-id="${this._escapeAttr(student.id)}" 
+                            title="View Details" onclick="app.students?.viewStudent('${student.id}')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn-action btn-edit" data-id="${this._escapeAttr(student.id)}" 
+                            title="Edit Student" onclick="app.students?.editStudent('${student.id}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-action btn-marks" data-id="${this._escapeAttr(student.id)}" 
+                            title="Enter Marks" onclick="app.students?.enterMarks('${student.id}')">
+                        <i class="fas fa-chart-bar"></i>
+                    </button>
+                    <button class="btn-action btn-delete" data-id="${this._escapeAttr(student.id)}" 
+                            title="Delete Student" onclick="app.students?.deleteStudent('${student.id}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `;
+}
     
     /**
      * Update pagination controls
