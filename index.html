@@ -2595,8 +2595,7 @@ window.app.transcripts.showToast = function(message, type = 'info') {
     </div>
 </section>
 
-<!-- ========== CENTRE MODAL ========== -->
-<!-- Centre Modal - SIMPLE VERSION -->
+<!-- ========== CENTRE MODAL - CLEAN & SIMPLE ========== -->
 <div id="centreModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -2605,36 +2604,68 @@ window.app.transcripts.showToast = function(message, type = 'info') {
         </div>
         <div class="modal-body">
             <form id="centreForm" onsubmit="return saveCentre(event)">
-                <!-- Only two required fields -->
-                <div class="form-section">
-                    <h4><i class="fas fa-map-marker-alt"></i> Centre Information</h4>
-                    
-                    <div class="form-row">
-                        <div class="form-group full-width">
-                            <label for="centreName">Centre Name *</label>
-                            <input type="text" id="centreName" name="centreName" required 
-                                   placeholder="e.g., Nairobi Headquarters" maxlength="100">
-                        </div>
+                <!-- Centre Name -->
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label for="centreName">Centre Name *</label>
+                        <input type="text" id="centreName" name="centreName" required 
+                               placeholder="e.g., Nairobi Headquarters"
+                               maxlength="100">
                     </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group full-width">
-                            <label for="centreCounty">County *</label>
-                            <select id="centreCounty" name="centreCounty" required>
-                                <option value="">Select County</option>
-                                <!-- Counties will be populated dynamically -->
-                            </select>
-                        </div>
+                </div>
+                
+                <!-- Centre Code (Optional) -->
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label for="centreCode">Centre Code</label>
+                        <input type="text" id="centreCode" name="centreCode" 
+                               placeholder="e.g., NBI001 (Optional)"
+                               maxlength="20">
                     </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group full-width">
-                            <label for="centreStatus">Status</label>
-                            <select id="centreStatus" name="centreStatus">
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                            </select>
-                        </div>
+                </div>
+                
+                <!-- County (Typable with suggestions) -->
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label for="centreCounty">County *</label>
+                        <input type="text" 
+                               id="centreCounty" 
+                               name="centreCounty" 
+                               list="countySuggestions"
+                               required
+                               placeholder="Type county name"
+                               autocomplete="off">
+                        <datalist id="countySuggestions">
+                            <!-- Will be populated from existing centres -->
+                        </datalist>
+                    </div>
+                </div>
+                
+                <!-- Region (Typable with suggestions) -->
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label for="centreRegion">Region</label>
+                        <input type="text" 
+                               id="centreRegion" 
+                               name="centreRegion" 
+                               list="regionSuggestions"
+                               placeholder="Type region name"
+                               autocomplete="off">
+                        <datalist id="regionSuggestions">
+                            <!-- Will be populated from existing centres -->
+                        </datalist>
+                    </div>
+                </div>
+                
+                <!-- Status -->
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label for="centreStatus">Status</label>
+                        <select id="centreStatus" name="centreStatus" class="form-control">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="pending">Pending</option>
+                        </select>
                     </div>
                 </div>
                 
@@ -2650,6 +2681,87 @@ window.app.transcripts.showToast = function(message, type = 'info') {
         </div>
     </div>
 </div>
+
+<!-- JavaScript to populate datalists from existing centres -->
+<script>
+// Function to update datalist suggestions
+function updateCentreDatalists() {
+    if (!window.app?.centres?.centres) return;
+    
+    const centres = window.app.centres.centres;
+    
+    // Get unique counties and regions
+    const counties = [...new Set(centres.map(c => c.county).filter(Boolean))];
+    const regions = [...new Set(centres.map(c => c.region).filter(Boolean))];
+    
+    // Update county datalist
+    const countyDatalist = document.getElementById('countySuggestions');
+    if (countyDatalist) {
+        countyDatalist.innerHTML = counties.map(county => 
+            `<option value="${county}">${county}</option>`
+        ).join('');
+    }
+    
+    // Update region datalist
+    const regionDatalist = document.getElementById('regionSuggestions');
+    if (regionDatalist) {
+        regionDatalist.innerHTML = regions.map(region => 
+            `<option value="${region}">${region}</option>`
+        ).join('');
+    }
+}
+
+// Update datalists when modal opens
+window.openCentreModal = function(centreId = null) {
+    // First update datalists
+    updateCentreDatalists();
+    
+    // Then open modal (your existing code)
+    const modal = document.getElementById('centreModal');
+    if (modal) {
+        modal.classList.add('active');
+        document.body.classList.add('modal-open');
+        
+        if (centreId) {
+            // Load existing centre data
+            if (window.app?.centres?.loadCentreData) {
+                window.app.centres.loadCentreData(centreId);
+            }
+        } else {
+            // Reset form for new centre
+            document.getElementById('centreForm')?.reset();
+            document.getElementById('centreModalTitle').textContent = 'Add New Centre';
+        }
+        
+        // Focus on first field
+        setTimeout(() => {
+            document.getElementById('centreName')?.focus();
+        }, 100);
+    }
+};
+
+// Close modal
+window.closeCentreModal = function() {
+    const modal = document.getElementById('centreModal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.classList.remove('modal-open');
+        document.getElementById('centreForm')?.reset();
+    }
+};
+
+// Save centre
+window.saveCentre = function(event) {
+    if (event) event.preventDefault();
+    
+    if (window.app?.centres?.saveCentre) {
+        window.app.centres.saveCentre();
+    } else {
+        alert('Centres module not loaded');
+    }
+    return false;
+};
+</script>
 
 <!-- Optional: Add search functionality -->
 <div class="search-box" style="margin: 20px 0; display: none;" id="centreSearchContainer">
