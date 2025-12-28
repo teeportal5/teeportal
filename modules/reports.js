@@ -1196,28 +1196,107 @@ class ReportsManager {
     }
     
     // ==================== TRANSCRIPT METHODS ====================
+
+openTranscriptModal() {
+    console.log('📄 Opening transcript modal via reports.js...');
     
-    openTranscriptModal() {
-        this.showToast('Transcript modal would open', 'info');
+    // Check if transcripts.js is loaded
+    if (window.app?.transcripts?.generateStudentTranscriptPrompt) {
+        console.log('✅ Redirecting to transcripts.js modal');
+        window.app.transcripts.generateStudentTranscriptPrompt();
+    } 
+    else if (window.app?.transcripts?.openTranscriptModal) {
+        console.log('✅ Using transcripts.js openTranscriptModal');
+        window.app.transcripts.openTranscriptModal();
     }
-    
-    previewTranscript() {
-        this.showToast('Transcript preview generated', 'info');
+    else {
+        console.warn('❌ transcripts.js not loaded, showing fallback');
+        this.showToast('Transcript module is not available. Please check if transcripts.js is loaded.', 'warning');
+        
+        // Create a simple fallback modal
+        this.createFallbackTranscriptModal();
     }
-    
-    generateTranscript() {
-        this.showToast('Transcript PDF generated', 'success');
+}
+
+previewTranscript() {
+    if (window.app?.transcripts?.previewTranscript) {
+        window.app.transcripts.previewTranscript();
+    } else {
+        this.showToast('Transcript preview not available', 'warning');
     }
-    
-    loadSampleTranscript() {
-        this.showToast('Sample transcript loaded', 'info');
+}
+
+generateTranscript() {
+    if (window.app?.transcripts?.generateTranscriptFromUI) {
+        window.app.transcripts.generateTranscriptFromUI();
+    } else if (window.app?.transcripts?.generateTranscript) {
+        window.app.transcripts.generateTranscript();
+    } else {
+        this.showToast('Transcript generation not available', 'warning');
     }
-    
-    clearSelectedStudent() {
+}
+
+loadSampleTranscript() {
+    if (window.app?.transcripts?.loadSampleTranscript) {
+        window.app.transcripts.loadSampleTranscript();
+    } else {
+        this.showToast('Sample transcript not available', 'warning');
+    }
+}
+
+clearSelectedStudent() {
+    if (window.app?.transcripts?.clearSelectedStudent) {
+        window.app.transcripts.clearSelectedStudent();
+    } else {
         const selectedStudentInfo = document.getElementById('selectedStudentInfo');
         if (selectedStudentInfo) selectedStudentInfo.style.display = 'none';
         this.showToast('Student selection cleared', 'info');
     }
+}
+
+// Fallback modal if transcripts.js isn't loaded
+createFallbackTranscriptModal() {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    `;
+    
+    modal.innerHTML = `
+        <div style="
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+        ">
+            <h3><i class="fas fa-exclamation-triangle text-warning"></i> Transcript Module Not Available</h3>
+            <p class="mt-3">The transcripts module (transcripts.js) is not loaded or has errors.</p>
+            <p>Please check:</p>
+            <ul>
+                <li>Is transcripts.js file in the modules folder?</li>
+                <li>Is it loaded after database.js?</li>
+                <li>Check browser console for errors</li>
+            </ul>
+            <div class="mt-4 text-end">
+                <button onclick="this.parentElement.parentElement.remove()" 
+                        style="padding: 8px 20px; background: #6c757d; color: white; border: none; border-radius: 5px;">
+                    Close
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
     
     // ==================== UTILITY METHODS ====================
     
