@@ -2130,105 +2130,108 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
     
-    <!-- TRANSCRIPT GENERATION -->
-    <div id="transcriptSection" class="card mb-4">
-        <div class="card-header">
-            <h5><i class="fas fa-graduation-cap"></i> Transcript Generation</h5>
+    <!-- ========== TRANSCRIPT GENERATION SECTION ========== -->
+<div id="transcriptSection" class="card mb-4">
+    <div class="card-header">
+        <h5><i class="fas fa-graduation-cap"></i> Transcript Generation</h5>
+    </div>
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <button class="btn btn-primary w-100" onclick="window.app?.transcripts?.openTranscriptModal()">
+                    <i class="fas fa-search"></i> Select Student for Transcript
+                </button>
+            </div>
+            <div class="col-md-8">
+                <div class="alert alert-info mb-0">
+                    <i class="fas fa-info-circle"></i> Click the button above to open student selector and generate transcripts
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            <div class="row mb-3">
-                <div class="col-md-4">
-                    <button class="btn btn-primary w-100" onclick="app.reports.openTranscriptModal()">
-                        <i class="fas fa-search"></i> Select Student for Transcript
-                    </button>
+        
+        <!-- Current Selection Display -->
+        <div id="selectedStudentInfo" class="alert alert-success" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>Selected Student:</strong>
+                    <span id="selectedStudentName">-</span>
+                    <span id="selectedStudentReg" class="badge bg-secondary ms-2">-</span>
                 </div>
-                <div class="col-md-8">
-                    <div class="alert alert-info mb-0">
-                        <i class="fas fa-info-circle"></i> Click the button above to open student selector and generate transcripts
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Current Selection Display -->
-            <div id="selectedStudentInfo" class="alert alert-success" style="display: none;">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <strong>Selected Student:</strong>
-                        <span id="selectedStudentName">-</span>
-                        <span id="selectedStudentReg" class="badge bg-secondary ms-2">-</span>
-                    </div>
-                    <button class="btn btn-sm btn-outline-danger" onclick="app.reports.clearSelectedStudent()">
-                        <i class="fas fa-times"></i> Clear
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Transcript Options -->
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label class="form-label">Format</label>
-                        <select id="transcriptFormat" class="form-select">
-                            <option value="pdf">PDF Transcript</option>
-                            <option value="print">Print Version</option>
-                            <option value="digital">Digital Copy</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label class="form-label">Include in Transcript</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="includeGrades" checked>
-                            <label class="form-check-label" for="includeGrades">
-                                Grades & Marks
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="includeGPA" checked>
-                            <label class="form-check-label" for="includeGPA">
-                                GPA Calculation
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="includeSignatures" checked>
-                            <label class="form-check-label" for="includeSignatures">
-                                Official Signatures
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label class="form-label">Grading System</label>
-                        <select id="gradingSystem" class="form-select">
-                            <option value="distinction">Distinction/Credit/Pass/Fail</option>
-                            <option value="percentage">Percentage Only</option>
-                            <option value="both">Both Grades & Percentage</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Transcript Actions -->
-            <div class="d-flex gap-2 justify-content-end">
-                <button class="btn btn-outline-primary" onclick="app.reports.loadSampleTranscript()">
-                    <i class="fas fa-file-alt"></i> Load Sample
-                </button>
-                <button class="btn btn-primary" onclick="app.reports.previewTranscript()">
-                    <i class="fas fa-eye"></i> Preview Transcript
-                </button>
-                <button class="btn btn-success" onclick="app.reports.generateTranscript()">
-                    <i class="fas fa-file-pdf"></i> Generate PDF
+                <button class="btn btn-sm btn-outline-danger" onclick="window.app?.transcripts?.clearSelectedStudent()">
+                    <i class="fas fa-times"></i> Clear
                 </button>
             </div>
-            
-            <!-- Transcript Preview Area -->
-            <div id="transcriptPreview" class="mt-4" style="display: none;">
-                <!-- Preview content will be loaded here -->
+        </div>
+        
+        <!-- Transcript Options -->
+        <div class="row">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">Format</label>
+                    <select id="transcriptFormat" class="form-select">
+                        <option value="pdf">PDF Transcript</option>
+                        <option value="print">Print Version</option>
+                        <option value="digital">Digital Copy</option>
+                    </select>
+                </div>
             </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">Include in Transcript</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="includeGrades" checked>
+                        <label class="form-check-label" for="includeGrades">
+                            Grades & Marks
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="includeGPA" checked>
+                        <label class="form-check-label" for="includeGPA">
+                            GPA Calculation
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="includeSignatures" checked>
+                        <label class="form-check-label" for="includeSignatures">
+                            Official Signatures
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">Grading System</label>
+                    <select id="gradingSystem" class="form-select">
+                        <option value="distinction">Distinction/Credit/Pass/Fail</option>
+                        <option value="percentage">Percentage Only</option>
+                        <option value="both">Both Grades & Percentage</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Transcript Actions -->
+        <div class="d-flex gap-2 justify-content-end">
+            <button class="btn btn-outline-primary" onclick="window.app?.transcripts?.loadSampleTranscript()">
+                <i class="fas fa-file-alt"></i> Load Sample
+            </button>
+            <button class="btn btn-primary" onclick="window.app?.transcripts?.previewTranscript()">
+                <i class="fas fa-eye"></i> Preview Transcript
+            </button>
+            <button class="btn btn-success" onclick="window.app?.transcripts?.generateTranscript()">
+                <i class="fas fa-file-pdf"></i> Generate PDF
+            </button>
+        </div>
+        
+        <!-- Transcript Preview Area -->
+        <div id="transcriptPreview" class="mt-4" style="display: none;">
+            <!-- Preview content will be loaded here -->
         </div>
     </div>
+</div>
+
+<!-- TRANSCRIPT MODAL (Will be managed by transcripts.js) -->
+<div id="transcriptModal" class="modal" style="display: none;"></div>
     
     <!-- BULK EXPORT -->
     <div class="card mb-4">
