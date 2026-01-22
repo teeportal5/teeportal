@@ -1,4 +1,4 @@
-// modules/centres.js - SIMPLE WORKING VERSION
+// modules/centres.js - COMPLETE WORKING VERSION
 class CentreManager {
     constructor(db, app = null) {
         this.db = db;
@@ -113,6 +113,7 @@ class CentreManager {
         // Fill form
         document.getElementById('centreName').value = centre.name || '';
         document.getElementById('centreCounty').value = centre.county || '';
+        document.getElementById('centreRegion').value = centre.region || '';
         document.getElementById('centreStatus').value = centre.status || 'active';
     }
     
@@ -124,6 +125,7 @@ class CentreManager {
         const centreData = {
             name: document.getElementById('centreName').value.trim(),
             county: document.getElementById('centreCounty').value.trim(),
+            region: document.getElementById('centreRegion').value,
             status: document.getElementById('centreStatus').value || 'active',
             updated_at: new Date().toISOString()
         };
@@ -172,6 +174,9 @@ class CentreManager {
                 this.centres = [];
             }
             
+            // Update counties list for datalist
+            this.updateCountiesList();
+            
             // Render
             this.renderCentres();
             this.updateStats();
@@ -180,6 +185,21 @@ class CentreManager {
             console.error('❌ Load failed:', error);
             this.centres = [];
             this.renderEmptyState();
+        }
+    }
+    
+    // UPDATE COUNTIES LIST FOR DATALIST
+    updateCountiesList() {
+        const counties = [...new Set(this.centres
+            .filter(c => c.county)
+            .map(c => c.county.trim())
+            .filter(c => c.length > 0))].sort();
+        
+        const datalist = document.getElementById('countySuggestions');
+        if (datalist) {
+            datalist.innerHTML = counties.map(county => 
+                `<option value="${county}">${county}</option>`
+            ).join('');
         }
     }
     
@@ -201,6 +221,7 @@ class CentreManager {
                 </div>
                 <div class="card-body">
                     <p><i class="fas fa-map-marker-alt"></i> ${this.escapeHtml(centre.county)}</p>
+                    ${centre.region ? `<p><i class="fas fa-globe"></i> ${this.escapeHtml(centre.region)}</p>` : ''}
                 </div>
                 <div class="card-footer">
                     <button class="btn btn-sm btn-outline" onclick="editCentre('${centre.id}')">
@@ -233,10 +254,12 @@ class CentreManager {
         const total = this.centres.length;
         const active = this.centres.filter(c => c.status === 'active').length;
         const inactive = this.centres.filter(c => c.status === 'inactive').length;
+        const counties = new Set(this.centres.map(c => c.county).filter(Boolean)).size;
         
         document.getElementById('totalCentresCount').textContent = total;
         document.getElementById('activeCentresCount').textContent = active;
         document.getElementById('inactiveCentresCount').textContent = inactive;
+        document.getElementById('countiesCount').textContent = counties;
     }
     
     // SEARCH CENTRES
@@ -246,9 +269,11 @@ class CentreManager {
             return;
         }
         
+        const searchTerm = query.toLowerCase();
         const filtered = this.centres.filter(centre =>
-            centre.name.toLowerCase().includes(query.toLowerCase()) ||
-            centre.county.toLowerCase().includes(query.toLowerCase())
+            centre.name.toLowerCase().includes(searchTerm) ||
+            centre.county.toLowerCase().includes(searchTerm) ||
+            (centre.region && centre.region.toLowerCase().includes(searchTerm))
         );
         
         const grid = document.getElementById('centresGrid');
@@ -271,6 +296,7 @@ class CentreManager {
                     </div>
                     <div class="card-body">
                         <p><i class="fas fa-map-marker-alt"></i> ${this.escapeHtml(centre.county)}</p>
+                        ${centre.region ? `<p><i class="fas fa-globe"></i> ${this.escapeHtml(centre.region)}</p>` : ''}
                     </div>
                 </div>
             `).join('');
@@ -285,10 +311,11 @@ class CentreManager {
         }
         
         const csv = [
-            ['Name', 'County', 'Status', 'Created'].join(','),
+            ['Name', 'County', 'Region', 'Status', 'Created'].join(','),
             ...this.centres.map(c => [
                 `"${c.name}"`,
                 `"${c.county}"`,
+                `"${c.region || ''}"`,
                 `"${c.status}"`,
                 `"${c.created_at || ''}"`
             ].join(','))
@@ -354,21 +381,28 @@ class CentreManager {
             if (error) throw error;
             return result?.[0];
         }
-        return { id: Date.now(), ...data };
+        // Fallback: create local ID
+        return { id: Date.now().toString(), ...data };
     }
     
-    // HELPER
+    // HELPER: Escape HTML to prevent XSS
     escapeHtml(text) {
+        if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
 }
 
-// GLOBAL FUNCTIONS (These connect HTML onclick to the class)
+// ============================================
+// GLOBAL FUNCTIONS (Connect HTML to Class)
+// ============================================
+
 window.openCentreModal = function(centreId) {
     if (window.app?.centres) {
         window.app.centres.openCentreModal(centreId);
+    } else {
+        alert('Centres module not loaded');
     }
 };
 
@@ -382,6 +416,8 @@ window.saveCentre = function(event) {
     if (event) event.preventDefault();
     if (window.app?.centres) {
         window.app.centres.saveCentre();
+    } else {
+        alert('Centres module not loaded');
     }
     return false;
 };
@@ -389,28 +425,36 @@ window.saveCentre = function(event) {
 window.exportCentres = function() {
     if (window.app?.centres) {
         window.app.centres.exportCentres();
+    } else {
+        alert('Centres module not loaded');
     }
 };
 
 window.refreshCentres = function() {
     if (window.app?.centres) {
         window.app.centres.refresh();
+    } else {
+        alert('Centres module not loaded');
     }
 };
 
 window.editCentre = function(centreId) {
     if (window.app?.centres) {
         window.app.centres.editCentre(centreId);
+    } else {
+        alert('Centres module not loaded');
     }
 };
 
 window.deleteCentre = function(centreId) {
     if (window.app?.centres) {
         window.app.centres.deleteCentre(centreId);
+    } else {
+        alert('Centres module not loaded');
     }
 };
 
-// Export class
+// Export class globally
 window.CentreManager = CentreManager;
 
 console.log('✅ Centres module ready');
