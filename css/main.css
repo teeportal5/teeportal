@@ -1,6 +1,6 @@
 /* ==================== */
-/* TEEPportal MAIN CSS - ENHANCED COLOR SCHEME */
-/* Imports all modules */
+/* TEEPportal MAIN CSS - FINAL VERSION */
+/* Your colors WILL NOT change with system settings */
 /* ==================== */
 
 /* Base styles */
@@ -25,9 +25,12 @@
 @import url('modules/settings.css');
 
 /* ==================== */
-/* ENHANCED COLOR VARIABLES */
+/* ENHANCED COLOR VARIABLES - THESE WILL ALWAYS SHOW */
 /* ==================== */
 :root {
+    /* Force light mode at the root level */
+    color-scheme: light;
+    
     /* Enhanced accent colors */
     --accent-blue: #3b82f6;
     --accent-purple: #8b5cf6;
@@ -47,6 +50,42 @@
     --bg-surface-light: linear-gradient(135deg, #ffffff 0%, #fafafc 100%);
     --bg-surface-elevated: linear-gradient(135deg, #ffffff 0%, #f5f7ff 100%);
     --bg-surface-subtle: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+/* ==================== */
+/* FORCE LIGHT MODE - PREVENT SYSTEM DARK MODE */
+/* ==================== */
+/* This will override any system dark mode settings */
+html, body {
+    color-scheme: light !important;
+}
+
+/* Override dark mode media query completely */
+@media (prefers-color-scheme: dark) {
+    :root, html, body {
+        color-scheme: light !important;
+    }
+    
+    /* Force all your colors to stay the same */
+    body {
+        background: var(--bg-body) !important;
+        color: var(--text-primary) !important;
+    }
+    
+    .main-header,
+    .sidebar,
+    .content-section,
+    .card,
+    .modal-content,
+    .table,
+    .form-control,
+    input,
+    textarea,
+    select {
+        background-color: inherit !important;
+        color: inherit !important;
+        border-color: var(--border) !important;
+    }
 }
 
 /* ==================== */
@@ -770,20 +809,30 @@
     }
 }
 
-/* Dark mode override (force light) */
+/* ==================== */
+/* CRITICAL FIX: PREVENT ANY DARK MODE CHANGES */
+/* ==================== */
+/* This is the MOST IMPORTANT part - it completely blocks dark mode */
 @media (prefers-color-scheme: dark) {
-    :root {
-        color-scheme: light only !important;
+    /* Force ALL elements to use your light colors */
+    * {
+        background-color: inherit !important;
+        color: inherit !important;
+        border-color: inherit !important;
     }
     
-    body,
-    .main-header,
-    .filter-bar,
-    .action-bar,
-    .empty-state,
-    .card,
-    .chart-container {
-        background: var(--bg-surface) !important;
+    /* Force form elements to stay white */
+    input, textarea, select {
+        background-color: white !important;
         color: var(--text-primary) !important;
+    }
+    
+    /* Force scrollbars to stay light */
+    ::-webkit-scrollbar-track {
+        background: var(--gray-100) !important;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: var(--gray-400) !important;
     }
 }
