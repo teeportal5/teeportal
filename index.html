@@ -2562,13 +2562,13 @@ window.app.transcripts.showToast = function(message, type = 'info') {
             <p class="section-subtitle">Manage all study centres and locations</p>
         </div>
         <div class="header-actions">
-            <button class="btn btn-primary" onclick="window.app?.centres?.openCentreModal()">
+            <button class="btn btn-primary" id="addCentreBtn">
                 <i class="fas fa-plus"></i> Add Centre
             </button>
-            <button class="btn btn-secondary" onclick="window.app?.centres?.exportCentres()">
+            <button class="btn btn-secondary" id="exportCentresBtn">
                 <i class="fas fa-download"></i> Export
             </button>
-            <button class="btn btn-outline" onclick="window.app?.centres?.refresh()">
+            <button class="btn btn-outline" id="refreshCentresBtn">
                 <i class="fas fa-sync-alt"></i> Refresh
             </button>
         </div>
@@ -2579,7 +2579,7 @@ window.app.transcripts.showToast = function(message, type = 'info') {
         <i class="fas fa-search"></i>
         <input type="text" id="centreSearchInput" placeholder="Search centres by name, county, region..." 
                class="search-input">
-        <button class="search-clear" onclick="document.getElementById('centreSearchInput').value=''; window.app?.centres?.searchCentres('')">
+        <button class="search-clear" id="clearSearchBtn">
             <i class="fas fa-times"></i>
         </button>
     </div>
@@ -2639,9 +2639,9 @@ window.app.transcripts.showToast = function(message, type = 'info') {
         <div class="modal-header">
             <h3 id="centreModalTitle">
                 <i class="fas fa-map-marker-alt"></i>
-                <span id="modalTitleText">Add New Centre</span>
+                <span>Add New Centre</span>
             </h3>
-            <button type="button" class="close" onclick="window.app?.centres?.closeCentreModal()">
+            <button type="button" class="close" id="closeModalBtn">
                 <i class="fas fa-times"></i>
             </button>
         </div>
@@ -2701,18 +2701,16 @@ window.app.transcripts.showToast = function(message, type = 'info') {
             </div>
             
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="window.app?.centres?.closeCentreModal()">
+                <button type="button" class="btn btn-secondary" id="cancelModalBtn">
                     <i class="fas fa-times"></i> Cancel
                 </button>
-                <!-- ADD THE SUBMIT BUTTON HERE -->
-                <button type="submit" class="btn btn-primary" id="centreSubmitBtn">
+                <button type="submit" class="btn btn-primary" id="saveCentreBtn">
                     <i class="fas fa-plus"></i> Add Centre
                 </button>
             </div>
         </form>
     </div>
 </div>
-
 <!-- ========== PROFILE SECTION ========== -->
 <section id="profile" class="content-section">
     <!-- Your existing profile HTML here - EXACTLY as you had it -->
