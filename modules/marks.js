@@ -1441,131 +1441,144 @@ class MarksManager {
         this.updateSelectedCounts();
     }
     
-    renderTableView() {
-        const tbody = document.querySelector('#marksTableBody');
-        if (!tbody) return;
-        
-        const startIndex = (this.currentPage - 1) * this.pageSize;
-        const endIndex = startIndex + this.pageSize;
-        const pageData = this.filteredData.slice(startIndex, endIndex);
-        
-        if (pageData.length === 0) {
-            tbody.innerHTML = this.getEmptyStateHTML();
-            return;
-        }
-        
-        let html = '';
-        
-        pageData.forEach((mark) => {
-            const student = mark.students || {};
-            const course = mark.courses || {};
-            
-            const score = mark.score || 0;
-            const maxScore = mark.max_score || 100;
-            let percentage = mark.percentage;
-            if (!percentage && maxScore > 0) {
-                percentage = (score / maxScore) * 100;
-            }
-            
-            let grade = mark.grade;
-            if (!grade && percentage !== undefined) {
-                grade = this.calculateGrade(parseFloat(percentage));
-            }
-            
-            const gradeCSSClass = this.getGradeCSSClass(grade);
-            const status = mark.visible_to_student ? 'published' : 'hidden';
-            const statusIcon = status === 'published' ? 'fa-eye' : 'fa-eye-slash';
-            const statusText = status === 'published' ? 'Visible' : 'Hidden';
-            
-            // ✅ FIXED: Get centre name properly - NO MORE "iuud"!
-            const studentCentre = this.getCentreDisplayName(student);
-            
-            // Format date
-            const formattedDate = mark.created_at ? this.formatDate(mark.created_at) : 'N/A';
-            
-            // Simple escape function inline
-            const escape = (str) => {
-                if (!str) return '';
-                return str.toString()
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;');
-            };
-            
-            html += `
-                <tr data-mark-id="${mark.id}">
-                    <!-- Student Column (Name + Reg No combined) -->
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div style="width: 36px; height: 36px; border-radius: 50%; background: #3b82f6; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.875rem; flex-shrink: 0;">
-                                ${this.getInitials(student.full_name || 'N/A')}
-                            </div>
-                            <div>
-                                <div style="font-weight: 600; color: #1f2937; margin-bottom: 2px;">${escape(student.full_name || 'N/A')}</div>
-                                <div style="font-size: 0.75rem; color: #6b7280; font-family: monospace;">${escape(student.reg_number || 'N/A')}</div>
-                            </div>
-                        </div>
-                    </td>
-                    
-                    <!-- Course Column -->
-                    <td>
-                        <div style="font-weight: 600; color: #1f2937; margin-bottom: 2px;">${escape(course.course_code || 'N/A')}</div>
-                        <div style="font-size: 0.75rem; color: #6b7280;">${escape(course.course_name || '')}</div>
-                    </td>
-                    
-                    <!-- Centre Column - FIXED: No more "iuud"! -->
-                    <td>
-                        <div style="font-weight: 600; color: #1f2937;">${escape(studentCentre)}</div>
-                        <div style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: ${status === 'published' ? '#d1fae5' : '#f3f4f6'}; color: ${status === 'published' ? '#065f46' : '#6b7280'}; margin-top: 4px;">
-                            <i class="fas ${statusIcon}"></i>
-                            ${statusText}
-                        </div>
-                    </td>
-                    
-                    <!-- Score Column -->
-                    <td>
-                        <div style="text-align: center;">
-                            <div style="font-weight: 700; color: #1f2937; font-size: 1rem;">${score}/${maxScore}</div>
-                            <div style="font-size: 0.75rem; color: #6b7280; font-weight: 600;">${percentage ? percentage.toFixed(1) : '0.0'}%</div>
-                        </div>
-                    </td>
-                    
-                    <!-- Grade Column -->
-                    <td>
-                        <span style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; ${gradeCSSClass === 'grade-distinction' ? 'background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;' : gradeCSSClass === 'grade-credit' ? 'background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white;' : gradeCSSClass === 'grade-pass' ? 'background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;' : 'background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white;'}">
-                            ${grade || 'FAIL'}
-                        </span>
-                    </td>
-                    
-                    <!-- Date Column -->
-                    <td style="color: #6b7280; font-size: 0.875rem;">
-                        ${formattedDate}
-                    </td>
-                    
-                    <!-- Actions Column -->
-                    <td>
-                        <div style="display: flex; gap: 8px;">
-                            <button class="action-btn btn-edit" data-mark-id="${mark.id}" title="Edit" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid #d1d5db; background: white; color: #6b7280; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="action-btn btn-view" data-mark-id="${mark.id}" title="View Details" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid #d1d5db; background: white; color: #6b7280; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="action-btn btn-delete" data-mark-id="${mark.id}" title="Delete" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid #d1d5db; background: white; color: #6b7280; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        });
-        
-        tbody.innerHTML = html;
-        
-        // Attach event listeners to table buttons
-        this.attachTableButtonListeners();
+   
+   renderTableView() {
+    const tbody = document.querySelector('#marksTableBody');
+    if (!tbody) return;
+    
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    const endIndex = startIndex + this.pageSize;
+    const pageData = this.filteredData.slice(startIndex, endIndex);
+    
+    if (pageData.length === 0) {
+        tbody.innerHTML = this.getEmptyStateHTML();
+        return;
     }
     
+    let html = '';
+    
+    pageData.forEach((mark) => {
+        const student = mark.students || {};
+        const course = mark.courses || {};
+        
+        const score = mark.score || 0;
+        const maxScore = mark.max_score || 100;
+        let percentage = mark.percentage;
+        if (!percentage && maxScore > 0) {
+            percentage = (score / maxScore) * 100;
+        }
+        
+        let grade = mark.grade;
+        if (!grade && percentage !== undefined) {
+            grade = this.calculateGrade(parseFloat(percentage));
+        }
+        
+        const gradeCSSClass = this.getGradeCSSClass(grade);
+        const status = mark.visible_to_student ? 'published' : 'hidden';
+        const statusIcon = status === 'published' ? 'fa-eye' : 'fa-eye-slash';
+        const statusText = status === 'published' ? 'Visible' : 'Hidden';
+        
+        // ✅ FIXED: Get centre name properly
+        const studentCentre = this.getCentreDisplayName(student);
+        
+        // Format date
+        const formattedDate = mark.created_at ? this.formatDate(mark.created_at) : 'N/A';
+        
+        // Simple escape function inline
+        const escape = (str) => {
+            if (!str) return '';
+            return str.toString()
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        };
+        
+        // ✅ FIXED: CORRECT COLUMN ORDER - Student details in FIRST column
+        html += `
+            <tr data-mark-id="${mark.id}">
+                <!-- COLUMN 1: Student Name Details -->
+                <td>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 36px; height: 36px; border-radius: 50%; background: #3b82f6; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.875rem; flex-shrink: 0;">
+                            ${this.getInitials(student.full_name || 'N/A')}
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: #1f2937; margin-bottom: 2px;">
+                                ${escape(student.full_name || 'N/A')}
+                            </div>
+                            <div style="font-size: 0.75rem; color: #6b7280; font-family: monospace;">
+                                ${escape(student.reg_number || 'N/A')}
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                
+                <!-- COLUMN 2: Course -->
+                <td>
+                    <div style="font-weight: 600; color: #1f2937; margin-bottom: 2px;">
+                        ${escape(course.course_code || 'N/A')}
+                    </div>
+                    <div style="font-size: 0.75rem; color: #6b7280;">
+                        ${escape(course.course_name || '')}
+                    </div>
+                </td>
+                
+                <!-- COLUMN 3: Centre -->
+                <td>
+                    <div style="font-weight: 600; color: #1f2937;">
+                        ${escape(studentCentre)}
+                    </div>
+                    <div style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: ${status === 'published' ? '#d1fae5' : '#f3f4f6'}; color: ${status === 'published' ? '#065f46' : '#6b7280'}; margin-top: 4px;">
+                        <i class="fas ${statusIcon}"></i>
+                        ${statusText}
+                    </div>
+                </td>
+                
+                <!-- COLUMN 4: Score -->
+                <td style="text-align: center;">
+                    <div style="font-weight: 700; color: #1f2937; font-size: 1rem;">
+                        ${score}/${maxScore}
+                    </div>
+                    <div style="font-size: 0.75rem; color: #6b7280; font-weight: 600;">
+                        ${percentage ? percentage.toFixed(1) : '0.0'}%
+                    </div>
+                </td>
+                
+                <!-- COLUMN 5: Grade -->
+                <td>
+                    <span style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; ${gradeCSSClass === 'grade-distinction' ? 'background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;' : gradeCSSClass === 'grade-credit' ? 'background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white;' : gradeCSSClass === 'grade-pass' ? 'background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;' : 'background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white;'}">
+                        ${grade || 'FAIL'}
+                    </span>
+                </td>
+                
+                <!-- COLUMN 6: Date -->
+                <td style="color: #6b7280; font-size: 0.875rem;">
+                    ${formattedDate}
+                </td>
+                
+                <!-- COLUMN 7: Actions -->
+                <td>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="action-btn btn-edit" data-mark-id="${mark.id}" title="Edit" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid #d1d5db; background: white; color: #6b7280; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="action-btn btn-view" data-mark-id="${mark.id}" title="View Details" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid #d1d5db; background: white; color: #6b7280; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="action-btn btn-delete" data-mark-id="${mark.id}" title="Delete" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid #d1d5db; background: white; color: #6b7280; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+    
+    // Attach event listeners to table buttons
+    this.attachTableButtonListeners();
+}
     // ==================== HELPER METHOD FOR CENTRE NAME (FIXED) ====================
     
     getCentreDisplayName(student) {
