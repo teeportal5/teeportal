@@ -2556,218 +2556,158 @@ window.app.transcripts.showToast = function(message, type = 'info') {
 
 <!-- ========== CENTRES SECTION ========== -->
 <section id="centres" class="content-section">
-    <!-- Your existing centres HTML here - EXACTLY as you had it -->
     <div class="section-header">
-        <h2>Centre Management</h2>
-        <div class="action-buttons">
-            <!-- Updated onclick to use window.openCentreModal() -->
-            <button class="btn btn-primary" onclick="window.openCentreModal()">
-                <i class="fas fa-map-marker-alt"></i> Add Centre
+        <div class="header-left">
+            <h2><i class="fas fa-map-marker-alt"></i> Centre Management</h2>
+            <p class="section-subtitle">Manage all study centres and locations</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="window.app?.centres?.openCentreModal()">
+                <i class="fas fa-plus"></i> Add Centre
             </button>
-            <!-- Updated onclick to use app.centres.exportCentres() -->
-            <button class="btn btn-secondary" onclick="window.app.centres.exportCentres()">
+            <button class="btn btn-secondary" onclick="window.app?.centres?.exportCentres()">
                 <i class="fas fa-download"></i> Export
+            </button>
+            <button class="btn btn-outline" onclick="window.app?.centres?.refresh()">
+                <i class="fas fa-sync-alt"></i> Refresh
             </button>
         </div>
     </div>
     
-    <!-- Centres Grid -->
-    <div class="cards-grid" id="centresGrid">
-        <!-- Centres will be loaded here by JavaScript -->
+    <!-- Search Box -->
+    <div class="search-box" style="margin: 20px 0;">
+        <i class="fas fa-search"></i>
+        <input type="text" id="centreSearchInput" placeholder="Search centres by name, county, region..." 
+               class="search-input">
+        <button class="search-clear" onclick="document.getElementById('centreSearchInput').value=''; window.app?.centres?.searchCentres('')">
+            <i class="fas fa-times"></i>
+        </button>
     </div>
     
-    <!-- Centres Stats -->
-    <div class="centre-stats">
-        <div class="stat-row">
-            <div class="stat-item">
-                <span class="stat-label">Total Centres</span>
-                <span class="stat-value" id="totalCentres">0</span>
+    <!-- Centres Grid -->
+    <div class="cards-grid" id="centresGrid">
+        <div class="loading-state">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>Loading centres...</span>
+        </div>
+    </div>
+    
+    <!-- Centre Statistics -->
+    <div class="stats-grid" style="margin-top: 30px;">
+        <div class="stat-card">
+            <div class="stat-icon blue">
+                <i class="fas fa-map-marker-alt"></i>
             </div>
-            <div class="stat-item">
-                <span class="stat-label">Active Centres</span>
-                <span class="stat-value" id="activeCentres">0</span>
+            <div class="stat-content">
+                <div class="stat-value" id="totalCentresCount">0</div>
+                <div class="stat-label">Total Centres</div>
             </div>
-            <div class="stat-item">
-                <span class="stat-label">Inactive Centres</span>
-                <span class="stat-value" id="inactiveCentres">0</span>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon green">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value" id="activeCentresCount">0</div>
+                <div class="stat-label">Active Centres</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon orange">
+                <i class="fas fa-pause-circle"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value" id="inactiveCentresCount">0</div>
+                <div class="stat-label">Inactive Centres</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon purple">
+                <i class="fas fa-map"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value" id="countiesCount">0</div>
+                <div class="stat-label">Counties Covered</div>
             </div>
         </div>
     </div>
 </section>
 
-<!-- ========== CENTRE MODAL - CLEAN & SIMPLE ========== -->
+<!-- ========== MINIMAL CENTRE MODAL ========== -->
 <div id="centreModal" class="modal">
-    <div class="modal-content">
+    <div class="modal-content" style="max-width: 450px;">
         <div class="modal-header">
-            <h3 id="centreModalTitle">Add New Centre</h3>
-            <span class="close" onclick="closeCentreModal()">&times;</span>
+            <h3 id="centreModalTitle">
+                <i class="fas fa-map-marker-alt"></i>
+                <span id="modalTitleText">Add New Centre</span>
+            </h3>
+            <button type="button" class="close" onclick="window.app?.centres?.closeCentreModal()">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
-        <div class="modal-body">
-            <form id="centreForm" onsubmit="return saveCentre(event)">
-                <!-- Centre Name -->
-                <div class="form-row">
-                    <div class="form-group full-width">
-                        <label for="centreName">Centre Name *</label>
-                        <input type="text" id="centreName" name="centreName" required 
-                               placeholder="e.g., Nairobi Headquarters"
-                               maxlength="100">
-                    </div>
+        
+        <form id="centreForm">
+            <div class="modal-body">
+                <!-- Centre Name (REQUIRED) -->
+                <div class="form-group">
+                    <label for="centreName">
+                        <i class="fas fa-building"></i> Centre Name *
+                    </label>
+                    <input type="text" id="centreName" class="form-control" required 
+                           placeholder="e.g., Nairobi Main Centre">
                 </div>
                 
-                <!-- Centre Code (Optional) -->
-                <div class="form-row">
-                    <div class="form-group full-width">
-                        <label for="centreCode">Centre Code</label>
-                        <input type="text" id="centreCode" name="centreCode" 
-                               placeholder="e.g., NBI001 (Optional)"
-                               maxlength="20">
-                    </div>
+                <!-- County (REQUIRED with suggestions) -->
+                <div class="form-group">
+                    <label for="centreCounty">
+                        <i class="fas fa-map"></i> County *
+                    </label>
+                    <input type="text" id="centreCounty" class="form-control" required 
+                           list="countySuggestions"
+                           placeholder="Type county name">
+                    <datalist id="countySuggestions">
+                        <!-- Will be populated by centres.js -->
+                    </datalist>
                 </div>
                 
-                <!-- County (Typable with suggestions) -->
-                <div class="form-row">
-                    <div class="form-group full-width">
-                        <label for="centreCounty">County *</label>
-                        <input type="text" 
-                               id="centreCounty" 
-                               name="centreCounty" 
-                               list="countySuggestions"
-                               required
-                               placeholder="Type county name"
-                               autocomplete="off">
-                        <datalist id="countySuggestions">
-                            <!-- Will be populated from existing centres -->
-                        </datalist>
-                    </div>
-                </div>
-                
-                <!-- Region (Typable with suggestions) -->
-                <div class="form-row">
-                    <div class="form-group full-width">
-                        <label for="centreRegion">Region</label>
-                        <input type="text" 
-                               id="centreRegion" 
-                               name="centreRegion" 
-                               list="regionSuggestions"
-                               placeholder="Type region name"
-                               autocomplete="off">
-                        <datalist id="regionSuggestions">
-                            <!-- Will be populated from existing centres -->
-                        </datalist>
-                    </div>
+                <!-- Region (Optional) -->
+                <div class="form-group">
+                    <label for="centreRegion">
+                        <i class="fas fa-globe"></i> Region
+                    </label>
+                    <select id="centreRegion" class="form-control">
+                        <option value="">Select Region (Optional)</option>
+                        <option value="nairobi_metro">Nairobi Metro</option>
+                        <option value="coast">Coast Region</option>
+                        <option value="north_eastern">North Eastern</option>
+                        <option value="eastern">Eastern Region</option>
+                        <option value="central">Central Region</option>
+                        <option value="rift_valley">Rift Valley</option>
+                        <option value="western">Western Region</option>
+                        <option value="nyanza">Nyanza Region</option>
+                    </select>
                 </div>
                 
                 <!-- Status -->
-                <div class="form-row">
-                    <div class="form-group full-width">
-                        <label for="centreStatus">Status</label>
-                        <select id="centreStatus" name="centreStatus" class="form-control">
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                            <option value="pending">Pending</option>
-                        </select>
-                    </div>
+                <div class="form-group">
+                    <label for="centreStatus">
+                        <i class="fas fa-toggle-on"></i> Status
+                    </label>
+                    <select id="centreStatus" class="form-control">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
                 </div>
-                
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick="closeCentreModal()">
-                        <i class="fas fa-times"></i> Cancel
-                    </button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Save Centre
-                    </button>
-                </div>
-            </form>
-        </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="window.app?.centres?.closeCentreModal()">
+                    Cancel
+                </button>
+                <!-- Submit button will be added by centres.js -->
+            </div>
+        </form>
     </div>
-</div>
-
-<!-- JavaScript to populate datalists from existing centres -->
-<script>
-// Function to update datalist suggestions
-function updateCentreDatalists() {
-    if (!window.app?.centres?.centres) return;
-    
-    const centres = window.app.centres.centres;
-    
-    // Get unique counties and regions
-    const counties = [...new Set(centres.map(c => c.county).filter(Boolean))];
-    const regions = [...new Set(centres.map(c => c.region).filter(Boolean))];
-    
-    // Update county datalist
-    const countyDatalist = document.getElementById('countySuggestions');
-    if (countyDatalist) {
-        countyDatalist.innerHTML = counties.map(county => 
-            `<option value="${county}">${county}</option>`
-        ).join('');
-    }
-    
-    // Update region datalist
-    const regionDatalist = document.getElementById('regionSuggestions');
-    if (regionDatalist) {
-        regionDatalist.innerHTML = regions.map(region => 
-            `<option value="${region}">${region}</option>`
-        ).join('');
-    }
-}
-
-// Update datalists when modal opens
-window.openCentreModal = function(centreId = null) {
-    // First update datalists
-    updateCentreDatalists();
-    
-    // Then open modal (your existing code)
-    const modal = document.getElementById('centreModal');
-    if (modal) {
-        modal.classList.add('active');
-        document.body.classList.add('modal-open');
-        
-        if (centreId) {
-            // Load existing centre data
-            if (window.app?.centres?.loadCentreData) {
-                window.app.centres.loadCentreData(centreId);
-            }
-        } else {
-            // Reset form for new centre
-            document.getElementById('centreForm')?.reset();
-            document.getElementById('centreModalTitle').textContent = 'Add New Centre';
-        }
-        
-        // Focus on first field
-        setTimeout(() => {
-            document.getElementById('centreName')?.focus();
-        }, 100);
-    }
-};
-
-// Close modal
-window.closeCentreModal = function() {
-    const modal = document.getElementById('centreModal');
-    if (modal) {
-        modal.classList.remove('active');
-        document.body.classList.remove('modal-open');
-        document.getElementById('centreForm')?.reset();
-    }
-};
-
-// Save centre
-window.saveCentre = function(event) {
-    if (event) event.preventDefault();
-    
-    if (window.app?.centres?.saveCentre) {
-        window.app.centres.saveCentre();
-    } else {
-        alert('Centres module not loaded');
-    }
-    return false;
-};
-</script>
-
-<!-- Optional: Add search functionality -->
-<div class="search-box" style="margin: 20px 0; display: none;" id="centreSearchContainer">
-    <i class="fas fa-search"></i>
-    <input type="text" id="centreSearchInput" placeholder="Search centres..." 
-           onkeyup="if(window.app && window.app.centres) window.app.centres.searchCentres(this.value)">
 </div>
 
 <!-- ========== PROFILE SECTION ========== -->
