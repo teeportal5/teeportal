@@ -2702,9 +2702,12 @@ window.app.transcripts.showToast = function(message, type = 'info') {
             
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="window.app?.centres?.closeCentreModal()">
-                    Cancel
+                    <i class="fas fa-times"></i> Cancel
                 </button>
-                <!-- Submit button will be added by centres.js -->
+                <!-- ADD THE SUBMIT BUTTON HERE -->
+                <button type="submit" class="btn btn-primary" id="centreSubmitBtn">
+                    <i class="fas fa-plus"></i> Add Centre
+                </button>
             </div>
         </form>
     </div>
