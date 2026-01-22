@@ -2562,13 +2562,14 @@ window.app.transcripts.showToast = function(message, type = 'info') {
             <p class="section-subtitle">Manage all study centres and locations</p>
         </div>
         <div class="header-actions">
-            <button class="btn btn-primary" id="addCentreBtn">
+            <!-- NOTE: onclick handler here -->
+            <button class="btn btn-primary" onclick="openCentreModal()">
                 <i class="fas fa-plus"></i> Add Centre
             </button>
-            <button class="btn btn-secondary" id="exportCentresBtn">
+            <button class="btn btn-secondary" onclick="exportCentres()">
                 <i class="fas fa-download"></i> Export
             </button>
-            <button class="btn btn-outline" id="refreshCentresBtn">
+            <button class="btn btn-outline" onclick="refreshCentres()">
                 <i class="fas fa-sync-alt"></i> Refresh
             </button>
         </div>
@@ -2577,11 +2578,8 @@ window.app.transcripts.showToast = function(message, type = 'info') {
     <!-- Search Box -->
     <div class="search-box" style="margin: 20px 0;">
         <i class="fas fa-search"></i>
-        <input type="text" id="centreSearchInput" placeholder="Search centres by name, county, region..." 
+        <input type="text" id="centreSearchInput" placeholder="Search centres..." 
                class="search-input">
-        <button class="search-clear" id="clearSearchBtn">
-            <i class="fas fa-times"></i>
-        </button>
     </div>
     
     <!-- Centres Grid -->
@@ -2621,78 +2619,39 @@ window.app.transcripts.showToast = function(message, type = 'info') {
                 <div class="stat-label">Inactive Centres</div>
             </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon purple">
-                <i class="fas fa-map"></i>
-            </div>
-            <div class="stat-content">
-                <div class="stat-value" id="countiesCount">0</div>
-                <div class="stat-label">Counties Covered</div>
-            </div>
-        </div>
     </div>
 </section>
 
-<!-- ========== MINIMAL CENTRE MODAL ========== -->
+<!-- ========== CENTRE MODAL ========== -->
 <div id="centreModal" class="modal">
-    <div class="modal-content" style="max-width: 450px;">
+    <div class="modal-content" style="max-width: 500px;">
         <div class="modal-header">
             <h3 id="centreModalTitle">
-                <i class="fas fa-map-marker-alt"></i>
-                <span>Add New Centre</span>
+                <i class="fas fa-map-marker-alt"></i> Add New Centre
             </h3>
-            <button type="button" class="close" id="closeModalBtn">
+            <button type="button" class="close" onclick="closeCentreModal()">
                 <i class="fas fa-times"></i>
             </button>
         </div>
         
-        <form id="centreForm">
+        <form id="centreForm" onsubmit="saveCentre(event)">
             <div class="modal-body">
-                <!-- Centre Name (REQUIRED) -->
                 <div class="form-group">
-                    <label for="centreName">
-                        <i class="fas fa-building"></i> Centre Name *
-                    </label>
+                    <label for="centreName">Centre Name *</label>
                     <input type="text" id="centreName" class="form-control" required 
                            placeholder="e.g., Nairobi Main Centre">
                 </div>
                 
-                <!-- County (REQUIRED with suggestions) -->
                 <div class="form-group">
-                    <label for="centreCounty">
-                        <i class="fas fa-map"></i> County *
-                    </label>
+                    <label for="centreCounty">County *</label>
                     <input type="text" id="centreCounty" class="form-control" required 
                            list="countySuggestions"
                            placeholder="Type county name">
-                    <datalist id="countySuggestions">
-                        <!-- Will be populated by centres.js -->
-                    </datalist>
+                    <datalist id="countySuggestions"></datalist>
                 </div>
                 
-                <!-- Region (Optional) -->
                 <div class="form-group">
-                    <label for="centreRegion">
-                        <i class="fas fa-globe"></i> Region
-                    </label>
-                    <select id="centreRegion" class="form-control">
-                        <option value="">Select Region (Optional)</option>
-                        <option value="nairobi_metro">Nairobi Metro</option>
-                        <option value="coast">Coast Region</option>
-                        <option value="north_eastern">North Eastern</option>
-                        <option value="eastern">Eastern Region</option>
-                        <option value="central">Central Region</option>
-                        <option value="rift_valley">Rift Valley</option>
-                        <option value="western">Western Region</option>
-                        <option value="nyanza">Nyanza Region</option>
-                    </select>
-                </div>
-                
-                <!-- Status -->
-                <div class="form-group">
-                    <label for="centreStatus">
-                        <i class="fas fa-toggle-on"></i> Status
-                    </label>
+                    <label for="centreStatus">Status</label>
                     <select id="centreStatus" class="form-control">
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
@@ -2701,11 +2660,11 @@ window.app.transcripts.showToast = function(message, type = 'info') {
             </div>
             
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" id="cancelModalBtn">
-                    <i class="fas fa-times"></i> Cancel
+                <button type="button" class="btn btn-secondary" onclick="closeCentreModal()">
+                    Cancel
                 </button>
-                <button type="submit" class="btn btn-primary" id="saveCentreBtn">
-                    <i class="fas fa-plus"></i> Add Centre
+                <button type="submit" class="btn btn-primary">
+                    Add Centre
                 </button>
             </div>
         </form>
