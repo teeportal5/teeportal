@@ -1,4 +1,4 @@
-// modules/centres.js - COMPLETE WORKING VERSION
+// modules/centres.js - UPDATED WITH AUTO-GENERATED CODE
 class CentreManager {
     constructor(db, app = null) {
         this.db = db;
@@ -117,13 +117,33 @@ class CentreManager {
         document.getElementById('centreStatus').value = centre.status || 'active';
     }
     
-    // SAVE CENTRE
+    // GENERATE CENTRE CODE (NEW METHOD)
+    generateCentreCode() {
+        const name = document.getElementById('centreName')?.value.trim() || 'Centre';
+        const county = document.getElementById('centreCounty')?.value.trim() || '';
+        
+        // Get prefix from county or name
+        let prefix = 'CTR';
+        if (county) {
+            prefix = county.substring(0, 3).toUpperCase();
+        } else if (name) {
+            prefix = name.substring(0, 3).toUpperCase();
+        }
+        
+        // Generate unique number from timestamp
+        const uniqueNum = Date.now().toString().slice(-6);
+        
+        return `${prefix}-${uniqueNum}`;
+    }
+    
+    // SAVE CENTRE - UPDATED WITH AUTO-GENERATED CODE
     async saveCentre() {
         console.log('💾 Saving centre...');
         
-        // Get data
+        // Get data WITH AUTO-GENERATED CODE
         const centreData = {
             name: document.getElementById('centreName').value.trim(),
+            code: this.generateCentreCode(), // AUTO-GENERATED
             county: document.getElementById('centreCounty').value.trim(),
             region: document.getElementById('centreRegion').value,
             status: document.getElementById('centreStatus').value || 'active',
@@ -138,11 +158,16 @@ class CentreManager {
         
         try {
             if (this.currentEditId) {
-                // Update
+                // Update - keep existing code
+                const existingCentre = this.centres.find(c => c.id === this.currentEditId);
+                if (existingCentre && existingCentre.code) {
+                    centreData.code = existingCentre.code; // Keep original code when editing
+                }
+                
                 await this.updateCentre(this.currentEditId, centreData);
                 alert('✅ Centre updated!');
             } else {
-                // Add new
+                // Add new - use auto-generated code
                 centreData.created_at = new Date().toISOString();
                 await this.addCentre(centreData);
                 alert('✅ Centre added!');
@@ -154,7 +179,18 @@ class CentreManager {
             
         } catch (error) {
             console.error('❌ Save failed:', error);
-            alert('Error saving centre');
+            
+            // Better error messages
+            if (error.code === '23502') {
+                alert('Error: Missing required field. The system auto-generated a code: ' + centreData.code);
+            } else if (error.code === '23505') {
+                alert('Error: A centre with this code already exists. Trying again...');
+                // Retry with different code
+                centreData.code = this.generateCentreCode() + '-2';
+                await this.saveCentre(); // Retry
+            } else {
+                alert('Error saving centre: ' + (error.message || 'Unknown error'));
+            }
         }
     }
     
@@ -222,6 +258,7 @@ class CentreManager {
                 <div class="card-body">
                     <p><i class="fas fa-map-marker-alt"></i> ${this.escapeHtml(centre.county)}</p>
                     ${centre.region ? `<p><i class="fas fa-globe"></i> ${this.escapeHtml(centre.region)}</p>` : ''}
+                    <small class="text-muted">Code: ${centre.code || 'N/A'}</small>
                 </div>
                 <div class="card-footer">
                     <button class="btn btn-sm btn-outline" onclick="editCentre('${centre.id}')">
@@ -273,7 +310,8 @@ class CentreManager {
         const filtered = this.centres.filter(centre =>
             centre.name.toLowerCase().includes(searchTerm) ||
             centre.county.toLowerCase().includes(searchTerm) ||
-            (centre.region && centre.region.toLowerCase().includes(searchTerm))
+            (centre.region && centre.region.toLowerCase().includes(searchTerm)) ||
+            (centre.code && centre.code.toLowerCase().includes(searchTerm))
         );
         
         const grid = document.getElementById('centresGrid');
@@ -311,9 +349,10 @@ class CentreManager {
         }
         
         const csv = [
-            ['Name', 'County', 'Region', 'Status', 'Created'].join(','),
+            ['Name', 'Code', 'County', 'Region', 'Status', 'Created'].join(','),
             ...this.centres.map(c => [
                 `"${c.name}"`,
+                `"${c.code || ''}"`,
                 `"${c.county}"`,
                 `"${c.region || ''}"`,
                 `"${c.status}"`,
@@ -457,4 +496,4 @@ window.deleteCentre = function(centreId) {
 // Export class globally
 window.CentreManager = CentreManager;
 
-console.log('✅ Centres module ready');
+console.log('✅ Centres module ready - WITH AUTO-GENERATED CODES');
