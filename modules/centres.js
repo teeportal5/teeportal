@@ -1,4 +1,4 @@
-// modules/centres.js - ULTRA SIMPLE VERSION
+// modules/centres.js - FIXED VERSION WITH WORKING ADD BUTTON
 class CentreManager {
     constructor(db, app = null) {
         this.db = db;
@@ -8,7 +8,7 @@ class CentreManager {
         this.isLoading = false;
         this.countiesList = [];
         
-        console.log('🏢 Centre Manager initialized (Simple)');
+        console.log('🏢 Centre Manager initialized (Fixed)');
     }
     
     /**
@@ -39,25 +39,47 @@ class CentreManager {
     }
     
     /**
-     * Setup all event listeners
+     * Setup all event listeners - FIXED VERSION
      */
     setupEventListeners() {
         console.log('📍 Setting up event listeners...');
         
-        // Form submission - centres.js will handle this
-        const form = document.getElementById('centreForm');
-        if (form) {
-            form.addEventListener('submit', (e) => {
+        // Form submission - Use event delegation
+        document.addEventListener('submit', (e) => {
+            if (e.target.id === 'centreForm') {
                 e.preventDefault();
                 this.saveCentre();
+            }
+        });
+        
+        // Add Centre button from header - FIXED
+        const addBtn = document.querySelector('.btn-primary[onclick*="openCentreModal"]');
+        if (addBtn) {
+            // Remove the inline onclick and add proper event listener
+            addBtn.removeAttribute('onclick');
+            addBtn.addEventListener('click', () => {
+                this.openCentreModal();
             });
-            console.log('✅ Form submit listener added');
+            console.log('✅ Add Centre button listener added');
         }
         
-        // Search input
+        // Export button
+        const exportBtn = document.querySelector('.btn-secondary[onclick*="exportCentres"]');
+        if (exportBtn) {
+            exportBtn.removeAttribute('onclick');
+            exportBtn.addEventListener('click', () => this.exportCentres());
+        }
+        
+        // Refresh button
+        const refreshBtn = document.querySelector('.btn-outline[onclick*="refresh"]');
+        if (refreshBtn) {
+            refreshBtn.removeAttribute('onclick');
+            refreshBtn.addEventListener('click', () => this.refresh());
+        }
+        
+        // Search input - with debouncing
         const searchInput = document.getElementById('centreSearchInput');
         if (searchInput) {
-            // Debounce search
             let timeout;
             searchInput.addEventListener('input', (e) => {
                 clearTimeout(timeout);
@@ -65,19 +87,16 @@ class CentreManager {
                     this.searchCentres(e.target.value);
                 }, 300);
             });
-            console.log('✅ Search listener added');
         }
         
-        // Export button
-        const exportBtn = document.querySelector('[onclick*="exportCentres"]');
-        if (exportBtn) {
-            exportBtn.onclick = () => this.exportCentres();
-        }
-        
-        // Refresh button
-        const refreshBtn = document.querySelector('[onclick*="refresh"]');
-        if (refreshBtn) {
-            refreshBtn.onclick = () => this.refresh();
+        // Clear search button
+        const clearSearchBtn = document.querySelector('.search-clear');
+        if (clearSearchBtn) {
+            clearSearchBtn.removeAttribute('onclick');
+            clearSearchBtn.addEventListener('click', () => {
+                document.getElementById('centreSearchInput').value = '';
+                this.searchCentres('');
+            });
         }
         
         console.log('✅ Event listeners setup complete');
@@ -87,7 +106,7 @@ class CentreManager {
      * Open centre modal
      */
     openCentreModal(centreId = null) {
-        console.log('📍 Opening centre modal...', centreId);
+        console.log('📍 Opening centre modal for:', centreId || 'new centre');
         
         const modal = document.getElementById('centreModal');
         if (!modal) {
@@ -173,13 +192,10 @@ class CentreManager {
             
             this.currentEditId = centreId;
             
-            // Update modal title
-            const titleEl = document.getElementById('centreModalTitle');
-            if (titleEl) {
-                titleEl.textContent = 'Edit Centre';
-            }
+            // Update modal UI
+            this.updateModalUI('Edit Centre');
             
-            // Populate form fields - ONLY MINIMAL FIELDS
+            // Populate form fields
             const formData = {
                 'centreName': centre.name || '',
                 'centreCounty': centre.county || '',
@@ -204,7 +220,26 @@ class CentreManager {
     }
     
     /**
-     * Save centre - MINIMAL VERSION
+     * Update modal UI based on action
+     */
+    updateModalUI(title) {
+        // Update modal title
+        const titleEl = document.getElementById('centreModalTitle');
+        if (titleEl) {
+            titleEl.innerHTML = `<i class="fas fa-map-marker-alt"></i> ${title}`;
+        }
+        
+        // Update submit button text
+        const submitBtn = document.querySelector('#centreForm button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = this.currentEditId 
+                ? '<i class="fas fa-save"></i> Update Centre'
+                : '<i class="fas fa-plus"></i> Add Centre';
+        }
+    }
+    
+    /**
+     * Save centre
      */
     async saveCentre() {
         console.log('💾 Saving centre...');
@@ -218,7 +253,7 @@ class CentreManager {
         this.isLoading = true;
         
         try {
-            // Get form data - ONLY MINIMAL FIELDS
+            // Get form data
             const centreData = {
                 name: document.getElementById('centreName')?.value.trim() || '',
                 county: document.getElementById('centreCounty')?.value.trim() || '',
@@ -237,11 +272,18 @@ class CentreManager {
                 return;
             }
             
-            // Show loading state
+            // Show loading state on submit button
             const submitBtn = document.querySelector('#centreForm button[type="submit"]');
-            if (!submitBtn) {
-                // Create submit button if it doesn't exist
-                this.createSubmitButton();
+            if (submitBtn) {
+                const originalHtml = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                submitBtn.disabled = true;
+                
+                // Revert after save
+                setTimeout(() => {
+                    submitBtn.innerHTML = originalHtml;
+                    submitBtn.disabled = false;
+                }, 1000);
             }
             
             let result;
@@ -277,35 +319,12 @@ class CentreManager {
             this.showAlert(`Error: ${error.message || 'Failed to save centre'}`, 'error');
             
         } finally {
-            // Reset loading state
             this.isLoading = false;
         }
     }
     
     /**
-     * Create submit button for form
-     */
-    createSubmitButton() {
-        const modalFooter = document.querySelector('.modal-footer');
-        if (!modalFooter) return;
-        
-        // Remove existing submit button if any
-        const existingSubmit = modalFooter.querySelector('button[type="submit"]');
-        if (existingSubmit) existingSubmit.remove();
-        
-        // Create new submit button
-        const submitBtn = document.createElement('button');
-        submitBtn.type = 'submit';
-        submitBtn.className = 'btn btn-primary';
-        submitBtn.innerHTML = this.currentEditId 
-            ? '<i class="fas fa-save"></i> Update Centre'
-            : '<i class="fas fa-plus"></i> Add Centre';
-        
-        modalFooter.appendChild(submitBtn);
-    }
-    
-    /**
-     * Validate centre data - MINIMAL VERSION
+     * Validate centre data
      */
     validateCentreData(data) {
         const errors = [];
@@ -387,12 +406,7 @@ class CentreManager {
             const newId = Date.now().toString();
             const newCentre = { 
                 id: newId, 
-                name: data.name,
-                county: data.county,
-                region: data.region,
-                status: data.status,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
+                ...data
             };
             this.centres.unshift(newCentre);
             return newCentre;
@@ -428,11 +442,8 @@ class CentreManager {
                 this.highlightField(id, false);
             });
             
-            // Reset modal title
-            const titleEl = document.getElementById('centreModalTitle');
-            if (titleEl) {
-                titleEl.textContent = 'Add New Centre';
-            }
+            // Reset modal UI
+            this.updateModalUI('Add New Centre');
             
             this.currentEditId = null;
             
@@ -509,7 +520,7 @@ class CentreManager {
     }
     
     /**
-     * Create centre card - MINIMAL VERSION
+     * Create centre card
      */
     createCentreCard(centre) {
         const card = document.createElement('div');
@@ -540,10 +551,10 @@ class CentreManager {
                 </div>
             </div>
             <div class="card-footer">
-                <button class="btn btn-sm btn-outline edit-centre" data-id="${centre.id}" title="Edit Centre">
+                <button class="btn btn-sm btn-outline edit-centre" data-id="${centre.id}">
                     <i class="fas fa-edit"></i> Edit
                 </button>
-                <button class="btn btn-sm btn-danger delete-centre" data-id="${centre.id}" title="Delete Centre">
+                <button class="btn btn-sm btn-danger delete-centre" data-id="${centre.id}">
                     <i class="fas fa-trash"></i> Delete
                 </button>
             </div>
@@ -559,22 +570,19 @@ class CentreManager {
         const grid = document.getElementById('centresGrid');
         if (!grid) return;
         
+        // Use event delegation for better performance
         grid.addEventListener('click', (e) => {
-            const target = e.target;
-            
-            const editBtn = target.closest('.edit-centre');
+            const editBtn = e.target.closest('.edit-centre');
             if (editBtn) {
                 e.preventDefault();
-                e.stopPropagation();
                 const centreId = editBtn.getAttribute('data-id');
                 this.editCentre(centreId);
                 return;
             }
             
-            const deleteBtn = target.closest('.delete-centre');
+            const deleteBtn = e.target.closest('.delete-centre');
             if (deleteBtn) {
                 e.preventDefault();
-                e.stopPropagation();
                 const centreId = deleteBtn.getAttribute('data-id');
                 this.deleteCentre(centreId);
                 return;
@@ -818,4 +826,4 @@ class CentreManager {
 // Make globally available
 window.CentreManager = CentreManager;
 
-console.log('✅ Simple Centre Manager module loaded');
+console.log('✅ Fixed Centre Manager module loaded');
