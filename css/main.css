@@ -3,27 +3,6 @@
 /* Your colors WILL NOT change with system settings */
 /* ==================== */
 
-/* Base styles */
-@import url('base.css');
-
-/* Components */
-@import url('components/sidebar.css');
-@import url('components/buttons.css');
-@import url('components/forms.css');
-@import url('components/tables.css');
-@import url('components/cards.css');
-@import url('components/modals.css');
-@import url('components/toast.css');
-
-/* Modules */
-@import url('modules/dashboard.css');
-@import url('modules/marks.css');
-@import url('modules/students.css');
-@import url('modules/courses.css');
-@import url('modules/centers.css');
-@import url('modules/reports.css');
-@import url('modules/settings.css');
-
 /* ==================== */
 /* ENHANCED COLOR VARIABLES - THESE WILL ALWAYS SHOW */
 /* ==================== */
