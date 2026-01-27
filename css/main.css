@@ -29,7 +29,30 @@
 /* ==================== */
 :root {
     /* Force light mode at the root level */
-    color-scheme: light;
+    color-scheme: light only !important;
+    
+    /* DEFINE ALL BASE VARIABLES (These might be in base.css, but define them here too) */
+    --primary: #3b82f6;
+    --secondary: #8b5cf6;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --info: #06b6d4;
+    --bg-body: #f8fafc;
+    --bg-surface: #ffffff;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --text-muted: #94a3b8;
+    --border: #e2e8f0;
+    --radius: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+    --radius-full: 9999px;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --transition: 0.3s ease;
     
     /* Enhanced accent colors */
     --accent-blue: #3b82f6;
@@ -53,39 +76,85 @@
 }
 
 /* ==================== */
-/* FORCE LIGHT MODE - PREVENT SYSTEM DARK MODE */
+/* FORCE LIGHT MODE ON ALL ELEMENTS */
 /* ==================== */
-/* This will override any system dark mode settings */
 html, body {
-    color-scheme: light !important;
+    background-color: #f8fafc !important;
+    color: #1e293b !important;
 }
 
-/* Override dark mode media query completely */
+/* Force specific element backgrounds */
+body {
+    background: #f8fafc !important;
+}
+
+/* ==================== */
+/* COMPLETE DARK MODE BLOCKER (SINGLE VERSION) */
+/* ==================== */
 @media (prefers-color-scheme: dark) {
-    :root, html, body {
-        color-scheme: light !important;
+    :root {
+        /* Force ALL variables to light values */
+        --primary: #3b82f6 !important;
+        --secondary: #8b5cf6 !important;
+        --success: #10b981 !important;
+        --warning: #f59e0b !important;
+        --danger: #ef4444 !important;
+        --info: #06b6d4 !important;
+        --bg-body: #f8fafc !important;
+        --bg-surface: #ffffff !important;
+        --text-primary: #1e293b !important;
+        --text-secondary: #64748b !important;
+        --text-muted: #94a3b8 !important;
+        --border: #e2e8f0 !important;
     }
     
-    /* Force all your colors to stay the same */
-    body {
-        background: var(--bg-body) !important;
-        color: var(--text-primary) !important;
+    html, body {
+        background-color: #f8fafc !important;
+        color: #1e293b !important;
     }
     
-    .main-header,
-    .sidebar,
-    .content-section,
-    .card,
-    .modal-content,
-    .table,
-    .form-control,
-    input,
-    textarea,
-    select {
-        background-color: inherit !important;
-        color: inherit !important;
-        border-color: var(--border) !important;
+    /* Force common elements */
+    .card, .modal-content, .sidebar, .main-header,
+    .form-control, input, textarea, select,
+    .table, .btn, .dropdown-menu, .alert, .badge,
+    .nav, .navbar, .footer, .panel, .well {
+        background-color: #ffffff !important;
+        color: #1e293b !important;
+        border-color: #e2e8f0 !important;
     }
+    
+    /* Force text visibility */
+    h1, h2, h3, h4, h5, h6,
+    p, span, div, li, td, th, a,
+    label, small, strong, em, i, b {
+        color: #1e293b !important;
+    }
+    
+    /* Force white text to be visible */
+    .text-white, .text-light {
+        color: #1e293b !important;
+    }
+    
+    /* Fix buttons */
+    .btn-primary {
+        background-color: #3b82f6 !important;
+        color: white !important;
+    }
+    
+    .btn-outline-primary {
+        background-color: transparent !important;
+        color: #3b82f6 !important;
+        border-color: #3b82f6 !important;
+    }
+    
+    /* Fix form elements */
+    input, textarea, select {
+        background-color: white !important;
+        color: #1e293b !important;
+        border: 1px solid #e2e8f0 !important;
+    }
+    
+    /* Remove the conflicting * selector from your old code */
 }
 
 /* ==================== */
@@ -806,33 +875,5 @@ html, body {
     
     .border {
         border-width: 2px !important;
-    }
-}
-
-/* ==================== */
-/* CRITICAL FIX: PREVENT ANY DARK MODE CHANGES */
-/* ==================== */
-/* This is the MOST IMPORTANT part - it completely blocks dark mode */
-@media (prefers-color-scheme: dark) {
-    /* Force ALL elements to use your light colors */
-    * {
-        background-color: inherit !important;
-        color: inherit !important;
-        border-color: inherit !important;
-    }
-    
-    /* Force form elements to stay white */
-    input, textarea, select {
-        background-color: white !important;
-        color: var(--text-primary) !important;
-    }
-    
-    /* Force scrollbars to stay light */
-    ::-webkit-scrollbar-track {
-        background: var(--gray-100) !important;
-    }
-    
-    ::-webkit-scrollbar-thumb {
-        background: var(--gray-400) !important;
     }
 }
