@@ -1,4 +1,4 @@
-// modules/transcripts.js - COMPLETE FIXED VERSION
+// modules/transcripts.js - COMPLETE FIXED VERSION WITH DETAILED MARKS
 class TranscriptsManager {
     constructor(db) {
         console.log('🎓 TranscriptsManager initialized');
@@ -313,6 +313,81 @@ class TranscriptsManager {
             `;
         });
         
+        // Generate detailed marks section for each course
+        let detailedMarksHTML = '';
+        data.courses.forEach((course, courseIndex) => {
+            if (course.assessments && course.assessments.length > 0) {
+                let assessmentRows = '';
+                let totalScore = 0;
+                let maxScore = 0;
+                
+                course.assessments.forEach((assessment, assessmentIndex) => {
+                    const percentage = assessment.percentage || 0;
+                    let gradeBadge = '';
+                    
+                    if (percentage >= 80) gradeBadge = 'bg-success';
+                    else if (percentage >= 70) gradeBadge = 'bg-primary';
+                    else if (percentage >= 60) gradeBadge = 'bg-warning';
+                    else gradeBadge = 'bg-danger';
+                    
+                    totalScore += assessment.score || 0;
+                    maxScore += assessment.maxScore || 100;
+                    
+                    assessmentRows += `
+                        <tr>
+                            <td style="padding: 8px; text-align: center;">${assessmentIndex + 1}</td>
+                            <td style="padding: 8px;">${assessment.name}</td>
+                            <td style="padding: 8px; text-align: center;">${assessment.type || 'N/A'}</td>
+                            <td style="padding: 8px; text-align: center;">${assessment.score || 0} / ${assessment.maxScore || 100}</td>
+                            <td style="padding: 8px; text-align: center;">${percentage.toFixed(1)}%</td>
+                            <td style="padding: 8px; text-align: center;">
+                                <span class="badge ${gradeBadge}" style="padding: 3px 8px; font-size: 12px;">
+                                    ${assessment.grade || 'N/A'}
+                                </span>
+                            </td>
+                            <td style="padding: 8px;">${assessment.remarks || ''}</td>
+                        </tr>
+                    `;
+                });
+                
+                const coursePercentage = maxScore > 0 ? ((totalScore / maxScore) * 100).toFixed(1) : 0;
+                
+                detailedMarksHTML += `
+                    <div class="course-marks-section mb-4" style="margin-top: 20px;">
+                        <h6 style="color: #1e3a8a; border-left: 4px solid #3b82f6; padding-left: 10px; margin-bottom: 15px;">
+                            <i class="fas fa-book"></i> ${course.courseCode} - ${course.courseName}
+                            <span style="float: right; font-size: 14px; color: #666;">
+                                Course Total: ${coursePercentage}% | Final Grade: 
+                                <span class="badge ${course.finalGrade === 'DISTINCTION' ? 'bg-success' : course.finalGrade === 'CREDIT' ? 'bg-primary' : course.finalGrade === 'PASS' ? 'bg-warning' : 'bg-danger'}" 
+                                      style="padding: 3px 8px;">
+                                    ${course.finalGrade || 'N/A'}
+                                </span>
+                            </span>
+                        </h6>
+                        
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <thead>
+                                    <tr style="background: #f8fafc; border-bottom: 2px solid #e5e7eb;">
+                                        <th style="padding: 10px; text-align: center; width: 5%;">#</th>
+                                        <th style="padding: 10px; text-align: left; width: 25%;">Assessment</th>
+                                        <th style="padding: 10px; text-align: center; width: 15%;">Type</th>
+                                        <th style="padding: 10px; text-align: center; width: 15%;">Score</th>
+                                        <th style="padding: 10px; text-align: center; width: 10%;">%</th>
+                                        <th style="padding: 10px; text-align: center; width: 10%;">Grade</th>
+                                        <th style="padding: 10px; text-align: left; width: 20%;">Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${assessmentRows}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+        
         // Generate the HTML
         return `
             <div id="transcriptModel" style="background: white; padding: 30px; border: 2px solid #1e3a8a; border-radius: 8px; max-width: 800px; margin: 0 auto; font-family: 'Georgia', serif;">
@@ -402,7 +477,7 @@ class TranscriptsManager {
                 <!-- ACADEMIC PERFORMANCE TABLE -->
                 <div class="academic-table mb-4">
                     <h5 style="color: #1e3a8a; border-bottom: 2px solid #1e3a8a; padding-bottom: 8px; margin-bottom: 15px;">
-                        <i class="fas fa-graduation-cap"></i> ACADEMIC PERFORMANCE RECORD
+                        <i class="fas fa-graduation-cap"></i> ACADEMIC PERFORMANCE SUMMARY
                     </h5>
                     
                     <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
@@ -420,6 +495,14 @@ class TranscriptsManager {
                             ${courseRows}
                         </tbody>
                     </table>
+                </div>
+                
+                <!-- DETAILED ASSESSMENT MARKS -->
+                <div class="detailed-marks-section mb-4">
+                    <h5 style="color: #1e3a8a; border-bottom: 2px solid #1e3a8a; padding-bottom: 8px; margin-bottom: 15px;">
+                        <i class="fas fa-chart-bar"></i> DETAILED ASSESSMENT MARKS
+                    </h5>
+                    ${detailedMarksHTML}
                 </div>
                 
                 <!-- SUMMARY & GRADING SCALE -->
@@ -1487,6 +1570,52 @@ class TranscriptsManager {
                 });
             }
             
+            // Add detailed marks section
+            if (options.includeAllAssessments) {
+                doc.addPage();
+                doc.setFontSize(14);
+                doc.setFont(undefined, 'bold');
+                doc.text('DETAILED ASSESSMENT MARKS', margin, 20);
+                
+                let y = 30;
+                data.courses.forEach((course, index) => {
+                    if (course.assessments && course.assessments.length > 0) {
+                        doc.setFontSize(12);
+                        doc.setFont(undefined, 'bold');
+                        doc.text(`${course.courseCode} - ${course.courseName}`, margin, y);
+                        y += 8;
+                        
+                        // Add assessment table headers
+                        doc.setFontSize(10);
+                        doc.setFont(undefined, 'normal');
+                        doc.text('Assessment', margin, y);
+                        doc.text('Type', margin + 60, y);
+                        doc.text('Score', margin + 100, y);
+                        doc.text('%', margin + 130, y);
+                        doc.text('Grade', margin + 150, y);
+                        y += 6;
+                        
+                        // Add assessment rows
+                        course.assessments.forEach(assessment => {
+                            doc.text(assessment.name, margin, y);
+                            doc.text(assessment.type || 'N/A', margin + 60, y);
+                            doc.text(`${assessment.score || 0}/${assessment.maxScore || 100}`, margin + 100, y);
+                            doc.text(`${(assessment.percentage || 0).toFixed(1)}%`, margin + 130, y);
+                            doc.text(assessment.grade || 'N/A', margin + 150, y);
+                            y += 7;
+                            
+                            // Check if we need a new page
+                            if (y > 280) {
+                                doc.addPage();
+                                y = 20;
+                            }
+                        });
+                        
+                        y += 10;
+                    }
+                });
+            }
+            
             // Footer
             const pageCount = doc.internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
@@ -1552,6 +1681,34 @@ class TranscriptsManager {
                 ]);
             });
             
+            // Add detailed marks if requested
+            if (options.includeAllAssessments) {
+                excelData.push([]);
+                excelData.push(['DETAILED ASSESSMENT MARKS']);
+                excelData.push([]);
+                
+                data.courses.forEach(course => {
+                    if (course.assessments && course.assessments.length > 0) {
+                        excelData.push([`${course.courseCode} - ${course.courseName}`]);
+                        excelData.push(['Assessment', 'Type', 'Score', 'Max Score', 'Percentage', 'Grade', 'Remarks']);
+                        
+                        course.assessments.forEach(assessment => {
+                            excelData.push([
+                                assessment.name,
+                                assessment.type || 'N/A',
+                                assessment.score || 0,
+                                assessment.maxScore || 100,
+                                assessment.percentage || 0,
+                                assessment.grade || 'N/A',
+                                assessment.remarks || ''
+                            ]);
+                        });
+                        
+                        excelData.push([]);
+                    }
+                });
+            }
+            
             // Create worksheet
             const worksheet = XLSX.utils.aoa_to_sheet(excelData);
             
@@ -1595,6 +1752,30 @@ class TranscriptsManager {
             data.courses.forEach(course => {
                 csvContent += `${course.courseCode},${course.courseName},${course.credits || 3},${course.finalGrade || 'N/A'}\n`;
             });
+            
+            // Add detailed marks if requested
+            if (options.includeAllAssessments) {
+                csvContent += '\n\nDETAILED ASSESSMENT MARKS\n\n';
+                
+                data.courses.forEach(course => {
+                    if (course.assessments && course.assessments.length > 0) {
+                        csvContent += `${course.courseCode} - ${course.courseName}\n`;
+                        csvContent += 'Assessment,Type,Score,Max Score,Percentage,Grade,Remarks\n';
+                        
+                        course.assessments.forEach(assessment => {
+                            csvContent += `${assessment.name},`;
+                            csvContent += `${assessment.type || 'N/A'},`;
+                            csvContent += `${assessment.score || 0},`;
+                            csvContent += `${assessment.maxScore || 100},`;
+                            csvContent += `${assessment.percentage || 0},`;
+                            csvContent += `${assessment.grade || 'N/A'},`;
+                            csvContent += `${assessment.remarks || ''}\n`;
+                        });
+                        
+                        csvContent += '\n';
+                    }
+                });
+            }
             
             // Download CSV
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
