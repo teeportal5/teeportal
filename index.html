@@ -1648,14 +1648,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- ========== REPORTS SECTION ========== -->
 <section id="reports" class="content-section" aria-labelledby="reports-heading">
-    <!-- Your existing reports HTML here - EXACTLY as you had it -->
     <div class="section-header">
         <h2 id="reports-heading"><i class="fas fa-chart-bar" aria-hidden="true"></i> Reports & Analytics</h2>
         <div class="action-buttons">
-            <button class="btn btn-primary" onclick="app.reports.generateSummaryReport()">
+            <button class="btn btn-primary" onclick="app.reports?.generateSummaryReport()">
                 <i class="fas fa-file-pdf"></i> Summary Report
             </button>
-            <button class="btn btn-secondary" onclick="app.reports.refreshReports()">
+            <button class="btn btn-secondary" onclick="app.reports?.refreshReports()">
                 <i class="fas fa-sync-alt"></i> Refresh
             </button>
         </div>
@@ -1770,16 +1769,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                        class="form-control form-control-sm" 
                                        placeholder="Search centres..."
                                        id="centreSearchFilter"
-                                       onkeyup="app.reports.searchFilter('centre', this.value)">
+                                       onkeyup="app.reports?.searchFilter('centre', this.value)">
                             </div>
                             <div id="centreFilterOptions" style="max-height: 200px; overflow-y: auto;">
                                 <!-- Centres will be populated here -->
                             </div>
                             <div class="d-flex justify-content-between mt-2 pt-2 border-top">
-                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="app.reports.selectAllFilter('centre')">
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="app.reports?.selectAllFilter('centre')">
                                     Select All
                                 </button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="app.reports.clearFilter('centre')">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="app.reports?.clearFilter('centre')">
                                     Clear
                                 </button>
                             </div>
@@ -1806,16 +1805,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                        class="form-control form-control-sm" 
                                        placeholder="Search counties..."
                                        id="countySearchFilter"
-                                       onkeyup="app.reports.searchFilter('county', this.value)">
+                                       onkeyup="app.reports?.searchFilter('county', this.value)">
                             </div>
                             <div id="countyFilterOptions" style="max-height: 200px; overflow-y: auto;">
                                 <!-- Counties will be populated here -->
                             </div>
                             <div class="d-flex justify-content-between mt-2 pt-2 border-top">
-                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="app.reports.selectAllFilter('county')">
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="app.reports?.selectAllFilter('county')">
                                     Select All
                                 </button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="app.reports.clearFilter('county')">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="app.reports?.clearFilter('county')">
                                     Clear
                                 </button>
                             </div>
@@ -1842,16 +1841,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                        class="form-control form-control-sm" 
                                        placeholder="Search programs..."
                                        id="programSearchFilter"
-                                       onkeyup="app.reports.searchFilter('program', this.value)">
+                                       onkeyup="app.reports?.searchFilter('program', this.value)">
                             </div>
                             <div id="programFilterOptions" style="max-height: 200px; overflow-y: auto;">
                                 <!-- Programs will be populated here -->
                             </div>
                             <div class="d-flex justify-content-between mt-2 pt-2 border-top">
-                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="app.reports.selectAllFilter('program')">
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="app.reports?.selectAllFilter('program')">
                                     Select All
                                 </button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="app.reports.clearFilter('program')">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="app.reports?.clearFilter('program')">
                                     Clear
                                 </button>
                             </div>
@@ -1879,13 +1878,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 <!-- Filter Actions -->
                 <div class="col-12 mt-2">
                     <div class="d-flex gap-2">
-                        <button class="btn btn-outline-primary" onclick="app.reports.clearFilters()">
+                        <button class="btn btn-outline-primary" onclick="app.reports?.clearFilters()">
                             <i class="fas fa-times"></i> Clear Filters
                         </button>
-                        <button class="btn btn-primary" onclick="app.reports.applyFilters()">
+                        <button class="btn btn-primary" onclick="app.reports?.applyFilters()">
                             <i class="fas fa-filter"></i> Apply Filters
                         </button>
-                        <button class="btn btn-outline-secondary" onclick="app.reports.saveFilterPreset()">
+                        <button class="btn btn-outline-secondary" onclick="app.reports?.saveFilterPreset()">
                             <i class="fas fa-save"></i> Save Filter Preset
                         </button>
                     </div>
@@ -1897,6 +1896,186 @@ document.addEventListener('DOMContentLoaded', function() {
     <!-- REPORTS GRID (6 Reports) -->
     <div id="reportsGrid" class="row mb-4">
         <!-- Reports will be populated dynamically by JavaScript -->
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+            <p>Loading reports...</p>
+        </div>
+    </div>
+    
+    <!-- TRANSCRIPT GENERATION SECTION - FIXED -->
+    <div id="transcriptSection" class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5><i class="fas fa-graduation-cap"></i> Student Transcript Generator</h5>
+            <div>
+                <button class="btn btn-sm btn-outline-primary" onclick="app.transcripts?.loadSampleTranscript()">
+                    <i class="fas fa-file-alt"></i> Load Sample
+                </button>
+            </div>
+        </div>
+        
+        <div class="card-body">
+            <!-- Transcript Controls -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6><i class="fas fa-cogs"></i> Transcript Settings</h6>
+                            
+                            <!-- Student Selection -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Select Student</label>
+                                    <select id="transcriptStudent" class="form-select">
+                                        <option value="">Select a student...</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Centre Filter</label>
+                                    <select id="transcriptCenterFilter" class="form-select">
+                                        <option value="all">All Centres</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Program</label>
+                                    <select id="transcriptProgram" class="form-select">
+                                        <option value="all">All Programs</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <!-- Format and Options -->
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Export Format</label>
+                                    <select id="transcriptFormat" class="form-select">
+                                        <option value="pdf">PDF Document</option>
+                                        <option value="excel">Excel Spreadsheet</option>
+                                        <option value="csv">CSV File</option>
+                                        <option value="print">Print Preview</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label">Include Options</label>
+                                    <div class="d-flex gap-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="includeGrades" checked>
+                                            <label class="form-check-label" for="includeGrades">
+                                                All Grades
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="includeGPA" checked>
+                                            <label class="form-check-label" for="includeGPA">
+                                                GPA Calculation
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="includeSignatures" checked>
+                                            <label class="form-check-label" for="includeSignatures">
+                                                Signatures
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-primary" onclick="app.transcripts?.previewTranscript()">
+                                    <i class="fas fa-eye"></i> Preview
+                                </button>
+                                <button class="btn btn-primary" onclick="app.transcripts?.generateTranscriptFromUI()">
+                                    <i class="fas fa-download"></i> Generate
+                                </button>
+                                <button class="btn btn-success" onclick="app.transcripts?.generateStudentTranscriptPrompt()">
+                                    <i class="fas fa-users"></i> Bulk Generate
+                                </button>
+                                <button class="btn btn-outline-secondary" onclick="app.transcripts?.clearSelectedStudent()">
+                                    <i class="fas fa-times"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6><i class="fas fa-info-circle"></i> Quick Info</h6>
+                            <p class="small mb-2">To generate a transcript:</p>
+                            <ol class="small">
+                                <li>Select a student from dropdown</li>
+                                <li>Choose export format</li>
+                                <li>Select options to include</li>
+                                <li>Click "Preview" or "Generate"</li>
+                                <li>For multiple transcripts, use "Bulk Generate"</li>
+                            </ol>
+                            <div class="alert alert-info mt-3 small">
+                                <i class="fas fa-lightbulb"></i> 
+                                <strong>Tip:</strong> Use filters to find specific students quickly.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Selected Student Info -->
+            <div id="selectedStudentInfo" class="alert alert-success" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>Selected Student:</strong>
+                        <span id="selectedStudentName">-</span>
+                        <span id="selectedStudentReg" class="badge bg-secondary ms-2">-</span>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" onclick="app.transcripts?.clearSelectedStudent()">
+                        <i class="fas fa-times"></i> Clear Selection
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Transcript Preview Area -->
+            <div id="transcriptPreview" class="mt-4" style="display: none;">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="fas fa-eye"></i> Transcript Preview</h6>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary me-2" onclick="app.transcripts?.downloadCurrentTranscript()">
+                                <i class="fas fa-download"></i> Download
+                            </button>
+                            <button class="btn btn-sm btn-outline-success me-2" onclick="app.transcripts?.emailTranscript()">
+                                <i class="fas fa-envelope"></i> Email
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('transcriptPreview').style.display='none'">
+                                <i class="fas fa-times"></i> Close
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="transcriptPreviewContent" style="max-height: 600px; overflow-y: auto;">
+                            <!-- Transcript will be loaded here -->
+                            <div class="text-center text-muted py-5">
+                                <i class="fas fa-graduation-cap fa-3x mb-3"></i>
+                                <p>No transcript preview available</p>
+                                <p class="small">Generate a transcript to see preview here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Transcripts -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6><i class="fas fa-history"></i> Recent Transcripts</h6>
+                </div>
+                <div class="card-body">
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p class="mt-2">Transcript history will appear here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     
     <!-- ADVANCED REPORTS CONFIGURATION -->
@@ -1911,7 +2090,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="report-config">
                         <h6><i class="fas fa-users"></i> Student Report</h6>
                         
-                        <!-- Centre Filter for Student Report - FIXED -->
+                        <!-- Centre Filter for Student Report -->
                         <div class="mb-3">
                             <label class="form-label">Filter by Centre</label>
                             <div class="dropdown">
@@ -1929,16 +2108,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                                class="form-control form-control-sm" 
                                                placeholder="Search centres..."
                                                id="studentReportCenterSearch"
-                                               onkeyup="app.reports.searchFilter('studentReportCenter', this.value)">
+                                               onkeyup="app.reports?.searchFilter('studentReportCenter', this.value)">
                                     </div>
                                     <div id="studentReportCenterOptions" style="max-height: 200px; overflow-y: auto;">
                                         <!-- Centres will be populated here -->
                                     </div>
                                     <div class="d-flex justify-content-between mt-2 pt-2 border-top">
-                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="app.reports.selectAllFilter('studentReportCenter')">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="app.reports?.selectAllFilter('studentReportCenter')">
                                             Select All
                                         </button>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="app.reports.clearFilter('studentReportCenter')">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="app.reports?.clearFilter('studentReportCenter')">
                                             Clear
                                         </button>
                                     </div>
@@ -1966,10 +2145,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             </select>
                         </div>
                         <div class="d-flex gap-2">
-                            <button class="btn btn-primary flex-fill" onclick="app.reports.previewStudentReport()">
+                            <button class="btn btn-primary flex-fill" onclick="app.reports?.previewStudentReport()">
                                 <i class="fas fa-eye"></i> Preview
                             </button>
-                            <button class="btn btn-success flex-fill" onclick="app.reports.generateStudentReport()">
+                            <button class="btn btn-success flex-fill" onclick="app.reports?.generateStudentReport()">
                                 <i class="fas fa-download"></i> Export
                             </button>
                         </div>
@@ -1981,7 +2160,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="report-config">
                         <h6><i class="fas fa-chart-line"></i> Academic Report</h6>
                         
-                        <!-- Centre Filter for Academic Report - FIXED -->
+                        <!-- Centre Filter for Academic Report -->
                         <div class="mb-3">
                             <label class="form-label">Filter by Centre</label>
                             <div class="dropdown">
@@ -1999,16 +2178,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                                class="form-control form-control-sm" 
                                                placeholder="Search centres..."
                                                id="academicReportCenterSearch"
-                                               onkeyup="app.reports.searchFilter('academicReportCenter', this.value)">
+                                               onkeyup="app.reports?.searchFilter('academicReportCenter', this.value)">
                                     </div>
                                     <div id="academicReportCenterOptions" style="max-height: 200px; overflow-y: auto;">
                                         <!-- Centres will be populated here -->
                                     </div>
                                     <div class="d-flex justify-content-between mt-2 pt-2 border-top">
-                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="app.reports.selectAllFilter('academicReportCenter')">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="app.reports?.selectAllFilter('academicReportCenter')">
                                             Select All
                                         </button>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="app.reports.clearFilter('academicReportCenter')">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="app.reports?.clearFilter('academicReportCenter')">
                                             Clear
                                         </button>
                                     </div>
@@ -2036,10 +2215,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             </select>
                         </div>
                         <div class="d-flex gap-2">
-                            <button class="btn btn-primary flex-fill" onclick="app.reports.previewAcademicReport()">
+                            <button class="btn btn-primary flex-fill" onclick="app.reports?.previewAcademicReport()">
                                 <i class="fas fa-eye"></i> Preview
                             </button>
-                            <button class="btn btn-success flex-fill" onclick="app.reports.generateAcademicReport()">
+                            <button class="btn btn-success flex-fill" onclick="app.reports?.generateAcademicReport()">
                                 <i class="fas fa-download"></i> Export
                             </button>
                         </div>
@@ -2048,270 +2227,6 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         </div>
     </div>
-    
-  <!-- ========== TRANSCRIPT GENERATION SECTION ========== -->
-<div id="transcriptSection" class="card mb-4">
-    <div class="card-header">
-        <h5><i class="fas fa-graduation-cap"></i> Bulk Transcript Generation</h5>
-    </div>
-    <div class="card-body">
-        <!-- Main Bulk Action -->
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <div class="display-1 text-primary mb-3">
-                            <i class="fas fa-users"></i>
-                        </div>
-                        <h4>Generate Multiple Transcripts</h4>
-                        <p class="text-muted">Select multiple students and generate their transcripts in batch</p>
-                        <button class="btn btn-primary btn-lg mt-3" onclick="window.app?.transcripts?.generateStudentTranscriptPrompt()">
-                            <i class="fas fa-graduation-cap"></i> Open Student Selector
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5><i class="fas fa-info-circle"></i> How to Generate Transcripts</h5>
-                        <ol class="mt-3">
-                            <li>Click "Open Student Selector"</li>
-                            <li>Select students using checkboxes</li>
-                            <li>Choose export format (PDF/Excel/CSV)</li>
-                            <li>Click "Generate Transcripts"</li>
-                            <li>Download will start automatically</li>
-                        </ol>
-                        <div class="alert alert-info mt-3">
-                            <i class="fas fa-lightbulb"></i> <strong>Tip:</strong> Use filters to find specific students by program or intake year
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="row mb-4">
-            <div class="col-md-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h6><i class="fas fa-bolt"></i> Quick Actions</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-3">
-                                <button class="btn btn-outline-primary w-100" onclick="window.app?.transcripts?.loadSampleTranscript()">
-                                    <i class="fas fa-file-alt"></i> Load Sample
-                                </button>
-                            </div>
-                            <div class="col-md-3">
-                                <button class="btn btn-outline-success w-100" onclick="window.app?.transcripts?.generateTranscriptsBatch('graduated', 'pdf')">
-                                    <i class="fas fa-user-graduate"></i> Graduated Students
-                                </button>
-                            </div>
-                            <div class="col-md-3">
-                                <button class="btn btn-outline-info w-100" onclick="window.app?.transcripts?.generateTranscriptsBatch('active', 'pdf')">
-                                    <i class="fas fa-user-check"></i> Active Students
-                                </button>
-                            </div>
-                            <div class="col-md-3">
-                                <button class="btn btn-outline-warning w-100" onclick="window.app?.transcripts?.generateTranscriptsBatch('all', 'excel')">
-                                    <i class="fas fa-table"></i> Export All to Excel
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Current Selection -->
-        <div id="selectedStudentInfo" class="alert alert-success" style="display: none;">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <strong>Selected Student:</strong>
-                    <span id="selectedStudentName">-</span>
-                    <span id="selectedStudentReg" class="badge bg-secondary ms-2">-</span>
-                </div>
-                <button class="btn btn-sm btn-outline-danger" onclick="window.app?.transcripts?.clearSelectedStudent()">
-                    <i class="fas fa-times"></i> Clear
-                </button>
-            </div>
-        </div>
-
-        <!-- Transcript Preview Area -->
-        <div id="transcriptPreview" class="mt-4" style="display: none;">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0"><i class="fas fa-eye"></i> Transcript Preview</h6>
-                    <div>
-                        <button class="btn btn-sm btn-outline-secondary me-2" onclick="window.app?.transcripts?.downloadCurrentTranscript()">
-                            <i class="fas fa-download"></i> Download
-                        </button>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="window.app?.transcripts?.emailTranscript()">
-                            <i class="fas fa-envelope"></i> Email
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div id="transcriptPreviewContent">
-                        <!-- Preview will be loaded here -->
-                        <div class="text-center text-muted py-5">
-                            <i class="fas fa-graduation-cap fa-3x mb-3"></i>
-                            <p>No transcript preview available</p>
-                            <p class="small">Generate a transcript to see preview here</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Transcript History -->
-        <div class="card mt-4">
-            <div class="card-header">
-                <h6><i class="fas fa-history"></i> Recent Transcripts</h6>
-            </div>
-            <div class="card-body">
-                <div class="text-center text-muted py-4">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <p class="mt-2">Transcript history will appear here</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- JavaScript to enhance bulk functionality -->
-<script>
-// Add these helper functions to your app.js or keep them here
-if (!window.app) window.app = {};
-if (!window.app.transcripts) window.app.transcripts = {};
-
-// Bulk generation shortcuts
-window.app.transcripts.generateTranscriptsBatch = async function(filter = 'all', format = 'pdf') {
-    try {
-        console.log(`Generating ${filter} transcripts in ${format} format...`);
-        
-        // Show loading
-        const toast = document.createElement('div');
-        toast.className = 'alert alert-info';
-        toast.innerHTML = `
-            <i class="fas fa-spinner fa-spin"></i>
-            Fetching ${filter} students...
-        `;
-        document.getElementById('transcriptPreviewContent').innerHTML = '';
-        document.getElementById('transcriptPreview').style.display = 'block';
-        document.getElementById('transcriptPreviewContent').appendChild(toast);
-        
-        // Get students based on filter
-        let students = [];
-        try {
-            students = await this.db.getStudents();
-            
-            if (filter === 'graduated') {
-                students = students.filter(s => s.status === 'graduated');
-            } else if (filter === 'active') {
-                students = students.filter(s => s.status === 'active');
-            }
-            // 'all' includes all students
-            
-            if (students.length === 0) {
-                throw new Error(`No ${filter} students found`);
-            }
-            
-        } catch (error) {
-            document.getElementById('transcriptPreviewContent').innerHTML = `
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    Error: ${error.message}
-                </div>
-            `;
-            return;
-        }
-        
-        // Update message
-        toast.innerHTML = `
-            <i class="fas fa-spinner fa-spin"></i>
-            Generating ${students.length} transcripts in ${format.toUpperCase()} format...
-            <div class="progress mt-2">
-                <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
-            </div>
-        `;
-        
-        // Generate transcripts
-        const studentIds = students.map(s => s.id);
-        const options = {
-            includeAllAssessments: true,
-            includeGPA: true,
-            includeRemarks: true
-        };
-        
-        const results = await this.generateTranscriptsBatch(studentIds, format, options);
-        
-        // Show results
-        const successful = results.filter(r => r.success);
-        const failed = results.filter(r => !r.success);
-        
-        let resultHtml = `
-            <div class="alert ${failed.length > 0 ? 'alert-warning' : 'alert-success'}">
-                <i class="fas ${failed.length > 0 ? 'fa-exclamation-triangle' : 'fa-check-circle'}"></i>
-                <strong>Batch Generation Complete</strong><br>
-                <small>Successfully generated: ${successful.length} transcripts<br>
-                Failed: ${failed.length} transcripts</small>
-            </div>
-        `;
-        
-        if (failed.length > 0) {
-            resultHtml += `
-                <div class="alert alert-danger">
-                    <h6>Failed Transcripts:</h6>
-                    <ul class="small">
-                        ${failed.map(f => `<li>Student ID: ${f.studentId} - ${f.error}</li>`).join('')}
-                    </ul>
-                </div>
-            `;
-        }
-        
-        document.getElementById('transcriptPreviewContent').innerHTML = resultHtml;
-        
-        // Auto-scroll to preview
-        document.getElementById('transcriptPreview').scrollIntoView({ behavior: 'smooth' });
-        
-    } catch (error) {
-        console.error('Error in bulk generation:', error);
-        document.getElementById('transcriptPreviewContent').innerHTML = `
-            <div class="alert alert-danger">
-                <i class="fas fa-exclamation-circle"></i>
-                Error generating transcripts: ${error.message}
-            </div>
-        `;
-    }
-};
-
-// Simple toast function if not in transcripts.js
-window.app.transcripts.showToast = function(message, type = 'info') {
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerHTML = `
-        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
-        <span>${message}</span>
-        <button onclick="this.parentElement.remove()">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
-    
-    let container = document.getElementById('toastContainer');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'toastContainer';
-        container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999;';
-        document.body.appendChild(container);
-    }
-    
-    container.appendChild(toast);
-    setTimeout(() => { if (toast.parentElement) toast.remove(); }, 5000);
-};
-</script>
     
     <!-- BULK EXPORT -->
     <div class="card mb-4">
@@ -2350,16 +2265,16 @@ window.app.transcripts.showToast = function(message, type = 'info') {
                                            class="form-control form-control-sm" 
                                            placeholder="Search centres..."
                                            id="bulkExportCentersSearch"
-                                           onkeyup="app.reports.searchFilter('bulkExportCenters', this.value)">
+                                           onkeyup="app.reports?.searchFilter('bulkExportCenters', this.value)">
                                 </div>
                                 <div id="bulkExportCentersOptions" style="max-height: 200px; overflow-y: auto;">
                                     <!-- Centres will be populated here -->
                                 </div>
                                 <div class="d-flex justify-content-between mt-2 pt-2 border-top">
-                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="app.reports.selectAllFilter('bulkExportCenters')">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="app.reports?.selectAllFilter('bulkExportCenters')">
                                         Select All
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="app.reports.clearFilter('bulkExportCenters')">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="app.reports?.clearFilter('bulkExportCenters')">
                                         Clear
                                     </button>
                                 </div>
@@ -2374,7 +2289,7 @@ window.app.transcripts.showToast = function(message, type = 'info') {
                     </p>
                 </div>
                 <div class="col-md-2 text-end">
-                    <button class="btn btn-warning w-100" onclick="app.reports.bulkExport()">
+                    <button class="btn btn-warning w-100" onclick="app.reports?.bulkExport()">
                         <i class="fas fa-file-export"></i> Export
                     </button>
                 </div>
@@ -2419,7 +2334,7 @@ window.app.transcripts.showToast = function(message, type = 'info') {
                     </div>
                 </div>
                 <div class="col-md-3 d-flex align-items-end">
-                    <button class="btn btn-primary w-100" onclick="app.reports.addScheduledReport()">
+                    <button class="btn btn-primary w-100" onclick="app.reports?.addScheduledReport()">
                         <i class="fas fa-plus"></i> Add Schedule
                     </button>
                 </div>
@@ -2450,10 +2365,10 @@ window.app.transcripts.showToast = function(message, type = 'info') {
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5><i class="fas fa-eye"></i> Report Preview</h5>
             <div>
-                <button class="btn btn-sm btn-outline-secondary me-2" onclick="app.reports.downloadPreview()">
+                <button class="btn btn-sm btn-outline-secondary me-2" onclick="app.reports?.downloadPreview()">
                     <i class="fas fa-download"></i> Download
                 </button>
-                <button class="btn btn-sm btn-outline-secondary" onclick="app.reports.clearPreview()">
+                <button class="btn btn-sm btn-outline-secondary" onclick="app.reports?.clearPreview()">
                     <i class="fas fa-times"></i> Clear
                 </button>
             </div>
@@ -2472,6 +2387,40 @@ window.app.transcripts.showToast = function(message, type = 'info') {
 
 <!-- TRANSCRIPT MODAL (Will be created by JavaScript) -->
 <div id="transcriptModalContainer"></div>
+
+<!-- TOAST CONTAINER -->
+<div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
+
+<!-- JavaScript to ensure modules are loaded -->
+<script>
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📄 Reports page loaded');
+    
+    // Check if app is loaded
+    setTimeout(function() {
+        if (window.app && window.app.reports) {
+            console.log('✅ Reports module loaded');
+        } else {
+            console.error('❌ Reports module not found');
+            // Show error message
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-danger';
+            errorDiv.innerHTML = `
+                <i class="fas fa-exclamation-triangle"></i>
+                Reports module not loaded. Please check:
+                <ul>
+                    <li>Is reports.js loaded?</li>
+                    <li>Check browser console for errors</li>
+                    <li>Refresh the page</li>
+                </ul>
+            `;
+            document.getElementById('reportsGrid').innerHTML = '';
+            document.getElementById('reportsGrid').appendChild(errorDiv);
+        }
+    }, 1000);
+});
+</script>
 
 <!-- ========== CENTRES SECTION ========== -->
 <section id="centres" class="content-section">
