@@ -2,15 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-         <!-- CRITICAL: Force light mode - Add these meta tags -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    
+    <!-- FORCE LIGHT MODE FOREVER -->
     <meta name="color-scheme" content="light only">
-    <meta name="theme-color" content="#f8fafc">
+    <meta name="theme-color" content="#3b82f6" media="(prefers-color-scheme: light)">
+    <meta name="supported-color-schemes" content="light">
+    
     <title>TEE Portal - Student Management System</title>
-      
-    <!-- CSS Libraries -->
+    
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="base.css">
+    
+    <!-- Your main CSS -->
     <link rel="stylesheet" href="css/main.css">
     
     <!-- JavaScript Libraries -->
@@ -2954,76 +2958,150 @@ window.app.transcripts.showToast = function(message, type = 'info') {
         </main>
     </div>
     
-   <!-- JavaScript Modules - CORRECT ORDER -->
-<!-- 1. Database Layer (Load FIRST) -->
-<script src="modules/database.js"></script>
+ <!-- JavaScript Modules - CORRECT ORDER -->
+    <!-- 1. Database Layer (Load FIRST) -->
+    <script src="modules/database.js"></script>
 
-<!-- 2. Core Framework -->
-<script src="modules/ui.js"></script>
-<script src="modules/modal-manager.js"></script>
-<script src="modules/settings.js"></script>
+    <!-- 2. Core Framework -->
+    <script src="modules/ui.js"></script>
+    <script src="modules/modal-manager.js"></script>
+    <script src="modules/settings.js"></script>
 
-<!-- 3. Data Modules -->
-<script src="modules/students.js"></script>
-<script src="modules/programs.js"></script>
-<script src="modules/courses.js"></script>
-<script src="modules/marks.js"></script>
-<script src="modules/centres.js"></script>
+    <!-- 3. Data Modules -->
+    <script src="modules/students.js"></script>
+    <script src="modules/programs.js"></script>
+    <script src="modules/courses.js"></script>
+    <script src="modules/marks.js"></script>
+    <script src="modules/centres.js"></script>
 
-<!-- 4. Feature Modules -->
-<script src="modules/dashboard.js"></script>
-<script src="modules/reports.js"></script>
-<script src="modules/transcripts.js"></script>
-<script src="modules/profile.js"></script>
+    <!-- 4. Feature Modules -->
+    <script src="modules/dashboard.js"></script>
+    <script src="modules/reports.js"></script>
+    <script src="modules/transcripts.js"></script>
+    <script src="modules/profile.js"></script>
 
-<!-- 5. Main Application (MUST BE LAST) -->
-<script src="app.js"></script>
+    <!-- 5. Main Application (MUST BE LAST) -->
+    <script src="app.js"></script>
 
-<script>
+    <!-- Mobile Menu Toggle Button -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <script>
+    // Ensure app exists
+    if (!window.app) {
+        window.app = {
+            initialize: function() {
+                return Promise.resolve();
+            }
+        };
+    }
+
+    // Mobile menu toggle
+    document.addEventListener('DOMContentLoaded', function() {
+        const mobileToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.querySelector('.sidebar');
+        
+        if (mobileToggle && sidebar) {
+            mobileToggle.addEventListener('click', function() {
+                sidebar.classList.toggle('open');
+                // Update icon
+                const icon = this.querySelector('i');
+                if (sidebar.classList.contains('open')) {
+                    icon.className = 'fas fa-times';
+                } else {
+                    icon.className = 'fas fa-bars';
+                }
+            });
+            
+            // Close sidebar when clicking outside on mobile
+            document.addEventListener('click', function(event) {
+                if (window.innerWidth < 1024 && 
+                    sidebar.classList.contains('open') &&
+                    !sidebar.contains(event.target) &&
+                    !mobileToggle.contains(event.target)) {
+                    sidebar.classList.remove('open');
+                    mobileToggle.querySelector('i').className = 'fas fa-bars';
+                }
+            });
+        }
+        
+        // Auto-close sidebar on section click (mobile)
+        document.querySelectorAll('.sidebar-menu a').forEach(link => {
+            link.addEventListener('click', function() {
+                if (window.innerWidth < 1024) {
+                    sidebar.classList.remove('open');
+                    mobileToggle.querySelector('i').className = 'fas fa-bars';
+                }
+            });
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 1024) {
+                sidebar.classList.add('open');
+            }
+        });
+        
+        // Initialize
+        if (window.innerWidth >= 1024) {
+            sidebar.classList.add('open');
+        }
+    });
+
     // Clean showSection function - NO INLINE STYLES
     window.showSection = function(sectionId) {
-        console.log('Switching to section:', sectionId);
-        
-        // Update URL hash
-        history.replaceState(null, null, '#' + sectionId);
-        
-        // 1. Remove active class from all sections (CSS will handle hiding)
-        document.querySelectorAll('.content-section').forEach(section => {
-            section.classList.remove('active');
-        });
-        
-        // 2. Remove active class from all nav links
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.classList.remove('active');
-        });
-        
-        // 3. Add active class to target section (CSS will handle showing)
-        const targetSection = document.getElementById(sectionId);
-        if (targetSection) {
-            console.log('✅ Found section, showing:', sectionId);
-            targetSection.classList.add('active');
-        } else {
-            console.error('❌ Section not found:', sectionId);
-            // Fallback to dashboard
+        try {
+            console.log('Switching to section:', sectionId);
+            
+            // Update URL hash
+            history.replaceState(null, null, '#' + sectionId);
+            
+            // 1. Remove active class from all sections (CSS will handle hiding)
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // 2. Remove active class from all nav links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // 3. Add active class to target section (CSS will handle showing)
+            const targetSection = document.getElementById(sectionId);
+            if (targetSection) {
+                console.log('✅ Found section, showing:', sectionId);
+                targetSection.classList.add('active');
+            } else {
+                console.error('❌ Section not found:', sectionId);
+                // Fallback to dashboard
+                showSection('dashboard');
+                return;
+            }
+            
+            // 4. Add active class to nav link
+            const navLink = document.querySelector(`a[href="#${sectionId}"]`);
+            if (navLink) {
+                navLink.classList.add('active');
+            }
+            
+            // 5. Load section data if needed
+            setTimeout(() => {
+                lazyLoadSectionData(sectionId);
+            }, 100);
+        } catch (error) {
+            console.error('Error switching section:', error);
             showSection('dashboard');
-            return;
         }
-        
-        // 4. Add active class to nav link
-        const navLink = document.querySelector(`a[href="#${sectionId}"]`);
-        if (navLink) {
-            navLink.classList.add('active');
-        }
-        
-        // 5. Load section data if needed
-        setTimeout(() => {
-            lazyLoadSectionData(sectionId);
-        }, 100);
     };
     
     function lazyLoadSectionData(sectionId) {
         const app = window.app;
-        if (!app) return;
+        if (!app) {
+            console.warn('App not initialized');
+            return;
+        }
         
         switch(sectionId) {
             case 'dashboard':
@@ -3061,6 +3139,8 @@ window.app.transcripts.showToast = function(message, type = 'info') {
                     app.reports.refreshReports();
                 }
                 break;
+            default:
+                console.log('No lazy loading needed for:', sectionId);
         }
     }
     
@@ -3081,7 +3161,7 @@ window.app.transcripts.showToast = function(message, type = 'info') {
             el.removeAttribute('style');
         });
         
-        if (window.app) {
+        if (window.app && window.app.initialize) {
             window.app.initialize().then(() => {
                 // Show section after app loads
                 setTimeout(() => {
@@ -3104,7 +3184,7 @@ window.app.transcripts.showToast = function(message, type = 'info') {
             }
         }
     });
-   
+    
     // Add this JavaScript fallback
     if (typeof window !== 'undefined') {
         // Try to get from app first, then fallback to global
@@ -3133,6 +3213,6 @@ window.app.transcripts.showToast = function(message, type = 'info') {
             }
         };
     }
-</script>
+    </script>
 </body>
 </html>
