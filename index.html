@@ -2626,73 +2626,6 @@ window.app.transcripts.showToast = function(message, type = 'info') {
                 <div class="stat-label">Inactive Centres</div>
             </div>
         </div>
-    </div>
-</section>
-
-<!-- ========== CENTRES SECTION ========== -->
-<section id="centres" class="content-section">
-    <div class="section-header">
-        <div class="header-left">
-            <h2><i class="fas fa-map-marker-alt"></i> Centre Management</h2>
-            <p class="section-subtitle">Manage all study centres and locations</p>
-        </div>
-        <div class="header-actions">
-            <button class="btn btn-primary" onclick="openCentreModal()">
-                <i class="fas fa-plus"></i> Add Centre
-            </button>
-            <button class="btn btn-secondary" onclick="exportCentres()">
-                <i class="fas fa-download"></i> Export
-            </button>
-            <button class="btn btn-outline" onclick="refreshCentres()">
-                <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-        </div>
-    </div>
-    
-    <!-- Search Box -->
-    <div class="search-box" style="margin: 20px 0;">
-        <i class="fas fa-search"></i>
-        <input type="text" id="centreSearchInput" placeholder="Search centres..." 
-               class="search-input">
-    </div>
-    
-    <!-- Centres Grid -->
-    <div class="cards-grid" id="centresGrid">
-        <div class="loading-state">
-            <i class="fas fa-spinner fa-spin"></i>
-            <span>Loading centres...</span>
-        </div>
-    </div>
-    
-    <!-- Centre Statistics -->
-    <div class="stats-grid" style="margin-top: 30px;">
-        <div class="stat-card">
-            <div class="stat-icon blue">
-                <i class="fas fa-map-marker-alt"></i>
-            </div>
-            <div class="stat-content">
-                <div class="stat-value" id="totalCentresCount">0</div>
-                <div class="stat-label">Total Centres</div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon green">
-                <i class="fas fa-check-circle"></i>
-            </div>
-            <div class="stat-content">
-                <div class="stat-value" id="activeCentresCount">0</div>
-                <div class="stat-label">Active Centres</div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon orange">
-                <i class="fas fa-pause-circle"></i>
-            </div>
-            <div class="stat-content">
-                <div class="stat-value" id="inactiveCentresCount">0</div>
-                <div class="stat-label">Inactive Centres</div>
-            </div>
-        </div>
         <div class="stat-card">
             <div class="stat-icon purple">
                 <i class="fas fa-map"></i>
@@ -2958,7 +2891,12 @@ window.app.transcripts.showToast = function(message, type = 'info') {
         </main>
     </div>
     
- <!-- JavaScript Modules - CORRECT ORDER -->
+<!-- Mobile Menu Toggle Button -->
+<button class="mobile-menu-toggle" id="mobileMenuToggle">
+    <i class="fas fa-bars"></i>
+</button>
+
+<!-- JavaScript Modules - CORRECT ORDER -->
     <!-- 1. Database Layer (Load FIRST) -->
     <script src="modules/database.js"></script>
 
@@ -2982,11 +2920,6 @@ window.app.transcripts.showToast = function(message, type = 'info') {
 
     <!-- 5. Main Application (MUST BE LAST) -->
     <script src="app.js"></script>
-
-    <!-- Mobile Menu Toggle Button -->
-    <button class="mobile-menu-toggle" id="mobileMenuToggle">
-        <i class="fas fa-bars"></i>
-    </button>
 
     <script>
     // Ensure app exists
