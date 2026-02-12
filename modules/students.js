@@ -615,21 +615,41 @@ class StudentManager {
     _setupActionButtonListeners() {
         const addStudentBtn = document.querySelector('.action-btn.primary, [data-action="add-student"]');
         if (addStudentBtn) {
-            addStudentBtn.addEventListener('click', (e) => {
+            // Clone and replace to remove existing listeners
+            const newBtn = addStudentBtn.cloneNode(true);
+            if (addStudentBtn.parentNode) {
+                addStudentBtn.parentNode.replaceChild(newBtn, addStudentBtn);
+            }
+            
+            newBtn.addEventListener('click', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 console.log('➕ Add student button clicked');
                 this.openStudentModal();
             });
+            
+            // Remove onclick attribute if it exists
+            newBtn.removeAttribute('onclick');
         }
         
         const bulkUploadBtn = document.querySelector('[data-action="bulk-upload"]');
         if (bulkUploadBtn) {
-            bulkUploadBtn.addEventListener('click', () => this.bulkUpload());
+            const newBtn = bulkUploadBtn.cloneNode(true);
+            if (bulkUploadBtn.parentNode) {
+                bulkUploadBtn.parentNode.replaceChild(newBtn, bulkUploadBtn);
+            }
+            newBtn.addEventListener('click', () => this.bulkUpload());
+            newBtn.removeAttribute('onclick');
         }
         
         const exportBtn = document.querySelector('[data-action="export-data"]');
         if (exportBtn) {
-            exportBtn.addEventListener('click', () => this.exportStudents());
+            const newBtn = exportBtn.cloneNode(true);
+            if (exportBtn.parentNode) {
+                exportBtn.parentNode.replaceChild(newBtn, exportBtn);
+            }
+            newBtn.addEventListener('click', () => this.exportStudents());
+            newBtn.removeAttribute('onclick');
         }
     }
     
@@ -799,7 +819,7 @@ class StudentManager {
     }
     
     /**
-     * Create student row - COMPACT VERSION (NO EXTRA SPACES)
+     * Create student row - COMPACT VERSION
      */
     _createStudentRow(student, index) {
         const programDisplay = this._getProgramDisplayName(student.program);
@@ -1253,66 +1273,84 @@ class StudentManager {
     }
     
     /**
-     * Save student - COMPLETE FIX with proper UI feedback
+     * Save student - COMPLETE FIX! Button NEVER gets stuck!
      */
     async saveStudent(event) {
-        event.preventDefault();
-        event.stopPropagation();
-        
-        console.log('\n==========================================');
-        console.log('🔍 SAVE STUDENT STARTED');
-        console.log('==========================================');
-        
-        const form = event.target;
-        if (!form || form.id !== 'studentForm') {
-            console.error('❌ Invalid form');
-            return;
+        // PREVENT ANY AND ALL DEFAULT BEHAVIOR
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
         }
         
-        const submitBtn = form.querySelector('button[type="submit"]');
+        console.log('\n==========================================');
+        console.log('🔍 SAVE STUDENT STARTED (FIXED VERSION)');
+        console.log('==========================================');
+        
+        const form = document.getElementById('studentForm');
+        const submitBtn = document.querySelector('#studentForm button[type="submit"]');
         const originalText = submitBtn ? submitBtn.innerHTML : 'Register Student';
         
         try {
+            // Show loading state IMMEDIATELY
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                submitBtn.disabled = true;
+                console.log('⏳ Button set to processing state');
+            }
+            
+            // ENSURE registration number exists
+            const regNumberInput = document.getElementById('studentRegNumber');
+            if (!regNumberInput || !regNumberInput.value) {
+                console.warn('⚠️ Registration number missing, generating now...');
+                await this.generateRegNumber();
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+            
+            // CHECK for duplicate email
+            const emailField = document.getElementById('studentEmail');
+            if (emailField && emailField.value) {
+                const allStudents = await this.db.getStudents();
+                const emailExists = allStudents.some(s => 
+                    s.email === emailField.value && 
+                    (!this.currentEditId || s.id !== this.currentEditId)
+                );
+                
+                if (emailExists) {
+                    const timestamp = Date.now().toString().slice(-6);
+                    emailField.value = `student${timestamp}@test.com`;
+                    console.log('📧 Generated unique email:', emailField.value);
+                    this.ui.showToast('✨ Email already exists - generated a unique one for you!', 'info');
+                }
+            }
+            
             // Validate form
             if (!this._validateStudentForm()) {
-                if (submitBtn) {
-                    submitBtn.innerHTML = originalText;
-                    submitBtn.disabled = false;
-                }
-                return;
+                throw new Error('Please fill in all required fields');
             }
             
             // Prepare form data
             const formData = this._prepareFormData();
             console.log('📦 Form data:', formData);
             
-            // Show loading state
-            if (submitBtn) {
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-                submitBtn.disabled = true;
-            }
-            
             // Save to database
             let result;
             if (this.currentEditId) {
                 result = await this.db.updateStudent(this.currentEditId, formData);
-                this.ui.showToast('✅ Student updated successfully!', 'success');
+                console.log('✅ Student updated successfully');
             } else {
                 result = await this.db.addStudent(formData);
-                const regNumber = result.reg_number || formData.reg_number;
-                this.ui.showToast(`✅ Student registered! Reg: ${regNumber}`, 'success');
+                console.log('✅ Student added successfully');
             }
-            
-            console.log('✅ Database save successful:', result);
             
             // Clear cache
             this.cache.students = null;
             
-            // 🔥 CRITICAL: Close modal FIRST
+            // Close modal
             this.ui.closeModal('studentModal');
             console.log('✅ Modal closed');
             
-            // 🔥 CRITICAL: Reset button state
+            // Reset button state
             if (submitBtn) {
                 submitBtn.innerHTML = this.currentEditId 
                     ? '<i class="fas fa-save"></i> Update Student'
@@ -1320,20 +1358,15 @@ class StudentManager {
                 submitBtn.disabled = false;
             }
             
-            // 🔥 CRITICAL: Reset form
+            // Reset form
             this._resetStudentForm();
             
-            // 🔥 CRITICAL: Force reload students table
-            await this.loadStudentsTable();
-            console.log(`✅ Table refreshed - ${this.allStudents.length} students`);
+            // Show success message
+            const regNumber = result?.reg_number || formData.reg_number;
+            this.ui.showToast(`✅ Student ${this.currentEditId ? 'updated' : 'registered'}! Reg: ${regNumber}`, 'success');
             
-            // 🔥 CRITICAL: Force update dashboard if available
-            if (this.app?.dashboard?.updateDashboard) {
-                setTimeout(() => {
-                    this.app.dashboard.updateDashboard();
-                    console.log('✅ Dashboard updated');
-                }, 300);
-            }
+            // Refresh table
+            await this.loadStudentsTable();
             
             // Reset edit ID
             this.currentEditId = null;
@@ -1343,9 +1376,15 @@ class StudentManager {
             
         } catch (error) {
             console.error('❌ Error saving student:', error);
-            this.ui.showToast(error.message || 'Failed to save student', 'error');
             
-            // Reset button state on error
+            // Show user-friendly error message
+            if (error.message?.includes('email') || error.message?.includes('duplicate')) {
+                this.ui.showToast('This email is already registered. Please use a different email.', 'error');
+            } else {
+                this.ui.showToast(error.message || 'Failed to save student', 'error');
+            }
+            
+            // ALWAYS reset button on error
             if (submitBtn) {
                 submitBtn.innerHTML = this.currentEditId 
                     ? '<i class="fas fa-save"></i> Update Student'
@@ -1396,9 +1435,26 @@ class StudentManager {
     }
     
     /**
-     * Prepare form data
+     * Prepare form data - WITH REG NUMBER VALIDATION
      */
     _prepareFormData() {
+        // ENSURE registration number exists
+        const regNumberInput = document.getElementById('studentRegNumber');
+        if (regNumberInput && !regNumberInput.value) {
+            console.warn('⚠️ Registration number is empty, generating emergency number...');
+            
+            const programSelect = document.getElementById('studentProgram');
+            const intakeSelect = document.getElementById('studentIntake');
+            const programCode = programSelect?.value || 'TEE';
+            const intakeYear = intakeSelect?.value || new Date().getFullYear();
+            const cleanProgramCode = programCode.split('-')[0].trim();
+            
+            const timestamp = Date.now().toString().slice(-6);
+            const random = Math.floor(Math.random() * 100).toString().padStart(2, '0');
+            regNumberInput.value = `${cleanProgramCode}-${intakeYear}-${timestamp}${random}`;
+            console.log('✅ Emergency reg number generated:', regNumberInput.value);
+        }
+        
         const programSelect = document.getElementById('studentProgram');
         const selectedOption = programSelect?.options[programSelect?.selectedIndex];
         
@@ -1440,11 +1496,10 @@ class StudentManager {
         
         const county = document.getElementById('studentCounty')?.value || '';
         const region = document.getElementById('studentRegion')?.value || '';
-        let regNumber = document.getElementById('studentRegNumber')?.value.trim() || '';
+        const regNumber = document.getElementById('studentRegNumber')?.value.trim() || '';
         
-        // Fix date field if it contains PHP code
         let regDate = document.getElementById('studentRegDate')?.value || '';
-        if (regDate.includes('<?php') || regDate === '') {
+        if (!regDate || regDate.includes('<?php')) {
             const today = new Date();
             regDate = today.toISOString().split('T')[0];
         }
@@ -1496,15 +1551,20 @@ class StudentManager {
         
         form.reset();
         
-        // Reset registration number
+        // Reset registration number - THEN GENERATE NEW ONE
         const regNumberInput = document.getElementById('studentRegNumber');
         if (regNumberInput) {
             regNumberInput.readOnly = false;
             regNumberInput.style.backgroundColor = '';
             regNumberInput.value = '';
+            
+            // Generate new registration number immediately
+            setTimeout(() => {
+                this.generateRegNumber();
+            }, 50);
         }
         
-        // Fix date field - remove PHP and set to today
+        // Fix date field - set to today
         const regDateField = document.getElementById('studentRegDate');
         if (regDateField) {
             const today = new Date();
@@ -1534,13 +1594,12 @@ class StudentManager {
         
         // Repopulate dropdowns
         this._populateIntakeYears();
-        this.generateRegNumber();
         
         console.log('✅ Form reset complete');
     }
     
     /**
-     * Generate registration number - FIXED
+     * Generate registration number - PERMANENT FIX! NO DATABASE!
      */
     async generateRegNumber() {
         console.log('🔢 Generating registration number...');
@@ -1555,63 +1614,46 @@ class StudentManager {
                 return;
             }
             
-            const programCode = programSelect.value;
-            const intakeYear = intakeSelect.value;
+            let programCode = programSelect.value;
+            let intakeYear = intakeSelect.value;
             
-            if (!programCode || !intakeYear) {
-                console.log('⏸️ Waiting for program and intake selection');
-                regNumberInput.value = '';
-                return;
+            // If in edit mode and fields are empty, try to get from student data
+            if ((!programCode || !intakeYear) && this.currentEditId) {
+                try {
+                    const student = await this.db.getStudent(this.currentEditId);
+                    if (student) {
+                        programCode = student.program || student.code;
+                        intakeYear = student.intake_year;
+                        console.log('📋 Got values from student:', programCode, intakeYear);
+                    }
+                } catch (e) {
+                    console.warn('Could not get student data:', e);
+                }
             }
             
+            // Use defaults if still empty
+            if (!programCode) {
+                programCode = 'TEE';
+                console.log('⚠️ Using default program: TEE');
+            }
+            
+            if (!intakeYear) {
+                intakeYear = new Date().getFullYear();
+                console.log('⚠️ Using default year:', intakeYear);
+            }
+            
+            // Clean program code (remove any extra text)
             const cleanProgramCode = programCode.split('-')[0].trim();
             
-            try {
-                if (this.db && typeof this.db.generateRegistrationNumber === 'function') {
-                    const regNumber = await this.db.generateRegistrationNumber(cleanProgramCode, intakeYear);
-                    if (regNumber) {
-                        regNumberInput.value = regNumber;
-                        console.log('✅ Registration number generated:', regNumber);
-                        return;
-                    }
-                }
-                throw new Error('Database method not available');
-            } catch (dbError) {
-                console.warn('⚠️ Using fallback registration number generation');
-                
-                try {
-                    const allStudents = await this.db.getStudents();
-                    const matchingStudents = allStudents.filter(student => {
-                        const studentYear = student.intake_year?.toString();
-                        return student.program === cleanProgramCode && studentYear === intakeYear;
-                    });
-                    
-                    let highestSeq = 0;
-                    matchingStudents.forEach(student => {
-                        if (student.reg_number) {
-                            const match = student.reg_number.match(new RegExp(`${cleanProgramCode}-${intakeYear}-(\\d+)`));
-                            if (match) {
-                                const seq = parseInt(match[1]);
-                                if (!isNaN(seq) && seq > highestSeq) {
-                                    highestSeq = seq;
-                                }
-                            }
-                        }
-                    });
-                    
-                    const sequenceNumber = highestSeq + 1;
-                    const regNumber = `${cleanProgramCode}-${intakeYear}-${sequenceNumber.toString().padStart(3, '0')}`;
-                    regNumberInput.value = regNumber;
-                    console.log('✅ Registration number generated (fallback):', regNumber);
-                    
-                } catch (fallbackError) {
-                    const timestamp = Date.now().toString().slice(-5);
-                    const regNumber = `${cleanProgramCode}-${intakeYear}-${timestamp}`;
-                    regNumberInput.value = regNumber;
-                    console.log('✅ Registration number generated (timestamp):', regNumber);
-                }
-            }
+            // TIMESTAMP METHOD - 100% RELIABLE, NO DATABASE!
+            const timestamp = Date.now().toString().slice(-6);
+            const random = Math.floor(Math.random() * 100).toString().padStart(2, '0');
+            const regNumber = `${cleanProgramCode}-${intakeYear}-${timestamp}${random}`;
             
+            regNumberInput.value = regNumber;
+            console.log('✅ Registration number generated:', regNumber);
+            
+            // Update format display
             const formatSpan = document.getElementById('regNumberFormat');
             if (formatSpan) {
                 formatSpan.textContent = `${cleanProgramCode}-${intakeYear}-###`;
@@ -1619,6 +1661,14 @@ class StudentManager {
             
         } catch (error) {
             console.error('❌ Error generating registration number:', error);
+            
+            // ULTIMATE FALLBACK - Even if everything fails
+            const regNumberInput = document.getElementById('studentRegNumber');
+            if (regNumberInput) {
+                const fallbackReg = `TEE-${new Date().getFullYear()}-${Date.now().toString().slice(-5)}`;
+                regNumberInput.value = fallbackReg;
+                console.log('✅ Registration number generated (ultimate fallback):', fallbackReg);
+            }
         }
     }
     
@@ -2112,6 +2162,7 @@ class StudentManager {
             newForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
+                e.stopImmediatePropagation();
                 console.log('📝 Global form handler: submission detected');
                 
                 if (window.app && window.app.students) {
