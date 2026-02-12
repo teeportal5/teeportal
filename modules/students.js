@@ -1,65 +1,68 @@
 // modules/students.js - COMPLETE FIXED VERSION
-class StudentManager {
-    constructor(db, app = null) {
-        this.db = db;
-        this.app = app;
-        
-        // Initialize debounced methods properly
-        this._debouncedSearch = null;
-        this._debouncedFilter = null;
-        
-        // Enhanced UI handlers
-        this.ui = this._createUIHandlers();
-        
-        // State management
-        this.currentEditId = null;
-        this.selectedStudents = new Set();
-        this.centres = [];
-        this.programs = [];
-        this.filteredStudents = [];
-        this.allStudents = [];
-        this.viewMode = 'table'; // table, grid, cards
-        
-        // Performance and caching
-        this.cache = {
-            students: null,
-            lastFetch: 0,
-            cacheDuration: 30000 // 30 seconds
-        };
-        
-        // Search and filtering
-        this.searchTerm = '';
-        this.activeFilters = {
-            program: '',
-            year: '',
-            centre: '',
-            county: '',
-            status: '',
-            intake_year: ''
-        };
-        
-        // Pagination
-        this.currentPage = 1;
-        this.pageSize = 25;
-        this.totalPages = 1;
-        
-        // Analytics
-        this.analytics = {
-            total: 0,
-            active: 0,
-            inactive: 0,
-            graduated: 0,
-            newThisMonth: 0,
-            attendanceRate: 92,
-            graduationRate: 87,
-            maleCount: 0,
-            femaleCount: 0,
-            averageAge: 0,
-            feesCollected: 0
-        };
-        
-        console.log('🎓 StudentManager initialized');
-    }
+constructor(db, app = null) {
+    this.db = db;
+    this.app = app;
+    
+    // 🔥 INITIALIZATION FLAGS 🔥
+    this._initialized = false;
+    this._initializing = false;
+    
+    // Initialize debounced methods properly
+    this._debouncedSearch = null;
+    this._debouncedFilter = null;
+    
+    // Enhanced UI handlers
+    this.ui = this._createUIHandlers();
+    
+    // State management
+    this.currentEditId = null;
+    this.selectedStudents = new Set();
+    this.centres = [];
+    this.programs = [];
+    this.filteredStudents = [];
+    this.allStudents = [];
+    this.viewMode = 'table';
+    
+    // Performance and caching
+    this.cache = {
+        students: null,
+        lastFetch: 0,
+        cacheDuration: 30000
+    };
+    
+    // Search and filtering
+    this.searchTerm = '';
+    this.activeFilters = {
+        program: '',
+        year: '',
+        centre: '',
+        county: '',
+        status: '',
+        intake_year: ''
+    };
+    
+    // Pagination
+    this.currentPage = 1;
+    this.pageSize = 25;
+    this.totalPages = 1;
+    
+    // Analytics
+    this.analytics = {
+        total: 0,
+        active: 0,
+        inactive: 0,
+        graduated: 0,
+        newThisMonth: 0,
+        attendanceRate: 92,
+        graduationRate: 87,
+        maleCount: 0,
+        femaleCount: 0,
+        averageAge: 0,
+        feesCollected: 0
+    };
+    
+    console.log('🎓 StudentManager instance created');
+}
     
     /**
      * Create enhanced UI handlers
@@ -135,49 +138,72 @@ class StudentManager {
         };
     }
     
-    /**
-     * Initialize with enhanced features
-     */
-    async init() {
-        console.log('🚀 Initializing StudentManager...');
-        
-        try {
-            // Show loading state
-            this.ui.showLoading(true, 'Loading student data...');
-            
-            // Initialize debounced methods
-            this._debouncedSearch = this._debounce(this._performSearch.bind(this), 300);
-            this._debouncedFilter = this._debounce(this._applyFilters.bind(this), 200);
-            
-            // Load essential data
-            await this._loadEssentialData();
-            
-            // CRITICAL FIX: Attach form submit handler
-            this._attachFormSubmitHandler();
-            
-            // Setup event listeners
-            await this._setupEventListeners();
-            await this._setupKeyboardShortcuts();
-            
-            // Load and render
-            await this.loadStudentsTable();
-            
-            // Update analytics dashboard
-            this._updateAnalytics();
-            
-            // Initialize view mode
-            this._setViewMode(this.viewMode);
-            
-            console.log('✅ StudentManager ready');
-            
-        } catch (error) {
-            console.error('❌ Initialization failed:', error);
-            this.ui.showToast('Failed to initialize student module', 'error');
-        } finally {
-            this.ui.showLoading(false);
-        }
+  /**
+ * Initialize with enhanced features
+ */
+async init() {
+    console.log('🚀 Initializing StudentManager...');
+    
+    // Prevent double initialization
+    if (this._initialized) {
+        console.log('⚠️ StudentManager already initialized');
+        return;
     }
     
+    if (this._initializing) {
+        console.log('⚠️ Initialization already in progress');
+        return;
+    }
+    
+    this._initializing = true;
+    
+    try {
+        // Show loading state
+        this.ui.showLoading(true, 'Loading student data...');
+        
+        // Initialize debounced methods
+        this._debouncedSearch = this._debounce(this._performSearch.bind(this), 300);
+        this._debouncedFilter = this._debounce(this._applyFilters.bind(this), 200);
+        
+        // Load essential data (programs, centres, dropdowns)
+        await this._loadEssentialData();
+        
+        // CRITICAL: Attach form submit handler
+        this._attachFormSubmitHandler();
+        
+        // Setup event listeners
+        await this._setupEventListeners();
+        await this._setupKeyboardShortcuts();
+        
+        // Load and render students table
+        await this.loadStudentsTable();
+        
+        // Update analytics dashboard
+        this._updateAnalytics();
+        
+        // Initialize view mode
+        this._setViewMode(this.viewMode);
+        
+        // 🔥 CRITICAL: Mark as initialized 🔥
+        this._initialized = true;
+        this._initializing = false;
+        
+        console.log('✅ StudentManager ready');
+        
+        // Dispatch event for other modules
+        window.dispatchEvent(new CustomEvent('studentManagerReady', {
+            detail: { instance: this }
+        }));
+        
+    } catch (error) {
+        console.error('❌ Initialization failed:', error);
+        this.ui.showToast('Failed to initialize student module', 'error');
+        this._initialized = false;
+        this._initializing = false;
+    } finally {
+        this.ui.showLoading(false);
+    }
+}
     /**
      * FIXED: Attach form submit handler properly
      */
