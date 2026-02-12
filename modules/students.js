@@ -1,4 +1,4 @@
-// modules/students.js - COMPLETE FIXED VERSION
+// modules/students.js - COMPLETE FIXED VERSION WITH DETAILED CONSOLE LOGS
 class StudentManager {
     constructor(db, app = null) {
         this.db = db;
@@ -71,6 +71,7 @@ class StudentManager {
     _createUIHandlers() {
         return {
             showToast: (message, type = 'info', duration = 5000) => {
+                console.log(`🍞 TOAST [${type}]: ${message}`);
                 if (this.app && typeof this.app.showToast === 'function') {
                     this.app.showToast(message, type, duration);
                 } else {
@@ -97,6 +98,7 @@ class StudentManager {
             },
             
             openModal: (id, options = {}) => {
+                console.log(`🔓 Opening modal: ${id}`);
                 const modal = document.getElementById(id);
                 if (modal) {
                     if (options.onOpen) options.onOpen();
@@ -116,29 +118,28 @@ class StudentManager {
                         const firstInput = modal.querySelector('input:not([readonly]), select, textarea');
                         if (firstInput) firstInput.focus();
                     }, 150);
+                    
+                    console.log(`✅ Modal opened: ${id}`);
+                } else {
+                    console.error(`❌ Modal not found: ${id}`);
                 }
             },
             
-            // 🔥 COMPLETELY FIXED closeModal
             closeModal: (id, options = {}) => {
-                console.log(`🔘 Closing modal: ${id}`);
+                console.log(`🔒 Closing modal: ${id}`);
                 const modal = document.getElementById(id);
                 if (modal) {
-                    // Force hide modal
                     modal.style.display = 'none';
                     modal.classList.remove('active', 'show', 'modal-show');
                     
-                    // Restore body scroll
                     document.body.style.overflow = 'auto';
                     document.body.style.paddingRight = '0';
                     
-                    // Reset form if exists
                     const form = modal.querySelector('form');
                     if (form) {
                         form.reset();
                     }
                     
-                    // 🔥 CRITICAL: Reset submit button
                     const submitBtn = modal.querySelector('button[type="submit"]');
                     if (submitBtn) {
                         submitBtn.innerHTML = '<i class="fas fa-plus"></i> Register Student';
@@ -212,6 +213,7 @@ class StudentManager {
      * Attach form submit handler properly
      */
     _attachFormSubmitHandler() {
+        console.log('🔧 Attaching form submit handler...');
         const studentForm = document.getElementById('studentForm');
         if (studentForm) {
             const newForm = studentForm.cloneNode(true);
@@ -222,7 +224,7 @@ class StudentManager {
             newForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('📝 Form submitted');
+                console.log('📝 Form submitted via direct handler');
                 this.saveStudent(e);
             });
             
@@ -303,6 +305,7 @@ class StudentManager {
             option.textContent = county;
             countySelect.appendChild(option);
         });
+        console.log(`✅ Populated ${counties.length} counties`);
     }
     
     /**
@@ -542,9 +545,8 @@ class StudentManager {
             intakeSelect.addEventListener('change', () => this.generateRegNumber());
         }
         
-        // 🔥 FIXED: Modal close buttons
+        // Modal close buttons
         document.querySelectorAll('[data-modal-close]').forEach(btn => {
-            // Remove any existing listeners
             const newBtn = btn.cloneNode(true);
             if (btn.parentNode) {
                 btn.parentNode.replaceChild(newBtn, btn);
@@ -591,6 +593,7 @@ class StudentManager {
         if (addStudentBtn) {
             addStudentBtn.addEventListener('click', (e) => {
                 e.preventDefault();
+                console.log('➕ Add student button clicked');
                 this.openStudentModal();
             });
         }
@@ -613,6 +616,7 @@ class StudentManager {
         document.addEventListener('keydown', (e) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
                 e.preventDefault();
+                console.log('⌨️ Ctrl+N shortcut detected');
                 this.openStudentModal();
             }
             
@@ -625,6 +629,7 @@ class StudentManager {
             if (e.key === 'Escape') {
                 const modal = document.getElementById('studentModal');
                 if (modal && modal.style.display === 'block') {
+                    console.log('⌨️ Escape key detected - closing modal');
                     this.ui.closeModal('studentModal');
                 }
             }
@@ -962,6 +967,7 @@ class StudentManager {
      * Handle quick filter
      */
     _handleQuickFilter(filterType) {
+        console.log(`🔍 Quick filter: ${filterType}`);
         document.querySelectorAll('.filter-chip').forEach(chip => {
             chip.classList.remove('active');
         });
@@ -1011,6 +1017,7 @@ class StudentManager {
             const isVisible = advancedFilters.style.display !== 'none';
             advancedFilters.style.display = isVisible ? 'none' : 'block';
             advancedFilters.classList.toggle('active', !isVisible);
+            console.log(`🔽 Advanced filters ${!isVisible ? 'shown' : 'hidden'}`);
         }
     }
     
@@ -1023,6 +1030,7 @@ class StudentManager {
             searchInput.value = '';
             this.searchTerm = '';
             this._debouncedSearch();
+            console.log('🧹 Search cleared');
         }
     }
     
@@ -1030,6 +1038,7 @@ class StudentManager {
      * Clear all filters
      */
     clearAllFilters() {
+        console.log('🧹 Clearing all filters');
         this.searchTerm = '';
         this.activeFilters = {
             program: '',
@@ -1073,6 +1082,7 @@ class StudentManager {
      * Apply filters (for apply button)
      */
     applyFilters() {
+        console.log('🔍 Applying filters');
         this.activeFilters.program = document.getElementById('filterProgram')?.value || '';
         this.activeFilters.year = document.getElementById('filterYear')?.value || '';
         this.activeFilters.centre = document.getElementById('filterCentre')?.value || '';
@@ -1080,6 +1090,7 @@ class StudentManager {
         this.activeFilters.status = document.getElementById('filterStatus')?.value || '';
         this.activeFilters.intake_year = document.getElementById('filterIntake')?.value || '';
         
+        console.log('📊 Active filters:', this.activeFilters);
         this._applyFilters();
         this.ui.showToast('Filters applied', 'success');
     }
@@ -1215,92 +1226,164 @@ class StudentManager {
     }
     
     /**
-     * Save student - COMPLETE FIX with proper UI feedback
+     * Save student - WITH DETAILED CONSOLE LOGS
      */
     async saveStudent(event) {
+        console.log('\n\n==========================================');
+        console.log('🔍🔍🔍 REGISTER BUTTON CLICKED - SAVE STUDENT STARTED 🔍🔍🔍');
+        console.log('==========================================');
+        console.log('📌 Timestamp:', new Date().toISOString());
+        console.log('📌 Event target:', event.target);
+        console.log('📌 Form ID:', event.target.id);
+        console.log('📌 Current edit mode:', this.currentEditId ? 'EDIT' : 'CREATE NEW');
+        console.log('📌 Current edit ID:', this.currentEditId || 'None');
+        console.log('📌 Form validation starting...');
+        
         event.preventDefault();
         event.stopPropagation();
         
         const form = event.target;
         if (!form || form.id !== 'studentForm') {
-            console.error('❌ Invalid form or form ID');
+            console.error('❌❌❌ INVALID FORM! Expected studentForm but got:', form?.id);
+            console.log('==========================================\n');
             return;
         }
         
+        console.log('✅ Form validation passed - form is correct');
         console.log('📝 Saving student...', this.currentEditId ? 'Edit mode' : 'Create mode');
         
-        // Get submit button
         const submitBtn = form.querySelector('button[type="submit"]');
         const originalText = submitBtn ? submitBtn.innerHTML : 'Register Student';
+        console.log('📌 Submit button found:', !!submitBtn);
+        console.log('📌 Original button text:', originalText);
         
         try {
             // Validate form
+            console.log('\n--- STEP 1: Validating Form ---');
             if (!this._validateStudentForm()) {
+                console.warn('⚠️⚠️⚠️ FORM VALIDATION FAILED');
                 if (submitBtn) {
                     submitBtn.innerHTML = originalText;
                     submitBtn.disabled = false;
                 }
+                console.log('==========================================\n');
                 return;
             }
+            console.log('✅ Form validation PASSED');
             
             // Prepare form data
+            console.log('\n--- STEP 2: Preparing Form Data ---');
+            console.log('📦 Preparing form data...');
             const formData = this._prepareFormData();
-            console.log('📦 Form data prepared:', formData);
+            console.log('📦 Form data prepared:');
+            console.log(JSON.stringify(formData, null, 2));
+            console.log('📌 Registration number:', formData.reg_number);
+            console.log('📌 Student name:', formData.full_name);
+            console.log('📌 Email:', formData.email);
+            console.log('📌 Program:', formData.program);
+            console.log('📌 Intake year:', formData.intake_year);
+            console.log('📌 Centre:', formData.centre);
+            console.log('📌 County:', formData.county);
+            console.log('📌 Region:', formData.region);
+            console.log('📌 Phone:', formData.phone);
+            console.log('📌 Gender:', formData.gender);
+            console.log('📌 Status:', formData.status);
+            console.log('📌 Registration date:', formData.registration_date);
             
             // Show loading state
+            console.log('\n--- STEP 3: Setting Loading State ---');
             if (submitBtn) {
+                console.log('🔄 Setting button to loading state...');
                 submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
                 submitBtn.disabled = true;
+                console.log('✅ Button loading state set');
             }
             
             // Save to database
+            console.log('\n--- STEP 4: Saving to Database ---');
+            console.log('💾 Sending to database...');
+            console.log('📌 Database method:', this.currentEditId ? 'updateStudent' : 'addStudent');
+            
             let result;
             if (this.currentEditId) {
+                console.log('🔄 Updating existing student ID:', this.currentEditId);
                 result = await this.db.updateStudent(this.currentEditId, formData);
-                this.ui.showToast('✅ Student updated successfully!', 'success');
+                console.log('✅ Update operation completed');
             } else {
+                console.log('🔄 Adding new student');
                 result = await this.db.addStudent(formData);
-                const regNumber = result.reg_number || formData.reg_number;
-                this.ui.showToast(`✅ Student registered! Registration: ${regNumber}`, 'success');
+                console.log('✅ Add operation completed');
             }
             
-            console.log('✅ Student saved successfully:', result);
+            console.log('\n--- STEP 5: Database Result ---');
+            console.log('✅ Database operation successful!');
+            console.log('📌 Database result:');
+            console.log(JSON.stringify(result, null, 2));
             
             // Clear cache
+            console.log('\n--- STEP 6: Clearing Cache ---');
+            console.log('🧹 Clearing cache...');
             this.cache.students = null;
+            console.log('✅ Cache cleared');
             
-            // 🔥 CRITICAL: Reset button state BEFORE closing modal
-            if (submitBtn) {
-                submitBtn.innerHTML = this.currentEditId 
-                    ? '<i class="fas fa-save"></i> Update Student'
-                    : '<i class="fas fa-plus"></i> Register Student';
-                submitBtn.disabled = false;
-            }
+            // Show success message
+            console.log('\n--- STEP 7: Showing Success Message ---');
+            const regNumber = result.reg_number || formData.reg_number;
+            console.log('📌 Registration number:', regNumber);
+            console.log('🎉 Showing success toast...');
+            this.ui.showToast(`✅ Student registered! Registration: ${regNumber}`, 'success', 5000);
+            console.log('✅ Toast shown');
             
-            // 🔥 CRITICAL: Close modal
+            // Close modal
+            console.log('\n--- STEP 8: Closing Modal ---');
+            console.log('🚪 Closing modal...');
             this.ui.closeModal('studentModal');
             console.log('✅ Modal closed');
             
-            // 🔥 CRITICAL: Reset form
-            this._resetStudentForm();
+            // Reset button state
+            console.log('\n--- STEP 9: Resetting Button State ---');
+            if (submitBtn) {
+                console.log('🔄 Resetting button state...');
+                submitBtn.innerHTML = '<i class="fas fa-plus"></i> Register Student';
+                submitBtn.disabled = false;
+                console.log('✅ Button reset to original state');
+            }
             
-            // 🔥 CRITICAL: Refresh table
+            // Reset form
+            console.log('\n--- STEP 10: Resetting Form ---');
+            console.log('🔄 Resetting form...');
+            this._resetStudentForm();
+            console.log('✅ Form reset complete');
+            
+            // Refresh table
+            console.log('\n--- STEP 11: Refreshing Students Table ---');
+            console.log('🔄 Refreshing students table...');
             await this.loadStudentsTable();
-            console.log('✅ Table refreshed');
+            console.log(`✅ Table refreshed - now showing ${this.allStudents.length} students total`);
             
             // Reset edit ID
             this.currentEditId = null;
+            console.log('✅ Edit ID reset');
+            
+            console.log('\n==========================================');
+            console.log('🎉🎉🎉 STUDENT SAVED SUCCESSFULLY! 🎉🎉🎉');
+            console.log('==========================================\n');
             
         } catch (error) {
-            console.error('❌ Error saving student:', error);
+            console.error('\n❌❌❌ ERROR SAVING STUDENT ❌❌❌');
+            console.error('Error details:', error);
+            console.error('Error message:', error.message);
+            console.error('Error stack:', error.stack);
+            console.error('==========================================\n');
+            
             this.ui.showToast(error.message || 'Failed to save student', 'error');
             
-            // 🔥 CRITICAL: Reset button state on error
             if (submitBtn) {
                 submitBtn.innerHTML = this.currentEditId 
                     ? '<i class="fas fa-save"></i> Update Student'
                     : '<i class="fas fa-plus"></i> Register Student';
                 submitBtn.disabled = false;
+                console.log('✅ Button reset after error');
             }
         }
     }
@@ -1327,6 +1410,7 @@ class StudentManager {
         });
         
         if (missingFields.length > 0) {
+            console.warn('⚠️ Missing required fields:', missingFields);
             this.ui.showToast(`Missing required fields: ${missingFields.join(', ')}`, 'error');
             return false;
         }
@@ -1335,6 +1419,7 @@ class StudentManager {
         if (emailField && emailField.value.trim()) {
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(emailField.value.trim())) {
+                console.warn('⚠️ Invalid email format:', emailField.value);
                 this.ui.showToast('Please enter a valid email address', 'error');
                 return false;
             }
@@ -1420,10 +1505,12 @@ class StudentManager {
      * Open student modal
      */
     openStudentModal() {
+        console.log('📂 Opening student modal');
         this._resetStudentForm();
         this.ui.openModal('studentModal', {
             onOpen: () => {
                 document.getElementById('studentName')?.focus();
+                console.log('✅ Modal opened, focus set to student name');
             }
         });
     }
@@ -1435,7 +1522,10 @@ class StudentManager {
         console.log('🔄 Resetting student form...');
         
         const form = document.getElementById('studentForm');
-        if (!form) return;
+        if (!form) {
+            console.error('❌ Student form not found for reset');
+            return;
+        }
         
         form.reset();
         
@@ -1445,9 +1535,9 @@ class StudentManager {
             regNumberInput.style.backgroundColor = '';
             regNumberInput.title = '';
             regNumberInput.value = '';
+            console.log('✅ Registration number input reset');
         }
         
-        // 🔥 FIXED: Set date field to today
         const regDateField = document.getElementById('studentRegDate');
         if (regDateField) {
             const today = new Date();
@@ -1455,6 +1545,7 @@ class StudentManager {
             const month = String(today.getMonth() + 1).padStart(2, '0');
             const day = String(today.getDate()).padStart(2, '0');
             regDateField.value = `${year}-${month}-${day}`;
+            console.log('✅ Date field set to:', regDateField.value);
         }
         
         const modalTitle = document.getElementById('studentModalTitle');
@@ -1497,25 +1588,26 @@ class StudentManager {
             const intakeYear = intakeSelect.value;
             
             if (!programCode || !intakeYear) {
+                console.log('⏸️ Waiting for program and intake selection');
                 regNumberInput.value = '';
                 return;
             }
             
             const cleanProgramCode = programCode.split('-')[0].trim();
+            console.log('📌 Program code:', cleanProgramCode);
+            console.log('📌 Intake year:', intakeYear);
             
             try {
-                // Try database method
                 if (this.db && typeof this.db.generateRegistrationNumber === 'function') {
                     const regNumber = await this.db.generateRegistrationNumber(cleanProgramCode, intakeYear);
                     if (regNumber) {
                         regNumberInput.value = regNumber;
-                        console.log('✅ Registration number generated:', regNumber);
+                        console.log('✅ Registration number generated via DB:', regNumber);
                         return;
                     }
                 }
                 throw new Error('Database method not available');
             } catch (dbError) {
-                // FALLBACK: Manual generation
                 console.warn('⚠️ Using fallback registration number generation');
                 
                 try {
@@ -1544,7 +1636,6 @@ class StudentManager {
                     console.log('✅ Registration number generated (fallback):', regNumber);
                     
                 } catch (fallbackError) {
-                    // ULTIMATE FALLBACK: Use timestamp
                     const timestamp = Date.now().toString().slice(-5);
                     const regNumber = `${cleanProgramCode}-${intakeYear}-${timestamp}`;
                     regNumberInput.value = regNumber;
@@ -1566,15 +1657,18 @@ class StudentManager {
      * Edit student
      */
     async editStudent(studentId) {
+        console.log('✏️ Editing student:', studentId);
         try {
             this.ui.showLoading(true, 'Loading student data...');
             
             const student = await this.db.getStudent(studentId);
             if (!student) {
+                console.error('❌ Student not found:', studentId);
                 this.ui.showToast('Student not found', 'error');
                 return;
             }
             
+            console.log('✅ Student data loaded:', student.full_name);
             this.currentEditId = studentId;
             
             await this._populateEditForm(student);
@@ -1600,6 +1694,7 @@ class StudentManager {
      * Populate edit form
      */
     async _populateEditForm(student) {
+        console.log('🔄 Populating edit form with student data');
         this._setFieldValue('studentRegNumber', student.reg_number, true);
         this._setFieldValue('studentName', student.full_name);
         this._setFieldValue('studentEmail', student.email);
@@ -1625,6 +1720,7 @@ class StudentManager {
             new Date(student.registration_date).toISOString().split('T')[0] : 
             new Date().toISOString().split('T')[0]
         );
+        console.log('✅ Edit form populated');
     }
     
     /**
@@ -1656,12 +1752,14 @@ class StudentManager {
         if (submitBtn) {
             submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Student';
         }
+        console.log('✅ Edit mode UI setup complete');
     }
     
     /**
      * View student
      */
     async viewStudent(studentId) {
+        console.log('👁️ Viewing student:', studentId);
         try {
             const student = await this.db.getStudent(studentId);
             if (!student) {
@@ -1725,6 +1823,7 @@ class StudentManager {
             const modalDiv = document.createElement('div');
             modalDiv.innerHTML = modalContent;
             document.body.appendChild(modalDiv.firstElementChild);
+            console.log('✅ Student details modal displayed');
             
         } catch (error) {
             console.error('❌ Error viewing student:', error);
@@ -1736,6 +1835,7 @@ class StudentManager {
      * Delete student
      */
     async deleteStudent(studentId) {
+        console.log('🗑️ Deleting student:', studentId);
         try {
             const student = await this.db.getStudent(studentId);
             if (!student) {
@@ -1747,7 +1847,10 @@ class StudentManager {
                 message: `Are you sure you want to delete ${this._escapeHtml(student.full_name)} (${this._escapeHtml(student.reg_number)})? This action cannot be undone.`
             });
             
-            if (!confirmed) return;
+            if (!confirmed) {
+                console.log('❌ Deletion cancelled by user');
+                return;
+            }
             
             await this.db.deleteStudent(studentId);
             
@@ -1756,6 +1859,7 @@ class StudentManager {
             this.ui.showToast(`Student ${student.full_name} deleted successfully`, 'success');
             
             await this.loadStudentsTable();
+            console.log('✅ Student deleted successfully');
             
         } catch (error) {
             console.error('❌ Error deleting student:', error);
@@ -1767,6 +1871,7 @@ class StudentManager {
      * Enter marks for student
      */
     async enterMarks(studentId) {
+        console.log('📊 Entering marks for student:', studentId);
         try {
             const student = await this.db.getStudent(studentId);
             if (!student) {
@@ -1792,6 +1897,7 @@ class StudentManager {
      * Export students
      */
     async exportStudents() {
+        console.log('📤 Export students requested');
         this.ui.showToast('Export feature coming soon!', 'info');
     }
     
@@ -1799,6 +1905,7 @@ class StudentManager {
      * Bulk upload students
      */
     async bulkUpload() {
+        console.log('📦 Bulk upload requested');
         this.ui.openModal('bulkUploadModal');
     }
     
@@ -1806,6 +1913,7 @@ class StudentManager {
      * Generate reports
      */
     async generateReports() {
+        console.log('📈 Generate reports requested');
         this.ui.showToast('Report generation feature coming soon!', 'info');
     }
     
@@ -1813,6 +1921,7 @@ class StudentManager {
      * Send communications
      */
     async sendCommunications() {
+        console.log('📧 Send communications requested');
         this.ui.showToast('Communications feature coming soon!', 'info');
     }
     
@@ -1820,6 +1929,7 @@ class StudentManager {
      * Print documents
      */
     async printDocuments() {
+        console.log('🖨️ Print documents requested');
         this.ui.showToast('Document printing feature coming soon!', 'info');
     }
     
@@ -2012,6 +2122,7 @@ class StudentManager {
         checkboxes.forEach(checkbox => {
             checkbox.checked = checked;
         });
+        console.log(`✅ Select all toggled: ${checked}`);
     }
 }
 
