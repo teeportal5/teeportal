@@ -766,15 +766,25 @@ class TEEPortalApp {
         try {
             console.log('🔄 Initializing modules...');
             
-            // Initialize student manager
-            if (typeof StudentManager !== 'undefined') {
-                this.students = new StudentManager(this.db, this);
-                console.log('✅ StudentManager initialized');
-            } else {
-                console.warn('⚠️ StudentManager not loaded');
-                this.loadModuleScript('modules/students.js', 'StudentManager');
-            }
-            
+           // Initialize student manager
+if (typeof StudentManager !== 'undefined') {
+    this.students = new StudentManager(this.db, this);
+    console.log('✅ StudentManager instantiated');
+    
+    // 🔥 CRITICAL FIX - Initialize the student manager 🔥
+    setTimeout(() => {
+        if (this.students) {
+            console.log('🚀 Calling StudentManager.init()');
+            this.students.init().catch(err => {
+                console.error('❌ StudentManager.init() failed:', err);
+            });
+        }
+    }, 500); // Small delay to ensure DOM is ready
+    
+} else {
+    console.warn('⚠️ StudentManager not loaded');
+    this.loadModuleScript('modules/students.js', 'StudentManager');
+}
             // Initialize marks manager
             if (typeof MarksManager !== 'undefined') {
                 this.marks = new MarksManager(this.db, this);
