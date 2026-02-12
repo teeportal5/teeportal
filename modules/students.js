@@ -4,7 +4,7 @@ class StudentManager {
         this.db = db;
         this.app = app;
         
-        // 🔥 INITIALIZATION FLAGS 🔥
+        // Initialize flags
         this._initialized = false;
         this._initializing = false;
         
@@ -66,7 +66,7 @@ class StudentManager {
     }
     
     /**
-     * Create enhanced UI handlers
+     * Create enhanced UI handlers - FIXED closeModal
      */
     _createUIHandlers() {
         return {
@@ -119,16 +119,39 @@ class StudentManager {
                 }
             },
             
+            // 🔥 COMPLETELY FIXED closeModal
             closeModal: (id, options = {}) => {
+                console.log(`🔘 Closing modal: ${id}`);
                 const modal = document.getElementById(id);
                 if (modal) {
-                    modal.classList.remove('active', 'show');
+                    // Force hide modal
                     modal.style.display = 'none';
+                    modal.classList.remove('active', 'show', 'modal-show');
                     
+                    // Restore body scroll
                     document.body.style.overflow = 'auto';
                     document.body.style.paddingRight = '0';
                     
-                    if (options.onClose) options.onClose();
+                    // Reset form if exists
+                    const form = modal.querySelector('form');
+                    if (form) {
+                        form.reset();
+                    }
+                    
+                    // 🔥 CRITICAL: Reset submit button
+                    const submitBtn = modal.querySelector('button[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.innerHTML = '<i class="fas fa-plus"></i> Register Student';
+                        submitBtn.disabled = false;
+                    }
+                    
+                    if (options.onClose) {
+                        options.onClose();
+                    }
+                    
+                    console.log(`✅ Modal closed: ${id}`);
+                } else {
+                    console.warn(`⚠️ Modal not found: ${id}`);
                 }
             }
         };
@@ -469,7 +492,7 @@ class StudentManager {
     }
     
     /**
-     * Setup event listeners
+     * Setup event listeners - FIXED close buttons
      */
     async _setupEventListeners() {
         console.log('🔌 Setting up enhanced event listeners...');
@@ -519,10 +542,29 @@ class StudentManager {
             intakeSelect.addEventListener('change', () => this.generateRegNumber());
         }
         
+        // 🔥 FIXED: Modal close buttons
         document.querySelectorAll('[data-modal-close]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.ui.closeModal('studentModal');
-                this.ui.closeModal('bulkUploadModal');
+            // Remove any existing listeners
+            const newBtn = btn.cloneNode(true);
+            if (btn.parentNode) {
+                btn.parentNode.replaceChild(newBtn, btn);
+            }
+            
+            newBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🔘 Close button clicked');
+                
+                let modalId = newBtn.getAttribute('data-modal-close');
+                
+                if (modalId && modalId !== '') {
+                    this.ui.closeModal(modalId);
+                } else {
+                    const modal = newBtn.closest('.modal');
+                    if (modal && modal.id) {
+                        this.ui.closeModal(modal.id);
+                    }
+                }
             });
         });
         
@@ -1173,7 +1215,7 @@ class StudentManager {
     }
     
     /**
-     * Save student
+     * Save student - COMPLETE FIX with proper UI feedback
      */
     async saveStudent(event) {
         event.preventDefault();
@@ -1187,21 +1229,31 @@ class StudentManager {
         
         console.log('📝 Saving student...', this.currentEditId ? 'Edit mode' : 'Create mode');
         
+        // Get submit button
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn ? submitBtn.innerHTML : 'Register Student';
+        
         try {
+            // Validate form
             if (!this._validateStudentForm()) {
+                if (submitBtn) {
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                }
                 return;
             }
             
+            // Prepare form data
             const formData = this._prepareFormData();
             console.log('📦 Form data prepared:', formData);
             
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalText = submitBtn?.innerHTML || 'Save';
+            // Show loading state
             if (submitBtn) {
                 submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
                 submitBtn.disabled = true;
             }
             
+            // Save to database
             let result;
             if (this.currentEditId) {
                 result = await this.db.updateStudent(this.currentEditId, formData);
@@ -1214,17 +1266,36 @@ class StudentManager {
             
             console.log('✅ Student saved successfully:', result);
             
+            // Clear cache
             this.cache.students = null;
             
-            this._resetStudentForm();
+            // 🔥 CRITICAL: Reset button state BEFORE closing modal
+            if (submitBtn) {
+                submitBtn.innerHTML = this.currentEditId 
+                    ? '<i class="fas fa-save"></i> Update Student'
+                    : '<i class="fas fa-plus"></i> Register Student';
+                submitBtn.disabled = false;
+            }
+            
+            // 🔥 CRITICAL: Close modal
             this.ui.closeModal('studentModal');
+            console.log('✅ Modal closed');
+            
+            // 🔥 CRITICAL: Reset form
+            this._resetStudentForm();
+            
+            // 🔥 CRITICAL: Refresh table
             await this.loadStudentsTable();
+            console.log('✅ Table refreshed');
+            
+            // Reset edit ID
+            this.currentEditId = null;
             
         } catch (error) {
             console.error('❌ Error saving student:', error);
             this.ui.showToast(error.message || 'Failed to save student', 'error');
             
-            const submitBtn = form.querySelector('button[type="submit"]');
+            // 🔥 CRITICAL: Reset button state on error
             if (submitBtn) {
                 submitBtn.innerHTML = this.currentEditId 
                     ? '<i class="fas fa-save"></i> Update Student'
@@ -1319,6 +1390,13 @@ class StudentManager {
         const region = document.getElementById('studentRegion')?.value || '';
         let regNumber = document.getElementById('studentRegNumber')?.value.trim() || '';
         
+        // Fix date field if it contains PHP code
+        let regDate = document.getElementById('studentRegDate')?.value || '';
+        if (regDate.includes('<?php') || regDate === '') {
+            const today = new Date();
+            regDate = today.toISOString().split('T')[0];
+        }
+        
         return {
             reg_number: regNumber,
             full_name: document.getElementById('studentName')?.value.trim() || '',
@@ -1334,7 +1412,7 @@ class StudentManager {
             centre_id: selectedCentreId || '',
             centre: centreName || '',
             status: document.getElementById('studentStatus')?.value || 'active',
-            registration_date: document.getElementById('studentRegDate')?.value || new Date().toISOString().split('T')[0]
+            registration_date: regDate
         };
     }
     
@@ -1351,7 +1429,7 @@ class StudentManager {
     }
     
     /**
-     * Reset student form
+     * Reset student form - FIXED date field
      */
     _resetStudentForm() {
         console.log('🔄 Resetting student form...');
@@ -1369,6 +1447,7 @@ class StudentManager {
             regNumberInput.value = '';
         }
         
+        // 🔥 FIXED: Set date field to today
         const regDateField = document.getElementById('studentRegDate');
         if (regDateField) {
             const today = new Date();
@@ -1399,15 +1478,20 @@ class StudentManager {
     }
     
     /**
-     * Generate registration number
+     * Generate registration number - FIXED with better fallback
      */
     async generateRegNumber() {
+        console.log('🔢 Generating registration number...');
+        
         try {
             const programSelect = document.getElementById('studentProgram');
             const intakeSelect = document.getElementById('studentIntake');
             const regNumberInput = document.getElementById('studentRegNumber');
             
-            if (!programSelect || !intakeSelect || !regNumberInput) return;
+            if (!programSelect || !intakeSelect || !regNumberInput) {
+                console.warn('⚠️ Required elements not found');
+                return;
+            }
             
             const programCode = programSelect.value;
             const intakeYear = intakeSelect.value;
@@ -1420,37 +1504,52 @@ class StudentManager {
             const cleanProgramCode = programCode.split('-')[0].trim();
             
             try {
-                const regNumber = await this.db.generateRegistrationNumber(cleanProgramCode, intakeYear);
-                if (regNumber) {
-                    regNumberInput.value = regNumber;
-                } else {
-                    throw new Error('Database method returned null');
+                // Try database method
+                if (this.db && typeof this.db.generateRegistrationNumber === 'function') {
+                    const regNumber = await this.db.generateRegistrationNumber(cleanProgramCode, intakeYear);
+                    if (regNumber) {
+                        regNumberInput.value = regNumber;
+                        console.log('✅ Registration number generated:', regNumber);
+                        return;
+                    }
                 }
+                throw new Error('Database method not available');
             } catch (dbError) {
-                console.warn('Using fallback registration number generation:', dbError);
+                // FALLBACK: Manual generation
+                console.warn('⚠️ Using fallback registration number generation');
                 
-                const allStudents = await this.db.getStudents();
-                const matchingStudents = allStudents.filter(student => {
-                    const studentYear = student.intake_year?.toString();
-                    return student.program === cleanProgramCode && studentYear === intakeYear;
-                });
-                
-                let highestSeq = 0;
-                matchingStudents.forEach(student => {
-                    if (student.reg_number) {
-                        const match = student.reg_number.match(new RegExp(`${cleanProgramCode}-${intakeYear}-(\\d+)`));
-                        if (match) {
-                            const seq = parseInt(match[1]);
-                            if (!isNaN(seq) && seq > highestSeq) {
-                                highestSeq = seq;
+                try {
+                    const allStudents = await this.db.getStudents();
+                    const matchingStudents = allStudents.filter(student => {
+                        const studentYear = student.intake_year?.toString();
+                        return student.program === cleanProgramCode && studentYear === intakeYear;
+                    });
+                    
+                    let highestSeq = 0;
+                    matchingStudents.forEach(student => {
+                        if (student.reg_number) {
+                            const match = student.reg_number.match(new RegExp(`${cleanProgramCode}-${intakeYear}-(\\d+)`));
+                            if (match) {
+                                const seq = parseInt(match[1]);
+                                if (!isNaN(seq) && seq > highestSeq) {
+                                    highestSeq = seq;
+                                }
                             }
                         }
-                    }
-                });
-                
-                const sequenceNumber = highestSeq + 1;
-                const regNumber = `${cleanProgramCode}-${intakeYear}-${sequenceNumber.toString().padStart(3, '0')}`;
-                regNumberInput.value = regNumber;
+                    });
+                    
+                    const sequenceNumber = highestSeq + 1;
+                    const regNumber = `${cleanProgramCode}-${intakeYear}-${sequenceNumber.toString().padStart(3, '0')}`;
+                    regNumberInput.value = regNumber;
+                    console.log('✅ Registration number generated (fallback):', regNumber);
+                    
+                } catch (fallbackError) {
+                    // ULTIMATE FALLBACK: Use timestamp
+                    const timestamp = Date.now().toString().slice(-5);
+                    const regNumber = `${cleanProgramCode}-${intakeYear}-${timestamp}`;
+                    regNumberInput.value = regNumber;
+                    console.log('✅ Registration number generated (timestamp):', regNumber);
+                }
             }
             
             const formatSpan = document.getElementById('regNumberFormat');
