@@ -2267,11 +2267,15 @@ p {
    21. STUDENT MODAL SCROLL FIX
    ============================================ */
 
-/* Fix for student registration modal */
-#studentModal.modal,
+/* Fix for student registration modal - UPDATED */
+#studentModal.modal {
+    display: none !important;  /* CRITICAL: Hidden by default */
+}
+
 #studentModal.modal.active,
-#studentModal.modal.show {
-    display: block !important;
+#studentModal.modal.show,
+#studentModal.modal[style*="display: block"] {
+    display: block !important;  /* Only show when active */
     overflow-y: auto !important;
 }
 
@@ -2287,10 +2291,10 @@ p {
 }
 
 #studentModal .form-scroll {
-    overflow-y: auto !important;  /* THIS ENABLES SCROLLING */
+    overflow-y: auto !important;
     flex: 1 1 auto !important;
     padding: 24px !important;
-    max-height: calc(100vh - 180px) !important; /* Viewport minus header + margins */
+    max-height: calc(100vh - 180px) !important;
 }
 
 /* Style the scrollbar nicely */
