@@ -1,68 +1,71 @@
 // modules/students.js - COMPLETE FIXED VERSION
-constructor(db, app = null) {
-    this.db = db;
-    this.app = app;
+// modules/students.js - CLEAN VERSION
+class StudentManager {
+    constructor(db, app = null) {
+        this.db = db;
+        this.app = app;
+        
+        // Initialize flags
+        this._initialized = false;
+        this._initializing = false;
+        
+        // Initialize debounced methods
+        this._debouncedSearch = null;
+        this._debouncedFilter = null;
+        
+        // Enhanced UI handlers
+        this.ui = this._createUIHandlers();
+        
+        // State management
+        this.currentEditId = null;
+        this.selectedStudents = new Set();
+        this.centres = [];
+        this.programs = [];
+        this.filteredStudents = [];
+        this.allStudents = [];
+        this.viewMode = 'table';
+        
+        // Performance and caching
+        this.cache = {
+            students: null,
+            lastFetch: 0,
+            cacheDuration: 30000
+        };
+        
+        // Search and filtering
+        this.searchTerm = '';
+        this.activeFilters = {
+            program: '',
+            year: '',
+            centre: '',
+            county: '',
+            status: '',
+            intake_year: ''
+        };
+        
+        // Pagination
+        this.currentPage = 1;
+        this.pageSize = 25;
+        this.totalPages = 1;
+        
+        // Analytics
+        this.analytics = {
+            total: 0,
+            active: 0,
+            inactive: 0,
+            graduated: 0,
+            newThisMonth: 0,
+            attendanceRate: 92,
+            graduationRate: 87,
+            maleCount: 0,
+            femaleCount: 0,
+            averageAge: 0,
+            feesCollected: 0
+        };
+        
+        console.log('🎓 StudentManager instance created');
+    }
     
-    // 🔥 INITIALIZATION FLAGS 🔥
-    this._initialized = false;
-    this._initializing = false;
-    
-    // Initialize debounced methods properly
-    this._debouncedSearch = null;
-    this._debouncedFilter = null;
-    
-    // Enhanced UI handlers
-    this.ui = this._createUIHandlers();
-    
-    // State management
-    this.currentEditId = null;
-    this.selectedStudents = new Set();
-    this.centres = [];
-    this.programs = [];
-    this.filteredStudents = [];
-    this.allStudents = [];
-    this.viewMode = 'table';
-    
-    // Performance and caching
-    this.cache = {
-        students: null,
-        lastFetch: 0,
-        cacheDuration: 30000
-    };
-    
-    // Search and filtering
-    this.searchTerm = '';
-    this.activeFilters = {
-        program: '',
-        year: '',
-        centre: '',
-        county: '',
-        status: '',
-        intake_year: ''
-    };
-    
-    // Pagination
-    this.currentPage = 1;
-    this.pageSize = 25;
-    this.totalPages = 1;
-    
-    // Analytics
-    this.analytics = {
-        total: 0,
-        active: 0,
-        inactive: 0,
-        graduated: 0,
-        newThisMonth: 0,
-        attendanceRate: 92,
-        graduationRate: 87,
-        maleCount: 0,
-        femaleCount: 0,
-        averageAge: 0,
-        feesCollected: 0
-    };
-    
-    console.log('🎓 StudentManager instance created');
-}
     
     /**
      * Create enhanced UI handlers
