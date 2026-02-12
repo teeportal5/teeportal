@@ -1,4 +1,4 @@
-// modules/students.js - COMPLETE FIXED VERSION WITH DETAILED CONSOLE LOGS
+// modules/students.js - COMPLETE FIXED VERSION
 class StudentManager {
     constructor(db, app = null) {
         this.db = db;
@@ -129,17 +129,24 @@ class StudentManager {
                 console.log(`🔒 Closing modal: ${id}`);
                 const modal = document.getElementById(id);
                 if (modal) {
+                    // Force hide modal with direct style manipulation
                     modal.style.display = 'none';
                     modal.classList.remove('active', 'show', 'modal-show');
                     
+                    // Remove any inline styles that might keep it visible
+                    modal.removeAttribute('style');
+                    
+                    // Restore body scroll
                     document.body.style.overflow = 'auto';
                     document.body.style.paddingRight = '0';
                     
+                    // Reset any forms inside the modal
                     const form = modal.querySelector('form');
                     if (form) {
                         form.reset();
                     }
                     
+                    // Reset submit button in this specific modal
                     const submitBtn = modal.querySelector('button[type="submit"]');
                     if (submitBtn) {
                         submitBtn.innerHTML = '<i class="fas fa-plus"></i> Register Student';
@@ -545,7 +552,7 @@ class StudentManager {
             intakeSelect.addEventListener('change', () => this.generateRegNumber());
         }
         
-        // Modal close buttons
+        // Modal close buttons - FIXED
         document.querySelectorAll('[data-modal-close]').forEach(btn => {
             const newBtn = btn.cloneNode(true);
             if (btn.parentNode) {
@@ -569,6 +576,23 @@ class StudentManager {
                 }
             });
         });
+        
+        // Also fix the X button in modal header
+        const closeXBtn = document.querySelector('.modal-header .close');
+        if (closeXBtn) {
+            const newCloseBtn = closeXBtn.cloneNode(true);
+            if (closeXBtn.parentNode) {
+                closeXBtn.parentNode.replaceChild(newCloseBtn, closeXBtn);
+            }
+            newCloseBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const modal = newCloseBtn.closest('.modal');
+                if (modal) {
+                    this.ui.closeModal(modal.id);
+                }
+            });
+        }
         
         document.querySelectorAll('.filter-chip').forEach(chip => {
             chip.addEventListener('click', (e) => {
@@ -747,7 +771,7 @@ class StudentManager {
     }
     
     /**
-     * Render students table
+     * Render students table - COMPACT VERSION
      */
     _renderStudentsTable() {
         const tbody = document.getElementById('studentsTableBody');
@@ -775,7 +799,7 @@ class StudentManager {
     }
     
     /**
-     * Create student row
+     * Create student row - COMPACT VERSION (NO EXTRA SPACES)
      */
     _createStudentRow(student, index) {
         const programDisplay = this._getProgramDisplayName(student.program);
@@ -785,34 +809,34 @@ class StudentManager {
         return `
             <tr data-student-id="${this._escapeAttr(student.id)}" 
                 data-student-reg="${this._escapeAttr(student.reg_number)}"
-                class="${status === 'inactive' ? 'inactive-student' : ''}">
+                style="border-bottom: 1px solid #e2e8f0;">
                 
-                <td style="width: 40px; text-align: center; padding: 8px;">
+                <td style="width: 30px; padding: 8px 4px; text-align: center;">
                     <input type="checkbox" data-student-id="${student.id}" style="margin: 0; width: 16px; height: 16px;">
                 </td>
                 
-                <td style="width: 120px;">
-                    <strong class="student-id">${this._escapeHtml(student.reg_number)}</strong>
+                <td style="padding: 8px 8px;">
+                    <strong style="font-size: 0.85rem; color: #2563eb;">${this._escapeHtml(student.reg_number)}</strong>
                 </td>
                 
-                <td style="min-width: 280px;">
-                    <div class="student-info-enhanced">
-                        <div class="student-avatar" style="background-color: ${this._getAvatarColor(student.full_name)}">
+                <td style="padding: 8px 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 32px; height: 32px; border-radius: 50%; background-color: ${this._getAvatarColor(student.full_name)}; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.8rem; flex-shrink: 0;">
                             ${this._getStudentInitials(student.full_name)}
                         </div>
-                        <div class="student-details">
-                            <div class="student-name">
-                                <strong>${this._escapeHtml(student.full_name)}</strong>
+                        <div>
+                            <div style="font-weight: 600; font-size: 0.9rem; color: #1e293b; margin-bottom: 2px;">
+                                ${this._escapeHtml(student.full_name)}
                             </div>
-                            <div class="student-meta">
+                            <div style="display: flex; gap: 12px; font-size: 0.75rem; color: #64748b;">
                                 ${student.email ? `
-                                    <span class="student-email">
-                                        <i class="fas fa-envelope"></i> ${this._escapeHtml(student.email)}
+                                    <span style="display: flex; align-items: center; gap: 3px;">
+                                        <i class="fas fa-envelope" style="font-size: 0.7rem;"></i> ${this._escapeHtml(student.email)}
                                     </span>
                                 ` : ''}
                                 ${student.phone ? `
-                                    <span class="student-phone">
-                                        <i class="fas fa-phone"></i> ${this._escapeHtml(student.phone)}
+                                    <span style="display: flex; align-items: center; gap: 3px;">
+                                        <i class="fas fa-phone" style="font-size: 0.7rem;"></i> ${this._escapeHtml(student.phone)}
                                     </span>
                                 ` : ''}
                             </div>
@@ -820,47 +844,50 @@ class StudentManager {
                     </div>
                 </td>
                 
-                <td style="width: 180px;">
-                    <div class="academic-info">
-                        <div class="program-badge">
+                <td style="padding: 8px 8px;">
+                    <div>
+                        <span style="display: inline-block; padding: 4px 8px; background: #dbeafe; color: #1e40af; border-radius: 12px; font-size: 0.75rem; font-weight: 500;">
                             ${this._escapeHtml(programDisplay)}
-                        </div>
-                        <div class="year-level">
+                        </span>
+                        <div style="font-size: 0.7rem; color: #64748b; margin-top: 2px;">
                             Year ${student.year_level || '1'}
                         </div>
                     </div>
                 </td>
                 
-                <td style="width: 150px;">
-                    <div class="contact-info">
-                        ${centreDisplay ? `
-                            <div class="centre-info">
-                                <i class="fas fa-school"></i> ${this._escapeHtml(centreDisplay)}
-                            </div>
-                        ` : ''}
-                    </div>
+                <td style="padding: 8px 8px;">
+                    ${centreDisplay ? `
+                        <div style="display: flex; align-items: center; gap: 5px; font-size: 0.8rem; color: #475569;">
+                            <i class="fas fa-school" style="font-size: 0.75rem; color: #64748b;"></i>
+                            ${this._escapeHtml(centreDisplay)}
+                        </div>
+                    ` : ''}
                 </td>
                 
-                <td style="width: 100px;">
-                    <span class="status-badge status-${status}">
-                        <i class="fas fa-circle"></i>
+                <td style="padding: 8px 8px;">
+                    <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: ${status === 'active' ? '#dcfce7' : status === 'inactive' ? '#fee2e2' : '#fef9c3'}; color: ${status === 'active' ? '#166534' : status === 'inactive' ? '#991b1b' : '#854d0e'}; border-radius: 20px; font-size: 0.7rem; font-weight: 500;">
+                        <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
                         ${status.charAt(0).toUpperCase() + status.slice(1)}
                     </span>
                 </td>
                 
-                <td class="actions-cell">
-                    <div class="action-buttons-container">
-                        <button class="action-btn view-btn" onclick="app.students?.viewStudent('${student.id}')" title="View Details">
-                            <i class="fas fa-eye"></i>
+                <td style="padding: 8px 8px; white-space: nowrap;">
+                    <div style="display: flex; gap: 4px;">
+                        <button onclick="app.students?.viewStudent('${student.id}')" 
+                                style="padding: 4px 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; color: #3b82f6; font-size: 0.75rem; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;">
+                            <i class="fas fa-eye" style="font-size: 0.7rem;"></i>
                         </button>
-                        <button class="action-btn edit-btn" onclick="app.students?.editStudent('${student.id}')" title="Edit Student">
-                            <i class="fas fa-edit"></i>
+                        <button onclick="app.students?.editStudent('${student.id}')" 
+                                style="padding: 4px 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; color: #2563eb; font-size: 0.75rem; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;">
+                            <i class="fas fa-edit" style="font-size: 0.7rem;"></i>
                         </button>
-                        <button class="action-btn marks-btn" onclick="app.students?.enterMarks('${student.id}')" title="Enter Marks">
-                            <i class="fas fa-chart-bar"></i>
+                        <button onclick="app.students?.enterMarks('${student.id}')" 
+                                style="padding: 4px 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; color: #7c3aed; font-size: 0.75rem; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;">
+                            <i class="fas fa-chart-bar" style="font-size: 0.7rem;"></i>
                         </button>
-                        <button class="action-btn delete-btn" onclick="app.students?.deleteStudent('${student.id}')" title="Delete Student">
-                            <i class="fas fa-trash"></i>
+                        <button onclick="app.students?.deleteStudent('${student.id}')" 
+                                style="padding: 4px 8px; background: #fef2f2; border: 1px solid #fee2e2; border-radius: 6px; color: #dc2626; font-size: 0.75rem; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;">
+                            <i class="fas fa-trash" style="font-size: 0.7rem;"></i>
                         </button>
                     </div>
                 </td>
@@ -1226,164 +1253,104 @@ class StudentManager {
     }
     
     /**
-     * Save student - WITH DETAILED CONSOLE LOGS
+     * Save student - COMPLETE FIX with proper UI feedback
      */
     async saveStudent(event) {
-        console.log('\n\n==========================================');
-        console.log('🔍🔍🔍 REGISTER BUTTON CLICKED - SAVE STUDENT STARTED 🔍🔍🔍');
-        console.log('==========================================');
-        console.log('📌 Timestamp:', new Date().toISOString());
-        console.log('📌 Event target:', event.target);
-        console.log('📌 Form ID:', event.target.id);
-        console.log('📌 Current edit mode:', this.currentEditId ? 'EDIT' : 'CREATE NEW');
-        console.log('📌 Current edit ID:', this.currentEditId || 'None');
-        console.log('📌 Form validation starting...');
-        
         event.preventDefault();
         event.stopPropagation();
         
+        console.log('\n==========================================');
+        console.log('🔍 SAVE STUDENT STARTED');
+        console.log('==========================================');
+        
         const form = event.target;
         if (!form || form.id !== 'studentForm') {
-            console.error('❌❌❌ INVALID FORM! Expected studentForm but got:', form?.id);
-            console.log('==========================================\n');
+            console.error('❌ Invalid form');
             return;
         }
         
-        console.log('✅ Form validation passed - form is correct');
-        console.log('📝 Saving student...', this.currentEditId ? 'Edit mode' : 'Create mode');
-        
         const submitBtn = form.querySelector('button[type="submit"]');
         const originalText = submitBtn ? submitBtn.innerHTML : 'Register Student';
-        console.log('📌 Submit button found:', !!submitBtn);
-        console.log('📌 Original button text:', originalText);
         
         try {
             // Validate form
-            console.log('\n--- STEP 1: Validating Form ---');
             if (!this._validateStudentForm()) {
-                console.warn('⚠️⚠️⚠️ FORM VALIDATION FAILED');
                 if (submitBtn) {
                     submitBtn.innerHTML = originalText;
                     submitBtn.disabled = false;
                 }
-                console.log('==========================================\n');
                 return;
             }
-            console.log('✅ Form validation PASSED');
             
             // Prepare form data
-            console.log('\n--- STEP 2: Preparing Form Data ---');
-            console.log('📦 Preparing form data...');
             const formData = this._prepareFormData();
-            console.log('📦 Form data prepared:');
-            console.log(JSON.stringify(formData, null, 2));
-            console.log('📌 Registration number:', formData.reg_number);
-            console.log('📌 Student name:', formData.full_name);
-            console.log('📌 Email:', formData.email);
-            console.log('📌 Program:', formData.program);
-            console.log('📌 Intake year:', formData.intake_year);
-            console.log('📌 Centre:', formData.centre);
-            console.log('📌 County:', formData.county);
-            console.log('📌 Region:', formData.region);
-            console.log('📌 Phone:', formData.phone);
-            console.log('📌 Gender:', formData.gender);
-            console.log('📌 Status:', formData.status);
-            console.log('📌 Registration date:', formData.registration_date);
+            console.log('📦 Form data:', formData);
             
             // Show loading state
-            console.log('\n--- STEP 3: Setting Loading State ---');
             if (submitBtn) {
-                console.log('🔄 Setting button to loading state...');
                 submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
                 submitBtn.disabled = true;
-                console.log('✅ Button loading state set');
             }
             
             // Save to database
-            console.log('\n--- STEP 4: Saving to Database ---');
-            console.log('💾 Sending to database...');
-            console.log('📌 Database method:', this.currentEditId ? 'updateStudent' : 'addStudent');
-            
             let result;
             if (this.currentEditId) {
-                console.log('🔄 Updating existing student ID:', this.currentEditId);
                 result = await this.db.updateStudent(this.currentEditId, formData);
-                console.log('✅ Update operation completed');
+                this.ui.showToast('✅ Student updated successfully!', 'success');
             } else {
-                console.log('🔄 Adding new student');
                 result = await this.db.addStudent(formData);
-                console.log('✅ Add operation completed');
+                const regNumber = result.reg_number || formData.reg_number;
+                this.ui.showToast(`✅ Student registered! Reg: ${regNumber}`, 'success');
             }
             
-            console.log('\n--- STEP 5: Database Result ---');
-            console.log('✅ Database operation successful!');
-            console.log('📌 Database result:');
-            console.log(JSON.stringify(result, null, 2));
+            console.log('✅ Database save successful:', result);
             
             // Clear cache
-            console.log('\n--- STEP 6: Clearing Cache ---');
-            console.log('🧹 Clearing cache...');
             this.cache.students = null;
-            console.log('✅ Cache cleared');
             
-            // Show success message
-            console.log('\n--- STEP 7: Showing Success Message ---');
-            const regNumber = result.reg_number || formData.reg_number;
-            console.log('📌 Registration number:', regNumber);
-            console.log('🎉 Showing success toast...');
-            this.ui.showToast(`✅ Student registered! Registration: ${regNumber}`, 'success', 5000);
-            console.log('✅ Toast shown');
-            
-            // Close modal
-            console.log('\n--- STEP 8: Closing Modal ---');
-            console.log('🚪 Closing modal...');
+            // 🔥 CRITICAL: Close modal FIRST
             this.ui.closeModal('studentModal');
             console.log('✅ Modal closed');
             
-            // Reset button state
-            console.log('\n--- STEP 9: Resetting Button State ---');
-            if (submitBtn) {
-                console.log('🔄 Resetting button state...');
-                submitBtn.innerHTML = '<i class="fas fa-plus"></i> Register Student';
-                submitBtn.disabled = false;
-                console.log('✅ Button reset to original state');
-            }
-            
-            // Reset form
-            console.log('\n--- STEP 10: Resetting Form ---');
-            console.log('🔄 Resetting form...');
-            this._resetStudentForm();
-            console.log('✅ Form reset complete');
-            
-            // Refresh table
-            console.log('\n--- STEP 11: Refreshing Students Table ---');
-            console.log('🔄 Refreshing students table...');
-            await this.loadStudentsTable();
-            console.log(`✅ Table refreshed - now showing ${this.allStudents.length} students total`);
-            
-            // Reset edit ID
-            this.currentEditId = null;
-            console.log('✅ Edit ID reset');
-            
-            console.log('\n==========================================');
-            console.log('🎉🎉🎉 STUDENT SAVED SUCCESSFULLY! 🎉🎉🎉');
-            console.log('==========================================\n');
-            
-        } catch (error) {
-            console.error('\n❌❌❌ ERROR SAVING STUDENT ❌❌❌');
-            console.error('Error details:', error);
-            console.error('Error message:', error.message);
-            console.error('Error stack:', error.stack);
-            console.error('==========================================\n');
-            
-            this.ui.showToast(error.message || 'Failed to save student', 'error');
-            
+            // 🔥 CRITICAL: Reset button state
             if (submitBtn) {
                 submitBtn.innerHTML = this.currentEditId 
                     ? '<i class="fas fa-save"></i> Update Student'
                     : '<i class="fas fa-plus"></i> Register Student';
                 submitBtn.disabled = false;
-                console.log('✅ Button reset after error');
+            }
+            
+            // 🔥 CRITICAL: Reset form
+            this._resetStudentForm();
+            
+            // 🔥 CRITICAL: Force reload students table
+            await this.loadStudentsTable();
+            console.log(`✅ Table refreshed - ${this.allStudents.length} students`);
+            
+            // 🔥 CRITICAL: Force update dashboard if available
+            if (this.app?.dashboard?.updateDashboard) {
+                setTimeout(() => {
+                    this.app.dashboard.updateDashboard();
+                    console.log('✅ Dashboard updated');
+                }, 300);
+            }
+            
+            // Reset edit ID
+            this.currentEditId = null;
+            
+            console.log('✅ Student save completed successfully');
+            console.log('==========================================\n');
+            
+        } catch (error) {
+            console.error('❌ Error saving student:', error);
+            this.ui.showToast(error.message || 'Failed to save student', 'error');
+            
+            // Reset button state on error
+            if (submitBtn) {
+                submitBtn.innerHTML = this.currentEditId 
+                    ? '<i class="fas fa-save"></i> Update Student'
+                    : '<i class="fas fa-plus"></i> Register Student';
+                submitBtn.disabled = false;
             }
         }
     }
@@ -1516,28 +1483,28 @@ class StudentManager {
     }
     
     /**
-     * Reset student form - FIXED date field
+     * Reset student form - FIXED
      */
     _resetStudentForm() {
         console.log('🔄 Resetting student form...');
         
         const form = document.getElementById('studentForm');
         if (!form) {
-            console.error('❌ Student form not found for reset');
+            console.error('❌ Student form not found');
             return;
         }
         
         form.reset();
         
+        // Reset registration number
         const regNumberInput = document.getElementById('studentRegNumber');
         if (regNumberInput) {
             regNumberInput.readOnly = false;
             regNumberInput.style.backgroundColor = '';
-            regNumberInput.title = '';
             regNumberInput.value = '';
-            console.log('✅ Registration number input reset');
         }
         
+        // Fix date field - remove PHP and set to today
         const regDateField = document.getElementById('studentRegDate');
         if (regDateField) {
             const today = new Date();
@@ -1548,20 +1515,24 @@ class StudentManager {
             console.log('✅ Date field set to:', regDateField.value);
         }
         
+        // Reset modal title
         const modalTitle = document.getElementById('studentModalTitle');
         if (modalTitle) {
             modalTitle.textContent = 'Register New Student';
             modalTitle.innerHTML = '<i class="fas fa-user-plus"></i> Register New Student';
         }
         
+        // Reset submit button
         const submitBtn = document.querySelector('#studentForm button[type="submit"]');
         if (submitBtn) {
             submitBtn.innerHTML = '<i class="fas fa-plus"></i> Register Student';
             submitBtn.disabled = false;
         }
         
+        // Reset edit ID
         this.currentEditId = null;
         
+        // Repopulate dropdowns
         this._populateIntakeYears();
         this.generateRegNumber();
         
@@ -1569,7 +1540,7 @@ class StudentManager {
     }
     
     /**
-     * Generate registration number - FIXED with better fallback
+     * Generate registration number - FIXED
      */
     async generateRegNumber() {
         console.log('🔢 Generating registration number...');
@@ -1594,15 +1565,13 @@ class StudentManager {
             }
             
             const cleanProgramCode = programCode.split('-')[0].trim();
-            console.log('📌 Program code:', cleanProgramCode);
-            console.log('📌 Intake year:', intakeYear);
             
             try {
                 if (this.db && typeof this.db.generateRegistrationNumber === 'function') {
                     const regNumber = await this.db.generateRegistrationNumber(cleanProgramCode, intakeYear);
                     if (regNumber) {
                         regNumberInput.value = regNumber;
-                        console.log('✅ Registration number generated via DB:', regNumber);
+                        console.log('✅ Registration number generated:', regNumber);
                         return;
                     }
                 }
@@ -1668,7 +1637,6 @@ class StudentManager {
                 return;
             }
             
-            console.log('✅ Student data loaded:', student.full_name);
             this.currentEditId = studentId;
             
             await this._populateEditForm(student);
