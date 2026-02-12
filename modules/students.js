@@ -1,4 +1,4 @@
-// modules/students.js - FIXED ACTION BUTTONS OVERLAP
+// modules/students.js - COMPLETE FIXED VERSION
 class StudentManager {
     constructor(db, app = null) {
         this.db = db;
@@ -92,29 +92,42 @@ class StudentManager {
                 });
             },
             
+            // FIXED: Modal open with proper scroll handling
             openModal: (id, options = {}) => {
                 const modal = document.getElementById(id);
                 if (modal) {
                     if (options.onOpen) options.onOpen();
                     
-                    modal.classList.add('active');
+                    modal.classList.add('active', 'show');
                     modal.style.display = 'block';
+                    
+                    // Lock body scroll
                     document.body.style.overflow = 'hidden';
+                    document.body.style.paddingRight = '15px';
+                    
+                    // Reset scroll position
+                    const scrollContainer = modal.querySelector('.form-scroll, .modal-body');
+                    if (scrollContainer) {
+                        scrollContainer.scrollTop = 0;
+                    }
                     
                     // Focus first input
                     setTimeout(() => {
-                        const firstInput = modal.querySelector('input, select, textarea');
+                        const firstInput = modal.querySelector('input:not([readonly]), select, textarea');
                         if (firstInput) firstInput.focus();
-                    }, 100);
+                    }, 150);
                 }
             },
             
             closeModal: (id, options = {}) => {
                 const modal = document.getElementById(id);
                 if (modal) {
-                    modal.classList.remove('active');
+                    modal.classList.remove('active', 'show');
                     modal.style.display = 'none';
+                    
+                    // Restore body scroll
                     document.body.style.overflow = 'auto';
+                    document.body.style.paddingRight = '0';
                     
                     if (options.onClose) options.onClose();
                 }
@@ -132,16 +145,19 @@ class StudentManager {
             // Show loading state
             this.ui.showLoading(true, 'Loading student data...');
             
-            // Initialize debounced methods AFTER all methods are defined
+            // Initialize debounced methods
             this._debouncedSearch = this._debounce(this._performSearch.bind(this), 300);
             this._debouncedFilter = this._debounce(this._applyFilters.bind(this), 200);
             
-            // Load initial data
-            await Promise.all([
-                this._loadEssentialData(),
-                this._setupEventListeners(),
-                this._setupKeyboardShortcuts()
-            ]);
+            // Load essential data
+            await this._loadEssentialData();
+            
+            // CRITICAL FIX: Attach form submit handler
+            this._attachFormSubmitHandler();
+            
+            // Setup event listeners
+            await this._setupEventListeners();
+            await this._setupKeyboardShortcuts();
             
             // Load and render
             await this.loadStudentsTable();
@@ -159,6 +175,36 @@ class StudentManager {
             this.ui.showToast('Failed to initialize student module', 'error');
         } finally {
             this.ui.showLoading(false);
+        }
+    }
+    
+    /**
+     * FIXED: Attach form submit handler properly
+     */
+    _attachFormSubmitHandler() {
+        const studentForm = document.getElementById('studentForm');
+        if (studentForm) {
+            // Remove any existing listeners by cloning
+            const newForm = studentForm.cloneNode(true);
+            if (studentForm.parentNode) {
+                studentForm.parentNode.replaceChild(newForm, studentForm);
+            }
+            
+            // Add fresh event listener
+            newForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('📝 Form submitted');
+                this.saveStudent(e);
+            });
+            
+            console.log('✅ Form submit handler attached');
+            return newForm;
+        } else {
+            console.warn('⚠️ Student form not found, will retry');
+            // Retry after a short delay
+            setTimeout(() => this._attachFormSubmitHandler(), 500);
+            return null;
         }
     }
     
@@ -201,12 +247,44 @@ class StudentManager {
             // Initialize quick stats
             this._initializeQuickStats();
             
+            // Populate counties
+            this._populateCounties();
+            
             console.log('✅ Essential data loaded');
             
         } catch (error) {
             console.error('❌ Error loading essential data:', error);
             this.ui.showToast('Error loading programs and centres', 'error');
         }
+    }
+    
+    /**
+     * Populate Kenyan counties
+     */
+    _populateCounties() {
+        const countySelect = document.getElementById('studentCounty');
+        if (!countySelect) return;
+        
+        const counties = [
+            'Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Kiambu',
+            'Uasin Gishu', 'Machakos', 'Meru', 'Kakamega', 'Kisii',
+            'Kilifi', 'Garissa', 'Mandera', 'Turkana', 'Marsabit',
+            'Kwale', 'Lamu', 'Tana River', 'Wajir', 'Samburu',
+            'Isiolo', 'Baringo', 'Laikipia', 'Nyeri', 'Kirinyaga',
+            'Muranga', 'Nyandarua', 'Embu', 'Kitui', 'Makueni',
+            'Tharaka Nithi', 'Siaya', 'Homa Bay', 'Migori', 'Nyamira',
+            'Vihiga', 'Bungoma', 'Busia', 'Trans Nzoia', 'Elgeyo Marakwet',
+            'Nandi', 'Kericho', 'Bomet', 'Narok', 'Kajiado',
+            'West Pokot', 'Taita Taveta'
+        ].sort();
+        
+        countySelect.innerHTML = '<option value="">Select County</option>';
+        counties.forEach(county => {
+            const option = document.createElement('option');
+            option.value = county;
+            option.textContent = county;
+            countySelect.appendChild(option);
+        });
     }
     
     /**
@@ -225,7 +303,6 @@ class StudentManager {
      * Initialize quick stats
      */
     _initializeQuickStats() {
-        // Update last updated time
         const lastUpdatedElement = document.getElementById('lastUpdatedTime');
         if (lastUpdatedElement) {
             lastUpdatedElement.textContent = 'Just now';
@@ -324,11 +401,18 @@ class StudentManager {
             }
         }
         
-        // County filter - simplified since we removed county from form
+        // County filter
         const countyFilter = document.getElementById('filterCounty');
         if (countyFilter) {
             countyFilter.innerHTML = '<option value="">All Counties</option>';
-            // You can add Kenyan counties here if needed
+            // Add counties
+            const counties = ['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Kiambu'];
+            counties.forEach(county => {
+                const option = document.createElement('option');
+                option.value = county;
+                option.textContent = county;
+                countyFilter.appendChild(option);
+            });
         }
         
         // Intake filter
@@ -405,11 +489,15 @@ class StudentManager {
     _setupEventListeners() {
         console.log('🔌 Setting up enhanced event listeners...');
         
-        // Form submission
-        const studentForm = document.getElementById('studentForm');
-        if (studentForm) {
-            studentForm.addEventListener('submit', (e) => this.saveStudent(e));
-        }
+        // CRITICAL FIX: Event delegation for form submission
+        document.body.addEventListener('submit', (e) => {
+            if (e.target.id === 'studentForm') {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('📝 Form submitted via delegation');
+                this.saveStudent(e);
+            }
+        });
         
         // Enhanced search
         const studentSearch = document.getElementById('studentSearch');
@@ -462,11 +550,15 @@ class StudentManager {
         // Quick filter chips
         document.querySelectorAll('.filter-chip').forEach(chip => {
             chip.addEventListener('click', (e) => {
-                this._handleQuickFilter(e.target.getAttribute('onclick').match(/'([^']+)'/)[1]);
+                const onclick = e.currentTarget.getAttribute('onclick');
+                if (onclick) {
+                    const match = onclick.match(/'([^']+)'/);
+                    if (match) this._handleQuickFilter(match[1]);
+                }
             });
         });
         
-        // Action buttons in control panel
+        // Action buttons
         this._setupActionButtonListeners();
         
         console.log('✅ Enhanced event listeners setup complete');
@@ -477,33 +569,24 @@ class StudentManager {
      */
     _setupActionButtonListeners() {
         // Add New Student
-        const addStudentBtn = document.querySelector('.action-btn.primary');
+        const addStudentBtn = document.querySelector('.action-btn.primary, [data-action="add-student"]');
         if (addStudentBtn) {
-            addStudentBtn.addEventListener('click', () => this.openStudentModal());
+            addStudentBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.openStudentModal();
+            });
         }
         
         // Bulk Upload
-        const bulkUploadBtn = document.querySelector('.action-btn[data-action="bulk-upload"]');
+        const bulkUploadBtn = document.querySelector('[data-action="bulk-upload"]');
         if (bulkUploadBtn) {
             bulkUploadBtn.addEventListener('click', () => this.bulkUpload());
         }
         
         // Export Data
-        const exportBtn = document.querySelector('.action-btn[data-action="export-data"]');
+        const exportBtn = document.querySelector('[data-action="export-data"]');
         if (exportBtn) {
             exportBtn.addEventListener('click', () => this.exportStudents());
-        }
-        
-        // Generate Reports
-        const reportsBtn = document.querySelector('.action-btn[data-action="generate-reports"]');
-        if (reportsBtn) {
-            reportsBtn.addEventListener('click', () => this.generateReports());
-        }
-        
-        // Send Communications
-        const commsBtn = document.querySelector('.action-btn[data-action="send-communications"]');
-        if (commsBtn) {
-            commsBtn.addEventListener('click', () => this.sendCommunications());
         }
     }
     
@@ -602,7 +685,7 @@ class StudentManager {
     /**
      * Set view mode
      */
-    _setViewMode(mode) {
+    _setViewMode(mode, event = null) {
         this.viewMode = mode;
         
         // Update active button state
@@ -611,9 +694,12 @@ class StudentManager {
         });
         
         // Add active class to current mode button
-        const activeBtn = event?.currentTarget;
-        if (activeBtn) {
-            activeBtn.classList.add('active');
+        if (event && event.currentTarget) {
+            event.currentTarget.classList.add('active');
+        } else {
+            // Find button by mode
+            const btn = document.querySelector(`.view-btn[data-view="${mode}"]`);
+            if (btn) btn.classList.add('active');
         }
         
         // Render based on view mode
@@ -696,107 +782,107 @@ class StudentManager {
         // Update counters
         this._updateCounters();
     }
-    /**
- * Create student row - FIXED ACTION BUTTONS
- */
-_createStudentRow(student, index) {
-    const programDisplay = this._getProgramDisplayName(student.program);
-    const centreDisplay = this._getCentreDisplayName(student.centre_id, student.centre);
-    const status = student.status || 'active';
-    const hasEmail = student.email && student.email.trim() !== '';
-    const hasPhone = student.phone && student.phone.trim() !== '';
     
-    return `
-        <tr data-student-id="${this._escapeAttr(student.id)}" 
-            data-student-reg="${this._escapeAttr(student.reg_number)}"
-            class="${status === 'inactive' ? 'inactive-student' : ''}">
-            
-            <td style="width: 40px; text-align: center; padding: 8px;">
-                <input type="checkbox" data-student-id="${student.id}" style="margin: 0; width: 16px; height: 16px;">
-            </td>
-            
-            <td style="width: 120px;">
-                <strong class="student-id">${this._escapeHtml(student.reg_number)}</strong>
-            </td>
-            
-            <td style="min-width: 280px;">
-                <div class="student-info-enhanced">
-                    <div class="student-avatar" style="background-color: ${this._getAvatarColor(student.full_name)}">
-                        ${this._getStudentInitials(student.full_name)}
-                    </div>
-                    <div class="student-details">
-                        <div class="student-name">
-                            <strong>${this._escapeHtml(student.full_name)}</strong>
-                            ${!hasEmail ? '<span class="warning-badge" title="No email"><i class="fas fa-exclamation-circle"></i></span>' : ''}
+    /**
+     * Create student row - FIXED ACTION BUTTONS
+     */
+    _createStudentRow(student, index) {
+        const programDisplay = this._getProgramDisplayName(student.program);
+        const centreDisplay = this._getCentreDisplayName(student.centre_id, student.centre);
+        const status = student.status || 'active';
+        const hasEmail = student.email && student.email.trim() !== '';
+        const hasPhone = student.phone && student.phone.trim() !== '';
+        
+        return `
+            <tr data-student-id="${this._escapeAttr(student.id)}" 
+                data-student-reg="${this._escapeAttr(student.reg_number)}"
+                class="${status === 'inactive' ? 'inactive-student' : ''}">
+                
+                <td style="width: 40px; text-align: center; padding: 8px;">
+                    <input type="checkbox" data-student-id="${student.id}" style="margin: 0; width: 16px; height: 16px;">
+                </td>
+                
+                <td style="width: 120px;">
+                    <strong class="student-id">${this._escapeHtml(student.reg_number)}</strong>
+                </td>
+                
+                <td style="min-width: 280px;">
+                    <div class="student-info-enhanced">
+                        <div class="student-avatar" style="background-color: ${this._getAvatarColor(student.full_name)}">
+                            ${this._getStudentInitials(student.full_name)}
                         </div>
-                        <div class="student-meta">
-                            ${student.email ? `
-                                <span class="student-email">
-                                    <i class="fas fa-envelope"></i> ${this._escapeHtml(student.email)}
-                                </span>
-                            ` : ''}
-                            ${student.phone ? `
-                                <span class="student-phone">
-                                    <i class="fas fa-phone"></i> ${this._escapeHtml(student.phone)}
-                                </span>
-                            ` : ''}
+                        <div class="student-details">
+                            <div class="student-name">
+                                <strong>${this._escapeHtml(student.full_name)}</strong>
+                                ${!hasEmail ? '<span class="warning-badge" title="No email"><i class="fas fa-exclamation-circle"></i></span>' : ''}
+                            </div>
+                            <div class="student-meta">
+                                ${student.email ? `
+                                    <span class="student-email">
+                                        <i class="fas fa-envelope"></i> ${this._escapeHtml(student.email)}
+                                    </span>
+                                ` : ''}
+                                ${student.phone ? `
+                                    <span class="student-phone">
+                                        <i class="fas fa-phone"></i> ${this._escapeHtml(student.phone)}
+                                    </span>
+                                ` : ''}
+                            </div>
                         </div>
                     </div>
-                </div>
-            </td>
-            
-            <td style="width: 180px;">
-                <div class="academic-info">
-                    <div class="program-badge">
-                        ${this._escapeHtml(programDisplay)}
-                    </div>
-                    <div class="year-level">
-                        Year ${student.year_level || '1'}
-                    </div>
-                </div>
-            </td>
-            
-            <td style="width: 150px;">
-                <div class="contact-info">
-                    ${centreDisplay ? `
-                        <div class="centre-info">
-                            <i class="fas fa-school"></i> ${this._escapeHtml(centreDisplay)}
+                </td>
+                
+                <td style="width: 180px;">
+                    <div class="academic-info">
+                        <div class="program-badge">
+                            ${this._escapeHtml(programDisplay)}
                         </div>
-                    ` : ''}
-                </div>
-            </td>
-            
-            <td style="width: 100px;">
-                <span class="status-badge status-${status}">
-                    <i class="fas fa-circle"></i>
-                    ${status.charAt(0).toUpperCase() + status.slice(1)}
-                </span>
-            </td>
-            
-            <!-- FIXED: Remove the fixed width from this cell -->
-            <td class="action-buttons">
-                <div class="btn-group">
-                    <button class="btn-action btn-view" data-id="${this._escapeAttr(student.id)}" 
-                            title="View Details" onclick="app.students?.viewStudent('${student.id}')">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    <button class="btn-action btn-edit" data-id="${this._escapeAttr(student.id)}" 
-                            title="Edit Student" onclick="app.students?.editStudent('${student.id}')">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn-action btn-marks" data-id="${this._escapeAttr(student.id)}" 
-                            title="Enter Marks" onclick="app.students?.enterMarks('${student.id}')">
-                        <i class="fas fa-chart-bar"></i>
-                    </button>
-                    <button class="btn-action btn-delete" data-id="${this._escapeAttr(student.id)}" 
-                            title="Delete Student" onclick="app.students?.deleteStudent('${student.id}')">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </td>
-        </tr>
-    `;
-}
+                        <div class="year-level">
+                            Year ${student.year_level || '1'}
+                        </div>
+                    </div>
+                </td>
+                
+                <td style="width: 150px;">
+                    <div class="contact-info">
+                        ${centreDisplay ? `
+                            <div class="centre-info">
+                                <i class="fas fa-school"></i> ${this._escapeHtml(centreDisplay)}
+                            </div>
+                        ` : ''}
+                    </div>
+                </td>
+                
+                <td style="width: 100px;">
+                    <span class="status-badge status-${status}">
+                        <i class="fas fa-circle"></i>
+                        ${status.charAt(0).toUpperCase() + status.slice(1)}
+                    </span>
+                </td>
+                
+                <td class="actions-cell">
+                    <div class="action-buttons-container">
+                        <button class="action-btn view-btn" onclick="app.students?.viewStudent('${student.id}')" 
+                                title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="action-btn edit-btn" onclick="app.students?.editStudent('${student.id}')" 
+                                title="Edit Student">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="action-btn marks-btn" onclick="app.students?.enterMarks('${student.id}')" 
+                                title="Enter Marks">
+                            <i class="fas fa-chart-bar"></i>
+                        </button>
+                        <button class="action-btn delete-btn" onclick="app.students?.deleteStudent('${student.id}')" 
+                                title="Delete Student">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
     
     /**
      * Update pagination controls
@@ -805,14 +891,11 @@ _createStudentRow(student, index) {
         const pageNumbersContainer = document.getElementById('pageNumbers');
         if (!pageNumbersContainer) return;
         
-        // Clear existing page numbers
         pageNumbersContainer.innerHTML = '';
         
-        // Calculate visible pages
         let startPage = Math.max(1, this.currentPage - 2);
         let endPage = Math.min(this.totalPages, startPage + 4);
         
-        // Adjust if we're near the beginning
         if (endPage - startPage < 4) {
             startPage = Math.max(1, endPage - 4);
         }
@@ -906,21 +989,18 @@ _createStudentRow(student, index) {
      * Handle quick filter
      */
     _handleQuickFilter(filterType) {
-        // Remove active class from all chips
         document.querySelectorAll('.filter-chip').forEach(chip => {
             chip.classList.remove('active');
         });
         
-        // Add active class to clicked chip
-        event?.currentTarget?.classList.add('active');
+        if (event?.currentTarget) {
+            event.currentTarget.classList.add('active');
+        }
         
-        // Reset all filters first
         this.clearAllFilters();
         
-        // Apply specific filter
         switch(filterType) {
             case 'all':
-                // No filter needed
                 break;
             case 'active':
                 this.activeFilters.status = 'active';
@@ -987,7 +1067,6 @@ _createStudentRow(student, index) {
             intake_year: ''
         };
         
-        // Reset all filter inputs
         const filterIds = ['studentSearch', 'filterProgram', 'filterYear', 'filterCentre', 
                           'filterCounty', 'filterStatus', 'filterIntake'];
         
@@ -998,12 +1077,10 @@ _createStudentRow(student, index) {
             }
         });
         
-        // Reset quick filter chips
         document.querySelectorAll('.filter-chip').forEach(chip => {
             chip.classList.remove('active');
         });
         
-        // Set "All Students" as active
         const allStudentsChip = document.querySelector('.filter-chip:first-child');
         if (allStudentsChip) {
             allStudentsChip.classList.add('active');
@@ -1023,7 +1100,6 @@ _createStudentRow(student, index) {
      * Apply filters (for apply button)
      */
     applyFilters() {
-        // Get filter values
         this.activeFilters.program = document.getElementById('filterProgram')?.value || '';
         this.activeFilters.year = document.getElementById('filterYear')?.value || '';
         this.activeFilters.centre = document.getElementById('filterCentre')?.value || '';
@@ -1057,19 +1133,16 @@ _createStudentRow(student, index) {
      * Update counters
      */
     _updateCounters() {
-        // Update record count
         const displayCount = document.getElementById('displayCount');
         if (displayCount) {
             displayCount.textContent = this.filteredStudents.length;
         }
         
-        // Update total records
         const totalRecords = document.getElementById('totalRecords');
         if (totalRecords) {
             totalRecords.textContent = this.filteredStudents.length;
         }
         
-        // Update pagination info
         this._updatePaginationInfo();
     }
     
@@ -1083,8 +1156,8 @@ _createStudentRow(student, index) {
         const pageStart = document.getElementById('pageStart');
         const pageEnd = document.getElementById('pageEnd');
         
-        if (pageStart) pageStart.textContent = start;
-        if (pageEnd) pageEnd.textContent = end;
+        if (pageStart) pageStart.textContent = this.filteredStudents.length > 0 ? start : 0;
+        if (pageEnd) pageEnd.textContent = this.filteredStudents.length > 0 ? end : 0;
     }
     
     /**
@@ -1096,11 +1169,9 @@ _createStudentRow(student, index) {
         this.analytics.inactive = this.allStudents.filter(s => s.status === 'inactive').length;
         this.analytics.graduated = this.allStudents.filter(s => s.status === 'graduated').length;
         
-        // Gender counts
         this.analytics.maleCount = this.allStudents.filter(s => s.gender === 'male').length;
         this.analytics.femaleCount = this.allStudents.filter(s => s.gender === 'female').length;
         
-        // Update UI elements
         this._updateAnalyticsUI();
     }
     
@@ -1108,7 +1179,6 @@ _createStudentRow(student, index) {
      * Update analytics UI
      */
     _updateAnalyticsUI() {
-        // Update quick insights
         const totalCount = document.getElementById('totalStudentsCount');
         const activeCount = document.getElementById('activeStudentsCount');
         const attendanceRate = document.getElementById('attendanceRate');
@@ -1119,7 +1189,6 @@ _createStudentRow(student, index) {
         if (attendanceRate) attendanceRate.textContent = `${this.analytics.attendanceRate}%`;
         if (graduationRate) graduationRate.textContent = `${this.analytics.graduationRate}%`;
         
-        // Update quick stats footer
         const maleCount = document.getElementById('maleCount');
         const femaleCount = document.getElementById('femaleCount');
         const averageAge = document.getElementById('averageAge');
@@ -1173,13 +1242,19 @@ _createStudentRow(student, index) {
     }
     
     /**
-     * Save student
+     * Save student - FIXED with better error handling
      */
     async saveStudent(event) {
         event.preventDefault();
+        event.stopPropagation();
         
         const form = event.target;
-        if (!form || form.id !== 'studentForm') return;
+        if (!form || form.id !== 'studentForm') {
+            console.error('❌ Invalid form or form ID');
+            return;
+        }
+        
+        console.log('📝 Saving student...', this.currentEditId ? 'Edit mode' : 'Create mode');
         
         try {
             // Validate form
@@ -1189,12 +1264,15 @@ _createStudentRow(student, index) {
             
             // Prepare form data
             const formData = this._prepareFormData();
+            console.log('📦 Form data prepared:', formData);
             
-            // Show loading
+            // Show loading state
             const submitBtn = form.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-            submitBtn.disabled = true;
+            const originalText = submitBtn?.innerHTML || 'Save';
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                submitBtn.disabled = true;
+            }
             
             // Save to database
             let result;
@@ -1206,6 +1284,8 @@ _createStudentRow(student, index) {
                 const regNumber = result.reg_number || formData.reg_number;
                 this.ui.showToast(`✅ Student registered! Registration: ${regNumber}`, 'success');
             }
+            
+            console.log('✅ Student saved successfully:', result);
             
             // Clear cache
             this.cache.students = null;
@@ -1219,6 +1299,7 @@ _createStudentRow(student, index) {
             console.error('❌ Error saving student:', error);
             this.ui.showToast(error.message || 'Failed to save student', 'error');
             
+            // Reset button state
             const submitBtn = form.querySelector('button[type="submit"]');
             if (submitBtn) {
                 submitBtn.innerHTML = this.currentEditId 
@@ -1236,7 +1317,6 @@ _createStudentRow(student, index) {
         const requiredFields = [
             { id: 'studentName', name: 'Full Name' },
             { id: 'studentEmail', name: 'Email' },
-            { id: 'studentPhone', name: 'Phone Number' },
             { id: 'studentProgram', name: 'Program' },
             { id: 'studentIntake', name: 'Intake Year' },
             { id: 'studentCentre', name: 'Study Centre' }
@@ -1269,75 +1349,76 @@ _createStudentRow(student, index) {
         return true;
     }
     
-   /**
- * Prepare form data with County and Region
- */
-_prepareFormData() {
-    const programSelect = document.getElementById('studentProgram');
-    const selectedOption = programSelect?.options[programSelect?.selectedIndex];
-    
-    let programCode = '';
-    let programName = '';
-    
-    if (selectedOption && selectedOption.value) {
-        programCode = selectedOption.value;
+    /**
+     * Prepare form data with County and Region
+     */
+    _prepareFormData() {
+        const programSelect = document.getElementById('studentProgram');
+        const selectedOption = programSelect?.options[programSelect?.selectedIndex];
         
-        // Extract program name from text
-        const optionText = selectedOption.textContent || '';
-        if (optionText.includes(' - ')) {
-            programName = optionText.split(' - ')[1].trim();
-        } else {
-            programName = programCode;
+        let programCode = '';
+        let programName = '';
+        
+        if (selectedOption && selectedOption.value) {
+            programCode = selectedOption.value;
+            
+            const optionText = selectedOption.textContent || '';
+            if (optionText.includes(' - ')) {
+                programName = optionText.split(' - ')[1].trim();
+            } else {
+                programName = programCode;
+            }
         }
-    }
-    
-    const centreSelect = document.getElementById('studentCentre');
-    const selectedCentreId = centreSelect?.value || '';
-    const selectedCentreOption = centreSelect?.options[centreSelect?.selectedIndex];
-    const selectedCentreText = selectedCentreOption?.text || '';
-    let centreName = '';
-    
-    if (selectedCentreText && selectedCentreText !== 'Select Centre') {
-        centreName = selectedCentreText;
-    } else if (selectedCentreId && this.centres.length > 0) {
-        const centre = this.centres.find(c => c.id === selectedCentreId);
-        centreName = centre ? centre.name : '';
-    }
-    
-    // Format phone number (optional)
-    let phone = document.getElementById('studentPhone')?.value.trim() || '';
-    if (phone && phone.trim() !== '' && !phone.startsWith('+254')) {
-        // Remove any spaces and format
-        phone = phone.replace(/\s+/g, '');
-        if (phone.startsWith('0')) {
-            phone = '+254' + phone.substring(1);
-        } else if (phone.startsWith('7')) {
-            phone = '+254' + phone;
+        
+        const centreSelect = document.getElementById('studentCentre');
+        const selectedCentreId = centreSelect?.value || '';
+        const selectedCentreOption = centreSelect?.options[centreSelect?.selectedIndex];
+        const selectedCentreText = selectedCentreOption?.text || '';
+        let centreName = '';
+        
+        if (selectedCentreText && selectedCentreText !== 'Select Centre') {
+            centreName = selectedCentreText;
+        } else if (selectedCentreId && this.centres.length > 0) {
+            const centre = this.centres.find(c => c.id === selectedCentreId);
+            centreName = centre ? centre.name : '';
         }
+        
+        // Format phone number
+        let phone = document.getElementById('studentPhone')?.value.trim() || '';
+        if (phone && !phone.startsWith('+254') && phone.length > 0) {
+            phone = phone.replace(/\s+/g, '');
+            if (phone.startsWith('0')) {
+                phone = '+254' + phone.substring(1);
+            } else if (phone.startsWith('7')) {
+                phone = '+254' + phone;
+            }
+        }
+        
+        const county = document.getElementById('studentCounty')?.value || '';
+        const region = document.getElementById('studentRegion')?.value || '';
+        
+        // Generate reg number if not exists
+        let regNumber = document.getElementById('studentRegNumber')?.value.trim() || '';
+        
+        return {
+            reg_number: regNumber,
+            full_name: document.getElementById('studentName')?.value.trim() || '',
+            email: document.getElementById('studentEmail')?.value.trim() || '',
+            phone: phone,
+            county: county,
+            region: region,
+            gender: document.getElementById('studentGender')?.value || '',
+            program: programCode,
+            code: programCode,
+            program_name: programName || programCode,
+            intake_year: parseInt(document.getElementById('studentIntake')?.value) || new Date().getFullYear(),
+            centre_id: selectedCentreId || '',
+            centre: centreName || '',
+            status: document.getElementById('studentStatus')?.value || 'active',
+            registration_date: document.getElementById('studentRegDate')?.value || new Date().toISOString().split('T')[0]
+        };
     }
     
-    // Get county and region values
-    const county = document.getElementById('studentCounty')?.value || '';
-    const region = document.getElementById('studentRegion')?.value || '';
-    
-    return {
-        reg_number: document.getElementById('studentRegNumber')?.value.trim() || '',
-        full_name: document.getElementById('studentName')?.value.trim() || '',
-        email: document.getElementById('studentEmail')?.value.trim() || '',
-        phone: phone, // Optional
-        county: county, // New field
-        region: region, // New field
-        gender: document.getElementById('studentGender')?.value || '',
-        program: programCode,
-        code: programCode,
-        program_name: programName || programCode,
-        intake_year: parseInt(document.getElementById('studentIntake')?.value) || new Date().getFullYear(),
-        centre_id: selectedCentreId || '',
-        centre: centreName || '',
-        status: document.getElementById('studentStatus')?.value || 'active',
-        registration_date: document.getElementById('studentRegDate')?.value || new Date().toISOString().split('T')[0]
-    };
-}
     /**
      * Open student modal
      */
@@ -1359,10 +1440,8 @@ _prepareFormData() {
         const form = document.getElementById('studentForm');
         if (!form) return;
         
-        // Reset all fields
         form.reset();
         
-        // Reset specific fields
         const regNumberInput = document.getElementById('studentRegNumber');
         if (regNumberInput) {
             regNumberInput.readOnly = false;
@@ -1371,32 +1450,26 @@ _prepareFormData() {
             regNumberInput.value = '';
         }
         
-        // Set registration date to today
         const regDateField = document.getElementById('studentRegDate');
         if (regDateField) {
             regDateField.value = new Date().toISOString().split('T')[0];
         }
         
-        // Reset modal title
         const modalTitle = document.getElementById('studentModalTitle');
         if (modalTitle) {
             modalTitle.textContent = 'Register New Student';
+            modalTitle.innerHTML = '<i class="fas fa-user-plus"></i> Register New Student';
         }
         
-        // Reset submit button
         const submitBtn = document.querySelector('#studentForm button[type="submit"]');
         if (submitBtn) {
             submitBtn.innerHTML = '<i class="fas fa-plus"></i> Register Student';
             submitBtn.disabled = false;
         }
         
-        // Reset edit ID
         this.currentEditId = null;
         
-        // Populate intake years with current year
         this._populateIntakeYears();
-        
-        // Generate registration number
         this.generateRegNumber();
         
         console.log('✅ Form reset complete');
@@ -1421,11 +1494,9 @@ _prepareFormData() {
                 return;
             }
             
-            // Clean program code
             const cleanProgramCode = programCode.split('-')[0].trim();
             
             try {
-                // Try database method first
                 const regNumber = await this.db.generateRegistrationNumber(cleanProgramCode, intakeYear);
                 
                 if (regNumber) {
@@ -1436,7 +1507,6 @@ _prepareFormData() {
             } catch (dbError) {
                 console.warn('Using fallback registration number generation:', dbError);
                 
-                // Manual fallback
                 const allStudents = await this.db.getStudents();
                 const matchingStudents = allStudents.filter(student => {
                     const studentYear = student.intake_year?.toString();
@@ -1462,7 +1532,6 @@ _prepareFormData() {
                 regNumberInput.value = regNumber;
             }
             
-            // Update format display
             const formatSpan = document.getElementById('regNumberFormat');
             if (formatSpan) {
                 formatSpan.textContent = `${cleanProgramCode}-${intakeYear}-###`;
@@ -1488,13 +1557,9 @@ _prepareFormData() {
             
             this.currentEditId = studentId;
             
-            // Populate SIMPLIFIED form
             await this._populateEditForm(student);
-            
-            // Update UI for edit mode
             this._setupEditMode();
             
-            // Open modal
             this.ui.openModal('studentModal', {
                 onOpen: () => {
                     document.getElementById('studentName')?.focus();
@@ -1512,34 +1577,30 @@ _prepareFormData() {
     }
     
     /**
-     * Populate edit form for SIMPLIFIED FORM
+     * Populate edit form
      */
     async _populateEditForm(student) {
-        // SIMPLIFIED FORM FIELDS ONLY
         this._setFieldValue('studentRegNumber', student.reg_number, true);
         this._setFieldValue('studentName', student.full_name);
         this._setFieldValue('studentEmail', student.email);
         
-        // Format phone for display
         let phone = student.phone || '';
         if (phone && phone.startsWith('+254')) {
-            phone = phone.substring(4); // Remove +254 for display
+            phone = phone.substring(4);
         }
         this._setFieldValue('studentPhone', phone);
         
         this._setFieldValue('studentIdNumber', student.id_number);
         this._setFieldValue('studentGender', student.gender);
-        
-        // Academic
+        this._setFieldValue('studentCounty', student.county);
+        this._setFieldValue('studentRegion', student.region);
         this._setFieldValue('studentProgram', student.program);
         this._setFieldValue('studentCentre', student.centre_id);
         
-        // Custom intake year population
         await this._populateIntakeYears(student.intake_year);
         
         this._setFieldValue('studentStatus', student.status || 'active');
         
-        // Registration date
         this._setFieldValue('studentRegDate', student.registration_date ? 
             new Date(student.registration_date).toISOString().split('T')[0] : 
             new Date().toISOString().split('T')[0]
@@ -1565,13 +1626,12 @@ _prepareFormData() {
      * Setup edit mode
      */
     _setupEditMode() {
-        // Update modal title
         const modalTitle = document.getElementById('studentModalTitle');
         if (modalTitle) {
             modalTitle.textContent = 'Edit Student';
+            modalTitle.innerHTML = '<i class="fas fa-user-edit"></i> Edit Student';
         }
         
-        // Update submit button
         const submitBtn = document.querySelector('#studentForm button[type="submit"]');
         if (submitBtn) {
             submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Student';
@@ -1589,19 +1649,18 @@ _prepareFormData() {
                 return;
             }
             
-            // Simple view modal
             const modalContent = `
-                <div class="modal" style="display: block; z-index: 9999;">
+                <div class="modal" style="display: block; z-index: 9999;" id="viewStudentModal">
                     <div class="modal-content" style="max-width: 500px;">
                         <div class="modal-header">
-                            <h3>Student Details</h3>
-                            <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
+                            <h3><i class="fas fa-user"></i> Student Details</h3>
+                            <button type="button" class="close" onclick="document.getElementById('viewStudentModal').remove()">&times;</button>
                         </div>
                         <div class="modal-body">
                             <div class="student-profile">
                                 <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
-                                    <div style="background-color: ${this._getAvatarColor(student.full_name)}; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                        <i class="fas fa-user fa-2x" style="color: white;"></i>
+                                    <div style="background-color: ${this._getAvatarColor(student.full_name)}; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;">
+                                        <i class="fas fa-user fa-2x"></i>
                                     </div>
                                     <div>
                                         <h3 style="margin: 0;">${this._escapeHtml(student.full_name)}</h3>
@@ -1618,7 +1677,8 @@ _prepareFormData() {
                                         <p><strong>Email:</strong> ${student.email || 'N/A'}</p>
                                         <p><strong>Phone:</strong> ${student.phone || 'N/A'}</p>
                                         <p><strong>Gender:</strong> ${student.gender || 'N/A'}</p>
-                                        <p><strong>ID Number:</strong> ${student.id_number || 'N/A'}</p>
+                                        <p><strong>County:</strong> ${student.county || 'N/A'}</p>
+                                        <p><strong>Region:</strong> ${student.region || 'N/A'}</p>
                                     </div>
                                     <div>
                                         <h4>Academic Information</h4>
@@ -1631,10 +1691,10 @@ _prepareFormData() {
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">
+                            <button class="btn btn-secondary" onclick="document.getElementById('viewStudentModal').remove()">
                                 Close
                             </button>
-                            <button class="btn btn-primary" onclick="app.students?.editStudent('${studentId}'); this.closest('.modal').remove()">
+                            <button class="btn btn-primary" onclick="app.students?.editStudent('${studentId}'); document.getElementById('viewStudentModal').remove()">
                                 Edit Student
                             </button>
                         </div>
@@ -1671,13 +1731,10 @@ _prepareFormData() {
             
             await this.db.deleteStudent(studentId);
             
-            // Clear cache
             this.cache.students = null;
             
-            // Show success message
             this.ui.showToast(`Student ${student.full_name} deleted successfully`, 'success');
             
-            // Reload table
             await this.loadStudentsTable();
             
         } catch (error) {
@@ -1699,7 +1756,6 @@ _prepareFormData() {
             
             this.ui.showToast(`Opening marks entry for ${student.full_name}`, 'info');
             
-            // Navigate to marks page or open marks modal
             if (this.app?.marks?.openMarksModal) {
                 this.app.marks.openMarksModal(studentId);
             } else {
@@ -1939,6 +1995,61 @@ _prepareFormData() {
     }
 }
 
+// ============================================
+// GLOBAL FORM SUBMIT FIX - CRITICAL
+// ============================================
+
+// Immediate execution
+(function() {
+    console.log('🔧 Installing global form submit handler');
+    
+    const attachFormHandler = function() {
+        const form = document.getElementById('studentForm');
+        if (form) {
+            // Clone to remove existing listeners
+            const newForm = form.cloneNode(true);
+            if (form.parentNode) {
+                form.parentNode.replaceChild(newForm, form);
+            }
+            
+            // Add submit listener
+            newForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('📝 Global form handler: submission detected');
+                
+                if (window.app && window.app.students) {
+                    window.app.students.saveStudent(e);
+                } else {
+                    console.error('❌ StudentManager not available');
+                    alert('System is initializing. Please try again in a moment.');
+                    
+                    // Retry after 1 second
+                    setTimeout(() => {
+                        if (window.app?.students) {
+                            window.app.students.saveStudent(e);
+                        }
+                    }, 1000);
+                }
+            });
+            
+            console.log('✅ Global form submit handler installed');
+            return true;
+        }
+        return false;
+    };
+    
+    // Try immediately
+    if (!attachFormHandler()) {
+        // Retry on DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', attachFormHandler);
+        
+        // Also retry after a delay
+        setTimeout(attachFormHandler, 500);
+        setTimeout(attachFormHandler, 1000);
+    }
+})();
+
 // Export for different environments
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = StudentManager;
@@ -1952,6 +2063,13 @@ if (typeof window !== 'undefined') {
     window.openStudentModal = function() {
         if (window.app && window.app.students) {
             window.app.students.openStudentModal();
+        } else {
+            console.warn('StudentManager not ready, retrying...');
+            setTimeout(() => {
+                if (window.app?.students) {
+                    window.app.students.openStudentModal();
+                }
+            }, 500);
         }
     };
     
@@ -1991,9 +2109,9 @@ if (typeof window !== 'undefined') {
         }
     };
     
-    window.setViewMode = function(mode) {
+    window.setViewMode = function(mode, event) {
         if (window.app && window.app.students) {
-            window.app.students._setViewMode(mode);
+            window.app.students._setViewMode(mode, event);
         }
     };
     
