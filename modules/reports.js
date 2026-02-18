@@ -476,32 +476,38 @@ class ReportsManager {
     
     // ==================== STATISTICS ====================
     
-    updateStatistics() {
-        try {
-            const filteredStudents = this.applyStudentFilters(this.students);
-            
-            const totalStudents = filteredStudents.length;
-            const activeStudents = filteredStudents.filter(s => s.status === 'active').length;
-            const graduatedStudents = filteredStudents.filter(s => s.status === 'graduated').length;
-            const graduationRate = totalStudents > 0 ? Math.round((graduatedStudents / totalStudents) * 100) : 0;
-            
-            // Update DOM
-            const totalElement = document.getElementById('totalStudents');
-            if (totalElement) totalElement.textContent = totalStudents;
-            
-            const graduationElement = document.getElementById('graduationRate');
-            if (graduationElement) graduationElement.textContent = graduationRate + '%';
-            
-            const avgGPAElement = document.getElementById('avgGPA');
-            if (avgGPAElement) avgGPAElement.textContent = '3.24';
-            
-            const centersElement = document.getElementById('centersCount');
-            if (centersElement) centersElement.textContent = this.centres.length;
-            
-        } catch (error) {
-            console.error('Error updating statistics:', error);
-        }
+   updateStatistics() {
+    try {
+        const filteredStudents = this.applyStudentFilters(this.students);
+        
+        const totalStudents = filteredStudents.length;
+        const activeStudents = filteredStudents.filter(s => s.status === 'active').length;
+        const graduatedStudents = filteredStudents.filter(s => s.status === 'graduated').length;
+        const graduationRate = totalStudents > 0 ? Math.round((graduatedStudents / totalStudents) * 100) : 0;
+        
+        // Update statistics cards at the top
+        const totalElement = document.getElementById('totalStudents');
+        if (totalElement) totalElement.textContent = totalStudents;
+        
+        const gradElement = document.getElementById('graduationRate');
+        if (gradElement) gradElement.textContent = graduationRate + '%';
+        
+        const gpaElement = document.getElementById('avgGPA');
+        if (gpaElement) gpaElement.textContent = '3.24';
+        
+        const centresElement = document.getElementById('centersCount');
+        if (centresElement) centresElement.textContent = this.centres.length;
+        
+        console.log('📊 Statistics updated:', {
+            totalStudents,
+            graduationRate: graduationRate + '%',
+            centres: this.centres.length
+        });
+        
+    } catch (error) {
+        console.error('Error updating statistics:', error);
     }
+}
     
     applyStudentFilters(students) {
         let filtered = [...students];
