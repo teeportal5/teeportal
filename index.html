@@ -14,7 +14,7 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Your main CSS -->
+    <!-- Your main CSS (external) -->
     <link rel="stylesheet" href="css/main.css">
     
     <!-- JavaScript Libraries -->
@@ -295,10 +295,6 @@
                                 <div class="stat-card-title">Active Centres</div>
                                 <div class="stat-card-value" id="activeCentres">0</div>
                                 <div class="stat-card-subtitle">Operating centres</div>
-                                <div class="stat-card-trend trend-up">
-                                    <i class="fas fa-arrow-up"></i>
-                                    <span>From database</span>
-                                </div>
                             </div>
                             <div class="stat-icon-modern centres">
                                 <i class="fas fa-map-marker-alt"></i>
@@ -601,7 +597,7 @@
                     </div>
                     
                     <!-- Advanced Filters -->
-                    <div class="advanced-filters" id="advancedFilters">
+                    <div class="advanced-filters" id="advancedFilters" style="display: none;">
                         <div class="filter-row">
                             <div class="filter-group">
                                 <label><i class="fas fa-graduation-cap"></i> Academic</label>
@@ -711,11 +707,7 @@
                                 </button>
                                 
                                 <div class="page-numbers" id="pageNumbers">
-                                    <button class="page-number active">1</button>
-                                    <button class="page-number">2</button>
-                                    <button class="page-number">3</button>
-                                    <span class="page-dots">...</span>
-                                    <button class="page-number">10</button>
+                                    <!-- Page numbers will be added by JavaScript -->
                                 </div>
                                 
                                 <button class="page-btn next" onclick="nextPage()">
@@ -942,754 +934,1177 @@
                 </div>
             </div>
             
-           <!-- ========== PROGRAM MODAL ========== -->
-<div id="programModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>Add New Program</h3>
-            <span class="close" data-modal-close>&times;</span>
-        </div>
-        <form id="programForm">
-            <div class="modal-body">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Program Code *</label>
-                        <input type="text" id="programCode" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Program Name *</label>
-                        <input type="text" id="programName" class="form-control" required>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Program Level *</label>
-                        <select id="programLevel" class="form-control" required>
-                            <option value="">Select Level</option>
-                            <option value="certificate">Certificate</option>
-                            <option value="diploma">Diploma</option>
-                            <option value="degree">Degree</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Duration (Months) *</label>
-                        <input type="number" id="programDuration" class="form-control" required min="1" max="48">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Required Credits</label>
-                        <input type="number" id="programCredits" class="form-control" min="0">
-                    </div>
-                    <div class="form-group">
-                        <label>Status</label>
-                        <select id="programStatus" class="form-control">
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Description</label>
-                    <textarea id="programDescription" class="form-control" rows="4" 
-                              placeholder="Brief description of the program, objectives, and career opportunities"></textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
-                <button type="submit" class="btn btn-primary">Save Program</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- ========== COURSES SECTION ========== -->
-<section id="courses" class="content-section">
-    <!-- Your existing courses HTML here - EXACTLY as you had it -->
-    <div class="section-header">
-        <div class="header-left">
-            <h2><i class="fas fa-book"></i> Course Management</h2>
-            <p class="section-subtitle">Manage and organize all academic courses</p>
-        </div>
-        <div class="header-actions">
-            <button class="btn btn-primary" onclick="openCourseModal()">
-                <i class="fas fa-plus"></i> Add Course
-            </button>
-            <button class="btn btn-success" onclick="openBulkGradeModal()" id="bulkGradeBtn" style="display: none;">
-                <i class="fas fa-chart-line"></i> Grade All Students
-            </button>
-            <button class="btn btn-secondary" onclick="app.courses?.exportCourses()">
-                <i class="fas fa-download"></i> Export
-            </button>
-        </div>
-    </div>
-    
-    <!-- Filter Bar -->
-    <div class="filter-bar">
-        <div class="search-box">
-            <i class="fas fa-search"></i>
-            <input type="text" id="courseSearch" placeholder="Search courses..." class="search-input" 
-                   oninput="app.courses?.searchCourses(this.value)">
-        </div>
-        <div class="filter-controls">
-            <select id="filterProgram" class="filter-select" onchange="app.courses?.filterCourses()">
-                <option value="">All Programs</option>
-                <!-- Will be populated -->
-            </select>
-            <select id="filterLevel" class="filter-select" onchange="app.courses?.filterCourses()">
-                <option value="">All Levels</option>
-                <option value="basic">Basic</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced</option>
-            </select>
-            <select id="filterStatus" class="filter-select" onchange="app.courses?.filterCourses()">
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-            </select>
-        </div>
-    </div>
-    
-    <!-- Courses Grid View -->
-    <div class="cards-grid" id="coursesGrid">
-        <!-- Courses will be loaded here by JavaScript -->
-        <div class="empty-state">
-            <i class="fas fa-book fa-3x"></i>
-            <h3>No Courses Found</h3>
-            <p>Get started by adding your first course</p>
-            <button class="btn btn-primary" onclick="openCourseModal()">
-                <i class="fas fa-plus"></i> Add Your First Course
-            </button>
-        </div>
-    </div>
-    
-    <!-- Alternative: Table View -->
-    <div class="table-container" id="coursesTableContainer" style="display: none;">
-        <table class="data-table" id="coursesTable">
-            <thead>
-                <tr>
-                    <th>Course Code</th>
-                    <th>Course Name</th>
-                    <th>Program</th>
-                    <th>Credits</th>
-                    <th>Students</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="coursesTableBody">
-                <!-- Will be populated by JavaScript -->
-            </tbody>
-        </table>
-    </div>
-    
-    <!-- View Toggle -->
-    <div class="view-toggle">
-        <button class="view-btn active" data-view="grid" onclick="setCoursesView('grid')">
-            <i class="fas fa-th-large"></i> Grid
-        </button>
-        <button class="view-btn" data-view="table" onclick="setCoursesView('table')">
-            <i class="fas fa-list"></i> Table
-        </button>
-    </div>
-    
-    <!-- Course Statistics -->
-    <div class="stats-row">
-        <div class="stat-item">
-            <span class="stat-label">Total Courses</span>
-            <span class="stat-value" id="totalCourses">0</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-label">Active Courses</span>
-            <span class="stat-value" id="activeCourses">0</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-label">Students Enrolled</span>
-            <span class="stat-value" id="totalStudentsEnrolled">0</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-label">Ready to Grade</span>
-            <span class="stat-value" id="coursesToGrade">0</span>
-        </div>
-    </div>
-</section>
-
-<!-- ========== COURSE MODAL ========== -->
-<div id="courseModal" class="modal">
-    <div class="modal-content" style="max-width: 700px;">
-        <div class="modal-header">
-            <h3 id="courseModalTitle">Add New Course</h3>
-            <span class="close" onclick="closeCourseModal()">&times;</span>
-        </div>
-        
-        <form id="courseForm" onsubmit="saveCourse(event)">
-            <div class="modal-body">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Course Code *</label>
-                        <input type="text" id="courseCode" class="form-control" 
-                               placeholder="e.g., MATH101" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Course Name *</label>
-                        <input type="text" id="courseName" class="form-control" 
-                               placeholder="e.g., Introduction to Mathematics" required>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Program *</label>
-                       <select id="courseProgram" class="form-control" required>
-    <option value="">Select Program</option>
-    <!-- JavaScript will add options here -->
-</select>
-                    </div>
-                    <div class="form-group">
-                        <label>Level</label>
-                        <select id="courseLevel" class="form-control">
-                            <option value="basic">Basic</option>
-                            <option value="intermediate">Intermediate</option>
-                            <option value="advanced">Advanced</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Credits *</label>
-                        <input type="number" id="courseCredits" class="form-control" 
-                               placeholder="e.g., 3" min="1" max="10" value="3" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Status</label>
-                        <select id="courseStatus" class="form-control">
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group full-width">
-                        <label>Description</label>
-                        <textarea id="courseDescription" class="form-control" 
-                                  placeholder="Course description..." rows="3"></textarea>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeCourseModal()">
-                    <i class="fas fa-times"></i> Cancel
-                </button>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> Save Course
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- ========== BULK GRADE MODAL ========== -->
-<div id="bulkGradeModal" class="modal">
-    <div class="modal-content" style="max-width: 800px; max-height: 90vh;">
-        <div class="modal-header">
-            <h3><i class="fas fa-chart-line"></i> Bulk Grade Students</h3>
-            <span class="close" onclick="closeBulkGradeModal()">&times;</span>
-        </div>
-        
-        <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
-            <!-- Course Selection -->
-            <div class="form-section">
-                <h4><i class="fas fa-book"></i> Course Information</h4>
-                <div class="form-row">
-                    <div class="form-group" style="flex: 2;">
-                        <label>Select Course *</label>
-                        <select id="bulkGradeCourse" class="form-control" required 
-                                onchange="loadStudentsForBulkGrading()">
-                            <option value="">Select Course</option>
-                            <!-- Courses will be populated -->
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Assessment Type *</label>
-                        <select id="bulkGradeType" class="form-control" required>
-                            <option value="exam">Final Exam</option>
-                            <option value="test">Test</option>
-                            <option value="assignment">Assignment</option>
-                            <option value="practical">Practical</option>
-                            <option value="cat">CAT</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Filters -->
-            <div class="form-section">
-                <h4><i class="fas fa-filter"></i> Filter Students</h4>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Intake Year</label>
-                        <select id="bulkGradeIntake" class="form-control" onchange="filterStudentsForGrading()">
-                            <option value="">All Intakes</option>
-                            <!-- Years will be populated -->
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Study Centre</label>
-                        <select id="bulkGradeCentre" class="form-control" onchange="filterStudentsForGrading()">
-                            <option value="">All Centres</option>
-                            <!-- Centres will be populated -->
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Program</label>
-                        <select id="bulkGradeProgram" class="form-control" onchange="filterStudentsForGrading()">
-                            <option value="">All Programs</option>
-                            <!-- Programs will be populated -->
-                        </select>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group full-width">
-                        <button type="button" class="btn btn-outline" onclick="selectAllStudents()">
-                            <i class="fas fa-check-square"></i> Select All
+            <!-- ========== PROGRAMS SECTION ========== -->
+            <section id="programs" class="content-section">
+                <div class="section-header">
+                    <h2>Program Management</h2>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="openProgramModal()">
+                            <i class="fas fa-certificate"></i> Add Program
                         </button>
-                        <button type="button" class="btn btn-outline" onclick="deselectAllStudents()">
-                            <i class="fas fa-times-circle"></i> Deselect All
+                        <button class="btn btn-secondary" onclick="app.programs?.exportPrograms()">
+                            <i class="fas fa-download"></i> Export
                         </button>
-                        <span class="text-muted" style="margin-left: auto;" id="selectedCount">0 students selected</span>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Students List -->
-            <div class="form-section">
-                <h4><i class="fas fa-users"></i> Students to Grade</h4>
-                <div class="table-container" style="max-height: 300px; overflow-y: auto;">
-                    <table class="data-table">
+                
+                <!-- Filter Bar -->
+                <div class="filter-bar">
+                    <input type="text" id="programSearch" placeholder="Search programs..." class="search-input">
+                    <select id="filterProgramLevel" class="filter-select">
+                        <option value="">All Levels</option>
+                        <option value="certificate">Certificate</option>
+                        <option value="diploma">Diploma</option>
+                        <option value="degree">Degree</option>
+                    </select>
+                    <select id="filterProgramStatus" class="filter-select">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+                
+                <!-- Programs Table -->
+                <div class="table-container">
+                    <table class="data-table" id="programsTable">
                         <thead>
                             <tr>
-                                <th width="50">
-                                    <input type="checkbox" id="selectAllCheckbox" onchange="toggleAllStudents(this.checked)">
-                                </th>
-                                <th>Student Name</th>
-                                <th>Reg Number</th>
-                                <th>Centre</th>
-                                <th>Intake</th>
-                                <th>Current Grade</th>
-                                <th>Score</th>
+                                <th>Program Code</th>
+                                <th>Program Name</th>
+                                <th>Level</th>
+                                <th>Duration</th>
+                                <th>Courses</th>
+                                <th>Total Students</th>
+                                <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="bulkGradeStudentsList">
-                            <!-- Students will be loaded here -->
+                        <tbody id="programsTableBody">
+                            <!-- Programs will be loaded here -->
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-3">
-                                    <i class="fas fa-user-graduate fa-2x mb-2"></i>
-                                    <p>Select a course to load students</p>
+                                <td colspan="8" class="empty-state">
+                                    <i class="fas fa-certificate fa-3x"></i>
+                                    <h3>No Programs Found</h3>
+                                    <p>Get started by adding your first program.</p>
+                                    <button class="btn-primary" onclick="openProgramModal()">
+                                        <i class="fas fa-plus"></i> Add Your First Program
+                                    </button>
                                 </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-            </div>
-            
-            <!-- Grade Settings -->
-            <div class="form-section">
-                <h4><i class="fas fa-cog"></i> Grade Settings</h4>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Assessment Date *</label>
-                        <input type="date" id="bulkGradeDate" class="form-control" required 
-                               value="<?php echo date('Y-m-d'); ?>">
-                    </div>
-                    <div class="form-group">
-                        <label>Maximum Score</label>
-                        <input type="number" id="bulkMaxScore" class="form-control" value="100" min="1">
-                    </div>
-                    <div class="form-group">
-                        <label>Apply Same Score</label>
-                        <input type="number" id="bulkSameScore" class="form-control" 
-                               placeholder="Enter score for all selected" min="0">
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="closeBulkGradeModal()">
-                <i class="fas fa-times"></i> Cancel
-            </button>
-            <button type="button" class="btn btn-primary" onclick="submitBulkGrades()" id="submitBulkGradesBtn">
-                <i class="fas fa-save"></i> Save All Grades
-            </button>
-        </div>
-    </div>
-</div>
+            </section>
 
-<!-- ========== MARKS SECTION ========== -->
-<section id="marks" class="content-section">
-    <!-- Header -->
-    <div class="section-header">
-        <div class="header-left">
-            <h2>Academic Records</h2>
-            <p class="section-subtitle">Manage and track student academic performance</p>
-        </div>
-        <div class="header-actions">
-            <!-- View Mode Switcher -->
-            <div class="view-mode-switcher">
-                <button class="view-mode-btn active" data-view="table">
-                    <i class="fas fa-table"></i> Table
-                </button>
-                <button class="view-mode-btn" data-view="cards">
-                    <i class="fas fa-th-large"></i> Cards
-                </button>
-                <button class="view-mode-btn" data-view="compact">
-                    <i class="fas fa-list"></i> Compact
-                </button>
-            </div>
-            
-            <button class="btn btn-primary" onclick="window.app?.marks?.openMarksModal()">
-                <i class="fas fa-plus"></i> New Record
-            </button>
-        </div>
-    </div>
-    
-    <!-- Summary Stats - Horizontal Scrollable Cards -->
-    <div class="marks-summary-stats">
-        <div class="marks-stat-card">
-            <div class="marks-stat-header">
-                <div class="marks-stat-icon total">
-                    <i class="fas fa-chart-bar"></i>
-                </div>
-                <div class="marks-stat-info">
-                    <div class="marks-stat-label">Total Records</div>
-                    <div class="marks-stat-value" id="totalRecords">0</div>
-                </div>
-            </div>
-            <div class="marks-stat-subtitle">All academic records</div>
-        </div>
-        
-        <div class="marks-stat-card">
-            <div class="marks-stat-header">
-                <div class="marks-stat-icon students">
-                    <i class="fas fa-users"></i>
-                </div>
-                <div class="marks-stat-info">
-                    <div class="marks-stat-label">Students</div>
-                    <div class="marks-stat-value" id="distinctStudents">0</div>
-                </div>
-            </div>
-            <div class="marks-stat-subtitle">Distinct students</div>
-        </div>
-        
-        <div class="marks-stat-card">
-            <div class="marks-stat-header">
-                <div class="marks-stat-icon average">
-                    <i class="fas fa-percentage"></i>
-                </div>
-                <div class="marks-stat-info">
-                    <div class="marks-stat-label">Average Score</div>
-                    <div class="marks-stat-value" id="avgScore">0%</div>
+            <!-- ========== PROGRAM MODAL ========== -->
+            <div id="programModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Add New Program</h3>
+                        <span class="close" data-modal-close>&times;</span>
+                    </div>
+                    <form id="programForm">
+                        <div class="modal-body">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Program Code *</label>
+                                    <input type="text" id="programCode" class="form-control" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Program Name *</label>
+                                    <input type="text" id="programName" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Program Level *</label>
+                                    <select id="programLevel" class="form-control" required>
+                                        <option value="">Select Level</option>
+                                        <option value="certificate">Certificate</option>
+                                        <option value="diploma">Diploma</option>
+                                        <option value="degree">Degree</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Duration (Months) *</label>
+                                    <input type="number" id="programDuration" class="form-control" required min="1" max="48">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Required Credits</label>
+                                    <input type="number" id="programCredits" class="form-control" min="0">
+                                </div>
+                                <div class="form-group">
+                                    <label>Status</label>
+                                    <select id="programStatus" class="form-control">
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Description</label>
+                                <textarea id="programDescription" class="form-control" rows="4" 
+                                          placeholder="Brief description of the program, objectives, and career opportunities"></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save Program</button>
+                        </div>
+                    </form>
                 </div>
             </div>
-            <div class="marks-stat-trend">
-                <i class="fas fa-arrow-up trend-up"></i>
-                <span>+2.5% this month</span>
-            </div>
-        </div>
-        
-        <div class="marks-stat-card">
-            <div class="marks-stat-header">
-                <div class="marks-stat-icon distinction">
-                    <i class="fas fa-award"></i>
-                </div>
-                <div class="marks-stat-info">
-                    <div class="marks-stat-label">Distinctions</div>
-                    <div class="marks-stat-value" id="distinctionCount">0</div>
-                </div>
-            </div>
-            <div class="marks-stat-subtitle">Top performing students</div>
-        </div>
-        
-        <div class="marks-stat-card">
-            <div class="marks-stat-header">
-                <div class="marks-stat-icon highest">
-                    <i class="fas fa-trophy"></i>
-                </div>
-                <div class="marks-stat-info">
-                    <div class="marks-stat-label">Highest Score</div>
-                    <div class="marks-stat-value">98%</div>
-                </div>
-            </div>
-            <div class="marks-stat-subtitle">John Doe - Mathematics</div>
-        </div>
-        
-        <div class="marks-stat-card">
-            <div class="marks-stat-header">
-                <div class="marks-stat-icon lowest">
-                    <i class="fas fa-chart-line-down"></i>
-                </div>
-                <div class="marks-stat-info">
-                    <div class="marks-stat-label">Lowest Score</div>
-                    <div class="marks-stat-value">42%</div>
-                </div>
-            </div>
-            <div class="marks-stat-subtitle">Needs attention</div>
-        </div>
-    </div>
-    
-    <!-- Filter Bar -->
-    <div class="filter-bar">
-        <div class="search-box">
-            <i class="fas fa-search"></i>
-            <input type="text" id="marksSearch" placeholder="Search student, course, grade..." class="search-input">
-        </div>
-        <div class="filter-controls">
-            <select id="courseFilter" class="filter-select">
-                <option value="">All Courses</option>
-                <!-- Will be populated -->
-            </select>
-            <select id="studentFilter" class="filter-select">
-                <option value="">All Students</option>
-                <!-- Will be populated -->
-            </select>
-            <select id="gradeFilter" class="filter-select">
-                <option value="">All Grades</option>
-                <option value="DISTINCTION">Distinction</option>
-                <option value="CREDIT">Credit</option>
-                <option value="PASS">Pass</option>
-                <option value="FAIL">Fail</option>
-            </select>
-            <button class="btn btn-sm btn-outline" onclick="window.app?.marks?.clearFilters()">
-                <i class="fas fa-times"></i> Clear
-            </button>
-        </div>
-    </div>
-    
-    <!-- Selected Actions Bar (hidden by default) -->
-    <div id="selectedActions" class="selected-actions-bar">
-        <div class="selected-count">
-            <i class="fas fa-check-circle"></i>
-            <span>Selected</span>
-            <span class="selected-count-badge" id="selectedCount">0</span>
-        </div>
-        <div class="selected-actions">
-            <button class="selected-action-btn" onclick="window.app?.marks?.exportSelected()">
-                <i class="fas fa-download"></i> Export
-            </button>
-            <button class="selected-action-btn" onclick="window.app?.marks?.bulkEdit()">
-                <i class="fas fa-edit"></i> Edit
-            </button>
-            <button class="selected-action-btn btn-danger" onclick="window.app?.marks?.deleteSelected()">
-                <i class="fas fa-trash"></i> Delete
-            </button>
-        </div>
-    </div>
-    
-    <!-- TABLE VIEW -->
-    <div id="tableView" class="table-view-container">
-        <div class="table-container">
-            <table id="marksTable">
-                <thead>
-                    <tr>
-                        <th>Student</th>
-                        <th>Course</th>
-                        <th>Centre</th>
-                        <th>Score</th>
-                        <th>Grade</th>
-                        <th>Date</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="marksTableBody">
-                    <!-- Data will be loaded here -->
-                </tbody>
-            </table>
-        </div>
-    </div>
-    
-    <!-- CARDS VIEW (Horizontal) -->
-    <div id="cardsView" class="cards-view-container" style="display: none;">
-        <!-- Cards will be rendered here by JavaScript -->
-    </div>
-    
-    <!-- COMPACT VIEW -->
-    <div id="compactView" class="compact-view-container" style="display: none;">
-        <!-- Compact list will be rendered here by JavaScript -->
-    </div>
-    
-    <!-- Pagination -->
-    <div class="pagination">
-        <div class="pagination-info">
-            Showing <span id="startRow">1</span>-<span id="endRow">25</span> of <span id="totalRows">0</span>
-        </div>
-        <div class="pagination-controls">
-            <button id="prevPage" class="pagination-btn" disabled>
-                <i class="fas fa-chevron-left"></i>
-            </button>
-            <div id="pageNumbers" class="page-numbers">
-                <!-- Pages will be added here -->
-            </div>
-            <button id="nextPage" class="pagination-btn">
-                <i class="fas fa-chevron-right"></i>
-            </button>
-        </div>
-        <div class="page-size">
-            <select id="pageSize" class="form-select-sm">
-                <option value="10">10</option>
-                <option value="25" selected>25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-            </select>
-            <span>per page</span>
-        </div>
-    </div>
-</section>
 
-<!-- ========== MARKS MODAL ========== -->
-<div id="marksModal" class="modal">
-    <div class="modal-content" style="max-width: 500px;">
-        <div class="modal-header">
-            <h3><i class="fas fa-chart-bar"></i> Enter Marks</h3>
-            <span class="close" data-modal-close="marksModal">&times;</span>
-        </div>
-        
-        <div class="modal-body" style="max-height: 500px; overflow-y: auto;">
-            <!-- Duplicate Warning -->
-            <div id="duplicateWarning" style="display: none;"></div>
-            
-            <!-- Compact Form -->
-            <form id="marksForm" style="display: grid; gap: 15px;">
-                <!-- Student & Course Row -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <div>
-                        <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; font-weight: 500;">
-                            <i class="fas fa-user"></i> Student *
-                        </label>
-                        <select id="marksStudent" class="form-control" required 
-                                style="width: 100%; padding: 8px 12px;"
-                                onchange="window.app?.marks?.checkForDuplicateMarks()">
-                            <option value="">Select...</option>
+            <!-- ========== COURSES SECTION ========== -->
+            <section id="courses" class="content-section">
+                <div class="section-header">
+                    <div class="header-left">
+                        <h2><i class="fas fa-book"></i> Course Management</h2>
+                        <p class="section-subtitle">Manage and organize all academic courses</p>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" onclick="openCourseModal()">
+                            <i class="fas fa-plus"></i> Add Course
+                        </button>
+                        <button class="btn btn-success" onclick="openBulkGradeModal()" id="bulkGradeBtn" style="display: none;">
+                            <i class="fas fa-chart-line"></i> Grade All Students
+                        </button>
+                        <button class="btn btn-secondary" onclick="app.courses?.exportCourses()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Filter Bar -->
+                <div class="filter-bar">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="courseSearch" placeholder="Search courses..." class="search-input">
+                    </div>
+                    <div class="filter-controls">
+                        <select id="filterCourseProgram" class="filter-select">
+                            <option value="">All Programs</option>
                         </select>
-                    </div>
-                    
-                    <div>
-                        <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; font-weight: 500;">
-                            <i class="fas fa-book"></i> Course *
-                        </label>
-                        <select id="marksCourse" class="form-control" required 
-                                style="width: 100%; padding: 8px 12px;"
-                                onchange="window.app?.marks?.checkForDuplicateMarks()">
-                            <option value="">Select...</option>
+                        <select id="filterCourseLevel" class="filter-select">
+                            <option value="">All Levels</option>
+                            <option value="basic">Basic</option>
+                            <option value="intermediate">Intermediate</option>
+                            <option value="advanced">Advanced</option>
+                        </select>
+                        <select id="filterCourseStatus" class="filter-select">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
                         </select>
                     </div>
                 </div>
                 
-                <!-- Assessment Type & Date -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <div>
-                        <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; font-weight: 500;">
-                            <i class="fas fa-clipboard-check"></i> Type *
-                        </label>
-                        <select id="assessmentType" class="form-control" required 
-                                style="width: 100%; padding: 8px 12px;"
-                                onchange="window.app?.marks?.checkForDuplicateMarks()">
-                            <option value="exam">Final Exam</option>
-                            <option value="test">Test</option>
-                            <option value="assignment">Assignment</option>
-                            <option value="practical">Practical</option>
-                            <option value="cat">CAT</option>
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; font-weight: 500;">
-                            <i class="fas fa-calendar-alt"></i> Date *
-                        </label>
-                        <input type="date" id="assessmentDate" class="form-control" required
-                               style="width: 100%; padding: 8px 12px;"
-                               onchange="window.app?.marks?.checkForDuplicateMarks()">
+                <!-- Courses Grid View -->
+                <div class="cards-grid" id="coursesGrid">
+                    <!-- Courses will be loaded here by JavaScript -->
+                    <div class="empty-state">
+                        <i class="fas fa-book fa-3x"></i>
+                        <h3>No Courses Found</h3>
+                        <p>Get started by adding your first course</p>
+                        <button class="btn btn-primary" onclick="openCourseModal()">
+                            <i class="fas fa-plus"></i> Add Your First Course
+                        </button>
                     </div>
                 </div>
                 
-                <!-- Score Input - Compact -->
-                <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
-                    <div style="text-align: center; margin-bottom: 10px;">
-                        <label style="font-weight: 500; color: #4b5563;">Score</label>
+                <!-- Alternative: Table View -->
+                <div class="table-container" id="coursesTableContainer" style="display: none;">
+                    <table class="data-table" id="coursesTable">
+                        <thead>
+                            <tr>
+                                <th>Course Code</th>
+                                <th>Course Name</th>
+                                <th>Program</th>
+                                <th>Credits</th>
+                                <th>Students</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="coursesTableBody">
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- View Toggle -->
+                <div class="view-toggle">
+                    <button class="view-btn active" data-view="grid" onclick="setCoursesView('grid')">
+                        <i class="fas fa-th-large"></i> Grid
+                    </button>
+                    <button class="view-btn" data-view="table" onclick="setCoursesView('table')">
+                        <i class="fas fa-list"></i> Table
+                    </button>
+                </div>
+                
+                <!-- Course Statistics -->
+                <div class="stats-row">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Courses</span>
+                        <span class="stat-value" id="totalCoursesCount">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Active Courses</span>
+                        <span class="stat-value" id="activeCoursesCount">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Students Enrolled</span>
+                        <span class="stat-value" id="totalStudentsEnrolled">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Ready to Grade</span>
+                        <span class="stat-value" id="coursesToGrade">0</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== COURSE MODAL ========== -->
+            <div id="courseModal" class="modal">
+                <div class="modal-content" style="max-width: 700px;">
+                    <div class="modal-header">
+                        <h3 id="courseModalTitle">Add New Course</h3>
+                        <span class="close" onclick="closeCourseModal()">&times;</span>
                     </div>
                     
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-                        <input type="number" id="marksScore" 
-                               style="flex: 1; padding: 10px; text-align: center; font-weight: bold; font-size: 1.1rem;"
-                               placeholder="0" min="0" step="0.01" required
-                               oninput="window.app?.marks?.updateMarksGradeDisplay()">
-                        
-                        <span style="font-weight: bold; color: #6b7280;">/</span>
-                        
-                        <input type="number" id="marksMaxScore" value="100"
-                               style="flex: 1; padding: 10px; text-align: center; font-weight: bold; font-size: 1.1rem;"
-                               min="1" step="0.01" required
-                               oninput="window.app?.marks?.updateMarksGradeDisplay()">
-                    </div>
-                    
-                    <!-- Grade Display -->
-                    <div style="display: flex; align-items: center; gap: 15px; background: white; padding: 12px; border-radius: 6px;">
-                        <div id="gradeBadge" style="padding: 8px 16px; border-radius: 6px; font-weight: bold; min-width: 80px; text-align: center; background: #e5e7eb; color: #6b7280;">
-                            --
+                    <form id="courseForm" onsubmit="saveCourse(event)">
+                        <div class="modal-body">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Course Code *</label>
+                                    <input type="text" id="courseCode" class="form-control" 
+                                           placeholder="e.g., MATH101" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Course Name *</label>
+                                    <input type="text" id="courseName" class="form-control" 
+                                           placeholder="e.g., Introduction to Mathematics" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Program *</label>
+                                    <select id="courseProgram" class="form-control" required>
+                                        <option value="">Select Program</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Level</label>
+                                    <select id="courseLevel" class="form-control">
+                                        <option value="basic">Basic</option>
+                                        <option value="intermediate">Intermediate</option>
+                                        <option value="advanced">Advanced</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Credits *</label>
+                                    <input type="number" id="courseCredits" class="form-control" 
+                                           placeholder="e.g., 3" min="1" max="10" value="3" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Status</label>
+                                    <select id="courseStatus" class="form-control">
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label>Description</label>
+                                    <textarea id="courseDescription" class="form-control" 
+                                              placeholder="Course description..." rows="3"></textarea>
+                                </div>
+                            </div>
                         </div>
                         
-                        <div style="flex: 1;">
-                            <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 2px;">Percentage</div>
-                            <div id="marksPercentage" style="font-size: 1.25rem; font-weight: bold; color: #111827;">0.00%</div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" onclick="closeCourseModal()">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Course
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ========== BULK GRADE MODAL ========== -->
+            <div id="bulkGradeModal" class="modal">
+                <div class="modal-content" style="max-width: 800px; max-height: 90vh;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-chart-line"></i> Bulk Grade Students</h3>
+                        <span class="close" onclick="closeBulkGradeModal()">&times;</span>
+                    </div>
+                    
+                    <div class="modal-body" style="overflow-y: auto; max-height: 70vh;">
+                        <!-- Course Selection -->
+                        <div class="form-section">
+                            <h4><i class="fas fa-book"></i> Course Information</h4>
+                            <div class="form-row">
+                                <div class="form-group" style="flex: 2;">
+                                    <label>Select Course *</label>
+                                    <select id="bulkGradeCourse" class="form-control" required>
+                                        <option value="">Select Course</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Assessment Type *</label>
+                                    <select id="bulkGradeType" class="form-control" required>
+                                        <option value="exam">Final Exam</option>
+                                        <option value="test">Test</option>
+                                        <option value="assignment">Assignment</option>
+                                        <option value="practical">Practical</option>
+                                        <option value="cat">CAT</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Filters -->
+                        <div class="form-section">
+                            <h4><i class="fas fa-filter"></i> Filter Students</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Intake Year</label>
+                                    <select id="bulkGradeIntake" class="form-control">
+                                        <option value="">All Intakes</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Study Centre</label>
+                                    <select id="bulkGradeCentre" class="form-control">
+                                        <option value="">All Centres</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Program</label>
+                                    <select id="bulkGradeProgram" class="form-control">
+                                        <option value="">All Programs</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <button type="button" class="btn btn-outline" onclick="selectAllStudents()">
+                                        <i class="fas fa-check-square"></i> Select All
+                                    </button>
+                                    <button type="button" class="btn btn-outline" onclick="deselectAllStudents()">
+                                        <i class="fas fa-times-circle"></i> Deselect All
+                                    </button>
+                                    <span class="text-muted" style="margin-left: auto;" id="selectedCount">0 students selected</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Students List -->
+                        <div class="form-section">
+                            <h4><i class="fas fa-users"></i> Students to Grade</h4>
+                            <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th width="50">
+                                                <input type="checkbox" id="selectAllCheckbox" onchange="toggleAllStudents(this.checked)">
+                                            </th>
+                                            <th>Student Name</th>
+                                            <th>Reg Number</th>
+                                            <th>Centre</th>
+                                            <th>Intake</th>
+                                            <th>Current Grade</th>
+                                            <th>Score</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bulkGradeStudentsList">
+                                        <!-- Students will be loaded here -->
+                                        <tr>
+                                            <td colspan="7" class="text-center text-muted py-3">
+                                                <i class="fas fa-user-graduate fa-2x mb-2"></i>
+                                                <p>Select a course to load students</p>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Grade Settings -->
+                        <div class="form-section">
+                            <h4><i class="fas fa-cog"></i> Grade Settings</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Assessment Date *</label>
+                                    <input type="date" id="bulkGradeDate" class="form-control" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Maximum Score</label>
+                                    <input type="number" id="bulkMaxScore" class="form-control" value="100" min="1">
+                                </div>
+                                <div class="form-group">
+                                    <label>Apply Same Score</label>
+                                    <input type="number" id="bulkSameScore" class="form-control" 
+                                           placeholder="Enter score for all selected" min="0">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closeBulkGradeModal()">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="submitBulkGrades()" id="submitBulkGradesBtn">
+                            <i class="fas fa-save"></i> Save All Grades
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== MARKS SECTION ========== -->
+            <section id="marks" class="content-section">
+                <!-- Header -->
+                <div class="section-header">
+                    <div class="header-left">
+                        <h2>Academic Records</h2>
+                        <p class="section-subtitle">Manage and track student academic performance</p>
+                    </div>
+                    <div class="header-actions">
+                        <!-- View Mode Switcher -->
+                        <div class="view-mode-switcher">
+                            <button class="view-mode-btn active" data-view="table">
+                                <i class="fas fa-table"></i> Table
+                            </button>
+                            <button class="view-mode-btn" data-view="cards">
+                                <i class="fas fa-th-large"></i> Cards
+                            </button>
+                            <button class="view-mode-btn" data-view="compact">
+                                <i class="fas fa-list"></i> Compact
+                            </button>
+                        </div>
+                        
+                        <button class="btn btn-primary" onclick="window.app?.marks?.openMarksModal()">
+                            <i class="fas fa-plus"></i> New Record
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Summary Stats - Horizontal Scrollable Cards -->
+                <div class="marks-summary-stats">
+                    <div class="marks-stat-card">
+                        <div class="marks-stat-header">
+                            <div class="marks-stat-icon total">
+                                <i class="fas fa-chart-bar"></i>
+                            </div>
+                            <div class="marks-stat-info">
+                                <div class="marks-stat-label">Total Records</div>
+                                <div class="marks-stat-value" id="totalMarksRecords">0</div>
+                            </div>
+                        </div>
+                        <div class="marks-stat-subtitle">All academic records</div>
+                    </div>
+                    
+                    <div class="marks-stat-card">
+                        <div class="marks-stat-header">
+                            <div class="marks-stat-icon students">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="marks-stat-info">
+                                <div class="marks-stat-label">Students</div>
+                                <div class="marks-stat-value" id="distinctStudents">0</div>
+                            </div>
+                        </div>
+                        <div class="marks-stat-subtitle">Distinct students</div>
+                    </div>
+                    
+                    <div class="marks-stat-card">
+                        <div class="marks-stat-header">
+                            <div class="marks-stat-icon average">
+                                <i class="fas fa-percentage"></i>
+                            </div>
+                            <div class="marks-stat-info">
+                                <div class="marks-stat-label">Average Score</div>
+                                <div class="marks-stat-value" id="avgScore">0%</div>
+                            </div>
+                        </div>
+                        <div class="marks-stat-trend">
+                            <i class="fas fa-arrow-up trend-up"></i>
+                            <span>+2.5% this month</span>
+                        </div>
+                    </div>
+                    
+                    <div class="marks-stat-card">
+                        <div class="marks-stat-header">
+                            <div class="marks-stat-icon distinction">
+                                <i class="fas fa-award"></i>
+                            </div>
+                            <div class="marks-stat-info">
+                                <div class="marks-stat-label">Distinctions</div>
+                                <div class="marks-stat-value" id="distinctionCount">0</div>
+                            </div>
+                        </div>
+                        <div class="marks-stat-subtitle">Top performing students</div>
+                    </div>
+                    
+                    <div class="marks-stat-card">
+                        <div class="marks-stat-header">
+                            <div class="marks-stat-icon highest">
+                                <i class="fas fa-trophy"></i>
+                            </div>
+                            <div class="marks-stat-info">
+                                <div class="marks-stat-label">Highest Score</div>
+                                <div class="marks-stat-value" id="highestScore">98%</div>
+                            </div>
+                        </div>
+                        <div class="marks-stat-subtitle">John Doe - Mathematics</div>
+                    </div>
+                    
+                    <div class="marks-stat-card">
+                        <div class="marks-stat-header">
+                            <div class="marks-stat-icon lowest">
+                                <i class="fas fa-chart-line-down"></i>
+                            </div>
+                            <div class="marks-stat-info">
+                                <div class="marks-stat-label">Lowest Score</div>
+                                <div class="marks-stat-value" id="lowestScore">42%</div>
+                            </div>
+                        </div>
+                        <div class="marks-stat-subtitle">Needs attention</div>
+                    </div>
+                </div>
+                
+                <!-- Filter Bar -->
+                <div class="filter-bar">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="marksSearch" placeholder="Search student, course, grade..." class="search-input">
+                    </div>
+                    <div class="filter-controls">
+                        <select id="marksCourseFilter" class="filter-select">
+                            <option value="">All Courses</option>
+                        </select>
+                        <select id="marksStudentFilter" class="filter-select">
+                            <option value="">All Students</option>
+                        </select>
+                        <select id="marksGradeFilter" class="filter-select">
+                            <option value="">All Grades</option>
+                            <option value="DISTINCTION">Distinction</option>
+                            <option value="CREDIT">Credit</option>
+                            <option value="PASS">Pass</option>
+                            <option value="FAIL">Fail</option>
+                        </select>
+                        <button class="btn btn-sm btn-outline" onclick="window.app?.marks?.clearFilters()">
+                            <i class="fas fa-times"></i> Clear
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Selected Actions Bar (hidden by default) -->
+                <div id="selectedActions" class="selected-actions-bar" style="display: none;">
+                    <div class="selected-count">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Selected</span>
+                        <span class="selected-count-badge" id="selectedMarksCount">0</span>
+                    </div>
+                    <div class="selected-actions">
+                        <button class="selected-action-btn" onclick="window.app?.marks?.exportSelected()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                        <button class="selected-action-btn" onclick="window.app?.marks?.bulkEdit()">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="selected-action-btn btn-danger" onclick="window.app?.marks?.deleteSelected()">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- TABLE VIEW -->
+                <div id="tableView" class="table-view-container">
+                    <div class="table-container">
+                        <table id="marksTable" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Course</th>
+                                    <th>Centre</th>
+                                    <th>Score</th>
+                                    <th>Grade</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="marksTableBody">
+                                <!-- Data will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- CARDS VIEW (Horizontal) -->
+                <div id="cardsView" class="cards-view-container" style="display: none;">
+                    <!-- Cards will be rendered here by JavaScript -->
+                </div>
+                
+                <!-- COMPACT VIEW -->
+                <div id="compactView" class="compact-view-container" style="display: none;">
+                    <!-- Compact list will be rendered here by JavaScript -->
+                </div>
+                
+                <!-- Pagination -->
+                <div class="pagination">
+                    <div class="pagination-info">
+                        Showing <span id="startRow">1</span>-<span id="endRow">25</span> of <span id="totalRows">0</span>
+                    </div>
+                    <div class="pagination-controls">
+                        <button id="prevPage" class="pagination-btn" disabled>
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <div id="marksPageNumbers" class="page-numbers">
+                            <!-- Pages will be added here -->
+                        </div>
+                        <button id="nextPage" class="pagination-btn">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <div class="page-size">
+                        <select id="marksPageSize" class="form-select-sm">
+                            <option value="10">10</option>
+                            <option value="25" selected>25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <span>per page</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== MARKS MODAL ========== -->
+            <div id="marksModal" class="modal">
+                <div class="modal-content" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-chart-bar"></i> Enter Marks</h3>
+                        <span class="close" data-modal-close="marksModal">&times;</span>
+                    </div>
+                    
+                    <div class="modal-body" style="max-height: 500px; overflow-y: auto;">
+                        <!-- Duplicate Warning -->
+                        <div id="duplicateWarning" style="display: none;"></div>
+                        
+                        <!-- Compact Form -->
+                        <form id="marksForm" style="display: grid; gap: 15px;">
+                            <!-- Student & Course Row -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; font-weight: 500;">
+                                        <i class="fas fa-user"></i> Student *
+                                    </label>
+                                    <select id="marksStudent" class="form-control" required>
+                                        <option value="">Select...</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; font-weight: 500;">
+                                        <i class="fas fa-book"></i> Course *
+                                    </label>
+                                    <select id="marksCourse" class="form-control" required>
+                                        <option value="">Select...</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <!-- Assessment Type & Date -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; font-weight: 500;">
+                                        <i class="fas fa-clipboard-check"></i> Type *
+                                    </label>
+                                    <select id="assessmentType" class="form-control" required>
+                                        <option value="exam">Final Exam</option>
+                                        <option value="test">Test</option>
+                                        <option value="assignment">Assignment</option>
+                                        <option value="practical">Practical</option>
+                                        <option value="cat">CAT</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; font-weight: 500;">
+                                        <i class="fas fa-calendar-alt"></i> Date *
+                                    </label>
+                                    <input type="date" id="assessmentDate" class="form-control" required>
+                                </div>
+                            </div>
+                            
+                            <!-- Score Input - Compact -->
+                            <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
+                                <div style="text-align: center; margin-bottom: 10px;">
+                                    <label style="font-weight: 500; color: #4b5563;">Score</label>
+                                </div>
+                                
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                                    <input type="number" id="marksScore" 
+                                           style="flex: 1; padding: 10px; text-align: center; font-weight: bold; font-size: 1.1rem;"
+                                           placeholder="0" min="0" step="0.01" required>
+                                    
+                                    <span style="font-weight: bold; color: #6b7280;">/</span>
+                                    
+                                    <input type="number" id="marksMaxScore" value="100"
+                                           style="flex: 1; padding: 10px; text-align: center; font-weight: bold; font-size: 1.1rem;"
+                                           min="1" step="0.01" required>
+                                </div>
+                                
+                                <!-- Grade Display -->
+                                <div style="display: flex; align-items: center; gap: 15px; background: white; padding: 12px; border-radius: 6px;">
+                                    <div id="gradeBadge" style="padding: 8px 16px; border-radius: 6px; font-weight: bold; min-width: 80px; text-align: center; background: #e5e7eb; color: #6b7280;">
+                                        --
+                                    </div>
+                                    
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 2px;">Percentage</div>
+                                        <div id="marksPercentage" style="font-size: 1.25rem; font-weight: bold; color: #111827;">0.00%</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Status Toggle -->
+                            <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <input type="radio" id="statusPublished" name="status" value="published" checked>
+                                    <label for="statusPublished" style="font-size: 0.875rem; cursor: pointer;">
+                                        <i class="fas fa-eye"></i> Published
+                                    </label>
+                                </div>
+                                
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <input type="radio" id="statusDraft" name="status" value="draft">
+                                    <label for="statusDraft" style="font-size: 0.875rem; cursor: pointer;">
+                                        <i class="fas fa-eye-slash"></i> Draft
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <!-- Hidden Fields -->
+                            <input type="hidden" id="isDuplicate" value="false">
+                            <input type="hidden" id="existingMarksId" value="">
+                        </form>
+                    </div>
+                    
+                    <!-- Modal Footer -->
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-modal-close="marksModal">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="saveMarksBtn" form="marksForm">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== CENTRES SECTION ========== -->
+            <section id="centres" class="content-section">
+                <div class="section-header">
+                    <div class="header-left">
+                        <h2><i class="fas fa-map-marker-alt"></i> Centre Management</h2>
+                        <p class="section-subtitle">Manage all study centres and locations</p>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" onclick="openCentreModal()">
+                            <i class="fas fa-plus"></i> Add Centre
+                        </button>
+                        <button class="btn btn-secondary" onclick="exportCentres()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                        <button class="btn btn-outline" onclick="refreshCentres()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Search Box -->
+                <div class="search-box" style="margin: 20px 0;">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="centreSearchInput" placeholder="Search centres..." 
+                           class="search-input">
+                </div>
+                
+                <!-- Centres Grid -->
+                <div class="cards-grid" id="centresGrid">
+                    <div class="loading-state">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <span>Loading centres...</span>
+                    </div>
+                </div>
+                
+                <!-- Centre Statistics -->
+                <div class="stats-grid" style="margin-top: 30px;">
+                    <div class="stat-card">
+                        <div class="stat-icon blue">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="totalCentresCount">0</div>
+                            <div class="stat-label">Total Centres</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="activeCentresCount">0</div>
+                            <div class="stat-label">Active Centres</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon orange">
+                            <i class="fas fa-pause-circle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="inactiveCentresCount">0</div>
+                            <div class="stat-label">Inactive Centres</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon purple">
+                            <i class="fas fa-map"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="countiesCount">0</div>
+                            <div class="stat-label">Counties Covered</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== CENTRE MODAL ========== -->
+            <div id="centreModal" class="modal">
+                <div class="modal-content" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h3 id="centreModalTitle">
+                            <i class="fas fa-map-marker-alt"></i> Add New Centre
+                        </h3>
+                        <button type="button" class="close" onclick="closeCentreModal()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <form id="centreForm" onsubmit="saveCentre(event)">
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label for="centreName">Centre Name *</label>
+                                <input type="text" id="centreName" class="form-control" required 
+                                       placeholder="e.g., Nairobi Main Centre">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="centreCounty">County *</label>
+                                <input type="text" id="centreCounty" class="form-control" required 
+                                       list="countySuggestions"
+                                       placeholder="Type county name">
+                                <datalist id="countySuggestions"></datalist>
+                            </div>
+                            
+                            <!-- REGION FIELD -->
+                            <div class="form-group">
+                                <label for="centreRegion">Region</label>
+                                <select id="centreRegion" class="form-control">
+                                    <option value="">Select Region (Optional)</option>
+                                    <option value="nairobi_metro">Nairobi Metro</option>
+                                    <option value="coast">Coast Region</option>
+                                    <option value="north_eastern">North Eastern</option>
+                                    <option value="eastern">Eastern Region</option>
+                                    <option value="central">Central Region</option>
+                                    <option value="rift_valley">Rift Valley</option>
+                                    <option value="western">Western Region</option>
+                                    <option value="nyanza">Nyanza Region</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="centreStatus">Status</label>
+                                <select id="centreStatus" class="form-control">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" onclick="closeCentreModal()">
+                                Cancel
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                Add Centre
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ========== PROFILE SECTION ========== -->
+            <section id="profile" class="content-section">
+                <div class="profile-container">
+                    <div class="profile-header">
+                        <div class="profile-avatar">
+                            <i class="fas fa-user-circle"></i>
+                            <button class="btn-change-avatar" onclick="document.getElementById('avatarUpload').click()">
+                                <i class="fas fa-camera"></i>
+                            </button>
+                            <input type="file" id="avatarUpload" accept="image/*" style="display: none;">
+                        </div>
+                        <div class="profile-info">
+                            <h2 id="profileUserName">Admin User</h2>
+                            <p id="profileUserRole">Administrator</p>
+                            <p id="profileUserEmail">admin@teeportal.edu</p>
+                            <p id="profileUserCentre">Nairobi HQ</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Profile Tabs -->
+                    <div class="profile-tabs">
+                        <button class="profile-tab active" data-tab="personal">Personal Info</button>
+                        <button class="profile-tab" data-tab="security">Security</button>
+                        <button class="profile-tab" data-tab="preferences">Preferences</button>
+                        <button class="profile-tab" data-tab="activity">Activity Log</button>
+                    </div>
+                    
+                    <!-- Personal Info Tab -->
+                    <div id="personalTab" class="profile-tab-content active">
+                        <form id="profileForm">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Full Name</label>
+                                    <input type="text" id="profileName" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>Email</label>
+                                    <input type="email" id="profileEmail" class="form-control">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Phone Number</label>
+                                    <input type="tel" id="profilePhone" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>Assigned Centre</label>
+                                    <select id="profileCentre" class="form-control">
+                                        <option value="">Select Centre</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Changes
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <!-- Security Tab -->
+                    <div id="securityTab" class="profile-tab-content">
+                        <form id="securityForm">
+                            <div class="form-group">
+                                <label>Current Password</label>
+                                <input type="password" id="currentPassword" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>New Password</label>
+                                <input type="password" id="newPassword" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Confirm New Password</label>
+                                <input type="password" id="confirmPassword" class="form-control">
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-key"></i> Update Password
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========== SETTINGS SECTION ========== -->
+            <section id="settings" class="content-section">
+                <div class="section-header">
+                    <h2>System Settings</h2>
+                </div>
+                
+                <!-- Settings Tabs -->
+                <div class="settings-tabs">
+                    <button class="settings-tab active" data-tab="general">General</button>
+                    <button class="settings-tab" data-tab="academic">Academic</button>
+                    <button class="settings-tab" data-tab="location">Location Settings</button>
+                    <button class="settings-tab" data-tab="system">System</button>
+                </div>
+                
+                <!-- General Settings -->
+                <div id="generalSettings" class="settings-tab-content active">
+                    <form id="settingsForm">
+                        <div class="form-group">
+                            <label>Institute Name</label>
+                            <input type="text" id="instituteName" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Institute Abbreviation</label>
+                            <input type="text" id="instituteAbbreviation" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Academic Year</label>
+                            <input type="number" id="academicYear" class="form-control">
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            Save Settings
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- Academic Settings -->
+                <div id="academicSettings" class="settings-tab-content">
+                    <h3>Grading Scale</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Grade</th>
+                                <th>Min %</th>
+                                <th>Max %</th>
+                                <th>Points</th>
+                            </tr>
+                        </thead>
+                        <tbody id="gradingScaleBody">
+                            <!-- Grading scale will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Location Settings -->
+                <div id="locationSettings" class="settings-tab-content">
+                    <h3>Kenya Counties & Centres</h3>
+                    <div class="county-centre-management">
+                        <div class="manage-section">
+                            <h4>Manage Counties</h4>
+                            <div class="county-list" id="countyList">
+                                <!-- Counties will be loaded here -->
+                            </div>
+                            <button class="btn btn-sm btn-primary" onclick="addCounty()">
+                                <i class="fas fa-plus"></i> Add County
+                            </button>
+                        </div>
+                        <div class="manage-section">
+                            <h4>Manage Centres/Stations</h4>
+                            <div class="centre-list" id="centreList">
+                                <!-- Centres will be loaded here -->
+                            </div>
+                            <button class="btn btn-sm btn-primary" onclick="addCentre()">
+                                <i class="fas fa-plus"></i> Add Centre
+                            </button>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Status Toggle -->
-                <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <input type="radio" id="statusPublished" name="status" value="published" checked>
-                        <label for="statusPublished" style="font-size: 0.875rem; cursor: pointer;">
-                            <i class="fas fa-eye"></i> Published
-                        </label>
+                <!-- System Settings -->
+                <div id="systemSettings" class="settings-tab-content">
+                    <div class="system-settings-grid">
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="autoGenerateRegNumbers" checked>
+                                Auto-generate registration numbers
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="emailAlerts">
+                                Enable email alerts
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="centreBasedAccess">
+                                Centre-based access control
+                            </label>
+                        </div>
                     </div>
-                    
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <input type="radio" id="statusDraft" name="status" value="draft">
-                        <label for="statusDraft" style="font-size: 0.875rem; cursor: pointer;">
-                            <i class="fas fa-eye-slash"></i> Draft
-                        </label>
+                </div>
+            </section>
+
+            <!-- ========== REPORTS SECTION ========== -->
+            <section id="reports" class="content-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-chart-bar"></i> Reports & Analytics</h2>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="app.reports?.generateSummaryReport()">
+                            <i class="fas fa-file-pdf"></i> Summary Report
+                        </button>
+                        <button class="btn btn-secondary" onclick="app.reports?.refreshReports()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
                     </div>
                 </div>
                 
-                <!-- Hidden Fields -->
-                <input type="hidden" id="isDuplicate" value="false">
-                <input type="hidden" id="existingMarksId" value="">
-            </form>
-            
-            <!-- Duplicate Status Indicator -->
-            <div id="duplicateStatus" style="display: none; margin-top: 10px; text-align: center;">
-                <div style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f0f9ff; border-radius: 6px; color: #0369a1; font-size: 0.875rem;">
-                    <i class="fas fa-sync-alt fa-spin"></i>
-                    <span>Checking for duplicates...</span>
+                <!-- STATISTICS AT THE TOP -->
+                <div class="row mb-4">
+                    <div class="col-md-3 mb-3">
+                        <div class="card stat-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Total Students</h5>
+                                <h2 class="stat-number" id="reportTotalStudents">0</h2>
+                                <div class="stat-trend">
+                                    <i class="fas fa-users"></i>
+                                    <span>All programs</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card stat-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Graduation Rate</h5>
+                                <h2 class="stat-number" id="reportGraduationRate">0%</h2>
+                                <div class="stat-trend">
+                                    <i class="fas fa-graduation-cap"></i>
+                                    <span>Completion rate</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card stat-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Average GPA</h5>
+                                <h2 class="stat-number" id="reportAvgGPA">0.00</h2>
+                                <div class="stat-trend">
+                                    <i class="fas fa-chart-line"></i>
+                                    <span>Academic performance</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card stat-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Active Centres</h5>
+                                <h2 class="stat-number" id="reportCentersCount">0</h2>
+                                <div class="stat-trend">
+                                    <i class="fas fa-building"></i>
+                                    <span>Study locations</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-        
-        <!-- Modal Footer -->
-        <div class="modal-footer" style="padding: 15px;">
-            <button type="button" class="btn btn-secondary" data-modal-close="marksModal" style="padding: 8px 16px;">
-                <i class="fas fa-times"></i> Cancel
-            </button>
-            <button type="submit" class="btn btn-primary" id="saveMarksBtn" form="marksForm" style="padding: 8px 24px;">
-                <i class="fas fa-save"></i> Save
-            </button>
-        </div>
-    </div>
-</div>
-            
+            </section>
         </main>
     </div>
     
@@ -1699,7 +2114,7 @@
     </button>
 
     <!-- Toast Container for Notifications -->
-    <div id="toastContainer"></div>
+    <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
 
     <!-- ========== SUPABASE CONFIGURATION ========== -->
     <script>
@@ -2236,6 +2651,81 @@
                 showSection(hash);
             }
         });
+        
+        // Student modal functions (to be implemented by students.js)
+        window.openStudentModal = function() {
+            if (window.app?.students) {
+                window.app.students.openStudentModal();
+            } else {
+                showToast('Student module not loaded', 'error');
+            }
+        };
+        
+        window.filterStudents = function(filter) {
+            if (window.app?.students) {
+                window.app.students.filterStudents(filter);
+            }
+        };
+        
+        window.toggleAdvancedFilters = function() {
+            const filters = document.getElementById('advancedFilters');
+            filters.style.display = filters.style.display === 'none' ? 'block' : 'none';
+        };
+        
+        window.clearSearch = function() {
+            document.getElementById('studentSearch').value = '';
+            if (window.app?.students) {
+                window.app.students.clearSearch();
+            }
+        };
+        
+        window.clearAllFilters = function() {
+            if (window.app?.students) {
+                window.app.students.clearAllFilters();
+            }
+        };
+        
+        window.applyFilters = function() {
+            if (window.app?.students) {
+                window.app.students.applyFilters();
+            }
+        };
+        
+        window.setViewMode = function(mode) {
+            if (window.app?.students) {
+                window.app.students.setViewMode(mode);
+            }
+        };
+        
+        window.toggleSelectAll = function() {
+            if (window.app?.students) {
+                window.app.students.toggleSelectAll();
+            }
+        };
+        
+        window.previousPage = function() {
+            if (window.app?.students) {
+                window.app.students.previousPage();
+            }
+        };
+        
+        window.nextPage = function() {
+            if (window.app?.students) {
+                window.app.students.nextPage();
+            }
+        };
+        
+        window.changePageSize = function(size) {
+            if (window.app?.students) {
+                window.app.students.changePageSize(size);
+            }
+        };
+        
+        window.refreshInsights = function() {
+            if (window.app?.students) {
+                window.app.students.refreshInsights();
+            }
+        };
     </script>
 
     <!-- JavaScript Modules - CORRECT ORDER -->
