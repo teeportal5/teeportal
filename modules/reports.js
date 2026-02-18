@@ -1,50 +1,51 @@
-// modules/reports.js - COMPLETE WORKING VERSION
-constructor(db) {
-    console.log('📊 ReportsManager initialized');
-    this.db = db || window.app?.db;
-    this.app = window.app || window;
-    
-    // Filter state
-    this.selectedFilters = {
-        centre: [],
-        county: [],
-        program: [],
-        studentReportCenter: [],
-        academicReportCenter: [],
-        bulkExportCenters: []
-    };
-    
-    // Current filters
-    this.currentFilters = {
-        year: new Date().getFullYear().toString(),
-        program: ['all'],
-        course: 'all',
-        semester: 'all',
-        intake: 'all',
-        centres: ['all'],
-        counties: ['all'],
-        dateFrom: null,
-        dateTo: null
-    };
-    
-    // Initialize with empty arrays - will be populated from database
-    this.students = [];
-    this.centres = [];
-    this.counties = [];
-    this.programs = [];
-    this.courses = [];
-    this.marks = [];
-    
-    // Bind methods
-    this.bindAllMethods();
-    
-    // Initialize
-    setTimeout(() => this.initialize(), 100);
-}
+// modules/reports.js - COMPLETE WORKING VERSION WITH REAL DATA
+class ReportsManager {
+    constructor(db) {
+        console.log('📊 ReportsManager initialized');
+        this.db = db || window.app?.db;
+        this.app = window.app || window;
+        
+        // Filter state
+        this.selectedFilters = {
+            centre: [],
+            county: [],
+            program: [],
+            studentReportCenter: [],
+            academicReportCenter: [],
+            bulkExportCenters: []
+        };
+        
+        // Current filters
+        this.currentFilters = {
+            year: new Date().getFullYear().toString(),
+            program: ['all'],
+            course: 'all',
+            semester: 'all',
+            intake: 'all',
+            centres: ['all'],
+            counties: ['all'],
+            dateFrom: null,
+            dateTo: null
+        };
+        
+        // Initialize with empty arrays - will be populated from database
+        this.students = [];
+        this.centres = [];
+        this.counties = [];
+        this.programs = [];
+        this.courses = [];
+        this.marks = [];
+        
+        // Bind methods
+        this.bindAllMethods();
+        
+        // Initialize
+        setTimeout(() => this.initialize(), 100);
+    }
     
     bindAllMethods() {
         const methods = [
-            'initialize', 'applyFilters', 'clearFilters', 'refreshReports',
+            'initialize', 'loadRealData', 'loadSampleData', 'applyFilters', 'clearFilters', 'refreshReports',
             'searchFilter', 'selectAllFilter', 'clearFilter', 'selectFilterOption',
             'removeFilterOption', 'updateFilterButtonText', 'updateSelectedBadges',
             'populateFilterOptions', 'populateAcademicYearFilter', 'populateIntakeFilter',
@@ -56,7 +57,8 @@ constructor(db) {
             'generateTranscript', 'loadSampleTranscript', 'clearSelectedStudent',
             'bulkExport', 'addScheduledReport', 'showScheduledReports',
             'previewReport', 'clearPreview', 'downloadPreview', 'saveFilterPreset',
-            'showToast', 'showLoading'
+            'showToast', 'showLoading', 'downloadCSV', 'downloadExcel', 'downloadPDF',
+            'downloadJSON', 'downloadReport'
         ];
         
         methods.forEach(method => {
@@ -64,124 +66,125 @@ constructor(db) {
         });
     }
     
-   async initialize() {
-    console.log('🚀 Initializing Reports...');
-    this.showLoading(true);
+    async initialize() {
+        console.log('🚀 Initializing Reports...');
+        this.showLoading(true);
+        
+        try {
+            // Load real data from database
+            await this.loadRealData();
+            
+            // Populate filters
+            this.populateAcademicYearFilter();
+            this.populateFilterOptions('centre', this.centres, 'name');
+            this.populateFilterOptions('county', this.counties, 'name');
+            this.populateFilterOptions('program', this.programs, 'name');
+            this.populateIntakeFilter();
+            this.populateCourseFilter();
+            
+            // Populate advanced filters
+            this.populateFilterOptions('studentReportCenter', this.centres, 'name');
+            this.populateFilterOptions('academicReportCenter', this.centres, 'name');
+            this.populateFilterOptions('bulkExportCenters', this.centres, 'name');
+            
+            // Set default dates
+            this.setDefaultDates();
+            
+            // Update statistics with real data
+            this.updateStatistics();
+            
+            // Generate reports grid
+            this.generateReportsGrid();
+            
+            console.log('✅ Reports initialized successfully with real data');
+            console.log(`📊 Loaded: ${this.students.length} students, ${this.centres.length} centres`);
+            
+            this.showToast('Reports module loaded with real data', 'success');
+            
+        } catch (error) {
+            console.error('❌ Error initializing reports:', error);
+            this.showToast('Error loading reports data', 'error');
+            
+            // Fallback to sample data if database fails
+            console.log('⚠️ Using sample data as fallback');
+            this.loadSampleData();
+        } finally {
+            this.showLoading(false);
+        }
+    }
     
-    try {
-        // Load real data from database
-        await this.loadRealData();
+    async loadRealData() {
+        try {
+            // Load students
+            if (this.db?.getStudents) {
+                const dbStudents = await this.db.getStudents();
+                this.students = dbStudents.map(s => ({
+                    id: s.id,
+                    name: s.full_name,
+                    admission_number: s.reg_number,
+                    email: s.email,
+                    phone: s.phone,
+                    centre_name: s.centre_name || s.centre,
+                    county: s.county,
+                    program: s.program_name || s.program,
+                    intake_year: s.intake_year,
+                    status: s.status || 'active'
+                }));
+                console.log(`✅ Loaded ${this.students.length} students from database`);
+            }
+            
+            // Load centres
+            if (this.db?.getCentres) {
+                this.centres = await this.db.getCentres();
+                console.log(`✅ Loaded ${this.centres.length} centres from database`);
+            }
+            
+            // Load programs
+            if (this.db?.getPrograms) {
+                this.programs = await this.db.getPrograms();
+                console.log(`✅ Loaded ${this.programs.length} programs from database`);
+            }
+            
+            // Load counties (if available)
+            if (this.db?.getCounties) {
+                this.counties = await this.db.getCounties();
+                console.log(`✅ Loaded ${this.counties.length} counties from database`);
+            } else {
+                // Extract counties from students
+                const uniqueCounties = [...new Set(this.students.map(s => s.county).filter(Boolean))];
+                this.counties = uniqueCounties.map(name => ({ name }));
+                console.log(`✅ Extracted ${this.counties.length} counties from student data`);
+            }
+            
+            // Load courses
+            if (this.db?.getCourses) {
+                this.courses = await this.db.getCourses();
+                console.log(`✅ Loaded ${this.courses.length} courses from database`);
+            }
+            
+            // Load marks
+            if (this.db?.getMarks) {
+                this.marks = await this.db.getMarks();
+                console.log(`✅ Loaded ${this.marks.length} marks from database`);
+            }
+            
+        } catch (error) {
+            console.error('Error loading real data:', error);
+            throw error;
+        }
+    }
+    
+    loadSampleData() {
+        this.students = this.getSampleStudents();
+        this.centres = this.getSampleCentres();
+        this.counties = this.getSampleCounties();
+        this.programs = this.getSamplePrograms();
+        this.courses = this.getSampleCourses();
+        this.marks = this.getSampleMarks();
         
-        // Populate filters
-        this.populateAcademicYearFilter();
-        this.populateFilterOptions('centre', this.centres, 'name');
-        this.populateFilterOptions('county', this.counties, 'name');
-        this.populateFilterOptions('program', this.programs, 'name');
-        this.populateIntakeFilter();
-        this.populateCourseFilter();
-        
-        // Populate advanced filters
-        this.populateFilterOptions('studentReportCenter', this.centres, 'name');
-        this.populateFilterOptions('academicReportCenter', this.centres, 'name');
-        this.populateFilterOptions('bulkExportCenters', this.centres, 'name');
-        
-        // Set default dates
-        this.setDefaultDates();
-        
-        // Update statistics with real data
-        this.updateStatistics();
-        
-        // Generate reports grid
-        this.generateReportsGrid();
-        
-        console.log('✅ Reports initialized successfully with real data');
-        console.log(`📊 Loaded: ${this.students.length} students, ${this.centres.length} centres`);
-        
-        this.showToast('Reports module loaded with real data', 'success');
-        
-    } catch (error) {
-        console.error('❌ Error initializing reports:', error);
-        this.showToast('Error loading reports data', 'error');
-        
-        // Fallback to sample data if database fails
         console.log('⚠️ Using sample data as fallback');
-        this.loadSampleData();
-    } finally {
-        this.showLoading(false);
     }
-}
-
-async loadRealData() {
-    try {
-        // Load students
-        if (this.db?.getStudents) {
-            const dbStudents = await this.db.getStudents();
-            this.students = dbStudents.map(s => ({
-                id: s.id,
-                name: s.full_name,
-                admission_number: s.reg_number,
-                email: s.email,
-                phone: s.phone,
-                centre_name: s.centre_name || s.centre,
-                county: s.county,
-                program: s.program_name || s.program,
-                intake_year: s.intake_year,
-                status: s.status || 'active'
-            }));
-            console.log(`✅ Loaded ${this.students.length} students from database`);
-        }
-        
-        // Load centres
-        if (this.db?.getCentres) {
-            this.centres = await this.db.getCentres();
-            console.log(`✅ Loaded ${this.centres.length} centres from database`);
-        }
-        
-        // Load programs
-        if (this.db?.getPrograms) {
-            this.programs = await this.db.getPrograms();
-            console.log(`✅ Loaded ${this.programs.length} programs from database`);
-        }
-        
-        // Load counties (if available)
-        if (this.db?.getCounties) {
-            this.counties = await this.db.getCounties();
-            console.log(`✅ Loaded ${this.counties.length} counties from database`);
-        } else {
-            // Extract counties from students
-            const uniqueCounties = [...new Set(this.students.map(s => s.county).filter(Boolean))];
-            this.counties = uniqueCounties.map(name => ({ name }));
-            console.log(`✅ Extracted ${this.counties.length} counties from student data`);
-        }
-        
-        // Load courses
-        if (this.db?.getCourses) {
-            this.courses = await this.db.getCourses();
-            console.log(`✅ Loaded ${this.courses.length} courses from database`);
-        }
-        
-        // Load marks
-        if (this.db?.getMarks) {
-            this.marks = await this.db.getMarks();
-            console.log(`✅ Loaded ${this.marks.length} marks from database`);
-        }
-        
-    } catch (error) {
-        console.error('Error loading real data:', error);
-        throw error;
-    }
-}
-
-loadSampleData() {
-    this.students = this.getSampleStudents();
-    this.centres = this.getSampleCentres();
-    this.counties = this.getSampleCounties();
-    this.programs = this.getSamplePrograms();
-    this.courses = this.getSampleCourses();
-    this.marks = this.getSampleMarks();
     
-    console.log('⚠️ Using sample data as fallback');
-}
     // ==================== FILTER METHODS ====================
     
     searchFilter(type, searchTerm) {
@@ -241,7 +244,9 @@ loadSampleData() {
             if (allCheckbox) allCheckbox.checked = false;
             
             if (checked) {
-                this.selectedFilters[type].push(value);
+                if (!this.selectedFilters[type].includes(value)) {
+                    this.selectedFilters[type].push(value);
+                }
             } else {
                 this.selectedFilters[type] = this.selectedFilters[type].filter(v => v !== value);
             }
@@ -452,10 +457,17 @@ loadSampleData() {
             checkboxes.forEach(cb => cb.checked = cb.value === 'all');
         });
         
-        document.getElementById('academicYear').value = new Date().getFullYear();
-        document.getElementById('filterIntake').value = 'all';
-        document.getElementById('filterCourse').value = 'all';
-        document.getElementById('semester').value = 'all';
+        const yearSelect = document.getElementById('academicYear');
+        if (yearSelect) yearSelect.value = new Date().getFullYear();
+        
+        const intakeSelect = document.getElementById('filterIntake');
+        if (intakeSelect) intakeSelect.value = 'all';
+        
+        const courseSelect = document.getElementById('filterCourse');
+        if (courseSelect) courseSelect.value = 'all';
+        
+        const semesterSelect = document.getElementById('semester');
+        if (semesterSelect) semesterSelect.value = 'all';
         
         this.setDefaultDates();
         this.updateStatistics();
@@ -474,17 +486,17 @@ loadSampleData() {
             const graduationRate = totalStudents > 0 ? Math.round((graduatedStudents / totalStudents) * 100) : 0;
             
             // Update DOM
-            const stats = {
-                'totalStudents': totalStudents,
-                'graduationRate': graduationRate + '%',
-                'avgGPA': '3.24',
-                'centersCount': this.centres.length
-            };
+            const totalElement = document.getElementById('totalStudents');
+            if (totalElement) totalElement.textContent = totalStudents;
             
-            Object.entries(stats).forEach(([id, value]) => {
-                const element = document.getElementById(id);
-                if (element) element.textContent = value;
-            });
+            const graduationElement = document.getElementById('graduationRate');
+            if (graduationElement) graduationElement.textContent = graduationRate + '%';
+            
+            const avgGPAElement = document.getElementById('avgGPA');
+            if (avgGPAElement) avgGPAElement.textContent = '3.24';
+            
+            const centersElement = document.getElementById('centersCount');
+            if (centersElement) centersElement.textContent = this.centres.length;
             
         } catch (error) {
             console.error('Error updating statistics:', error);
@@ -569,7 +581,7 @@ loadSampleData() {
             }
         ];
         
-        let html = '';
+        let html = '<div class="row">';
         
         reports.forEach(report => {
             html += `
@@ -595,6 +607,7 @@ loadSampleData() {
             `;
         });
         
+        html += '</div>';
         reportsContainer.innerHTML = html;
     }
     
@@ -640,14 +653,14 @@ loadSampleData() {
                 reportHTML += `
                     <tr>
                         <td>${index + 1}</td>
-                        <td><strong>${student.admission_number}</strong></td>
-                        <td>${student.name}</td>
-                        <td>${student.program}</td>
-                        <td>${student.centre_name || student.centre}</td>
-                        <td>${student.county}</td>
+                        <td><strong>${student.admission_number || 'N/A'}</strong></td>
+                        <td>${student.name || 'N/A'}</td>
+                        <td>${student.program || 'N/A'}</td>
+                        <td>${student.centre_name || student.centre || 'N/A'}</td>
+                        <td>${student.county || 'N/A'}</td>
                         <td>
                             <span class="badge bg-${student.status === 'active' ? 'success' : 'secondary'}">
-                                ${student.status}
+                                ${student.status || 'N/A'}
                             </span>
                         </td>
                     </tr>
@@ -748,8 +761,8 @@ loadSampleData() {
                 
                 reportHTML += `
                     <tr>
-                        <td>${course.course_code}</td>
-                        <td>${course.course_name}</td>
+                        <td>${course.course_code || course.code || 'N/A'}</td>
+                        <td>${course.course_name || course.name || 'N/A'}</td>
                         <td>${avgMarks}%</td>
                         <td><span class="badge bg-success">${topGrade}</span></td>
                         <td>${courseMarks.length}</td>
@@ -801,8 +814,8 @@ loadSampleData() {
                     <div class="col-md-6 mb-3">
                         <div class="card h-100">
                             <div class="card-body">
-                                <h5 class="card-title">${centre.name}</h5>
-                                <p class="text-muted">${centre.county}</p>
+                                <h5 class="card-title">${centre.name || 'N/A'}</h5>
+                                <p class="text-muted">${centre.county || 'N/A'}</p>
                                 <div class="row text-center">
                                     <div class="col-4">
                                         <h4 class="mb-0">${centreStudents.length}</h4>
@@ -900,7 +913,7 @@ loadSampleData() {
                 const programStudents = filteredStudents.filter(s => s.program === program.name).length;
                 reportHTML += `
                     <li class="list-group-item d-flex justify-content-between align-items-center">
-                        ${program.name}
+                        ${program.name || program}
                         <span class="badge bg-primary rounded-pill">${programStudents}</span>
                     </li>
                 `;
@@ -924,7 +937,7 @@ loadSampleData() {
                 ).length;
                 reportHTML += `
                     <li class="list-group-item d-flex justify-content-between align-items-center">
-                        ${centre.name}
+                        ${centre.name || centre}
                         <span class="badge bg-success rounded-pill">${centreStudents}</span>
                     </li>
                 `;
@@ -941,7 +954,7 @@ loadSampleData() {
                         <h5>Recommendations</h5>
                         <div class="alert alert-info">
                             <ul class="mb-0">
-                                <li>Consider expanding ${this.programs[0]?.name} program to more centres</li>
+                                <li>Consider expanding programs to more centres</li>
                                 <li>Focus on improving graduation rates in underperforming centres</li>
                                 <li>Monitor student performance in core courses</li>
                                 <li>Consider introducing new programs based on demand</li>
@@ -959,8 +972,8 @@ loadSampleData() {
     // ==================== ADVANCED REPORTS ====================
     
     previewStudentReport() {
-        const reportType = document.getElementById('studentReportType').value;
-        const format = document.getElementById('studentReportFormat').value;
+        const reportType = document.getElementById('studentReportType')?.value || 'list';
+        const format = document.getElementById('studentReportFormat')?.value || 'csv';
         
         let reportHTML = `
             <div class="container-fluid">
@@ -982,8 +995,8 @@ loadSampleData() {
         this.showLoading(true);
         
         setTimeout(() => {
-            const reportType = document.getElementById('studentReportType').value;
-            const format = document.getElementById('studentReportFormat').value;
+            const reportType = document.getElementById('studentReportType')?.value || 'list';
+            const format = document.getElementById('studentReportFormat')?.value || 'csv';
             
             this.downloadReport(format, `student_${reportType}_${new Date().getTime()}`);
             this.showToast(`Student report (${reportType}) exported as ${format}`, 'success');
@@ -992,8 +1005,8 @@ loadSampleData() {
     }
     
     previewAcademicReport() {
-        const reportType = document.getElementById('academicReportType').value;
-        const format = document.getElementById('academicReportFormat').value;
+        const reportType = document.getElementById('academicReportType')?.value || 'marks';
+        const format = document.getElementById('academicReportFormat')?.value || 'csv';
         
         let reportHTML = `
             <div class="container-fluid">
@@ -1015,8 +1028,8 @@ loadSampleData() {
         this.showLoading(true);
         
         setTimeout(() => {
-            const reportType = document.getElementById('academicReportType').value;
-            const format = document.getElementById('academicReportFormat').value;
+            const reportType = document.getElementById('academicReportType')?.value || 'marks';
+            const format = document.getElementById('academicReportFormat')?.value || 'csv';
             
             this.downloadReport(format, `academic_${reportType}_${new Date().getTime()}`);
             this.showToast(`Academic report (${reportType}) exported as ${format}`, 'success');
@@ -1032,7 +1045,7 @@ loadSampleData() {
         if (type === 'students') {
             csvContent += "Admission No.,Name,Program,Centre,County,Status\\n";
             this.students.forEach(student => {
-                csvContent += `${student.admission_number},${student.name},${student.program},${student.centre_name || student.centre},${student.county},${student.status}\\n`;
+                csvContent += `${student.admission_number || ''},${student.name || ''},${student.program || ''},${student.centre_name || student.centre || ''},${student.county || ''},${student.status || ''}\\n`;
             });
         }
         
@@ -1062,7 +1075,7 @@ loadSampleData() {
                     ? courseMarks.reduce((max, m) => m.grade > max ? m.grade : max, 'F')
                     : 'N/A';
                 
-                csvContent += `${course.course_code},${course.course_name},${avgMarks},${topGrade},${courseMarks.length}\\n`;
+                csvContent += `${course.course_code || ''},${course.course_name || ''},${avgMarks},${topGrade},${courseMarks.length}\\n`;
             });
         }
         
@@ -1122,39 +1135,38 @@ loadSampleData() {
             marks: this.marks
         };
         
-        let dataStr, mimeType, ext;
+        let dataStr, ext;
         
         switch(format) {
             case 'csv':
-                // Simple CSV conversion
                 let csvContent = "data:text/csv;charset=utf-8,Admission No.,Name,Program,Centre,County,Status\\n";
                 this.students.forEach(student => {
-                    csvContent += `${student.admission_number},${student.name},${student.program},${student.centre_name || student.centre},${student.county},${student.status}\\n`;
+                    csvContent += `${student.admission_number || ''},${student.name || ''},${student.program || ''},${student.centre_name || student.centre || ''},${student.county || ''},${student.status || ''}\\n`;
                 });
                 dataStr = csvContent;
-                mimeType = 'text/csv';
                 ext = 'csv';
                 break;
                 
             case 'json':
                 dataStr = 'data:application/json;charset=utf-8,'+ encodeURIComponent(JSON.stringify(data, null, 2));
-                mimeType = 'application/json';
                 ext = 'json';
                 break;
                 
             case 'excel':
-                // CSV as Excel
                 let excelContent = "data:text/csv;charset=utf-8,Admission No.,Name,Program,Centre,County,Status\\n";
                 this.students.forEach(student => {
-                    excelContent += `${student.admission_number},${student.name},${student.program},${student.centre_name || student.centre},${student.county},${student.status}\\n`;
+                    excelContent += `${student.admission_number || ''},${student.name || ''},${student.program || ''},${student.centre_name || student.centre || ''},${student.county || ''},${student.status || ''}\\n`;
                 });
                 dataStr = excelContent;
-                mimeType = 'application/vnd.ms-excel';
                 ext = 'xls';
                 break;
                 
             case 'pdf':
                 this.showToast('PDF export would generate PDF file', 'info');
+                return;
+                
+            default:
+                this.showToast(`Unsupported format: ${format}`, 'error');
                 return;
         }
         
@@ -1172,7 +1184,7 @@ loadSampleData() {
         this.showLoading(true);
         
         setTimeout(() => {
-            const exportType = document.getElementById('bulkExportType').value;
+            const exportType = document.getElementById('bulkExportType')?.value || 'json';
             
             // Create comprehensive data export
             const exportData = {
@@ -1192,13 +1204,12 @@ loadSampleData() {
                 }
             };
             
-            let dataStr, filename, mimeType;
+            let dataStr, filename;
             
             switch(exportType) {
                 case 'json':
                     dataStr = 'data:application/json;charset=utf-8,'+ encodeURIComponent(JSON.stringify(exportData, null, 2));
                     filename = `tee_backup_${new Date().getTime()}.json`;
-                    mimeType = 'application/json';
                     break;
                     
                 case 'excel':
@@ -1210,11 +1221,9 @@ loadSampleData() {
                     csvContent += `Programs,${this.programs.length},${new Date().toLocaleDateString()}\\n`;
                     dataStr = csvContent;
                     filename = `tee_export_${new Date().getTime()}.csv`;
-                    mimeType = 'application/vnd.ms-excel';
                     break;
                     
                 case 'csv_all':
-                    // Multiple CSV files (simplified)
                     this.downloadCSV('students');
                     this.showLoading(false);
                     return;
@@ -1240,9 +1249,9 @@ loadSampleData() {
     // ==================== SCHEDULED REPORTS ====================
     
     addScheduledReport() {
-        const reportType = document.getElementById('scheduleReportType').value;
-        const frequency = document.getElementById('scheduleFrequency').value;
-        const recipients = document.getElementById('scheduleRecipients').value;
+        const reportType = document.getElementById('scheduleReportType')?.value || 'weekly';
+        const frequency = document.getElementById('scheduleFrequency')?.value || 'weekly';
+        const recipients = document.getElementById('scheduleRecipients')?.value;
         
         if (!recipients) {
             this.showToast('Please enter recipient emails', 'warning');
@@ -1267,7 +1276,8 @@ loadSampleData() {
         }
         
         this.showToast(`Scheduled ${frequency} ${reportType} report added`, 'success');
-        document.getElementById('scheduleRecipients').value = '';
+        const input = document.getElementById('scheduleRecipients');
+        if (input) input.value = '';
     }
     
     showScheduledReports() {
@@ -1276,106 +1286,106 @@ loadSampleData() {
     
     // ==================== TRANSCRIPT METHODS ====================
 
-openTranscriptModal() {
-    console.log('📄 Opening transcript modal via reports.js...');
-    
-    // Check if transcripts.js is loaded
-    if (window.app?.transcripts?.generateStudentTranscriptPrompt) {
-        console.log('✅ Redirecting to transcripts.js modal');
-        window.app.transcripts.generateStudentTranscriptPrompt();
-    } 
-    else if (window.app?.transcripts?.openTranscriptModal) {
-        console.log('✅ Using transcripts.js openTranscriptModal');
-        window.app.transcripts.openTranscriptModal();
-    }
-    else {
-        console.warn('❌ transcripts.js not loaded, showing fallback');
-        this.showToast('Transcript module is not available. Please check if transcripts.js is loaded.', 'warning');
+    openTranscriptModal() {
+        console.log('📄 Opening transcript modal via reports.js...');
         
-        // Create a simple fallback modal
-        this.createFallbackTranscriptModal();
+        // Check if transcripts.js is loaded
+        if (window.app?.transcripts?.generateStudentTranscriptPrompt) {
+            console.log('✅ Redirecting to transcripts.js modal');
+            window.app.transcripts.generateStudentTranscriptPrompt();
+        } 
+        else if (window.app?.transcripts?.openTranscriptModal) {
+            console.log('✅ Using transcripts.js openTranscriptModal');
+            window.app.transcripts.openTranscriptModal();
+        }
+        else {
+            console.warn('❌ transcripts.js not loaded, showing fallback');
+            this.showToast('Transcript module is not available. Please check if transcripts.js is loaded.', 'warning');
+            
+            // Create a simple fallback modal
+            this.createFallbackTranscriptModal();
+        }
     }
-}
 
-previewTranscript() {
-    if (window.app?.transcripts?.previewTranscript) {
-        window.app.transcripts.previewTranscript();
-    } else {
-        this.showToast('Transcript preview not available', 'warning');
+    previewTranscript() {
+        if (window.app?.transcripts?.previewTranscript) {
+            window.app.transcripts.previewTranscript();
+        } else {
+            this.showToast('Transcript preview not available', 'warning');
+        }
     }
-}
 
-generateTranscript() {
-    if (window.app?.transcripts?.generateTranscriptFromUI) {
-        window.app.transcripts.generateTranscriptFromUI();
-    } else if (window.app?.transcripts?.generateTranscript) {
-        window.app.transcripts.generateTranscript();
-    } else {
-        this.showToast('Transcript generation not available', 'warning');
+    generateTranscript() {
+        if (window.app?.transcripts?.generateTranscriptFromUI) {
+            window.app.transcripts.generateTranscriptFromUI();
+        } else if (window.app?.transcripts?.generateTranscript) {
+            window.app.transcripts.generateTranscript();
+        } else {
+            this.showToast('Transcript generation not available', 'warning');
+        }
     }
-}
 
-loadSampleTranscript() {
-    if (window.app?.transcripts?.loadSampleTranscript) {
-        window.app.transcripts.loadSampleTranscript();
-    } else {
-        this.showToast('Sample transcript not available', 'warning');
+    loadSampleTranscript() {
+        if (window.app?.transcripts?.loadSampleTranscript) {
+            window.app.transcripts.loadSampleTranscript();
+        } else {
+            this.showToast('Sample transcript not available', 'warning');
+        }
     }
-}
 
-clearSelectedStudent() {
-    if (window.app?.transcripts?.clearSelectedStudent) {
-        window.app.transcripts.clearSelectedStudent();
-    } else {
-        const selectedStudentInfo = document.getElementById('selectedStudentInfo');
-        if (selectedStudentInfo) selectedStudentInfo.style.display = 'none';
-        this.showToast('Student selection cleared', 'info');
+    clearSelectedStudent() {
+        if (window.app?.transcripts?.clearSelectedStudent) {
+            window.app.transcripts.clearSelectedStudent();
+        } else {
+            const selectedStudentInfo = document.getElementById('selectedStudentInfo');
+            if (selectedStudentInfo) selectedStudentInfo.style.display = 'none';
+            this.showToast('Student selection cleared', 'info');
+        }
     }
-}
 
-// Fallback modal if transcripts.js isn't loaded
-createFallbackTranscriptModal() {
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-    `;
-    
-    modal.innerHTML = `
-        <div style="
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            max-width: 500px;
-            width: 90%;
-        ">
-            <h3><i class="fas fa-exclamation-triangle text-warning"></i> Transcript Module Not Available</h3>
-            <p class="mt-3">The transcripts module (transcripts.js) is not loaded or has errors.</p>
-            <p>Please check:</p>
-            <ul>
-                <li>Is transcripts.js file in the modules folder?</li>
-                <li>Is it loaded after database.js?</li>
-                <li>Check browser console for errors</li>
-            </ul>
-            <div class="mt-4 text-end">
-                <button onclick="this.parentElement.parentElement.remove()" 
-                        style="padding: 8px 20px; background: #6c757d; color: white; border: none; border-radius: 5px;">
-                    Close
-                </button>
+    // Fallback modal if transcripts.js isn't loaded
+    createFallbackTranscriptModal() {
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        `;
+        
+        modal.innerHTML = `
+            <div style="
+                background: white;
+                padding: 30px;
+                border-radius: 10px;
+                max-width: 500px;
+                width: 90%;
+            ">
+                <h3><i class="fas fa-exclamation-triangle text-warning"></i> Transcript Module Not Available</h3>
+                <p class="mt-3">The transcripts module (transcripts.js) is not loaded or has errors.</p>
+                <p>Please check:</p>
+                <ul>
+                    <li>Is transcripts.js file in the modules folder?</li>
+                    <li>Is it loaded after database.js?</li>
+                    <li>Check browser console for errors</li>
+                </ul>
+                <div class="mt-4 text-end">
+                    <button onclick="this.parentElement.parentElement.remove()" 
+                            style="padding: 8px 20px; background: #6c757d; color: white; border: none; border-radius: 5px;">
+                        Close
+                    </button>
+                </div>
             </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-}
+        `;
+        
+        document.body.appendChild(modal);
+    }
     
     // ==================== UTILITY METHODS ====================
     
