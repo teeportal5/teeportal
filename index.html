@@ -3425,8 +3425,152 @@ window.addEventListener('load', function() {
 
 console.log('✅ All form fixes installed - forms will NEVER get stuck!');
 </script>
-
-</body>
-</html>
+  <!-- ========== PERMANENT STUDENT FORM FIX - ADD THIS HERE ========== -->
+    <script>
+    // ========== PERMANENT STUDENT FORM FIX ==========
+    (function() {
+        console.log('🔧 Installing PERMANENT student form handler fix');
+        
+        // Function to attach handlers directly
+        function attachStudentFormHandlers() {
+            const form = document.getElementById('studentForm');
+            const btn = form?.querySelector('button[type="submit"]');
+            
+            if (!form || !btn) return false;
+            
+            // Skip if already fixed with our special attribute
+            if (form.hasAttribute('data-fixed-permanent') && btn.hasAttribute('data-fixed-permanent')) {
+                return true;
+            }
+            
+            console.log('🎯 Attaching permanent handlers to student form');
+            
+            // Mark as fixed
+            form.setAttribute('data-fixed-permanent', 'true');
+            btn.setAttribute('data-fixed-permanent', 'true');
+            
+            // Store original button text
+            const originalText = btn.innerHTML;
+            
+            // DIRECT onclick handler - this CANNOT be removed
+            btn.onclick = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('🎓 PERMANENT HANDLER: Student registration clicked');
+                
+                // Show loading
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                this.disabled = true;
+                
+                // Get student manager
+                if (window.app?.students) {
+                    // Create proper event
+                    const fakeEvent = {
+                        preventDefault: () => {},
+                        stopPropagation: () => {},
+                        stopImmediatePropagation: () => {},
+                        target: form
+                    };
+                    
+                    // Call saveStudent with timeout to ensure UI updates
+                    setTimeout(() => {
+                        try {
+                            const result = window.app.students.saveStudent(fakeEvent);
+                            
+                            // Handle promise
+                            if (result && typeof result.then === 'function') {
+                                result.catch(error => {
+                                    console.error('Save failed:', error);
+                                    this.innerHTML = originalText;
+                                    this.disabled = false;
+                                });
+                            }
+                        } catch (error) {
+                            console.error('Error:', error);
+                            this.innerHTML = originalText;
+                            this.disabled = false;
+                        }
+                    }, 100);
+                } else {
+                    console.error('Student manager not available');
+                    alert('Student system not ready. Please try again.');
+                    this.innerHTML = originalText;
+                    this.disabled = false;
+                }
+                
+                return false;
+            };
+            
+            // Backup form onsubmit
+            form.onsubmit = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                btn.click();
+                return false;
+            };
+            
+            console.log('✅ Permanent handlers attached - onclick:', !!btn.onclick, 'onsubmit:', !!form.onsubmit);
+            return true;
+        }
+        
+        // Try immediately
+        attachStudentFormHandlers();
+        
+        // Try after DOM is loaded
+        document.addEventListener('DOMContentLoaded', attachStudentFormHandlers);
+        
+        // Try multiple times with delays
+        setTimeout(attachStudentFormHandlers, 500);
+        setTimeout(attachStudentFormHandlers, 1000);
+        setTimeout(attachStudentFormHandlers, 2000);
+        setTimeout(attachStudentFormHandlers, 3000);
+        setTimeout(attachStudentFormHandlers, 5000);
+        
+        // Watch for any changes that might remove our handlers
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && 
+                    (mutation.attributeName === 'onclick' || mutation.attributeName === 'onsubmit')) {
+                    
+                    const form = document.getElementById('studentForm');
+                    const btn = form?.querySelector('button[type="submit"]');
+                    
+                    if (form && btn && 
+                        (!form.onsubmit || !btn.onclick || 
+                         !form.hasAttribute('data-fixed-permanent'))) {
+                        console.log('⚠️ Handlers changed, reapplying...');
+                        attachStudentFormHandlers();
+                    }
+                }
+            });
+        });
+        
+        // Observe the form and button for attribute changes
+        const form = document.getElementById('studentForm');
+        if (form) {
+            observer.observe(form, { attributes: true });
+            const btn = form.querySelector('button[type="submit"]');
+            if (btn) {
+                observer.observe(btn, { attributes: true });
+            }
+        }
+        
+        // Also observe the whole body for DOM changes
+        const bodyObserver = new MutationObserver(function() {
+            const form = document.getElementById('studentForm');
+            const btn = form?.querySelector('button[type="submit"]');
+            
+            if (form && btn && (!form.onsubmit || !btn.onclick)) {
+                console.log('⚠️ Form or button recreated, reapplying...');
+                attachStudentFormHandlers();
+            }
+        });
+        
+        bodyObserver.observe(document.body, { childList: true, subtree: true });
+        
+        console.log('🔒 Permanent fix installed - student registration will NEVER get stuck!');
+    })();
+    </script>
 </body>
 </html>
