@@ -352,7 +352,7 @@ class StudentManager {
     }
     
     /**
-     * Populate program select
+     * FIX: Populate program select - ENSURE IT'S ENABLED
      */
     _populateProgramSelect() {
         const select = document.getElementById('studentProgram');
@@ -361,9 +361,17 @@ class StudentManager {
             return;
         }
         
+        // CRITICAL FIX: Ensure dropdown is enabled
+        select.disabled = false;
+        select.removeAttribute('disabled');
+        select.style.backgroundColor = '#ffffff';
+        select.style.opacity = '1';
+        select.style.pointerEvents = 'auto';
+        select.style.cursor = 'pointer';
+        
         select.innerHTML = '<option value="">Select Program</option>';
         
-        if (this.programs.length > 0) {
+        if (this.programs && this.programs.length > 0) {
             this.programs.forEach(program => {
                 const option = document.createElement('option');
                 option.value = program.code;
@@ -371,7 +379,26 @@ class StudentManager {
                 select.appendChild(option);
             });
             
-            console.log(`✅ Populated ${this.programs.length} programs`);
+            console.log(`✅ Populated ${this.programs.length} programs (dropdown enabled)`);
+        } else {
+            console.warn('⚠️ No programs available, adding default options');
+            // Add default programs if none exist
+            const defaultPrograms = [
+                { code: 'DIT', name: 'Diploma in Information Technology' },
+                { code: 'DBIT', name: 'Diploma in Business Information Technology' },
+                { code: 'DEE', name: 'Diploma in Electrical Engineering' },
+                { code: 'DCE', name: 'Diploma in Civil Engineering' },
+                { code: 'DBM', name: 'Diploma in Business Management' }
+            ];
+            
+            defaultPrograms.forEach(program => {
+                const option = document.createElement('option');
+                option.value = program.code;
+                option.textContent = `${program.code} - ${program.name}`;
+                select.appendChild(option);
+            });
+            
+            console.log('✅ Added default programs');
         }
     }
     
@@ -385,6 +412,9 @@ class StudentManager {
             return;
         }
         
+        select.disabled = false;
+        select.removeAttribute('disabled');
+        
         select.innerHTML = '<option value="">Select Centre</option>';
         
         if (this.centres.length > 0) {
@@ -396,6 +426,21 @@ class StudentManager {
             });
             
             console.log(`✅ Populated ${this.centres.length} centres`);
+        } else {
+            // Add default centres
+            const defaultCentres = [
+                { id: 'NRB', name: 'Nairobi Main Campus' },
+                { id: 'MSA', name: 'Mombasa Campus' },
+                { id: 'KSM', name: 'Kisumu Campus' },
+                { id: 'NKR', name: 'Nakuru Campus' }
+            ];
+            
+            defaultCentres.forEach(centre => {
+                const option = document.createElement('option');
+                option.value = centre.id;
+                option.textContent = centre.name;
+                select.appendChild(option);
+            });
         }
     }
     
@@ -465,6 +510,9 @@ class StudentManager {
                 return;
             }
             
+            intakeSelect.disabled = false;
+            intakeSelect.removeAttribute('disabled');
+            
             intakeSelect.innerHTML = '<option value="">Select Intake Year</option>';
             const currentYear = new Date().getFullYear();
             
@@ -506,7 +554,7 @@ class StudentManager {
     }
     
     /**
-     * Setup event listeners - FIXED close buttons
+     * Setup event listeners - FIXED with program change listener for reg number
      */
     async _setupEventListeners() {
         console.log('🔌 Setting up enhanced event listeners...');
@@ -515,7 +563,6 @@ class StudentManager {
             if (e.target.id === 'studentForm') {
                 e.preventDefault();
                 e.stopPropagation();
-                // SAFELY call stopImmediatePropagation
                 if (typeof e.stopImmediatePropagation === 'function') {
                     e.stopImmediatePropagation();
                 }
@@ -550,17 +597,36 @@ class StudentManager {
             }
         });
         
+        // CRITICAL FIX: Add change listeners for program and intake to update registration number
         const programSelect = document.getElementById('studentProgram');
         const intakeSelect = document.getElementById('studentIntake');
         
         if (programSelect) {
-            programSelect.addEventListener('change', () => this.generateRegNumber());
-        }
-        if (intakeSelect) {
-            intakeSelect.addEventListener('change', () => this.generateRegNumber());
+            // Remove existing listeners by cloning
+            const newProgramSelect = programSelect.cloneNode(true);
+            if (programSelect.parentNode) {
+                programSelect.parentNode.replaceChild(newProgramSelect, programSelect);
+            }
+            
+            newProgramSelect.addEventListener('change', () => {
+                console.log('🔄 Program changed, updating registration number');
+                this.generateRegNumber();
+            });
         }
         
-        // Modal close buttons - FIXED
+        if (intakeSelect) {
+            const newIntakeSelect = intakeSelect.cloneNode(true);
+            if (intakeSelect.parentNode) {
+                intakeSelect.parentNode.replaceChild(newIntakeSelect, intakeSelect);
+            }
+            
+            newIntakeSelect.addEventListener('change', () => {
+                console.log('🔄 Intake year changed, updating registration number');
+                this.generateRegNumber();
+            });
+        }
+        
+        // Modal close buttons
         document.querySelectorAll('[data-modal-close]').forEach(btn => {
             const newBtn = btn.cloneNode(true);
             if (btn.parentNode) {
@@ -585,7 +651,7 @@ class StudentManager {
             });
         });
         
-        // Also fix the X button in modal header
+        // Fix the X button in modal header
         const closeXBtn = document.querySelector('.modal-header .close');
         if (closeXBtn) {
             const newCloseBtn = closeXBtn.cloneNode(true);
@@ -623,7 +689,6 @@ class StudentManager {
     _setupActionButtonListeners() {
         const addStudentBtn = document.querySelector('.action-btn.primary, [data-action="add-student"]');
         if (addStudentBtn) {
-            // Clone and replace to remove existing listeners
             const newBtn = addStudentBtn.cloneNode(true);
             if (addStudentBtn.parentNode) {
                 addStudentBtn.parentNode.replaceChild(newBtn, addStudentBtn);
@@ -636,7 +701,6 @@ class StudentManager {
                 this.openStudentModal();
             });
             
-            // Remove onclick attribute if it exists
             newBtn.removeAttribute('onclick');
         }
         
@@ -1288,7 +1352,6 @@ class StudentManager {
             event.preventDefault();
             event.stopPropagation();
             
-            // SAFELY call stopImmediatePropagation
             if (typeof event.stopImmediatePropagation === 'function') {
                 event.stopImmediatePropagation();
             }
@@ -1302,14 +1365,12 @@ class StudentManager {
         const originalText = submitBtn ? submitBtn.innerHTML : 'Register Student';
         
         try {
-            // ✅ Show loading state IMMEDIATELY
             if (submitBtn) {
                 submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
                 submitBtn.disabled = true;
                 console.log('⏳ Button set to processing state');
             }
             
-            // ✅ ENSURE registration number exists
             const regNumberInput = document.getElementById('studentRegNumber');
             if (!regNumberInput || !regNumberInput.value) {
                 console.warn('⚠️ Registration number missing, generating now...');
@@ -1317,22 +1378,18 @@ class StudentManager {
                 await new Promise(resolve => setTimeout(resolve, 50));
             }
             
-            // ✅ Validate form
             if (!this._validateStudentForm()) {
                 throw new Error('Please fill in all required fields');
             }
             
-            // ✅ Prepare form data
             const formData = this._prepareFormData();
             console.log('📦 Form data prepared');
             
-            // ✅ AUTO-GENERATE EMAIL IF MISSING
             if (!formData.email) {
                 formData.email = `${formData.reg_number.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}@student.teeportal.edu`;
                 console.log('📧 Auto-generated email:', formData.email);
             }
             
-            // ✅ Save to database
             let result;
             if (this.currentEditId) {
                 result = await this.db.updateStudent(this.currentEditId, formData);
@@ -1342,14 +1399,11 @@ class StudentManager {
                 console.log('✅ Student added successfully');
             }
             
-            // ✅ Clear cache
             this.cache.students = null;
             
-            // ✅ Close modal
             this.ui.closeModal('studentModal');
             console.log('✅ Modal closed');
             
-            // ✅ Reset button state
             if (submitBtn) {
                 submitBtn.innerHTML = this.currentEditId 
                     ? '<i class="fas fa-save"></i> Update Student'
@@ -1357,17 +1411,13 @@ class StudentManager {
                 submitBtn.disabled = false;
             }
             
-            // ✅ Reset form
             this._resetStudentForm();
             
-            // ✅ Show success message
             const regNumber = result?.reg_number || formData.reg_number;
             this.ui.showToast(`✅ Student ${this.currentEditId ? 'updated' : 'registered'}! Reg: ${regNumber}`, 'success');
             
-            // ✅ Refresh table
             await this.loadStudentsTable();
             
-            // ✅ Reset edit ID
             this.currentEditId = null;
             
             console.log('✅ Student save completed successfully');
@@ -1376,10 +1426,8 @@ class StudentManager {
         } catch (error) {
             console.error('❌ Error saving student:', error);
             
-            // ✅ Show user-friendly error message
             this.ui.showToast(error.message || 'Failed to save student', 'error');
             
-            // ✅ ALWAYS reset button on error - NEVER GETS STUCK!
             if (submitBtn) {
                 submitBtn.innerHTML = this.currentEditId 
                     ? '<i class="fas fa-save"></i> Update Student'
@@ -1422,7 +1470,6 @@ class StudentManager {
      * Prepare form data - WITH EMAIL AUTO-GENERATION
      */
     _prepareFormData() {
-        // ENSURE registration number exists
         const regNumberInput = document.getElementById('studentRegNumber');
         if (regNumberInput && !regNumberInput.value) {
             console.warn('⚠️ Registration number is empty, generating emergency number...');
@@ -1488,14 +1535,13 @@ class StudentManager {
             regDate = today.toISOString().split('T')[0];
         }
         
-        // AUTO-GENERATE EMAIL FROM REGISTRATION NUMBER
         const cleanRegNumber = regNumber.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
         const email = `${cleanRegNumber}@student.teeportal.edu`;
         
         return {
             reg_number: regNumber,
             full_name: document.getElementById('studentName')?.value.trim() || '',
-            email: email, // Auto-generated email
+            email: email,
             phone: phone,
             county: county,
             region: region,
@@ -1512,15 +1558,47 @@ class StudentManager {
     }
     
     /**
-     * Open student modal
+     * Open student modal - FIXED: Ensure dropdowns are enabled and reg number generated
      */
     openStudentModal() {
         console.log('📂 Opening student modal');
         this._resetStudentForm();
+        
+        // CRITICAL FIX: Ensure program dropdown is enabled
+        const programSelect = document.getElementById('studentProgram');
+        if (programSelect) {
+            programSelect.disabled = false;
+            programSelect.removeAttribute('disabled');
+            programSelect.style.backgroundColor = '#ffffff';
+            programSelect.style.opacity = '1';
+            programSelect.style.pointerEvents = 'auto';
+            programSelect.style.cursor = 'pointer';
+            console.log('✅ Program dropdown enabled');
+        }
+        
+        // Ensure intake dropdown is enabled
+        const intakeSelect = document.getElementById('studentIntake');
+        if (intakeSelect) {
+            intakeSelect.disabled = false;
+            intakeSelect.removeAttribute('disabled');
+        }
+        
+        // Ensure centre dropdown is enabled
+        const centreSelect = document.getElementById('studentCentre');
+        if (centreSelect) {
+            centreSelect.disabled = false;
+            centreSelect.removeAttribute('disabled');
+        }
+        
         this.ui.openModal('studentModal', {
             onOpen: () => {
                 document.getElementById('studentName')?.focus();
                 console.log('✅ Modal opened, focus set to student name');
+                
+                // Generate registration number after modal is open
+                setTimeout(() => {
+                    this.generateRegNumber();
+                }, 100);
             }
         });
     }
@@ -1539,20 +1617,13 @@ class StudentManager {
         
         form.reset();
         
-        // Reset registration number - THEN GENERATE NEW ONE
         const regNumberInput = document.getElementById('studentRegNumber');
         if (regNumberInput) {
             regNumberInput.readOnly = false;
             regNumberInput.style.backgroundColor = '';
             regNumberInput.value = '';
-            
-            // Generate new registration number immediately
-            setTimeout(() => {
-                this.generateRegNumber();
-            }, 50);
         }
         
-        // Fix date field - set to today
         const regDateField = document.getElementById('studentRegDate');
         if (regDateField) {
             const today = new Date();
@@ -1563,34 +1634,30 @@ class StudentManager {
             console.log('✅ Date field set to:', regDateField.value);
         }
         
-        // Reset modal title
         const modalTitle = document.getElementById('studentModalTitle');
         if (modalTitle) {
             modalTitle.textContent = 'Register New Student';
             modalTitle.innerHTML = '<i class="fas fa-user-plus"></i> Register New Student';
         }
         
-        // Reset submit button
         const submitBtn = document.querySelector('#studentForm button[type="submit"]');
         if (submitBtn) {
             submitBtn.innerHTML = '<i class="fas fa-plus"></i> Register Student';
             submitBtn.disabled = false;
         }
         
-        // Reset edit ID
         this.currentEditId = null;
         
-        // Repopulate dropdowns
         this._populateIntakeYears();
         
         console.log('✅ Form reset complete');
     }
     
     /**
-     * Generate registration number - PERMANENT FIX! 100% RELIABLE!
+     * FIX: Generate registration number based on selected program - 100% RELIABLE!
      */
     async generateRegNumber() {
-        console.log('🔢 Generating registration number...');
+        console.log('🔢 Generating registration number based on program selection...');
         
         try {
             const programSelect = document.getElementById('studentProgram');
@@ -1619,10 +1686,24 @@ class StudentManager {
                 }
             }
             
-            // ✅ USE DEFAULTS IF STILL EMPTY - NEVER FAIL!
-            if (!programCode) {
-                programCode = 'TEE';
-                console.log('⚠️ Using default program: TEE');
+            // CRITICAL FIX: Get program code from selected option
+            if (!programCode || programCode === '') {
+                // Check if there's any selected option
+                const selectedOption = programSelect.options[programSelect.selectedIndex];
+                if (selectedOption && selectedOption.value) {
+                    programCode = selectedOption.value;
+                    console.log('📋 Using selected program:', programCode);
+                } else {
+                    // Try to get first available program
+                    const firstOption = programSelect.querySelector('option:not([value=""])');
+                    if (firstOption) {
+                        programCode = firstOption.value;
+                        console.log('📋 Using first available program:', programCode);
+                    } else {
+                        programCode = 'TEE';
+                        console.log('⚠️ Using default program: TEE');
+                    }
+                }
             }
             
             if (!intakeYear) {
@@ -1630,10 +1711,15 @@ class StudentManager {
                 console.log('⚠️ Using default year:', intakeYear);
             }
             
-            // Clean program code
-            const cleanProgramCode = programCode.split('-')[0].trim();
+            // Clean program code - handle format like "DIT - Diploma in IT"
+            let cleanProgramCode = programCode;
+            if (programCode && programCode.includes(' - ')) {
+                cleanProgramCode = programCode.split(' - ')[0].trim();
+            } else if (programCode && programCode.includes('-')) {
+                cleanProgramCode = programCode.split('-')[0].trim();
+            }
             
-            // ✅ TIMESTAMP METHOD - 100% RELIABLE, NO DATABASE CALLS!
+            // Generate unique registration number using timestamp
             const timestamp = Date.now().toString().slice(-6);
             const random = Math.floor(Math.random() * 100).toString().padStart(2, '0');
             const regNumber = `${cleanProgramCode}-${intakeYear}-${timestamp}${random}`;
@@ -1644,13 +1730,13 @@ class StudentManager {
             // Update format display
             const formatSpan = document.getElementById('regNumberFormat');
             if (formatSpan) {
-                formatSpan.textContent = `${cleanProgramCode}-${intakeYear}-###`;
+                formatSpan.textContent = `${cleanProgramCode}-${intakeYear}-######`;
             }
             
         } catch (error) {
             console.error('❌ Error generating registration number:', error);
             
-            // 💪 ULTIMATE FALLBACK - Even if everything fails
+            // ULTIMATE FALLBACK
             const regNumberInput = document.getElementById('studentRegNumber');
             if (regNumberInput) {
                 const fallbackReg = `TEE-${new Date().getFullYear()}-${Date.now().toString().slice(-5)}`;
@@ -2130,8 +2216,8 @@ class StudentManager {
         console.log(`✅ Select all toggled: ${checked}`);
     }
 }
+
 // ========== PERMANENT FORM HANDLER FIX - ADD TO VERY END OF students.js ==========
-// This ensures the form handler is ALWAYS attached and NEVER gets stuck
 (function() {
     console.log('🔧 Installing permanent form handler from within students.js');
     
@@ -2226,6 +2312,7 @@ class StudentManager {
     
     console.log('✅ Permanent fix installed in students.js');
 })();
+
 // ============================================
 // GLOBAL FORM SUBMIT FIX
 // ============================================
@@ -2244,7 +2331,6 @@ class StudentManager {
             newForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
-                // SAFELY call stopImmediatePropagation
                 if (typeof e.stopImmediatePropagation === 'function') {
                     e.stopImmediatePropagation();
                 }
@@ -2366,8 +2452,8 @@ if (typeof window !== 'undefined') {
         }
     };
 }
+
 // ========== PERMANENT CONSOLE FIX ==========
-// Add this at the VERY END of your students.js file
 (function() {
     console.log('🔧 Installing permanent console fix');
     
