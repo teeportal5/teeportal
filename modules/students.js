@@ -1,4 +1,4 @@
-// modules/students.js - COMPLETE FIXED VERSION (EMAIL REMOVED)
+// modules/students.js - COMPLETE FIXED VERSION (ALL ISSUES RESOLVED)
 class StudentManager {
     constructor(db, app = null) {
         this.db = db;
@@ -231,6 +231,10 @@ class StudentManager {
             newForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                // SAFELY call stopImmediatePropagation
+                if (typeof e.stopImmediatePropagation === 'function') {
+                    e.stopImmediatePropagation();
+                }
                 console.log('📝 Form submitted via direct handler');
                 this.saveStudent(e);
             });
@@ -511,6 +515,10 @@ class StudentManager {
             if (e.target.id === 'studentForm') {
                 e.preventDefault();
                 e.stopPropagation();
+                // SAFELY call stopImmediatePropagation
+                if (typeof e.stopImmediatePropagation === 'function') {
+                    e.stopImmediatePropagation();
+                }
                 console.log('📝 Form submitted via delegation');
                 this.saveStudent(e);
             }
@@ -818,7 +826,7 @@ class StudentManager {
     }
     
     /**
-     * Create student row - COMPACT VERSION (EMAIL REMOVED)
+     * Create student row - COMPACT VERSION
      */
     _createStudentRow(student, index) {
         const programDisplay = this._getProgramDisplayName(student.program);
@@ -848,6 +856,11 @@ class StudentManager {
                                 ${this._escapeHtml(student.full_name)}
                             </div>
                             <div style="display: flex; gap: 12px; font-size: 0.75rem; color: #64748b;">
+                                ${student.email ? `
+                                    <span style="display: flex; align-items: center; gap: 3px;">
+                                        <i class="fas fa-envelope" style="font-size: 0.7rem;"></i> ${this._escapeHtml(student.email)}
+                                    </span>
+                                ` : ''}
                                 ${student.phone ? `
                                     <span style="display: flex; align-items: center; gap: 3px;">
                                         <i class="fas fa-phone" style="font-size: 0.7rem;"></i> ${this._escapeHtml(student.phone)}
@@ -1267,14 +1280,18 @@ class StudentManager {
     }
     
     /**
-     * Save student - COMPLETE FIX! Button NEVER gets stuck! (EMAIL REMOVED)
+     * Save student - COMPLETE FIX! Button NEVER gets stuck!
      */
     async saveStudent(event) {
-        // PREVENT ANY AND ALL DEFAULT BEHAVIOR
+        // PREVENT ANY AND ALL DEFAULT BEHAVIOR - SAFELY
         if (event) {
             event.preventDefault();
             event.stopPropagation();
-            event.stopImmediatePropagation();
+            
+            // SAFELY call stopImmediatePropagation
+            if (typeof event.stopImmediatePropagation === 'function') {
+                event.stopImmediatePropagation();
+            }
         }
         
         console.log('\n==========================================');
@@ -1300,7 +1317,7 @@ class StudentManager {
                 await new Promise(resolve => setTimeout(resolve, 50));
             }
             
-            // ✅ Validate form (email field removed from validation)
+            // ✅ Validate form
             if (!this._validateStudentForm()) {
                 throw new Error('Please fill in all required fields');
             }
@@ -1308,6 +1325,12 @@ class StudentManager {
             // ✅ Prepare form data
             const formData = this._prepareFormData();
             console.log('📦 Form data prepared');
+            
+            // ✅ AUTO-GENERATE EMAIL IF MISSING
+            if (!formData.email) {
+                formData.email = `${formData.reg_number.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}@student.teeportal.edu`;
+                console.log('📧 Auto-generated email:', formData.email);
+            }
             
             // ✅ Save to database
             let result;
@@ -1367,7 +1390,7 @@ class StudentManager {
     }
     
     /**
-     * Validate student form (EMAIL FIELD REMOVED)
+     * Validate student form
      */
     _validateStudentForm() {
         const requiredFields = [
@@ -1396,7 +1419,7 @@ class StudentManager {
     }
     
     /**
-     * Prepare form data - WITH REG NUMBER VALIDATION (EMAIL REMOVED)
+     * Prepare form data - WITH EMAIL AUTO-GENERATION
      */
     _prepareFormData() {
         // ENSURE registration number exists
@@ -1465,9 +1488,14 @@ class StudentManager {
             regDate = today.toISOString().split('T')[0];
         }
         
+        // AUTO-GENERATE EMAIL FROM REGISTRATION NUMBER
+        const cleanRegNumber = regNumber.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        const email = `${cleanRegNumber}@student.teeportal.edu`;
+        
         return {
             reg_number: regNumber,
             full_name: document.getElementById('studentName')?.value.trim() || '',
+            email: email, // Auto-generated email
             phone: phone,
             county: county,
             region: region,
@@ -1498,7 +1526,7 @@ class StudentManager {
     }
     
     /**
-     * Reset student form - FIXED (EMAIL REMOVED)
+     * Reset student form
      */
     _resetStudentForm() {
         console.log('🔄 Resetting student form...');
@@ -1560,7 +1588,6 @@ class StudentManager {
     
     /**
      * Generate registration number - PERMANENT FIX! 100% RELIABLE!
-     * USES TIMESTAMP METHOD - NO DATABASE DEPENDENCY!
      */
     async generateRegNumber() {
         console.log('🔢 Generating registration number...');
@@ -1670,7 +1697,7 @@ class StudentManager {
     }
     
     /**
-     * Populate edit form (EMAIL REMOVED)
+     * Populate edit form
      */
     async _populateEditForm(student) {
         console.log('🔄 Populating edit form with student data');
@@ -1734,7 +1761,7 @@ class StudentManager {
     }
     
     /**
-     * View student (EMAIL REMOVED)
+     * View student
      */
     async viewStudent(studentId) {
         console.log('👁️ Viewing student:', studentId);
@@ -1770,6 +1797,7 @@ class StudentManager {
                                 <div style="display: grid; gap: 15px;">
                                     <div>
                                         <h4>Personal Information</h4>
+                                        <p><strong>Email:</strong> ${student.email || 'N/A'}</p>
                                         <p><strong>Phone:</strong> ${student.phone || 'N/A'}</p>
                                         <p><strong>Gender:</strong> ${student.gender || 'N/A'}</p>
                                         <p><strong>County:</strong> ${student.county || 'N/A'}</p>
@@ -2121,7 +2149,10 @@ class StudentManager {
             newForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
-                e.stopImmediatePropagation();
+                // SAFELY call stopImmediatePropagation
+                if (typeof e.stopImmediatePropagation === 'function') {
+                    e.stopImmediatePropagation();
+                }
                 console.log('📝 Global form handler: submission detected');
                 
                 if (window.app && window.app.students) {
