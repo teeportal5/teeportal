@@ -2742,301 +2742,55 @@ document.addEventListener('DOMContentLoaded', function() {
         </main>
     </div>
     
-<!-- Mobile Menu Toggle Button -->
+ <!-- Mobile Menu Toggle Button -->
 <button class="mobile-menu-toggle" id="mobileMenuToggle">
     <i class="fas fa-bars"></i>
 </button>
 
 <!-- JavaScript Modules - CORRECT ORDER -->
-<!-- 1. Database Layer (Load FIRST) -->
-<script src="modules/database.js"></script>
+    <!-- 1. Database Layer (Load FIRST) -->
+    <script src="modules/database.js"></script>
 
-<!-- 2. Core Framework -->
-<script src="modules/ui.js"></script>
-<script src="modules/modal-manager.js"></script>
-<script src="modules/settings.js"></script>
+    <!-- 2. Core Framework -->
+    <script src="modules/ui.js"></script>
+    <script src="modules/modal-manager.js"></script>
+    <script src="modules/settings.js"></script>
 
-<!-- 3. Data Modules -->
-<script src="modules/students.js"></script>
-<script src="modules/programs.js"></script>
-<script src="modules/courses.js"></script>
-<script src="modules/marks.js"></script>
-<script src="modules/centres.js"></script>
+    <!-- 3. Data Modules -->
+    <script src="modules/students.js"></script>
+    <script src="modules/programs.js"></script>
+    <script src="modules/courses.js"></script>
+    <script src="modules/marks.js"></script>
+    <script src="modules/centres.js"></script>
 
-<!-- 4. Feature Modules -->
-<script src="modules/dashboard.js"></script>
-<script src="modules/reports.js"></script>
-<script src="modules/transcripts.js"></script>
-<script src="modules/profile.js"></script>
+    <!-- 4. Feature Modules -->
+    <script src="modules/dashboard.js"></script>
+    <script src="modules/reports.js"></script>
+    <script src="modules/transcripts.js"></script>
+    <script src="modules/profile.js"></script>
 
-<!-- 5. Main Application (MUST BE LAST) -->
-<script src="app.js"></script>
+    <!-- 5. Main Application (MUST BE LAST) -->
+    <script src="app.js"></script>
 
-<script>
-    // ========== SUPABASE CONFIGURATION ==========
-    const SUPABASE_URL = 'https://kmkjsessuzdfadlmndyr.supabase.co'; // REPLACE WITH YOUR URL
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtta2pzZXNzdXpkZmFkbG1uZHlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYyNTA1MzUsImV4cCI6MjA4MTgyNjUzNX0.16m_thmf2Td8uB5lan8vZDLkGkWIlftaxSOroqvDkU4'; // REPLACE WITH YOUR ANON KEY
-    
-    // Initialize Supabase client
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    
-    // ========== CHECK AUTHENTICATION ON PAGE LOAD ==========
-    (async function() {
-        try {
-            console.log('🔐 Checking authentication...');
-            
-            // Check for existing session in Supabase first
-            const { data: { session }, error } = await supabase.auth.getSession();
-            
-            if (error) throw error;
-            
-            if (!session) {
-                // Also check localStorage/sessionStorage as fallback
-                const isLoggedIn = sessionStorage.getItem('tee_logged_in') || localStorage.getItem('tee_logged_in');
-                
-                if (!isLoggedIn) {
-                    console.log('❌ No active session, redirecting to login...');
-                    window.location.href = 'login.html';
-                    return;
-                }
-                
-                // Get user data from storage
-                const userData = JSON.parse(sessionStorage.getItem('tee_user') || localStorage.getItem('tee_user') || '{}');
-                if (userData && Object.keys(userData).length > 0) {
-                    updateUserInfo(userData);
-                } else {
-                    window.location.href = 'login.html';
-                    return;
-                }
-            } else {
-                // User is logged in via Supabase
-                console.log('✅ Active Supabase session found');
-                
-                // Get user profile data
-                const { data: profile, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', session.user.id)
-                    .single();
-                
-                if (profileError && profileError.code !== 'PGRST116') {
-                    console.warn('Profile fetch warning:', profileError);
-                }
-                
-                const userData = {
-                    id: session.user.id,
-                    email: session.user.email,
-                    full_name: profile?.full_name || session.user.user_metadata?.full_name || 'User',
-                    name: profile?.full_name || session.user.user_metadata?.full_name || 'User',
-                    role: profile?.role || session.user.user_metadata?.role || 'Administrator',
-                    centre: profile?.centre || session.user.user_metadata?.centre || 'Main Centre'
-                };
-                
-                // Update UI with user data
-                updateUserInfo(userData);
+   <script>
+    // Ensure app exists
+    if (!window.app) {
+        window.app = {
+            initialize: function() {
+                return Promise.resolve();
             }
-            
-            // Initialize the rest of your app
-            initializeApp();
-            
-        } catch (error) {
-            console.error('❌ Auth check error:', error);
-            window.location.href = 'login.html';
-        }
-    })();
-    
-    // ========== UPDATE USER INFO IN UI ==========
-    function updateUserInfo(user) {
-        console.log('👤 Updating user info:', user);
-        
-        // Update sidebar
-        const nameElement = document.getElementById('sidebarUserName');
-        const roleElement = document.getElementById('sidebarUserRole');
-        const centreElement = document.getElementById('sidebarUserCentre');
-        
-        if (nameElement) nameElement.textContent = user.full_name || user.name || 'User';
-        if (roleElement) roleElement.textContent = user.role || 'Administrator';
-        if (centreElement) centreElement.textContent = user.centre || 'Main Centre';
-        
-        // Update welcome message
-        const welcomeElement = document.querySelector('.dashboard-welcome h2');
-        if (welcomeElement) {
-            const firstName = (user.full_name || user.name || 'User').split(' ')[0];
-            welcomeElement.innerHTML = `Welcome Back, ${firstName}!`;
-        }
-        
-        // Update profile section
-        const profileName = document.getElementById('profileUserName');
-        const profileRole = document.getElementById('profileUserRole');
-        const profileEmail = document.getElementById('profileUserEmail');
-        const profileCentre = document.getElementById('profileUserCentre');
-        
-        if (profileName) profileName.textContent = user.full_name || user.name || 'User';
-        if (profileRole) profileRole.textContent = user.role || 'Administrator';
-        if (profileEmail) profileEmail.textContent = user.email || 'user@teeportal.edu';
-        if (profileCentre) profileCentre.textContent = user.centre || 'Main Centre';
-        
-        // Update profile form
-        const profileNameInput = document.getElementById('profileName');
-        const profileEmailInput = document.getElementById('profileEmail');
-        const profileCentreSelect = document.getElementById('profileCentre');
-        
-        if (profileNameInput) profileNameInput.value = user.full_name || user.name || '';
-        if (profileEmailInput) profileEmailInput.value = user.email || '';
-        
-        // Load centres and select user's centre
-        if (profileCentreSelect) {
-            loadCentresForProfile(user.centre);
-        }
-    }
-    
-    // ========== LOAD CENTRES FOR PROFILE ==========
-    async function loadCentresForProfile(selectedCentre) {
-        try {
-            const { data, error } = await supabase
-                .from('centres')
-                .select('*')
-                .order('name');
-            
-            if (error) throw error;
-            
-            const select = document.getElementById('profileCentre');
-            if (!select) return;
-            
-            select.innerHTML = '<option value="">Select Centre</option>';
-            
-            if (data && data.length > 0) {
-                data.forEach(centre => {
-                    const option = document.createElement('option');
-                    option.value = centre.id;
-                    option.textContent = centre.name;
-                    if (centre.name === selectedCentre || centre.id === selectedCentre) {
-                        option.selected = true;
-                    }
-                    select.appendChild(option);
-                });
-            }
-        } catch (error) {
-            console.error('Error loading centres:', error);
-        }
-    }
-    
-    // ========== INITIALIZE APPLICATION ==========
-    function initializeApp() {
-        console.log('🚀 Initializing application...');
-        
-        // Set current date
-        const dateElement = document.getElementById('currentDate');
-        if (dateElement) {
-            dateElement.textContent = new Date().toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-        }
-        
-        // Ensure app object exists
-        if (!window.app) {
-            window.app = {
-                initialize: function() { return Promise.resolve(); }
-            };
-        }
-        
-        // Load initial data after a short delay
-        setTimeout(() => {
-            // Load dashboard data
-            if (window.app?.dashboard?.updateDashboard) {
-                window.app.dashboard.updateDashboard();
-            }
-            
-            // Check if students section is active
-            if (document.getElementById('students')?.classList.contains('active')) {
-                if (window.app?.students?.loadStudentsTable) {
-                    window.app.students.loadStudentsTable();
-                }
-            }
-        }, 500);
-    }
-    
-    // ========== LOGOUT FUNCTION ==========
-    window.logout = async function() {
-        console.log('🚪 Logging out...');
-        
-        try {
-            // Sign out from Supabase
-            await supabase.auth.signOut();
-        } catch (error) {
-            console.error('Logout error:', error);
-        }
-        
-        // Clear all storage
-        sessionStorage.removeItem('tee_logged_in');
-        sessionStorage.removeItem('tee_user');
-        localStorage.removeItem('tee_logged_in');
-        localStorage.removeItem('tee_user');
-        
-        // Show toast message
-        showToast('Logged out successfully', 'info');
-        
-        // Redirect to login after short delay
-        setTimeout(() => {
-            window.location.href = 'login.html';
-        }, 500);
-    };
-    
-    // ========== SHOW TOAST NOTIFICATION ==========
-    function showToast(message, type = 'info') {
-        const toastContainer = document.getElementById('toastContainer');
-        if (!toastContainer) return;
-        
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        
-        const icons = {
-            success: 'fa-check-circle',
-            error: 'fa-exclamation-circle',
-            warning: 'fa-exclamation-triangle',
-            info: 'fa-info-circle'
         };
-        
-        toast.innerHTML = `
-            <i class="fas ${icons[type]}"></i>
-            <span>${message}</span>
-            <button onclick="this.parentElement.remove()">
-                <i class="fas fa-times"></i>
-            </button>
-        `;
-        
-        toastContainer.appendChild(toast);
-        
-        setTimeout(() => {
-            if (toast.parentElement) {
-                toast.remove();
-            }
-        }, 5000);
     }
-    
-    // ========== ADD LOGOUT BUTTON TO SIDEBAR ==========
+
+    // Mobile menu toggle
     document.addEventListener('DOMContentLoaded', function() {
-        // Add logout button to sidebar
-        const sidebarFooter = document.querySelector('.sidebar-footer .user-profile');
-        if (sidebarFooter && !document.querySelector('.btn-logout')) {
-            const logoutBtn = document.createElement('button');
-            logoutBtn.className = 'btn-logout';
-            logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i>';
-            logoutBtn.title = 'Logout';
-            logoutBtn.onclick = window.logout;
-            sidebarFooter.appendChild(logoutBtn);
-        }
-        
-        // Mobile menu toggle
         const mobileToggle = document.getElementById('mobileMenuToggle');
         const sidebar = document.querySelector('.sidebar');
         
         if (mobileToggle && sidebar) {
             mobileToggle.addEventListener('click', function() {
                 sidebar.classList.toggle('open');
+                // Update icon
                 const icon = this.querySelector('i');
                 if (sidebar.classList.contains('open')) {
                     icon.className = 'fas fa-times';
@@ -3074,13 +2828,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Initialize sidebar
+        // Initialize
         if (window.innerWidth >= 1024) {
             sidebar.classList.add('open');
         }
     });
-    
-    // ========== CLEAN SHOW SECTION FUNCTION ==========
+
+    // Clean showSection function - NO INLINE STYLES
     window.showSection = function(sectionId) {
         try {
             console.log('Switching to section:', sectionId);
@@ -3088,34 +2842,35 @@ document.addEventListener('DOMContentLoaded', function() {
             // Update URL hash
             history.replaceState(null, null, '#' + sectionId);
             
-            // Remove active class from all sections
+            // 1. Remove active class from all sections (CSS will handle hiding)
             document.querySelectorAll('.content-section').forEach(section => {
                 section.classList.remove('active');
             });
             
-            // Remove active class from all nav links
+            // 2. Remove active class from all nav links
             document.querySelectorAll('.nav-link').forEach(link => {
                 link.classList.remove('active');
             });
             
-            // Add active class to target section
+            // 3. Add active class to target section (CSS will handle showing)
             const targetSection = document.getElementById(sectionId);
             if (targetSection) {
                 console.log('✅ Found section, showing:', sectionId);
                 targetSection.classList.add('active');
             } else {
                 console.error('❌ Section not found:', sectionId);
+                // Fallback to dashboard
                 showSection('dashboard');
                 return;
             }
             
-            // Add active class to nav link
+            // 4. Add active class to nav link
             const navLink = document.querySelector(`a[href="#${sectionId}"]`);
             if (navLink) {
                 navLink.classList.add('active');
             }
             
-            // Load section data
+            // 5. Load section data if needed
             setTimeout(() => {
                 lazyLoadSectionData(sectionId);
             }, 100);
@@ -3125,7 +2880,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
-    // ========== LAZY LOAD SECTION DATA ==========
     function lazyLoadSectionData(sectionId) {
         const app = window.app;
         if (!app) {
@@ -3174,7 +2928,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // ========== HANDLE HASH CHANGES ==========
+    // Handle hash changes
     window.addEventListener('hashchange', function() {
         const hash = window.location.hash.substring(1);
         if (hash && document.getElementById(hash)) {
@@ -3182,230 +2936,67 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // ========== INITIALIZE ON LOAD ==========
+    // Initialize on load
     document.addEventListener('DOMContentLoaded', function() {
         const initialHash = window.location.hash.substring(1);
         
-        // Remove any inline styles
+        // First, remove any inline styles that might be there
         document.querySelectorAll('.content-section, .sidebar, .main-content').forEach(el => {
             el.removeAttribute('style');
         });
         
-        // Show initial section
-        if (initialHash && document.getElementById(initialHash)) {
-            showSection(initialHash);
+        if (window.app && window.app.initialize) {
+            window.app.initialize().then(() => {
+                // Show section after app loads
+                setTimeout(() => {
+                    if (initialHash && document.getElementById(initialHash)) {
+                        showSection(initialHash);
+                    } else {
+                        showSection('dashboard');
+                    }
+                }, 500);
+            }).catch(error => {
+                console.error('App init failed:', error);
+                showSection('dashboard');
+            });
         } else {
-            showSection('dashboard');
+            // If no app, still show dashboard
+            if (initialHash && document.getElementById(initialHash)) {
+                showSection(initialHash);
+            } else {
+                showSection('dashboard');
+            }
         }
     });
     
-    // ========== STUDENT MANAGER HELPER FUNCTIONS ==========
-    window.getStudentManager = function() {
-        return window.app?.students || window.studentManager;
-    };
-    
-    window.safeGenerateRegNumber = function() {
-        const manager = window.getStudentManager();
-        if (manager && typeof manager.generateRegNumber === 'function') {
-            manager.generateRegNumber();
-        } else {
-            console.warn('Student manager not available yet');
-            const program = document.getElementById('studentProgram')?.value;
-            const intake = document.getElementById('studentIntake')?.value;
-            if (program && intake) {
-                const programCode = program.substring(0, 3).toUpperCase();
-                const regInput = document.getElementById('studentRegNumber');
-                if (regInput) {
-                    regInput.value = `${programCode}-${intake}-001`;
+    // Add this JavaScript fallback
+    if (typeof window !== 'undefined') {
+        // Try to get from app first, then fallback to global
+        window.getStudentManager = function() {
+            return window.app?.students || window.studentManager;
+        };
+        
+        // Safe function call
+        window.safeGenerateRegNumber = function() {
+            const manager = window.getStudentManager();
+            if (manager && typeof manager.generateRegNumber === 'function') {
+                manager.generateRegNumber();
+            } else {
+                console.warn('Student manager not available yet');
+                // Try to find and manually trigger generation
+                const program = document.getElementById('studentProgram')?.value;
+                const intake = document.getElementById('studentIntake')?.value;
+                if (program && intake) {
+                    // Create a simple reg number as fallback
+                    const programCode = program.substring(0, 3).toUpperCase();
+                    const regInput = document.getElementById('studentRegNumber');
+                    if (regInput) {
+                        regInput.value = `${programCode}-${intake}-001`;
+                    }
                 }
             }
-        }
-    };
-    
-    // ========== EXPORT FUNCTIONS TO WINDOW ==========
-    window.openStudentModal = function() {
-        if (window.app?.students) {
-            window.app.students.openStudentModal();
-        } else {
-            console.warn('Student module not loaded');
-        }
-    };
-    
-    window.filterStudents = function(filter) {
-        if (window.app?.students) {
-            window.app.students.filterStudents(filter);
-        }
-    };
-    
-    window.toggleAdvancedFilters = function() {
-        const filters = document.getElementById('advancedFilters');
-        if (filters) {
-            filters.style.display = filters.style.display === 'none' ? 'block' : 'none';
-        }
-    };
-    
-    window.clearSearch = function() {
-        document.getElementById('studentSearch').value = '';
-        if (window.app?.students) {
-            window.app.students.clearSearch();
-        }
-    };
-    
-    window.clearAllFilters = function() {
-        if (window.app?.students) {
-            window.app.students.clearAllFilters();
-        }
-    };
-    
-    window.applyFilters = function() {
-        if (window.app?.students) {
-            window.app.students.applyFilters();
-        }
-    };
-    
-    window.setViewMode = function(mode) {
-        if (window.app?.students) {
-            window.app.students.setViewMode(mode);
-        }
-    };
-    
-    window.toggleSelectAll = function() {
-        if (window.app?.students) {
-            window.app.students.toggleSelectAll();
-        }
-    };
-    
-    window.previousPage = function() {
-        if (window.app?.students) {
-            window.app.students.previousPage();
-        }
-    };
-    
-    window.nextPage = function() {
-        if (window.app?.students) {
-            window.app.students.nextPage();
-        }
-    };
-    
-    window.changePageSize = function(size) {
-        if (window.app?.students) {
-            window.app.students.changePageSize(size);
-        }
-    };
-    
-    window.refreshInsights = function() {
-        if (window.app?.students) {
-            window.app.students.refreshInsights();
-        }
-    };
-    
-    // Program functions
-    window.openProgramModal = function() {
-        if (window.app?.programs) {
-            window.app.programs.openProgramModal();
-        }
-    };
-    
-    // Course functions
-    window.openCourseModal = function() {
-        if (window.app?.courses) {
-            window.app.courses.openCourseModal();
-        }
-    };
-    
-    window.setCoursesView = function(view) {
-        if (window.app?.courses) {
-            window.app.courses.setView(view);
-        }
-    };
-    
-    // Centre functions
-    window.openCentreModal = function() {
-        if (window.app?.centres) {
-            window.app.centres.openCentreModal();
-        }
-    };
-    
-    window.exportCentres = function() {
-        if (window.app?.centres) {
-            window.app.centres.exportCentres();
-        }
-    };
-    
-    window.refreshCentres = function() {
-        if (window.app?.centres) {
-            window.app.centres.refreshCentres();
-        }
-    };
-    
-    window.closeCentreModal = function() {
-        if (window.app?.centres) {
-            window.app.centres.closeCentreModal();
-        }
-    };
-    
-    window.saveCentre = function(event) {
-        event.preventDefault();
-        if (window.app?.centres) {
-            window.app.centres.saveCentre(event);
-        }
-    };
-    
-    // Marks functions
-    window.openBulkGradeModal = function() {
-        if (window.app?.marks) {
-            window.app.marks.openBulkGradeModal();
-        }
-    };
-    
-    window.closeBulkGradeModal = function() {
-        if (window.app?.marks) {
-            window.app.marks.closeBulkGradeModal();
-        }
-    };
-    
-    window.selectAllStudents = function() {
-        if (window.app?.marks) {
-            window.app.marks.selectAllStudents();
-        }
-    };
-    
-    window.deselectAllStudents = function() {
-        if (window.app?.marks) {
-            window.app.marks.deselectAllStudents();
-        }
-    };
-    
-    window.toggleAllStudents = function(checked) {
-        if (window.app?.marks) {
-            window.app.marks.toggleAllStudents(checked);
-        }
-    };
-    
-    window.submitBulkGrades = function() {
-        if (window.app?.marks) {
-            window.app.marks.submitBulkGrades();
-        }
-    };
-    
-    window.filterStudentsForGrading = function() {
-        if (window.app?.marks) {
-            window.app.marks.filterStudentsForGrading();
-        }
-    };
-    
-    window.loadStudentsForBulkGrading = function() {
-        if (window.app?.marks) {
-            window.app.marks.loadStudentsForBulkGrading();
-        }
-    };
-    
-    // Ensure app exists
-    if (!window.app) {
-        window.app = {
-            initialize: function() { return Promise.resolve(); }
         };
     }
-</script>
+    </script>
 </body>
 </html>
