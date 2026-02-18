@@ -1326,33 +1326,12 @@ if (typeof StudentManager !== 'undefined') {
         });
     }
     
-   addButtonLoadingStates() {
-    // Add loading state to all submit buttons
-    document.querySelectorAll('button[type="submit"]').forEach(button => {
-        // Skip the student form button - we handle it separately
-        if (button.closest('#studentForm')) {
-            console.log('⏭️ Skipping student form button in app.js');
-            return;
-        }
-        
-        const originalText = button.innerHTML;
-        button.dataset.originalText = originalText;
-        
-        button.addEventListener('click', function() {
-            if (this.classList.contains('loading')) return;
-            
-            this.classList.add('loading');
-            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-            this.disabled = true;
-            
-            // Auto reset after 10 seconds
-            setTimeout(() => {
-                this.classList.remove('loading');
-                this.innerHTML = originalText;
-                this.disabled = false;
-            }, 10000);
-        });
-    });
+  addButtonLoadingStates() {
+    // COMPLETELY DISABLED - This interferes with our custom form handlers
+    // Student forms are handled by students.js
+    // Other forms have their own handlers
+    console.log('ℹ️ Button loading states disabled to prevent interference');
+    // Do nothing - this prevents the 10-second reset from breaking our forms
 }
     
     setupAccessibility() {
