@@ -1282,6 +1282,7 @@ class TEEPortalSupabaseDB {
             return [];
         }
     }
+
     // Add this to your TEEPortalSupabaseDB class, right after getPrograms() method
 async getProgram(programId) {
     try {
@@ -1318,6 +1319,128 @@ async getProgram(programId) {
     } catch (error) {
         console.error('❌ Error in getProgram:', error);
         return null;
+    }
+}
+
+    
+// You might also want to add getCourse() if you're missing it:
+async getCourse(courseId) {
+    try {
+        const supabase = await this.ensureConnected();
+        const { data, error } = await this.supabase
+            .from('courses')
+            .select('*')
+            .or(`id.eq.${courseId},course_code.eq.${courseId}`)
+            .single();
+            
+        if (error) {
+            console.error('❌ Error fetching course:', error);
+            return null;
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('❌ Error in getCourse:', error);
+        return null;
+    }
+}
+    // Add these methods right after getProgram() and before getCourse()
+
+/**
+ * Get students for a specific program
+ * @param {string} programId - The program ID
+ * @param {string} status - Optional status filter ('active', 'inactive', etc.)
+ */
+async getProgramStudents(programId, status = null) {
+    try {
+        await this.ensureConnected();
+        
+        let query = this.supabase
+            .from('students')
+            .select('*')
+            .eq('program_id', programId);
+        
+        if (status) {
+            query = query.eq('status', status);
+        }
+        
+        const { data, error } = await query;
+        
+        if (error) {
+            console.error('❌ Error getting program students:', error);
+            return [];
+        }
+        
+        // Process each student to ensure consistent format
+        return (data || []).map(student => this._processStudent(student));
+        
+    } catch (error) {
+        console.error('❌ Error in getProgramStudents:', error);
+        return [];
+    }
+}
+
+/**
+ * Get courses for a specific program
+ * @param {string} programId - The program ID
+ */
+async getProgramCourses(programId) {
+    try {
+        await this.ensureConnected();
+        
+        // First, get the program to know its name/code for fallback matching
+        const program = await this.getProgram(programId);
+        
+        if (!program) {
+            console.warn(`⚠️ Program ${programId} not found`);
+            return [];
+        }
+        
+        // Try to get courses from program_courses junction table if it exists
+        try {
+            const { data, error } = await this.supabase
+                .from('program_courses')
+                .select(`
+                    course_id,
+                    courses (*)
+                `)
+                .eq('program_id', programId);
+            
+            if (!error && data && data.length > 0) {
+                // Extract course objects from the joined data
+                const courses = data
+                    .map(item => item.courses)
+                    .filter(course => course !== null);
+                
+                console.log(`✅ Found ${courses.length} courses for program ${program.code}`);
+                return courses;
+            }
+        } catch (e) {
+            // program_courses table might not exist yet
+            console.log('ℹ️ program_courses table not available, using fallback');
+        }
+        
+        // Fallback: Try to get courses by program name/code from courses table
+        try {
+            const { data, error } = await this.supabase
+                .from('courses')
+                .select('*')
+                .or(`program.ilike.%${program.name}%,program.ilike.%${program.code}%`);
+            
+            if (!error && data) {
+                console.log(`✅ Found ${data.length} courses for program ${program.code} (fallback method)`);
+                return data;
+            }
+        } catch (e) {
+            console.warn('⚠️ Could not fetch courses by program name');
+        }
+        
+        // No courses found
+        return [];
+        
+    } catch (error) {
+        console.error('❌ Error in getProgramCourses:', error);
+        return [];
     }
 }
 
