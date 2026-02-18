@@ -1654,98 +1654,164 @@ class StudentManager {
     }
     
     /**
-     * FIX: Generate registration number based on selected program - 100% RELIABLE!
-     */
-    async generateRegNumber() {
-        console.log('🔢 Generating registration number based on program selection...');
+ * FIX: Generate sequential registration number based on selected program
+ * Format: {PROGRAM_CODE}-{YEAR}-{SEQUENTIAL_NUMBER} (e.g., DIT-2024-0001)
+ */
+async generateRegNumber() {
+    console.log('🔢 Generating sequential registration number...');
+    
+    try {
+        const programSelect = document.getElementById('studentProgram');
+        const intakeSelect = document.getElementById('studentIntake');
+        const regNumberInput = document.getElementById('studentRegNumber');
         
-        try {
-            const programSelect = document.getElementById('studentProgram');
-            const intakeSelect = document.getElementById('studentIntake');
-            const regNumberInput = document.getElementById('studentRegNumber');
-            
-            if (!programSelect || !intakeSelect || !regNumberInput) {
-                console.warn('⚠️ Required elements not found');
-                return;
-            }
-            
-            let programCode = programSelect.value;
-            let intakeYear = intakeSelect.value;
-            
-            // If in edit mode and fields are empty, try to get from student data
-            if ((!programCode || !intakeYear) && this.currentEditId) {
-                try {
-                    const student = await this.db.getStudent(this.currentEditId);
-                    if (student) {
-                        programCode = student.program || student.code;
-                        intakeYear = student.intake_year;
-                        console.log('📋 Got values from student:', programCode, intakeYear);
-                    }
-                } catch (e) {
-                    console.warn('Could not get student data:', e);
+        if (!programSelect || !intakeSelect || !regNumberInput) {
+            console.warn('⚠️ Required elements not found');
+            return;
+        }
+        
+        let programCode = programSelect.value;
+        let intakeYear = intakeSelect.value;
+        
+        // If in edit mode and fields are empty, try to get from student data
+        if ((!programCode || !programCode.trim()) && this.currentEditId) {
+            try {
+                const student = await this.db.getStudent(this.currentEditId);
+                if (student) {
+                    programCode = student.program || student.code;
+                    intakeYear = student.intake_year;
+                    console.log('📋 Got values from student:', programCode, intakeYear);
                 }
-            }
-            
-            // CRITICAL FIX: Get program code from selected option
-            if (!programCode || programCode === '') {
-                // Check if there's any selected option
-                const selectedOption = programSelect.options[programSelect.selectedIndex];
-                if (selectedOption && selectedOption.value) {
-                    programCode = selectedOption.value;
-                    console.log('📋 Using selected program:', programCode);
-                } else {
-                    // Try to get first available program
-                    const firstOption = programSelect.querySelector('option:not([value=""])');
-                    if (firstOption) {
-                        programCode = firstOption.value;
-                        console.log('📋 Using first available program:', programCode);
-                    } else {
-                        programCode = 'TEE';
-                        console.log('⚠️ Using default program: TEE');
-                    }
-                }
-            }
-            
-            if (!intakeYear) {
-                intakeYear = new Date().getFullYear();
-                console.log('⚠️ Using default year:', intakeYear);
-            }
-            
-            // Clean program code - handle format like "DIT - Diploma in IT"
-            let cleanProgramCode = programCode;
-            if (programCode && programCode.includes(' - ')) {
-                cleanProgramCode = programCode.split(' - ')[0].trim();
-            } else if (programCode && programCode.includes('-')) {
-                cleanProgramCode = programCode.split('-')[0].trim();
-            }
-            
-            // Generate unique registration number using timestamp
-            const timestamp = Date.now().toString().slice(-6);
-            const random = Math.floor(Math.random() * 100).toString().padStart(2, '0');
-            const regNumber = `${cleanProgramCode}-${intakeYear}-${timestamp}${random}`;
-            
-            regNumberInput.value = regNumber;
-            console.log('✅ Registration number generated:', regNumber);
-            
-            // Update format display
-            const formatSpan = document.getElementById('regNumberFormat');
-            if (formatSpan) {
-                formatSpan.textContent = `${cleanProgramCode}-${intakeYear}-######`;
-            }
-            
-        } catch (error) {
-            console.error('❌ Error generating registration number:', error);
-            
-            // ULTIMATE FALLBACK
-            const regNumberInput = document.getElementById('studentRegNumber');
-            if (regNumberInput) {
-                const fallbackReg = `TEE-${new Date().getFullYear()}-${Date.now().toString().slice(-5)}`;
-                regNumberInput.value = fallbackReg;
-                console.log('✅ Ultimate fallback reg number:', fallbackReg);
+            } catch (e) {
+                console.warn('Could not get student data:', e);
             }
         }
+        
+        // Get program code from selected option
+        if (!programCode || programCode === '') {
+            const selectedOption = programSelect.options[programSelect.selectedIndex];
+            if (selectedOption && selectedOption.value) {
+                programCode = selectedOption.value;
+                console.log('📋 Using selected program:', programCode);
+            } else {
+                const firstOption = programSelect.querySelector('option:not([value=""])');
+                if (firstOption) {
+                    programCode = firstOption.value;
+                    console.log('📋 Using first available program:', programCode);
+                } else {
+                    programCode = 'TEE';
+                    console.log('⚠️ Using default program: TEE');
+                }
+            }
+        }
+        
+        if (!intakeYear) {
+            intakeYear = new Date().getFullYear();
+            console.log('⚠️ Using default year:', intakeYear);
+        }
+        
+        // Clean program code - handle format like "DIT - Diploma in IT"
+        let cleanProgramCode = programCode;
+        if (programCode && programCode.includes(' - ')) {
+            cleanProgramCode = programCode.split(' - ')[0].trim();
+        } else if (programCode && programCode.includes('-')) {
+            cleanProgramCode = programCode.split('-')[0].trim();
+        }
+        
+        // Get the next sequential number for this program and year
+        const nextNumber = await this._getNextSequentialNumber(cleanProgramCode, intakeYear);
+        
+        // Format with leading zeros (4 digits)
+        const sequentialNumber = nextNumber.toString().padStart(4, '0');
+        const regNumber = `${cleanProgramCode}-${intakeYear}-${sequentialNumber}`;
+        
+        regNumberInput.value = regNumber;
+        console.log('✅ Sequential registration number generated:', regNumber);
+        
+        // Update format display
+        const formatSpan = document.getElementById('regNumberFormat');
+        if (formatSpan) {
+            formatSpan.textContent = `${cleanProgramCode}-${intakeYear}-####`;
+        }
+        
+        // Update preview if exists
+        const regPreview = document.getElementById('regNumberPreview');
+        if (regPreview) {
+            regPreview.textContent = regNumber;
+        }
+        
+    } catch (error) {
+        console.error('❌ Error generating registration number:', error);
+        
+        // ULTIMATE FALLBACK - use timestamp if sequential fails
+        const regNumberInput = document.getElementById('studentRegNumber');
+        if (regNumberInput) {
+            const fallbackReg = `TEE-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`;
+            regNumberInput.value = fallbackReg;
+            console.log('✅ Fallback reg number:', fallbackReg);
+        }
     }
-    
+}
+
+/**
+ * Get the next sequential number for a program and year
+ */
+async _getNextSequentialNumber(programCode, year) {
+    try {
+        // Get all students from database
+        const allStudents = await this.db.getStudents() || [];
+        
+        // Filter students with same program and year
+        const sameProgramYearStudents = allStudents.filter(student => {
+            // Extract program code from student's reg number or program field
+            const studentReg = student.reg_number || '';
+            const studentProgram = student.program || '';
+            
+            // Check if reg number matches pattern: PROGRAM-YEAR-NUMBER
+            const regMatch = studentReg.match(/^([A-Z]+)-(\d{4})-(\d+)$/);
+            if (regMatch) {
+                const [, regProgram, regYear] = regMatch;
+                return regProgram === programCode && regYear === year.toString();
+            }
+            
+            // Fallback to checking program field
+            return studentProgram === programCode && student.intake_year == year;
+        });
+        
+        console.log(`📊 Found ${sameProgramYearStudents.length} existing students for ${programCode}-${year}`);
+        
+        if (sameProgramYearStudents.length === 0) {
+            return 1; // First student
+        }
+        
+        // Extract the highest sequential number
+        let maxNumber = 0;
+        
+        sameProgramYearStudents.forEach(student => {
+            const regNumber = student.reg_number || '';
+            const match = regNumber.match(/-(\d+)$/); // Get last part after last hyphen
+            
+            if (match) {
+                const num = parseInt(match[1], 10);
+                if (!isNaN(num) && num > maxNumber) {
+                    maxNumber = num;
+                }
+            }
+        });
+        
+        // If no valid numbers found, use count + 1
+        if (maxNumber === 0) {
+            maxNumber = sameProgramYearStudents.length;
+        }
+        
+        return maxNumber + 1;
+        
+    } catch (error) {
+        console.error('❌ Error getting next sequential number:', error);
+        // Fallback to timestamp-based number
+        return parseInt(Date.now().toString().slice(-4));
+    }
+}
     /**
      * Edit student
      */
