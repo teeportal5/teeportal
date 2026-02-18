@@ -2130,7 +2130,102 @@ class StudentManager {
         console.log(`✅ Select all toggled: ${checked}`);
     }
 }
-
+// ========== PERMANENT FORM HANDLER FIX - ADD TO VERY END OF students.js ==========
+// This ensures the form handler is ALWAYS attached and NEVER gets stuck
+(function() {
+    console.log('🔧 Installing permanent form handler from within students.js');
+    
+    // Store reference to student manager
+    const studentManager = this;
+    
+    // Function to attach handlers directly
+    function attachFormHandlers() {
+        const form = document.getElementById('studentForm');
+        const btn = form?.querySelector('button[type="submit"]');
+        
+        if (!form || !btn) return false;
+        
+        // Skip if already fixed
+        if (form.hasAttribute('data-student-fixed')) return true;
+        
+        console.log('🎯 Attaching permanent handlers from students.js');
+        
+        // Mark as fixed
+        form.setAttribute('data-student-fixed', 'true');
+        
+        // Store original button text
+        const originalText = btn.innerHTML;
+        
+        // DIRECT onclick handler
+        btn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('🎓 STUDENT.JS HANDLER: Registration clicked');
+            
+            // Show loading
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            this.disabled = true;
+            
+            // Create fake event
+            const fakeEvent = {
+                preventDefault: () => {},
+                stopPropagation: () => {},
+                stopImmediatePropagation: () => {},
+                target: form
+            };
+            
+            // Call saveStudent directly
+            try {
+                if (studentManager && typeof studentManager.saveStudent === 'function') {
+                    studentManager.saveStudent(fakeEvent);
+                } else if (window.app?.students) {
+                    window.app.students.saveStudent(fakeEvent);
+                } else {
+                    console.error('❌ No student manager found');
+                    this.innerHTML = originalText;
+                    this.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                this.innerHTML = originalText;
+                this.disabled = false;
+            }
+            
+            return false;
+        };
+        
+        // Backup form onsubmit
+        form.onsubmit = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            btn.click();
+            return false;
+        };
+        
+        console.log('✅ Permanent handlers attached from students.js');
+        return true;
+    }
+    
+    // Try multiple times
+    attachFormHandlers();
+    setTimeout(attachFormHandlers, 500);
+    setTimeout(attachFormHandlers, 1000);
+    setTimeout(attachFormHandlers, 2000);
+    
+    // Watch for changes
+    const observer = new MutationObserver(function() {
+        attachFormHandlers();
+    });
+    
+    // Observe when modal opens
+    const modal = document.getElementById('studentModal');
+    if (modal) {
+        observer.observe(modal, { attributes: true, childList: true, subtree: true });
+    }
+    
+    console.log('✅ Permanent fix installed in students.js');
+})();
 // ============================================
 // GLOBAL FORM SUBMIT FIX
 // ============================================
