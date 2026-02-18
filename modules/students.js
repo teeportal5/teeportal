@@ -2366,3 +2366,66 @@ if (typeof window !== 'undefined') {
         }
     };
 }
+// ========== PERMANENT CONSOLE FIX ==========
+// Add this at the VERY END of your students.js file
+(function() {
+    console.log('🔧 Installing permanent console fix');
+    
+    function attachFix() {
+        const form = document.getElementById('studentForm');
+        const btn = form?.querySelector('button[type="submit"]');
+        
+        if (!form || !btn) return false;
+        if (form.hasAttribute('data-fixed-console')) return true;
+        
+        console.log('🎯 Attaching console fix');
+        form.setAttribute('data-fixed-console', 'true');
+        
+        const originalText = btn.innerHTML;
+        
+        btn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('🎯 CONSOLE FIX: Button clicked');
+            
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            this.disabled = true;
+            
+            const fakeEvent = {
+                preventDefault: () => {},
+                stopPropagation: () => {},
+                stopImmediatePropagation: () => {},
+                target: form
+            };
+            
+            setTimeout(() => {
+                if (window.app?.students) {
+                    window.app.students.saveStudent(fakeEvent);
+                } else {
+                    console.error('❌ No student manager');
+                    this.innerHTML = originalText;
+                    this.disabled = false;
+                }
+            }, 100);
+            
+            return false;
+        };
+        
+        form.onsubmit = function(e) {
+            e.preventDefault();
+            btn.click();
+            return false;
+        };
+        
+        console.log('✅ Console fix attached');
+        return true;
+    }
+    
+    // Try multiple times
+    attachFix();
+    document.addEventListener('DOMContentLoaded', attachFix);
+    setTimeout(attachFix, 500);
+    setTimeout(attachFix, 1000);
+    setTimeout(attachFix, 2000);
+})();
