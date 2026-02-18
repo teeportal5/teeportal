@@ -1,4 +1,4 @@
-// modules/reports.js - COMPLETE WORKING VERSION WITH REAL DATA
+// modules/reports.js - COMPLETE WORKING VERSION
 class ReportsManager {
     constructor(db) {
         console.log('📊 ReportsManager initialized');
@@ -28,7 +28,7 @@ class ReportsManager {
             dateTo: null
         };
         
-        // Initialize with empty arrays - will be populated from database
+        // Initialize with empty arrays
         this.students = [];
         this.centres = [];
         this.counties = [];
@@ -39,8 +39,8 @@ class ReportsManager {
         // Bind methods
         this.bindAllMethods();
         
-        // Initialize
-        setTimeout(() => this.initialize(), 100);
+        // Initialize immediately
+        this.initialize();
     }
     
     bindAllMethods() {
@@ -90,7 +90,7 @@ class ReportsManager {
             // Set default dates
             this.setDefaultDates();
             
-            // Update statistics with real data
+            // Update statistics with real data - CRITICAL FIX
             this.updateStatistics();
             
             // Generate reports grid
@@ -108,6 +108,7 @@ class ReportsManager {
             // Fallback to sample data if database fails
             console.log('⚠️ Using sample data as fallback');
             this.loadSampleData();
+            this.updateStatistics();
         } finally {
             this.showLoading(false);
         }
@@ -118,19 +119,26 @@ class ReportsManager {
             // Load students
             if (this.db?.getStudents) {
                 const dbStudents = await this.db.getStudents();
-                this.students = dbStudents.map(s => ({
-                    id: s.id,
-                    name: s.full_name,
-                    admission_number: s.reg_number,
-                    email: s.email,
-                    phone: s.phone,
-                    centre_name: s.centre_name || s.centre,
-                    county: s.county,
-                    program: s.program_name || s.program,
-                    intake_year: s.intake_year,
-                    status: s.status || 'active'
-                }));
-                console.log(`✅ Loaded ${this.students.length} students from database`);
+                console.log(`📚 Raw students from DB: ${dbStudents?.length || 0}`);
+                
+                if (dbStudents && dbStudents.length > 0) {
+                    this.students = dbStudents.map(s => ({
+                        id: s.id,
+                        name: s.full_name,
+                        admission_number: s.reg_number,
+                        email: s.email,
+                        phone: s.phone,
+                        centre_name: s.centre_name || s.centre,
+                        county: s.county,
+                        program: s.program_name || s.program,
+                        intake_year: s.intake_year,
+                        status: s.status || 'active'
+                    }));
+                    console.log(`✅ Loaded ${this.students.length} students from database`);
+                } else {
+                    console.warn('⚠️ No students returned from database');
+                    this.students = [];
+                }
             }
             
             // Load centres
@@ -145,12 +153,11 @@ class ReportsManager {
                 console.log(`✅ Loaded ${this.programs.length} programs from database`);
             }
             
-            // Load counties (if available)
+            // Load counties
             if (this.db?.getCounties) {
                 this.counties = await this.db.getCounties();
                 console.log(`✅ Loaded ${this.counties.length} counties from database`);
             } else {
-                // Extract counties from students
                 const uniqueCounties = [...new Set(this.students.map(s => s.county).filter(Boolean))];
                 this.counties = uniqueCounties.map(name => ({ name }));
                 console.log(`✅ Extracted ${this.counties.length} counties from student data`);
@@ -183,6 +190,81 @@ class ReportsManager {
         this.marks = this.getSampleMarks();
         
         console.log('⚠️ Using sample data as fallback');
+    }
+    
+    // ==================== STATISTICS - FIXED VERSION ====================
+    
+    updateStatistics() {
+        try {
+            const filteredStudents = this.applyStudentFilters(this.students);
+            
+            const totalStudents = filteredStudents.length;
+            const activeStudents = filteredStudents.filter(s => s.status === 'active').length;
+            const graduatedStudents = filteredStudents.filter(s => s.status === 'graduated').length;
+            const graduationRate = totalStudents > 0 ? Math.round((graduatedStudents / totalStudents) * 100) : 0;
+            
+            // Update statistics cards at the top
+            const totalElement = document.getElementById('totalStudents');
+            if (totalElement) {
+                totalElement.textContent = totalStudents;
+                console.log('✅ Updated totalStudents to:', totalStudents);
+            } else {
+                console.warn('⚠️ totalStudents element not found');
+            }
+            
+            const gradElement = document.getElementById('graduationRate');
+            if (gradElement) {
+                gradElement.textContent = graduationRate + '%';
+                console.log('✅ Updated graduationRate to:', graduationRate + '%');
+            }
+            
+            const gpaElement = document.getElementById('avgGPA');
+            if (gpaElement) {
+                gpaElement.textContent = '3.24';
+            }
+            
+            const centresElement = document.getElementById('centersCount');
+            if (centresElement) {
+                centresElement.textContent = this.centres.length;
+                console.log('✅ Updated centersCount to:', this.centres.length);
+            }
+            
+            console.log('📊 Statistics updated:', {
+                totalStudents,
+                graduationRate: graduationRate + '%',
+                centres: this.centres.length
+            });
+            
+        } catch (error) {
+            console.error('Error updating statistics:', error);
+        }
+    }
+    
+    applyStudentFilters(students) {
+        let filtered = [...students];
+        
+        // Apply program filter
+        const programs = this.selectedFilters.program;
+        if (programs.length > 0 && !programs.includes('all')) {
+            filtered = filtered.filter(s => s.program && programs.includes(s.program));
+        }
+        
+        // Apply centre filter
+        const centres = this.selectedFilters.centre;
+        if (centres.length > 0 && !centres.includes('all')) {
+            filtered = filtered.filter(s => {
+                const studentCentre = s.centre_name || s.centre;
+                return studentCentre && centres.includes(studentCentre.toString());
+            });
+        }
+        
+        // Apply county filter
+        const counties = this.selectedFilters.county;
+        if (counties.length > 0 && !counties.includes('all')) {
+            filtered = filtered.filter(s => s.county && counties.includes(s.county));
+        }
+        
+        return filtered;
     }
     
     // ==================== FILTER METHODS ====================
@@ -472,68 +554,6 @@ class ReportsManager {
         this.setDefaultDates();
         this.updateStatistics();
         this.showToast('Filters cleared', 'info');
-    }
-    
-    // ==================== STATISTICS ====================
-    
-   updateStatistics() {
-    try {
-        const filteredStudents = this.applyStudentFilters(this.students);
-        
-        const totalStudents = filteredStudents.length;
-        const activeStudents = filteredStudents.filter(s => s.status === 'active').length;
-        const graduatedStudents = filteredStudents.filter(s => s.status === 'graduated').length;
-        const graduationRate = totalStudents > 0 ? Math.round((graduatedStudents / totalStudents) * 100) : 0;
-        
-        // Update statistics cards at the top
-        const totalElement = document.getElementById('totalStudents');
-        if (totalElement) totalElement.textContent = totalStudents;
-        
-        const gradElement = document.getElementById('graduationRate');
-        if (gradElement) gradElement.textContent = graduationRate + '%';
-        
-        const gpaElement = document.getElementById('avgGPA');
-        if (gpaElement) gpaElement.textContent = '3.24';
-        
-        const centresElement = document.getElementById('centersCount');
-        if (centresElement) centresElement.textContent = this.centres.length;
-        
-        console.log('📊 Statistics updated:', {
-            totalStudents,
-            graduationRate: graduationRate + '%',
-            centres: this.centres.length
-        });
-        
-    } catch (error) {
-        console.error('Error updating statistics:', error);
-    }
-}
-    
-    applyStudentFilters(students) {
-        let filtered = [...students];
-        
-        // Apply program filter
-        const programs = this.selectedFilters.program;
-        if (programs.length > 0 && !programs.includes('all')) {
-            filtered = filtered.filter(s => s.program && programs.includes(s.program));
-        }
-        
-        // Apply centre filter
-        const centres = this.selectedFilters.centre;
-        if (centres.length > 0 && !centres.includes('all')) {
-            filtered = filtered.filter(s => {
-                const studentCentre = s.centre_name || s.centre;
-                return studentCentre && centres.includes(studentCentre.toString());
-            });
-        }
-        
-        // Apply county filter
-        const counties = this.selectedFilters.county;
-        if (counties.length > 0 && !counties.includes('all')) {
-            filtered = filtered.filter(s => s.county && counties.includes(s.county));
-        }
-        
-        return filtered;
     }
     
     // ==================== REPORTS GRID ====================
@@ -1067,7 +1087,6 @@ class ReportsManager {
     }
     
     downloadExcel(type) {
-        // Create a simple Excel-like CSV
         let csvContent = "data:text/csv;charset=utf-8,";
         
         if (type === 'academic') {
@@ -1192,7 +1211,6 @@ class ReportsManager {
         setTimeout(() => {
             const exportType = document.getElementById('bulkExportType')?.value || 'json';
             
-            // Create comprehensive data export
             const exportData = {
                 timestamp: new Date().toISOString(),
                 metadata: {
@@ -1219,7 +1237,6 @@ class ReportsManager {
                     break;
                     
                 case 'excel':
-                    // Create CSV for Excel
                     let csvContent = "data:text/csv;charset=utf-8,";
                     csvContent += "Type,Count,Export Date\\n";
                     csvContent += `Students,${this.students.length},${new Date().toLocaleDateString()}\\n`;
@@ -1295,7 +1312,6 @@ class ReportsManager {
     openTranscriptModal() {
         console.log('📄 Opening transcript modal via reports.js...');
         
-        // Check if transcripts.js is loaded
         if (window.app?.transcripts?.generateStudentTranscriptPrompt) {
             console.log('✅ Redirecting to transcripts.js modal');
             window.app.transcripts.generateStudentTranscriptPrompt();
@@ -1306,9 +1322,7 @@ class ReportsManager {
         }
         else {
             console.warn('❌ transcripts.js not loaded, showing fallback');
-            this.showToast('Transcript module is not available. Please check if transcripts.js is loaded.', 'warning');
-            
-            // Create a simple fallback modal
+            this.showToast('Transcript module is not available.', 'warning');
             this.createFallbackTranscriptModal();
         }
     }
@@ -1349,7 +1363,6 @@ class ReportsManager {
         }
     }
 
-    // Fallback modal if transcripts.js isn't loaded
     createFallbackTranscriptModal() {
         const modal = document.createElement('div');
         modal.style.cssText = `
@@ -1459,7 +1472,6 @@ class ReportsManager {
     showToast(message, type = 'info') {
         console.log(`📢 ${type}: ${message}`);
         
-        // Create toast
         const toast = document.createElement('div');
         toast.className = `toast show align-items-center text-bg-${type === 'error' ? 'danger' : type} border-0`;
         toast.style.cssText = `
