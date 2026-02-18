@@ -1,47 +1,46 @@
 // modules/reports.js - COMPLETE WORKING VERSION
-class ReportsManager {
-    constructor(db) {
-        console.log('📊 ReportsManager initialized');
-        this.db = db || window.app?.db;
-        this.app = window.app || window;
-        
-        // Filter state
-        this.selectedFilters = {
-            centre: [],
-            county: [],
-            program: [],
-            studentReportCenter: [],
-            academicReportCenter: [],
-            bulkExportCenters: []
-        };
-        
-        // Current filters
-        this.currentFilters = {
-            year: new Date().getFullYear().toString(),
-            program: ['all'],
-            course: 'all',
-            semester: 'all',
-            intake: 'all',
-            centres: ['all'],
-            counties: ['all'],
-            dateFrom: null,
-            dateTo: null
-        };
-        
-        // Sample data
-        this.students = this.getSampleStudents();
-        this.centres = this.getSampleCentres();
-        this.counties = this.getSampleCounties();
-        this.programs = this.getSamplePrograms();
-        this.courses = this.getSampleCourses();
-        this.marks = this.getSampleMarks();
-        
-        // Bind methods
-        this.bindAllMethods();
-        
-        // Initialize
-        setTimeout(() => this.initialize(), 100);
-    }
+constructor(db) {
+    console.log('📊 ReportsManager initialized');
+    this.db = db || window.app?.db;
+    this.app = window.app || window;
+    
+    // Filter state
+    this.selectedFilters = {
+        centre: [],
+        county: [],
+        program: [],
+        studentReportCenter: [],
+        academicReportCenter: [],
+        bulkExportCenters: []
+    };
+    
+    // Current filters
+    this.currentFilters = {
+        year: new Date().getFullYear().toString(),
+        program: ['all'],
+        course: 'all',
+        semester: 'all',
+        intake: 'all',
+        centres: ['all'],
+        counties: ['all'],
+        dateFrom: null,
+        dateTo: null
+    };
+    
+    // Initialize with empty arrays - will be populated from database
+    this.students = [];
+    this.centres = [];
+    this.counties = [];
+    this.programs = [];
+    this.courses = [];
+    this.marks = [];
+    
+    // Bind methods
+    this.bindAllMethods();
+    
+    // Initialize
+    setTimeout(() => this.initialize(), 100);
+}
     
     bindAllMethods() {
         const methods = [
@@ -65,44 +64,124 @@ class ReportsManager {
         });
     }
     
-    async initialize() {
-        console.log('🚀 Initializing Reports...');
-        this.showLoading(true);
-        
-        try {
-            // Populate filters
-            this.populateAcademicYearFilter();
-            this.populateFilterOptions('centre', this.centres, 'name');
-            this.populateFilterOptions('county', this.counties, 'name');
-            this.populateFilterOptions('program', this.programs, 'name');
-            this.populateIntakeFilter();
-            this.populateCourseFilter();
-            
-            // Populate advanced filters
-            this.populateFilterOptions('studentReportCenter', this.centres, 'name');
-            this.populateFilterOptions('academicReportCenter', this.centres, 'name');
-            this.populateFilterOptions('bulkExportCenters', this.centres, 'name');
-            
-            // Set default dates
-            this.setDefaultDates();
-            
-            // Update statistics
-            this.updateStatistics();
-            
-            // Generate reports grid
-            this.generateReportsGrid();
-            
-            console.log('✅ Reports initialized successfully');
-            this.showToast('Reports module loaded', 'success');
-            
-        } catch (error) {
-            console.error('❌ Error initializing reports:', error);
-            this.showToast('Error loading reports', 'error');
-        } finally {
-            this.showLoading(false);
-        }
-    }
+   async initialize() {
+    console.log('🚀 Initializing Reports...');
+    this.showLoading(true);
     
+    try {
+        // Load real data from database
+        await this.loadRealData();
+        
+        // Populate filters
+        this.populateAcademicYearFilter();
+        this.populateFilterOptions('centre', this.centres, 'name');
+        this.populateFilterOptions('county', this.counties, 'name');
+        this.populateFilterOptions('program', this.programs, 'name');
+        this.populateIntakeFilter();
+        this.populateCourseFilter();
+        
+        // Populate advanced filters
+        this.populateFilterOptions('studentReportCenter', this.centres, 'name');
+        this.populateFilterOptions('academicReportCenter', this.centres, 'name');
+        this.populateFilterOptions('bulkExportCenters', this.centres, 'name');
+        
+        // Set default dates
+        this.setDefaultDates();
+        
+        // Update statistics with real data
+        this.updateStatistics();
+        
+        // Generate reports grid
+        this.generateReportsGrid();
+        
+        console.log('✅ Reports initialized successfully with real data');
+        console.log(`📊 Loaded: ${this.students.length} students, ${this.centres.length} centres`);
+        
+        this.showToast('Reports module loaded with real data', 'success');
+        
+    } catch (error) {
+        console.error('❌ Error initializing reports:', error);
+        this.showToast('Error loading reports data', 'error');
+        
+        // Fallback to sample data if database fails
+        console.log('⚠️ Using sample data as fallback');
+        this.loadSampleData();
+    } finally {
+        this.showLoading(false);
+    }
+}
+
+async loadRealData() {
+    try {
+        // Load students
+        if (this.db?.getStudents) {
+            const dbStudents = await this.db.getStudents();
+            this.students = dbStudents.map(s => ({
+                id: s.id,
+                name: s.full_name,
+                admission_number: s.reg_number,
+                email: s.email,
+                phone: s.phone,
+                centre_name: s.centre_name || s.centre,
+                county: s.county,
+                program: s.program_name || s.program,
+                intake_year: s.intake_year,
+                status: s.status || 'active'
+            }));
+            console.log(`✅ Loaded ${this.students.length} students from database`);
+        }
+        
+        // Load centres
+        if (this.db?.getCentres) {
+            this.centres = await this.db.getCentres();
+            console.log(`✅ Loaded ${this.centres.length} centres from database`);
+        }
+        
+        // Load programs
+        if (this.db?.getPrograms) {
+            this.programs = await this.db.getPrograms();
+            console.log(`✅ Loaded ${this.programs.length} programs from database`);
+        }
+        
+        // Load counties (if available)
+        if (this.db?.getCounties) {
+            this.counties = await this.db.getCounties();
+            console.log(`✅ Loaded ${this.counties.length} counties from database`);
+        } else {
+            // Extract counties from students
+            const uniqueCounties = [...new Set(this.students.map(s => s.county).filter(Boolean))];
+            this.counties = uniqueCounties.map(name => ({ name }));
+            console.log(`✅ Extracted ${this.counties.length} counties from student data`);
+        }
+        
+        // Load courses
+        if (this.db?.getCourses) {
+            this.courses = await this.db.getCourses();
+            console.log(`✅ Loaded ${this.courses.length} courses from database`);
+        }
+        
+        // Load marks
+        if (this.db?.getMarks) {
+            this.marks = await this.db.getMarks();
+            console.log(`✅ Loaded ${this.marks.length} marks from database`);
+        }
+        
+    } catch (error) {
+        console.error('Error loading real data:', error);
+        throw error;
+    }
+}
+
+loadSampleData() {
+    this.students = this.getSampleStudents();
+    this.centres = this.getSampleCentres();
+    this.counties = this.getSampleCounties();
+    this.programs = this.getSamplePrograms();
+    this.courses = this.getSampleCourses();
+    this.marks = this.getSampleMarks();
+    
+    console.log('⚠️ Using sample data as fallback');
+}
     // ==================== FILTER METHODS ====================
     
     searchFilter(type, searchTerm) {
