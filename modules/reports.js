@@ -1,4 +1,4 @@
-// modules/reports.js - COMPLETE WORKING VERSION FOR YOUR STRUCTURE
+// modules/reports.js - COMPLETE WORKING VERSION WITH RESPONSIVE GRIDS
 class ReportsManager {
     constructor(db) {
         console.log('📊 ReportsManager initialized');
@@ -45,6 +45,9 @@ class ReportsManager {
         } else {
             this.initialize();
         }
+        
+        // Add resize listener for responsive adjustments
+        window.addEventListener('resize', this.handleResize.bind(this));
     }
     
     bindAllMethods() {
@@ -62,12 +65,66 @@ class ReportsManager {
             'bulkExport', 'addScheduledReport', 'showScheduledReports',
             'previewReport', 'clearPreview', 'downloadPreview', 'saveFilterPreset',
             'showToast', 'showLoading', 'downloadCSV', 'downloadExcel', 'downloadPDF',
-            'downloadJSON', 'downloadReport', 'ensureTableVisibility', 'renderReports'
+            'downloadJSON', 'downloadReport', 'ensureTableVisibility', 'renderReports',
+            'handleResize', 'makeResponsive'
         ];
         
         methods.forEach(method => {
             this[method] = this[method].bind(this);
         });
+    }
+    
+    handleResize() {
+        this.makeResponsive();
+    }
+    
+    makeResponsive() {
+        const width = window.innerWidth;
+        
+        // Get all report cards
+        const reportCards = document.querySelectorAll('#reportsGrid .card');
+        const statCards = document.querySelectorAll('.stat-card');
+        const filterGroups = document.querySelectorAll('.filter-group');
+        
+        if (width <= 768) {
+            // Mobile view
+            reportCards.forEach(card => {
+                card.style.marginBottom = '15px';
+            });
+            
+            // Stack filter groups vertically
+            filterGroups.forEach(group => {
+                group.style.flexDirection = 'column';
+                group.style.width = '100%';
+            });
+            
+            // Make dropdowns full width
+            document.querySelectorAll('.dropdown, .form-select').forEach(el => {
+                el.style.width = '100%';
+            });
+            
+        } else if (width <= 1024) {
+            // Tablet view
+            reportCards.forEach(card => {
+                card.style.marginBottom = '20px';
+            });
+            
+            filterGroups.forEach(group => {
+                group.style.flexDirection = 'row';
+                group.style.flexWrap = 'wrap';
+            });
+            
+        } else {
+            // Desktop view
+            reportCards.forEach(card => {
+                card.style.marginBottom = '30px';
+            });
+            
+            filterGroups.forEach(group => {
+                group.style.flexDirection = 'row';
+                group.style.flexWrap = 'nowrap';
+            });
+        }
     }
     
     async initialize() {
@@ -100,11 +157,14 @@ class ReportsManager {
             // Update statistics with real data
             this.updateStatistics();
             
-            // Generate reports grid
+            // Generate reports grid with responsive layout
             this.generateReportsGrid();
             
             // Render the reports section
             this.renderReports();
+            
+            // Make everything responsive
+            this.makeResponsive();
             
             // Ensure tables are visible
             setTimeout(() => {
@@ -262,6 +322,10 @@ class ReportsManager {
             table.style.setProperty('visibility', 'visible', 'important');
             table.style.setProperty('opacity', '1', 'important');
             
+            // Make table responsive
+            table.style.width = '100%';
+            table.style.maxWidth = '100%';
+            
             // Force all rows visible
             table.querySelectorAll('tr').forEach(row => {
                 row.style.setProperty('display', 'table-row', 'important');
@@ -280,7 +344,19 @@ class ReportsManager {
             parent = parent.parentElement;
         }
         
-        console.log('✅ All parent containers made visible');
+        // Add responsive table wrapper if needed
+        tables.forEach(table => {
+            if (table.parentElement && !table.parentElement.classList.contains('table-responsive')) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'table-responsive';
+                wrapper.style.overflowX = 'auto';
+                wrapper.style.width = '100%';
+                table.parentElement.insertBefore(wrapper, table);
+                wrapper.appendChild(table);
+            }
+        });
+        
+        console.log('✅ All parent containers made visible and tables responsive');
     }
     
     // ==================== STATISTICS ====================
@@ -685,7 +761,7 @@ class ReportsManager {
         this.showToast('Filters cleared', 'info');
     }
     
-    // ==================== REPORTS GRID ====================
+    // ==================== REPORTS GRID - RESPONSIVE DESIGN ====================
     
     generateReportsGrid() {
         const reportsContainer = document.getElementById('reportsGrid');
@@ -736,25 +812,29 @@ class ReportsManager {
             }
         ];
         
-        let html = '<div class="row">';
+        // Responsive grid classes
+        let html = '<div class="reports-grid-container" style="width: 100%;">';
+        html += '<div class="row g-3 g-md-4">'; // g-3 for mobile, g-md-4 for desktop
         
         reports.forEach(report => {
+            // Responsive column classes
             html += `
-                <div class="col-md-4 mb-3">
-                    <div class="card h-100 shadow-sm border-0" onclick="app.reports.${report.action}()" 
-                         style="cursor: pointer; transition: transform 0.2s;"
-                         onmouseover="this.style.transform='translateY(-5px)'"
-                         onmouseout="this.style.transform='translateY(0)'">
-                        <div class="card-body text-center">
+                <div class="col-12 col-sm-6 col-lg-4 mb-3 mb-md-4">
+                    <div class="card h-100 shadow-sm border-0 report-card" 
+                         onclick="app.reports.${report.action}()" 
+                         style="cursor: pointer; transition: all 0.3s ease; height: 100%;"
+                         onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 25px rgba(0,0,0,0.1)';"
+                         onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 0.125rem 0.25rem rgba(0,0,0,0.075)';">
+                        <div class="card-body text-center p-3 p-md-4">
                             <div class="mb-3" style="color: ${report.color};">
-                                <i class="${report.icon} fa-3x"></i>
+                                <i class="${report.icon} fa-2x fa-md-3x"></i>
                             </div>
-                            <h5 class="card-title">${report.title}</h5>
-                            <p class="card-text text-muted small">${report.description}</p>
+                            <h5 class="card-title h6 h5-md">${report.title}</h5>
+                            <p class="card-text text-muted small d-none d-sm-block">${report.description}</p>
                         </div>
-                        <div class="card-footer bg-transparent border-top-0">
-                            <button class="btn btn-sm w-100" style="background: ${report.color}; color: white;">
-                                <i class="fas fa-play me-1"></i> Generate Report
+                        <div class="card-footer bg-transparent border-top-0 pb-3">
+                            <button class="btn btn-sm w-100" style="background: ${report.color}; color: white; font-size: 0.875rem;">
+                                <i class="fas fa-play me-1"></i> Generate
                             </button>
                         </div>
                     </div>
@@ -762,7 +842,37 @@ class ReportsManager {
             `;
         });
         
-        html += '</div>';
+        html += '</div></div>';
+        
+        // Add responsive styles
+        html += `
+            <style>
+                @media (max-width: 576px) {
+                    .report-card .card-body { padding: 1rem; }
+                    .report-card .card-title { font-size: 1rem; }
+                    .report-card i { font-size: 1.5rem; }
+                }
+                @media (min-width: 768px) {
+                    .report-card .card-body { padding: 1.5rem; }
+                    .report-card .card-title { font-size: 1.1rem; }
+                    .report-card i { font-size: 2rem; }
+                }
+                @media (min-width: 992px) {
+                    .report-card .card-body { padding: 2rem; }
+                    .report-card .card-title { font-size: 1.25rem; }
+                    .report-card i { font-size: 2.5rem; }
+                }
+                .report-card {
+                    border-radius: 10px;
+                    overflow: hidden;
+                }
+                .report-card .btn {
+                    border-radius: 20px;
+                    padding: 0.5rem 1rem;
+                }
+            </style>
+        `;
+        
         reportsContainer.innerHTML = html;
     }
     
@@ -775,21 +885,21 @@ class ReportsManager {
             const filteredStudents = this.applyStudentFilters(this.students);
             
             let reportHTML = `
-                <div class="container-fluid">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <div>
-                            <h2 class="mb-1">Student List Report</h2>
-                            <p class="text-muted mb-0">Generated: ${new Date().toLocaleDateString()} | Total Students: ${filteredStudents.length}</p>
+                <div class="container-fluid px-0 px-md-2">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+                        <div class="mb-3 mb-md-0">
+                            <h2 class="h4 h3-md mb-1">Student List Report</h2>
+                            <p class="text-muted small mb-0">Generated: ${new Date().toLocaleDateString()} | Total Students: ${filteredStudents.length}</p>
                         </div>
                         <div>
-                            <button class="btn btn-sm btn-primary" onclick="app.reports.downloadCSV('students')">
+                            <button class="btn btn-sm btn-primary w-100 w-md-auto" onclick="app.reports.downloadCSV('students')">
                                 <i class="fas fa-download me-1"></i> Download CSV
                             </button>
                         </div>
                     </div>
                     
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover">
+                    <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                        <table class="table table-striped table-hover" style="min-width: 800px;">
                             <thead class="table-dark">
                                 <tr>
                                     <th>#</th>
@@ -804,7 +914,7 @@ class ReportsManager {
                             <tbody>
             `;
             
-            filteredStudents.forEach((student, index) => {
+            filteredStudents.slice(0, 10).forEach((student, index) => {
                 reportHTML += `
                     <tr>
                         <td>${index + 1}</td>
@@ -827,8 +937,8 @@ class ReportsManager {
                         </table>
                     </div>
                     
-                    <div class="mt-3 text-muted">
-                        <p>Showing ${filteredStudents.length} of ${this.students.length} total students</p>
+                    <div class="mt-3 text-muted small">
+                        <p>Showing first 10 of ${filteredStudents.length} students</p>
                     </div>
                 </div>
             `;
@@ -843,61 +953,61 @@ class ReportsManager {
         
         setTimeout(() => {
             let reportHTML = `
-                <div class="container-fluid">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <div>
-                            <h2 class="mb-1">Academic Performance Report</h2>
-                            <p class="text-muted mb-0">Generated: ${new Date().toLocaleDateString()}</p>
+                <div class="container-fluid px-0 px-md-2">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+                        <div class="mb-3 mb-md-0">
+                            <h2 class="h4 h3-md mb-1">Academic Performance Report</h2>
+                            <p class="text-muted small mb-0">Generated: ${new Date().toLocaleDateString()}</p>
                         </div>
                         <div>
-                            <button class="btn btn-sm btn-success" onclick="app.reports.downloadExcel('academic')">
+                            <button class="btn btn-sm btn-success w-100 w-md-auto" onclick="app.reports.downloadExcel('academic')">
                                 <i class="fas fa-file-excel me-1"></i> Download Excel
                             </button>
                         </div>
                     </div>
                     
-                    <div class="row mb-4">
-                        <div class="col-md-3">
+                    <div class="row g-2 g-md-3 mb-4">
+                        <div class="col-6 col-md-3">
                             <div class="card">
-                                <div class="card-body text-center">
-                                    <h3 class="mb-0">85%</h3>
-                                    <p class="text-muted mb-0">Average Marks</p>
+                                <div class="card-body text-center p-2 p-md-3">
+                                    <h3 class="h5 h4-md mb-0">85%</h3>
+                                    <p class="text-muted small mb-0">Avg Marks</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-6 col-md-3">
                             <div class="card">
-                                <div class="card-body text-center">
-                                    <h3 class="mb-0">3.4</h3>
-                                    <p class="text-muted mb-0">Average GPA</p>
+                                <div class="card-body text-center p-2 p-md-3">
+                                    <h3 class="h5 h4-md mb-0">3.4</h3>
+                                    <p class="text-muted small mb-0">Avg GPA</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-6 col-md-3">
                             <div class="card">
-                                <div class="card-body text-center">
-                                    <h3 class="mb-0">${this.marks.length}</h3>
-                                    <p class="text-muted mb-0">Grade Records</p>
+                                <div class="card-body text-center p-2 p-md-3">
+                                    <h3 class="h5 h4-md mb-0">${this.marks.length}</h3>
+                                    <p class="text-muted small mb-0">Grade Records</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-6 col-md-3">
                             <div class="card">
-                                <div class="card-body text-center">
-                                    <h3 class="mb-0">${this.courses.length}</h3>
-                                    <p class="text-muted mb-0">Courses</p>
+                                <div class="card-body text-center p-2 p-md-3">
+                                    <h3 class="h5 h4-md mb-0">${this.courses.length}</h3>
+                                    <p class="text-muted small mb-0">Courses</p>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="table-responsive">
-                        <table class="table table-striped">
+                    <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                        <table class="table table-striped" style="min-width: 600px;">
                             <thead class="table-dark">
                                 <tr>
                                     <th>Course Code</th>
                                     <th>Course Name</th>
-                                    <th>Average Marks</th>
+                                    <th>Average</th>
                                     <th>Top Grade</th>
                                     <th>Students</th>
                                 </tr>
@@ -905,7 +1015,7 @@ class ReportsManager {
                             <tbody>
             `;
             
-            this.courses.forEach(course => {
+            this.courses.slice(0, 5).forEach(course => {
                 const courseMarks = this.marks.filter(m => m.course_code === course.course_code);
                 const avgMarks = courseMarks.length > 0 
                     ? Math.round(courseMarks.reduce((sum, m) => sum + m.marks, 0) / courseMarks.length)
@@ -916,8 +1026,8 @@ class ReportsManager {
                 
                 reportHTML += `
                     <tr>
-                        <td>${course.course_code || course.code || 'N/A'}</td>
-                        <td>${course.course_name || course.name || 'N/A'}</td>
+                        <td>${course.course_code || 'N/A'}</td>
+                        <td>${course.course_name || 'N/A'}</td>
                         <td>${avgMarks}%</td>
                         <td><span class="badge bg-success">${topGrade}</span></td>
                         <td>${courseMarks.length}</td>
@@ -942,23 +1052,23 @@ class ReportsManager {
         
         setTimeout(() => {
             let reportHTML = `
-                <div class="container-fluid">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <div>
-                            <h2 class="mb-1">Centre Performance Report</h2>
-                            <p class="text-muted mb-0">Generated: ${new Date().toLocaleDateString()}</p>
+                <div class="container-fluid px-0 px-md-2">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+                        <div class="mb-3 mb-md-0">
+                            <h2 class="h4 h3-md mb-1">Centre Performance Report</h2>
+                            <p class="text-muted small mb-0">Generated: ${new Date().toLocaleDateString()}</p>
                         </div>
                         <div>
-                            <button class="btn btn-sm btn-primary" onclick="app.reports.downloadPDF('centre')">
+                            <button class="btn btn-sm btn-primary w-100 w-md-auto" onclick="app.reports.downloadPDF('centre')">
                                 <i class="fas fa-file-pdf me-1"></i> Download PDF
                             </button>
                         </div>
                     </div>
                     
-                    <div class="row">
+                    <div class="row g-3">
             `;
             
-            this.centres.forEach(centre => {
+            this.centres.slice(0, 6).forEach(centre => {
                 const centreStudents = this.students.filter(s => 
                     (s.centre_name || s.centre) === centre.name
                 );
@@ -966,22 +1076,22 @@ class ReportsManager {
                 const graduatedStudents = centreStudents.filter(s => s.status === 'graduated').length;
                 
                 reportHTML += `
-                    <div class="col-md-6 mb-3">
+                    <div class="col-12 col-md-6 col-lg-4 mb-3">
                         <div class="card h-100">
                             <div class="card-body">
-                                <h5 class="card-title">${centre.name || 'N/A'}</h5>
-                                <p class="text-muted">${centre.county || 'N/A'}</p>
-                                <div class="row text-center">
+                                <h5 class="card-title h6">${centre.name || 'N/A'}</h5>
+                                <p class="text-muted small">${centre.county || 'N/A'}</p>
+                                <div class="row text-center g-2">
                                     <div class="col-4">
-                                        <h4 class="mb-0">${centreStudents.length}</h4>
+                                        <h4 class="h5 mb-0">${centreStudents.length}</h4>
                                         <small class="text-muted">Total</small>
                                     </div>
                                     <div class="col-4">
-                                        <h4 class="mb-0">${activeStudents}</h4>
+                                        <h4 class="h5 mb-0">${activeStudents}</h4>
                                         <small class="text-muted">Active</small>
                                     </div>
                                     <div class="col-4">
-                                        <h4 class="mb-0">${graduatedStudents}</h4>
+                                        <h4 class="h5 mb-0">${graduatedStudents}</h4>
                                         <small class="text-muted">Graduated</small>
                                     </div>
                                 </div>
@@ -1008,67 +1118,67 @@ class ReportsManager {
             const filteredStudents = this.applyStudentFilters(this.students);
             
             let reportHTML = `
-                <div class="container-fluid">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <div>
-                            <h1 class="mb-1">Executive Summary Report</h1>
-                            <p class="text-muted mb-0">Generated: ${new Date().toLocaleDateString()}</p>
+                <div class="container-fluid px-0 px-md-2">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+                        <div class="mb-3 mb-md-0">
+                            <h1 class="h4 h3-md mb-1">Executive Summary Report</h1>
+                            <p class="text-muted small mb-0">Generated: ${new Date().toLocaleDateString()}</p>
                         </div>
                         <div>
-                            <button class="btn btn-sm btn-warning" onclick="app.reports.downloadJSON('summary')">
+                            <button class="btn btn-sm btn-warning w-100 w-md-auto" onclick="app.reports.downloadJSON('summary')">
                                 <i class="fas fa-file-code me-1"></i> Download JSON
                             </button>
                         </div>
                     </div>
                     
-                    <div class="row mb-4">
-                        <div class="col-md-3">
+                    <div class="row g-2 g-md-3 mb-4">
+                        <div class="col-6 col-md-3">
                             <div class="card bg-primary text-white">
-                                <div class="card-body text-center">
-                                    <h2 class="mb-0">${filteredStudents.length}</h2>
-                                    <p class="mb-0">Total Students</p>
+                                <div class="card-body text-center p-2 p-md-3">
+                                    <h2 class="h4 h3-md mb-0">${filteredStudents.length}</h2>
+                                    <p class="small mb-0">Total Students</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-6 col-md-3">
                             <div class="card bg-success text-white">
-                                <div class="card-body text-center">
-                                    <h2 class="mb-0">${this.centres.length}</h2>
-                                    <p class="mb-0">Active Centres</p>
+                                <div class="card-body text-center p-2 p-md-3">
+                                    <h2 class="h4 h3-md mb-0">${this.centres.length}</h2>
+                                    <p class="small mb-0">Active Centres</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-6 col-md-3">
                             <div class="card bg-info text-white">
-                                <div class="card-body text-center">
-                                    <h2 class="mb-0">${this.programs.length}</h2>
-                                    <p class="mb-0">Programs</p>
+                                <div class="card-body text-center p-2 p-md-3">
+                                    <h2 class="h4 h3-md mb-0">${this.programs.length}</h2>
+                                    <p class="small mb-0">Programs</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-6 col-md-3">
                             <div class="card bg-warning text-white">
-                                <div class="card-body text-center">
-                                    <h2 class="mb-0">3.24</h2>
-                                    <p class="mb-0">Average GPA</p>
+                                <div class="card-body text-center p-2 p-md-3">
+                                    <h2 class="h4 h3-md mb-0">3.24</h2>
+                                    <p class="small mb-0">Average GPA</p>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="row">
-                        <div class="col-md-6">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
                             <div class="card">
                                 <div class="card-body">
-                                    <h5>Program Distribution</h5>
-                                    <ul class="list-group">
+                                    <h5 class="h6">Program Distribution</h5>
+                                    <ul class="list-group list-group-flush">
             `;
             
-            this.programs.forEach(program => {
+            this.programs.slice(0, 5).forEach(program => {
                 const programStudents = filteredStudents.filter(s => s.program === program.name).length;
                 reportHTML += `
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        ${program.name || program}
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="small">${program.name || program}</span>
                         <span class="badge bg-primary rounded-pill">${programStudents}</span>
                     </li>
                 `;
@@ -1079,11 +1189,11 @@ class ReportsManager {
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-12 col-md-6">
                             <div class="card">
                                 <div class="card-body">
-                                    <h5>Centre Distribution</h5>
-                                    <ul class="list-group">
+                                    <h5 class="h6">Centre Distribution</h5>
+                                    <ul class="list-group list-group-flush">
             `;
             
             this.centres.slice(0, 5).forEach(centre => {
@@ -1091,8 +1201,8 @@ class ReportsManager {
                     (s.centre_name || s.centre) === centre.name
                 ).length;
                 reportHTML += `
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        ${centre.name || centre}
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="small">${centre.name || centre}</span>
                         <span class="badge bg-success rounded-pill">${centreStudents}</span>
                     </li>
                 `;
@@ -1102,18 +1212,6 @@ class ReportsManager {
                                     </ul>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-4">
-                        <h5>Recommendations</h5>
-                        <div class="alert alert-info">
-                            <ul class="mb-0">
-                                <li>Consider expanding programs to more centres</li>
-                                <li>Focus on improving graduation rates in underperforming centres</li>
-                                <li>Monitor student performance in core courses</li>
-                                <li>Consider introducing new programs based on demand</li>
-                            </ul>
                         </div>
                     </div>
                 </div>
@@ -1132,7 +1230,7 @@ class ReportsManager {
         
         let reportHTML = `
             <div class="container-fluid">
-                <h2>Student Report Preview</h2>
+                <h2 class="h4">Student Report Preview</h2>
                 <p><strong>Report Type:</strong> ${reportType}</p>
                 <p><strong>Export Format:</strong> ${format}</p>
                 <p><strong>Selected Centres:</strong> ${this.selectedFilters.studentReportCenter.join(', ') || 'All Centres'}</p>
@@ -1165,7 +1263,7 @@ class ReportsManager {
         
         let reportHTML = `
             <div class="container-fluid">
-                <h2>Academic Report Preview</h2>
+                <h2 class="h4">Academic Report Preview</h2>
                 <p><strong>Report Type:</strong> ${reportType}</p>
                 <p><strong>Export Format:</strong> ${format}</p>
                 <p><strong>Selected Centres:</strong> ${this.selectedFilters.academicReportCenter.join(', ') || 'All Centres'}</p>
@@ -1510,7 +1608,7 @@ class ReportsManager {
         previewContainer.innerHTML = `
             <div class="report-preview">
                 <div class="report-header mb-3">
-                    <h4>${title}</h4>
+                    <h4 class="h5">${title}</h4>
                     <small class="text-muted">Generated on ${new Date().toLocaleDateString()}</small>
                 </div>
                 <div class="report-content" style="max-height: 500px; overflow-y: auto;">
@@ -1564,6 +1662,8 @@ class ReportsManager {
             min-width: 250px;
             margin-bottom: 10px;
             opacity: 1;
+            position: relative;
+            z-index: 9999;
         `;
         
         const icons = {
