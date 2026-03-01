@@ -1,4 +1,4 @@
-// modules/reports.js - COMPLETE WORKING VERSION
+// modules/reports.js - COMPLETE WORKING VERSION WITH TABLE VISIBILITY FIX
 class ReportsManager {
     constructor(db) {
         console.log('📊 ReportsManager initialized');
@@ -58,7 +58,7 @@ class ReportsManager {
             'bulkExport', 'addScheduledReport', 'showScheduledReports',
             'previewReport', 'clearPreview', 'downloadPreview', 'saveFilterPreset',
             'showToast', 'showLoading', 'downloadCSV', 'downloadExcel', 'downloadPDF',
-            'downloadJSON', 'downloadReport'
+            'downloadJSON', 'downloadReport', 'ensureTableVisibility' // NEW METHOD
         ];
         
         methods.forEach(method => {
@@ -90,11 +90,16 @@ class ReportsManager {
             // Set default dates
             this.setDefaultDates();
             
-            // Update statistics with real data - CRITICAL FIX
+            // Update statistics with real data
             this.updateStatistics();
             
             // Generate reports grid
             this.generateReportsGrid();
+            
+            // CRITICAL FIX: Ensure student table is visible
+            setTimeout(() => {
+                this.ensureTableVisibility();
+            }, 500);
             
             console.log('✅ Reports initialized successfully with real data');
             console.log(`📊 Loaded: ${this.students.length} students, ${this.centres.length} centres`);
@@ -109,6 +114,7 @@ class ReportsManager {
             console.log('⚠️ Using sample data as fallback');
             this.loadSampleData();
             this.updateStatistics();
+            this.ensureTableVisibility();
         } finally {
             this.showLoading(false);
         }
@@ -192,6 +198,55 @@ class ReportsManager {
         console.log('⚠️ Using sample data as fallback');
     }
     
+    // ==================== CRITICAL FIX: ENSURE TABLE VISIBILITY ====================
+    
+    ensureTableVisibility() {
+        console.log('🔍 Ensuring report tables are visible...');
+        
+        // Target specific tables
+        const tableIds = ['studentsTable', 'programsTable', 'coursesTable', 'marksTable'];
+        
+        tableIds.forEach(tableId => {
+            const table = document.getElementById(tableId);
+            if (table) {
+                // Force table visible
+                table.style.setProperty('display', 'table', 'important');
+                table.style.setProperty('visibility', 'visible', 'important');
+                table.style.setProperty('opacity', '1', 'important');
+                
+                // Force all rows visible
+                table.querySelectorAll('tr').forEach(row => {
+                    row.style.setProperty('display', 'table-row', 'important');
+                    row.style.setProperty('visibility', 'visible', 'important');
+                });
+                
+                console.log(`✅ Table #${tableId} forced visible (${table.rows.length} rows)`);
+            }
+        });
+        
+        // Make all parent containers visible
+        const studentsTable = document.getElementById('studentsTable');
+        if (studentsTable) {
+            let parent = studentsTable.parentElement;
+            while (parent) {
+                parent.style.setProperty('display', 'block', 'important');
+                parent.style.setProperty('visibility', 'visible', 'important');
+                parent.style.setProperty('overflow', 'visible', 'important');
+                parent = parent.parentElement;
+            }
+            console.log('✅ All parent containers made visible');
+        }
+        
+        // Find and show any hidden data tables
+        document.querySelectorAll('.data-table, table').forEach(table => {
+            if (table.offsetParent === null && table.querySelectorAll('td').length > 0) {
+                table.style.setProperty('display', 'table', 'important');
+                table.style.setProperty('visibility', 'visible', 'important');
+                console.log(`✅ Hidden table made visible: ${table.id || 'unnamed'}`);
+            }
+        });
+    }
+    
     // ==================== STATISTICS - FIXED VERSION ====================
     
     updateStatistics() {
@@ -234,6 +289,9 @@ class ReportsManager {
                 graduationRate: graduationRate + '%',
                 centres: this.centres.length
             });
+            
+            // Ensure tables are visible after statistics update
+            setTimeout(() => this.ensureTableVisibility(), 100);
             
         } catch (error) {
             console.error('Error updating statistics:', error);
@@ -705,6 +763,7 @@ class ReportsManager {
             `;
             
             this.previewReport(reportHTML, 'Student List Report');
+            this.ensureTableVisibility(); // Ensure tables visible after report generation
             this.showLoading(false);
         }, 800);
     }
@@ -804,6 +863,7 @@ class ReportsManager {
             `;
             
             this.previewReport(reportHTML, 'Academic Performance Report');
+            this.ensureTableVisibility();
             this.showLoading(false);
         }, 800);
     }
@@ -868,6 +928,7 @@ class ReportsManager {
             `;
             
             this.previewReport(reportHTML, 'Centre Performance Report');
+            this.ensureTableVisibility();
             this.showLoading(false);
         }, 800);
     }
@@ -991,6 +1052,7 @@ class ReportsManager {
             `;
             
             this.previewReport(reportHTML, 'Executive Summary Report');
+            this.ensureTableVisibility();
             this.showLoading(false);
         }, 1000);
     }
@@ -1015,6 +1077,7 @@ class ReportsManager {
         `;
         
         this.previewReport(reportHTML, 'Student Report Preview');
+        this.ensureTableVisibility();
     }
     
     generateStudentReport() {
@@ -1048,6 +1111,7 @@ class ReportsManager {
         `;
         
         this.previewReport(reportHTML, 'Academic Report Preview');
+        this.ensureTableVisibility();
     }
     
     generateAcademicReport() {
@@ -1415,6 +1479,7 @@ class ReportsManager {
         setTimeout(() => {
             this.updateStatistics();
             this.generateReportsGrid();
+            this.ensureTableVisibility(); // Ensure tables visible after refresh
             this.showToast('Reports refreshed successfully', 'success');
             this.showLoading(false);
         }, 1000);
