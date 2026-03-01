@@ -1,4 +1,4 @@
-// modules/transcripts.js - COMPLETE FIXED VERSION WITH REAL MARKS
+// modules/transcripts.js - COMPLETE FIXED VERSION WITH COURSE LOOKUP
 class TranscriptsManager {
     constructor(db) {
         console.log('🎓 TranscriptsManager initialized');
@@ -1404,6 +1404,8 @@ class TranscriptsManager {
         }
     }
     
+    // ==================== FIXED PREPARETRANSCRIPTDATA METHOD ====================
+    
     async prepareTranscriptData(studentId, options = {}) {
         console.log(`📊 Preparing transcript data for student ID: ${studentId}`);
         
@@ -1417,6 +1419,11 @@ class TranscriptsManager {
         try {
             marks = await this.db.getStudentMarks(studentId);
             console.log(`📚 Found ${marks.length} mark records for student`);
+            
+            // Log the first mark to see its structure
+            if (marks.length > 0) {
+                console.log('Sample mark structure:', marks[0]);
+            }
         } catch (error) {
             console.warn('Error fetching marks, using empty array:', error);
             marks = [];
@@ -1432,72 +1439,116 @@ class TranscriptsManager {
             gpa = 0.0;
         }
         
+        // Get all courses for reference
+        let allCourses = [];
+        try {
+            allCourses = await this.db.getCourses();
+            console.log(`📚 Loaded ${allCourses.length} courses for reference`);
+        } catch (error) {
+            console.warn('Could not load courses:', error);
+            allCourses = [];
+        }
+        
+        // Create a lookup map for courses by ID
+        const courseMap = {};
+        allCourses.forEach(course => {
+            courseMap[course.id] = course;
+        });
+        
         // Organize marks by course
         const courses = {};
         
         if (marks.length > 0) {
             for (const mark of marks) {
-                if (!mark.courses || !mark.courses.course_code) {
-                    console.warn('Mark missing course info:', mark);
+                // Get the course ID from the mark
+                const courseId = mark.course_id;
+                
+                if (!courseId) {
+                    console.warn('Mark has no course_id:', mark);
                     continue;
                 }
                 
-                const courseCode = mark.courses.course_code;
+                // Find the course in our map
+                const course = courseMap[courseId];
+                
+                // Determine course code and name
+                let courseCode = 'N/A';
+                let courseName = 'Unknown Course';
+                let credits = 3;
+                
+                if (course) {
+                    courseCode = course.course_code || course.code || courseId.substring(0, 8);
+                    courseName = course.course_name || course.name || 'Unknown Course';
+                    credits = course.credits || 3;
+                } else {
+                    console.warn(`Course not found for ID: ${courseId}`);
+                    courseCode = `COURSE-${courseId.substring(0, 6)}`;
+                    courseName = 'Course Details Unavailable';
+                }
+                
+                // Initialize course if not exists
                 if (!courses[courseCode]) {
                     courses[courseCode] = {
                         courseCode: courseCode,
-                        courseName: mark.courses.course_name || 'Unknown Course',
+                        courseName: courseName,
                         assessments: [],
                         finalGrade: '',
-                        credits: mark.courses.credits || 3,
-                        courseId: mark.courses.id
+                        credits: credits,
+                        courseId: courseId
                     };
                 }
                 
+                // Add assessment to course
                 if (options.includeAllAssessments !== false) {
+                    // Calculate percentage if not provided
+                    let percentage = mark.percentage;
+                    if (percentage === undefined && mark.score !== undefined && mark.max_score) {
+                        percentage = (mark.score / mark.max_score) * 100;
+                    }
+                    
                     courses[courseCode].assessments.push({
                         name: mark.assessment_name || 'Assessment',
                         type: mark.assessment_type || 'Unknown',
                         score: mark.score || 0,
                         maxScore: mark.max_score || 100,
-                        percentage: mark.percentage || 0,
+                        percentage: percentage || 0,
                         grade: mark.grade || 'F',
                         remarks: options.includeRemarks !== false ? (mark.remarks || '') : '',
                         date: mark.assessment_date || null
                     });
                 }
-                
-                // Calculate final grade for the course
-                if (courses[courseCode].assessments.length > 0) {
-                    const totalPercentage = courses[courseCode].assessments
-                        .reduce((sum, a) => sum + (a.percentage || 0), 0);
-                    const avgPercentage = courses[courseCode].assessments.length > 0 ? 
-                        totalPercentage / courses[courseCode].assessments.length : 0;
-                    
-                    try {
-                        // Use the database grade calculation if available
-                        if (this.db.calculateGrade) {
-                            courses[courseCode].finalGrade = this.db.calculateGrade(avgPercentage).grade;
-                        } else {
-                            // Fallback grade calculation
-                            if (avgPercentage >= 80) courses[courseCode].finalGrade = 'DISTINCTION';
-                            else if (avgPercentage >= 70) courses[courseCode].finalGrade = 'CREDIT';
-                            else if (avgPercentage >= 60) courses[courseCode].finalGrade = 'PASS';
-                            else if (avgPercentage > 0) courses[courseCode].finalGrade = 'FAIL';
-                            else courses[courseCode].finalGrade = 'N/A';
-                        }
-                    } catch (error) {
-                        console.warn('Error calculating grade:', error);
-                        courses[courseCode].finalGrade = 'N/A';
-                    }
-                }
             }
+            
+            // Calculate final grades for each course
+            Object.values(courses).forEach(course => {
+                if (course.assessments.length > 0) {
+                    // Calculate average percentage from all assessments in this course
+                    const totalPercentage = course.assessments
+                        .reduce((sum, a) => sum + (a.percentage || 0), 0);
+                    const avgPercentage = course.assessments.length > 0 ? 
+                        totalPercentage / course.assessments.length : 0;
+                    
+                    // Determine final grade based on average percentage
+                    if (avgPercentage >= 80) course.finalGrade = 'DISTINCTION';
+                    else if (avgPercentage >= 70) course.finalGrade = 'CREDIT';
+                    else if (avgPercentage >= 60) course.finalGrade = 'PASS';
+                    else if (avgPercentage > 0) course.finalGrade = 'FAIL';
+                    else course.finalGrade = 'N/A';
+                    
+                    console.log(`Course ${course.courseCode}: avg ${avgPercentage.toFixed(1)}% -> ${course.finalGrade}`);
+                }
+            });
         } else {
             console.log('⚠️ No marks found for this student');
         }
         
         const filteredCourses = Object.values(courses);
         console.log(`✅ Processed ${filteredCourses.length} courses with marks`);
+        
+        // Log the courses we found
+        filteredCourses.forEach(course => {
+            console.log(`  - ${course.courseCode}: ${course.courseName} (${course.assessments.length} assessments)`);
+        });
         
         return {
             student: student,
