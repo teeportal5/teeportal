@@ -1,4 +1,4 @@
-// modules/reports.js - COMPLETE WORKING VERSION WITH TABLE VISIBILITY FIX
+// modules/reports.js - COMPLETE WORKING VERSION FOR YOUR STRUCTURE
 class ReportsManager {
     constructor(db) {
         console.log('📊 ReportsManager initialized');
@@ -39,8 +39,12 @@ class ReportsManager {
         // Bind methods
         this.bindAllMethods();
         
-        // Initialize immediately
-        this.initialize();
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.initialize());
+        } else {
+            this.initialize();
+        }
     }
     
     bindAllMethods() {
@@ -58,7 +62,7 @@ class ReportsManager {
             'bulkExport', 'addScheduledReport', 'showScheduledReports',
             'previewReport', 'clearPreview', 'downloadPreview', 'saveFilterPreset',
             'showToast', 'showLoading', 'downloadCSV', 'downloadExcel', 'downloadPDF',
-            'downloadJSON', 'downloadReport', 'ensureTableVisibility' // NEW METHOD
+            'downloadJSON', 'downloadReport', 'ensureTableVisibility', 'renderReports'
         ];
         
         methods.forEach(method => {
@@ -74,7 +78,7 @@ class ReportsManager {
             // Load real data from database
             await this.loadRealData();
             
-            // Populate filters
+            // Populate all filters
             this.populateAcademicYearFilter();
             this.populateFilterOptions('centre', this.centres, 'name');
             this.populateFilterOptions('county', this.counties, 'name');
@@ -87,6 +91,9 @@ class ReportsManager {
             this.populateFilterOptions('academicReportCenter', this.centres, 'name');
             this.populateFilterOptions('bulkExportCenters', this.centres, 'name');
             
+            // Populate transcript filters
+            this.populateTranscriptFilters();
+            
             // Set default dates
             this.setDefaultDates();
             
@@ -96,7 +103,10 @@ class ReportsManager {
             // Generate reports grid
             this.generateReportsGrid();
             
-            // CRITICAL FIX: Ensure student table is visible
+            // Render the reports section
+            this.renderReports();
+            
+            // Ensure tables are visible
             setTimeout(() => {
                 this.ensureTableVisibility();
             }, 500);
@@ -114,15 +124,49 @@ class ReportsManager {
             console.log('⚠️ Using sample data as fallback');
             this.loadSampleData();
             this.updateStatistics();
+            this.generateReportsGrid();
             this.ensureTableVisibility();
         } finally {
             this.showLoading(false);
         }
     }
     
+    renderReports() {
+        console.log('📋 Rendering reports section...');
+        
+        // Make sure the reports section is properly structured
+        const reportsSection = document.getElementById('reports');
+        if (reportsSection) {
+            // Ensure the section has proper structure
+            reportsSection.classList.add('content-section');
+            
+            // Check if we need to add any missing elements
+            const reportsGrid = document.getElementById('reportsGrid');
+            if (reportsGrid && reportsGrid.innerHTML.includes('Loading reports')) {
+                this.generateReportsGrid();
+            }
+        }
+        
+        // Ensure all dropdowns work
+        this.initializeDropdowns();
+    }
+    
+    initializeDropdowns() {
+        // Add click handlers for dropdown buttons if needed
+        document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                const dropdown = button.nextElementSibling;
+                if (dropdown && dropdown.classList.contains('dropdown-menu')) {
+                    dropdown.classList.toggle('show');
+                }
+            });
+        });
+    }
+    
     async loadRealData() {
         try {
-            // Load students
+            // Load students from database
             if (this.db?.getStudents) {
                 const dbStudents = await this.db.getStudents();
                 console.log(`📚 Raw students from DB: ${dbStudents?.length || 0}`);
@@ -130,14 +174,16 @@ class ReportsManager {
                 if (dbStudents && dbStudents.length > 0) {
                     this.students = dbStudents.map(s => ({
                         id: s.id,
-                        name: s.full_name,
-                        admission_number: s.reg_number,
+                        name: s.full_name || s.name,
+                        admission_number: s.reg_number || s.admission_number,
                         email: s.email,
                         phone: s.phone,
                         centre_name: s.centre_name || s.centre,
+                        centre: s.centre_name || s.centre,
                         county: s.county,
                         program: s.program_name || s.program,
-                        intake_year: s.intake_year,
+                        program_name: s.program_name || s.program,
+                        intake_year: s.intake_year || s.intake,
                         status: s.status || 'active'
                     }));
                     console.log(`✅ Loaded ${this.students.length} students from database`);
@@ -149,19 +195,19 @@ class ReportsManager {
             
             // Load centres
             if (this.db?.getCentres) {
-                this.centres = await this.db.getCentres();
+                this.centres = await this.db.getCentres() || [];
                 console.log(`✅ Loaded ${this.centres.length} centres from database`);
             }
             
             // Load programs
             if (this.db?.getPrograms) {
-                this.programs = await this.db.getPrograms();
+                this.programs = await this.db.getPrograms() || [];
                 console.log(`✅ Loaded ${this.programs.length} programs from database`);
             }
             
             // Load counties
             if (this.db?.getCounties) {
-                this.counties = await this.db.getCounties();
+                this.counties = await this.db.getCounties() || [];
                 console.log(`✅ Loaded ${this.counties.length} counties from database`);
             } else {
                 const uniqueCounties = [...new Set(this.students.map(s => s.county).filter(Boolean))];
@@ -171,13 +217,13 @@ class ReportsManager {
             
             // Load courses
             if (this.db?.getCourses) {
-                this.courses = await this.db.getCourses();
+                this.courses = await this.db.getCourses() || [];
                 console.log(`✅ Loaded ${this.courses.length} courses from database`);
             }
             
             // Load marks
             if (this.db?.getMarks) {
-                this.marks = await this.db.getMarks();
+                this.marks = await this.db.getMarks() || [];
                 console.log(`✅ Loaded ${this.marks.length} marks from database`);
             }
             
@@ -203,51 +249,41 @@ class ReportsManager {
     ensureTableVisibility() {
         console.log('🔍 Ensuring report tables are visible...');
         
-        // Target specific tables
-        const tableIds = ['studentsTable', 'programsTable', 'coursesTable', 'marksTable'];
+        // Target all tables in the reports section
+        const reportsSection = document.getElementById('reports');
+        if (!reportsSection) return;
         
-        tableIds.forEach(tableId => {
-            const table = document.getElementById(tableId);
-            if (table) {
-                // Force table visible
-                table.style.setProperty('display', 'table', 'important');
-                table.style.setProperty('visibility', 'visible', 'important');
-                table.style.setProperty('opacity', '1', 'important');
-                
-                // Force all rows visible
-                table.querySelectorAll('tr').forEach(row => {
-                    row.style.setProperty('display', 'table-row', 'important');
-                    row.style.setProperty('visibility', 'visible', 'important');
-                });
-                
-                console.log(`✅ Table #${tableId} forced visible (${table.rows.length} rows)`);
-            }
+        // Find all tables within reports section
+        const tables = reportsSection.querySelectorAll('table');
+        
+        tables.forEach(table => {
+            // Force table visible
+            table.style.setProperty('display', 'table', 'important');
+            table.style.setProperty('visibility', 'visible', 'important');
+            table.style.setProperty('opacity', '1', 'important');
+            
+            // Force all rows visible
+            table.querySelectorAll('tr').forEach(row => {
+                row.style.setProperty('display', 'table-row', 'important');
+                row.style.setProperty('visibility', 'visible', 'important');
+            });
+            
+            console.log(`✅ Table forced visible: ${table.id || 'unnamed'} (${table.rows.length} rows)`);
         });
         
         // Make all parent containers visible
-        const studentsTable = document.getElementById('studentsTable');
-        if (studentsTable) {
-            let parent = studentsTable.parentElement;
-            while (parent) {
-                parent.style.setProperty('display', 'block', 'important');
-                parent.style.setProperty('visibility', 'visible', 'important');
-                parent.style.setProperty('overflow', 'visible', 'important');
-                parent = parent.parentElement;
-            }
-            console.log('✅ All parent containers made visible');
+        let parent = reportsSection.parentElement;
+        while (parent) {
+            parent.style.setProperty('display', 'block', 'important');
+            parent.style.setProperty('visibility', 'visible', 'important');
+            parent.style.setProperty('overflow', 'visible', 'important');
+            parent = parent.parentElement;
         }
         
-        // Find and show any hidden data tables
-        document.querySelectorAll('.data-table, table').forEach(table => {
-            if (table.offsetParent === null && table.querySelectorAll('td').length > 0) {
-                table.style.setProperty('display', 'table', 'important');
-                table.style.setProperty('visibility', 'visible', 'important');
-                console.log(`✅ Hidden table made visible: ${table.id || 'unnamed'}`);
-            }
-        });
+        console.log('✅ All parent containers made visible');
     }
     
-    // ==================== STATISTICS - FIXED VERSION ====================
+    // ==================== STATISTICS ====================
     
     updateStatistics() {
         try {
@@ -258,13 +294,11 @@ class ReportsManager {
             const graduatedStudents = filteredStudents.filter(s => s.status === 'graduated').length;
             const graduationRate = totalStudents > 0 ? Math.round((graduatedStudents / totalStudents) * 100) : 0;
             
-            // Update statistics cards at the top
+            // Update statistics cards in reports section
             const totalElement = document.getElementById('totalStudents');
             if (totalElement) {
                 totalElement.textContent = totalStudents;
                 console.log('✅ Updated totalStudents to:', totalStudents);
-            } else {
-                console.warn('⚠️ totalStudents element not found');
             }
             
             const gradElement = document.getElementById('graduationRate');
@@ -289,9 +323,6 @@ class ReportsManager {
                 graduationRate: graduationRate + '%',
                 centres: this.centres.length
             });
-            
-            // Ensure tables are visible after statistics update
-            setTimeout(() => this.ensureTableVisibility(), 100);
             
         } catch (error) {
             console.error('Error updating statistics:', error);
@@ -557,6 +588,44 @@ class ReportsManager {
         });
     }
     
+    populateTranscriptFilters() {
+        // Populate transcript student dropdown
+        const studentSelect = document.getElementById('transcriptStudent');
+        if (studentSelect) {
+            studentSelect.innerHTML = '<option value="">Select a student...</option>';
+            this.students.forEach(student => {
+                const option = document.createElement('option');
+                option.value = student.id;
+                option.textContent = `${student.name} (${student.admission_number})`;
+                studentSelect.appendChild(option);
+            });
+        }
+        
+        // Populate transcript centre filter
+        const centreFilter = document.getElementById('transcriptCenterFilter');
+        if (centreFilter) {
+            centreFilter.innerHTML = '<option value="all">All Centres</option>';
+            this.centres.forEach(centre => {
+                const option = document.createElement('option');
+                option.value = centre.name;
+                option.textContent = centre.name;
+                centreFilter.appendChild(option);
+            });
+        }
+        
+        // Populate transcript program filter
+        const programFilter = document.getElementById('transcriptProgram');
+        if (programFilter) {
+            programFilter.innerHTML = '<option value="all">All Programs</option>';
+            this.programs.forEach(program => {
+                const option = document.createElement('option');
+                option.value = program.name;
+                option.textContent = program.name;
+                programFilter.appendChild(option);
+            });
+        }
+    }
+    
     setDefaultDates() {
         const dateFrom = document.getElementById('reportStartDate');
         const dateTo = document.getElementById('reportEndDate');
@@ -580,6 +649,7 @@ class ReportsManager {
         
         setTimeout(() => {
             this.updateStatistics();
+            this.ensureTableVisibility();
             this.showToast('Filters applied successfully', 'success');
             this.showLoading(false);
         }, 500);
@@ -611,6 +681,7 @@ class ReportsManager {
         
         this.setDefaultDates();
         this.updateStatistics();
+        this.ensureTableVisibility();
         this.showToast('Filters cleared', 'info');
     }
     
@@ -763,7 +834,6 @@ class ReportsManager {
             `;
             
             this.previewReport(reportHTML, 'Student List Report');
-            this.ensureTableVisibility(); // Ensure tables visible after report generation
             this.showLoading(false);
         }, 800);
     }
@@ -863,7 +933,6 @@ class ReportsManager {
             `;
             
             this.previewReport(reportHTML, 'Academic Performance Report');
-            this.ensureTableVisibility();
             this.showLoading(false);
         }, 800);
     }
@@ -928,7 +997,6 @@ class ReportsManager {
             `;
             
             this.previewReport(reportHTML, 'Centre Performance Report');
-            this.ensureTableVisibility();
             this.showLoading(false);
         }, 800);
     }
@@ -1018,7 +1086,7 @@ class ReportsManager {
                                     <ul class="list-group">
             `;
             
-            this.centres.forEach(centre => {
+            this.centres.slice(0, 5).forEach(centre => {
                 const centreStudents = filteredStudents.filter(s => 
                     (s.centre_name || s.centre) === centre.name
                 ).length;
@@ -1052,7 +1120,6 @@ class ReportsManager {
             `;
             
             this.previewReport(reportHTML, 'Executive Summary Report');
-            this.ensureTableVisibility();
             this.showLoading(false);
         }, 1000);
     }
@@ -1077,7 +1144,6 @@ class ReportsManager {
         `;
         
         this.previewReport(reportHTML, 'Student Report Preview');
-        this.ensureTableVisibility();
     }
     
     generateStudentReport() {
@@ -1111,7 +1177,6 @@ class ReportsManager {
         `;
         
         this.previewReport(reportHTML, 'Academic Report Preview');
-        this.ensureTableVisibility();
     }
     
     generateAcademicReport() {
@@ -1133,9 +1198,9 @@ class ReportsManager {
         let csvContent = "data:text/csv;charset=utf-8,";
         
         if (type === 'students') {
-            csvContent += "Admission No.,Name,Program,Centre,County,Status\\n";
+            csvContent += "Admission No.,Name,Program,Centre,County,Status\n";
             this.students.forEach(student => {
-                csvContent += `${student.admission_number || ''},${student.name || ''},${student.program || ''},${student.centre_name || student.centre || ''},${student.county || ''},${student.status || ''}\\n`;
+                csvContent += `${student.admission_number || ''},${student.name || ''},${student.program || ''},${student.centre_name || student.centre || ''},${student.county || ''},${student.status || ''}\n`;
             });
         }
         
@@ -1154,7 +1219,7 @@ class ReportsManager {
         let csvContent = "data:text/csv;charset=utf-8,";
         
         if (type === 'academic') {
-            csvContent += "Course Code,Course Name,Average Marks,Top Grade,Students\\n";
+            csvContent += "Course Code,Course Name,Average Marks,Top Grade,Students\n";
             this.courses.forEach(course => {
                 const courseMarks = this.marks.filter(m => m.course_code === course.course_code);
                 const avgMarks = courseMarks.length > 0 
@@ -1164,7 +1229,7 @@ class ReportsManager {
                     ? courseMarks.reduce((max, m) => m.grade > max ? m.grade : max, 'F')
                     : 'N/A';
                 
-                csvContent += `${course.course_code || ''},${course.course_name || ''},${avgMarks},${topGrade},${courseMarks.length}\\n`;
+                csvContent += `${course.course_code || ''},${course.course_name || ''},${avgMarks},${topGrade},${courseMarks.length}\n`;
             });
         }
         
@@ -1228,9 +1293,9 @@ class ReportsManager {
         
         switch(format) {
             case 'csv':
-                let csvContent = "data:text/csv;charset=utf-8,Admission No.,Name,Program,Centre,County,Status\\n";
+                let csvContent = "data:text/csv;charset=utf-8,Admission No.,Name,Program,Centre,County,Status\n";
                 this.students.forEach(student => {
-                    csvContent += `${student.admission_number || ''},${student.name || ''},${student.program || ''},${student.centre_name || student.centre || ''},${student.county || ''},${student.status || ''}\\n`;
+                    csvContent += `${student.admission_number || ''},${student.name || ''},${student.program || ''},${student.centre_name || student.centre || ''},${student.county || ''},${student.status || ''}\n`;
                 });
                 dataStr = csvContent;
                 ext = 'csv';
@@ -1242,9 +1307,9 @@ class ReportsManager {
                 break;
                 
             case 'excel':
-                let excelContent = "data:text/csv;charset=utf-8,Admission No.,Name,Program,Centre,County,Status\\n";
+                let excelContent = "data:text/csv;charset=utf-8,Admission No.,Name,Program,Centre,County,Status\n";
                 this.students.forEach(student => {
-                    excelContent += `${student.admission_number || ''},${student.name || ''},${student.program || ''},${student.centre_name || student.centre || ''},${student.county || ''},${student.status || ''}\\n`;
+                    excelContent += `${student.admission_number || ''},${student.name || ''},${student.program || ''},${student.centre_name || student.centre || ''},${student.county || ''},${student.status || ''}\n`;
                 });
                 dataStr = excelContent;
                 ext = 'xls';
@@ -1302,10 +1367,10 @@ class ReportsManager {
                     
                 case 'excel':
                     let csvContent = "data:text/csv;charset=utf-8,";
-                    csvContent += "Type,Count,Export Date\\n";
-                    csvContent += `Students,${this.students.length},${new Date().toLocaleDateString()}\\n`;
-                    csvContent += `Centres,${this.centres.length},${new Date().toLocaleDateString()}\\n`;
-                    csvContent += `Programs,${this.programs.length},${new Date().toLocaleDateString()}\\n`;
+                    csvContent += "Type,Count,Export Date\n";
+                    csvContent += `Students,${this.students.length},${new Date().toLocaleDateString()}\n`;
+                    csvContent += `Centres,${this.centres.length},${new Date().toLocaleDateString()}\n`;
+                    csvContent += `Programs,${this.programs.length},${new Date().toLocaleDateString()}\n`;
                     dataStr = csvContent;
                     filename = `tee_export_${new Date().getTime()}.csv`;
                     break;
@@ -1374,20 +1439,16 @@ class ReportsManager {
     // ==================== TRANSCRIPT METHODS ====================
 
     openTranscriptModal() {
-        console.log('📄 Opening transcript modal via reports.js...');
+        console.log('📄 Opening transcript modal...');
         
         if (window.app?.transcripts?.generateStudentTranscriptPrompt) {
-            console.log('✅ Redirecting to transcripts.js modal');
             window.app.transcripts.generateStudentTranscriptPrompt();
         } 
         else if (window.app?.transcripts?.openTranscriptModal) {
-            console.log('✅ Using transcripts.js openTranscriptModal');
             window.app.transcripts.openTranscriptModal();
         }
         else {
-            console.warn('❌ transcripts.js not loaded, showing fallback');
-            this.showToast('Transcript module is not available.', 'warning');
-            this.createFallbackTranscriptModal();
+            this.showToast('Transcript module is not available', 'warning');
         }
     }
 
@@ -1426,49 +1487,6 @@ class ReportsManager {
             this.showToast('Student selection cleared', 'info');
         }
     }
-
-    createFallbackTranscriptModal() {
-        const modal = document.createElement('div');
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-        `;
-        
-        modal.innerHTML = `
-            <div style="
-                background: white;
-                padding: 30px;
-                border-radius: 10px;
-                max-width: 500px;
-                width: 90%;
-            ">
-                <h3><i class="fas fa-exclamation-triangle text-warning"></i> Transcript Module Not Available</h3>
-                <p class="mt-3">The transcripts module (transcripts.js) is not loaded or has errors.</p>
-                <p>Please check:</p>
-                <ul>
-                    <li>Is transcripts.js file in the modules folder?</li>
-                    <li>Is it loaded after database.js?</li>
-                    <li>Check browser console for errors</li>
-                </ul>
-                <div class="mt-4 text-end">
-                    <button onclick="this.parentElement.parentElement.remove()" 
-                            style="padding: 8px 20px; background: #6c757d; color: white; border: none; border-radius: 5px;">
-                        Close
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-    }
     
     // ==================== UTILITY METHODS ====================
     
@@ -1479,7 +1497,7 @@ class ReportsManager {
         setTimeout(() => {
             this.updateStatistics();
             this.generateReportsGrid();
-            this.ensureTableVisibility(); // Ensure tables visible after refresh
+            this.ensureTableVisibility();
             this.showToast('Reports refreshed successfully', 'success');
             this.showLoading(false);
         }, 1000);
@@ -1537,14 +1555,15 @@ class ReportsManager {
     showToast(message, type = 'info') {
         console.log(`📢 ${type}: ${message}`);
         
+        const toastContainer = document.getElementById('toastContainer');
+        if (!toastContainer) return;
+        
         const toast = document.createElement('div');
         toast.className = `toast show align-items-center text-bg-${type === 'error' ? 'danger' : type} border-0`;
         toast.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
             min-width: 250px;
+            margin-bottom: 10px;
+            opacity: 1;
         `;
         
         const icons = {
@@ -1560,14 +1579,14 @@ class ReportsManager {
                     <i class="fas fa-${icons[type] || 'info-circle'} me-2"></i>
                     ${message}
                 </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.parentElement.parentElement.remove()"></button>
             </div>
         `;
         
-        document.body.appendChild(toast);
+        toastContainer.appendChild(toast);
         
         setTimeout(() => {
-            if (toast.parentNode) toast.parentNode.removeChild(toast);
+            if (toast.parentNode) toast.remove();
         }, 3000);
     }
     
@@ -1644,9 +1663,18 @@ class ReportsManager {
     }
 }
 
-// Export
+// Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = ReportsManager;
 } else {
     window.ReportsManager = ReportsManager;
 }
+
+// Auto-initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if app exists and reports isn't already initialized
+    if (window.app && !window.app.reports) {
+        console.log('📊 Auto-initializing ReportsManager');
+        window.app.reports = new ReportsManager(window.app.db);
+    }
+});
