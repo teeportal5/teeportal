@@ -1,4 +1,4 @@
-// modules/transcripts.js - COMPLETE FIXED VERSION WITH DETAILED MARKS
+// modules/transcripts.js - COMPLETE FIXED VERSION WITH REAL MARKS
 class TranscriptsManager {
     constructor(db) {
         console.log('🎓 TranscriptsManager initialized');
@@ -189,6 +189,8 @@ class TranscriptsManager {
     
     async previewTranscript() {
         try {
+            console.log('📄 previewTranscript() called - Loading real marks...');
+            
             // Get selected student from dropdown
             const studentSelect = document.getElementById('transcriptStudent');
             const studentId = studentSelect?.value;
@@ -198,6 +200,9 @@ class TranscriptsManager {
                 return;
             }
             
+            // Show loading
+            this.showToast('Loading student marks...', 'info');
+            
             // Get options from checkboxes
             const options = {
                 includeAllAssessments: document.getElementById('includeGrades')?.checked || true,
@@ -205,14 +210,28 @@ class TranscriptsManager {
                 includeRemarks: document.getElementById('includeSignatures')?.checked || true
             };
             
-            // Prepare transcript data
+            console.log(`📊 Fetching marks for student ID: ${studentId}`);
+            
+            // Prepare transcript data with REAL marks from database
             const transcriptData = await this.prepareTranscriptData(studentId, options);
+            
+            // Check if we got any marks
+            const totalCourses = transcriptData.courses.length;
+            const totalAssessments = transcriptData.courses.reduce((sum, course) => 
+                sum + (course.assessments?.length || 0), 0);
+            
+            console.log(`✅ Loaded ${totalCourses} courses with ${totalAssessments} assessments`);
+            
+            if (totalAssessments === 0) {
+                this.showToast('No marks found for this student', 'warning');
+            }
+            
             this.currentTranscriptData = transcriptData;
             
             // Display in HTML
             this.displayTranscriptInHTML(transcriptData);
             
-            this.showToast('Transcript preview loaded', 'success');
+            this.showToast(`Transcript loaded with ${totalCourses} courses`, 'success');
             
         } catch (error) {
             console.error('Error previewing transcript:', error);
@@ -222,6 +241,8 @@ class TranscriptsManager {
     
     displayTranscriptInHTML(transcriptData) {
         try {
+            console.log('📄 Displaying transcript in HTML with marks...');
+            
             // Get the preview container
             const previewContainer = document.getElementById('transcriptPreview');
             const contentDiv = document.getElementById('transcriptPreviewContent');
@@ -231,7 +252,7 @@ class TranscriptsManager {
                 return;
             }
             
-            // Generate transcript HTML
+            // Generate transcript HTML with REAL marks
             const html = this.generateTranscriptHTML(transcriptData);
             contentDiv.innerHTML = html;
             
@@ -248,28 +269,36 @@ class TranscriptsManager {
     }
     
     generateTranscriptHTML(data) {
-        // Calculate overall statistics
+        console.log('📄 Generating HTML with marks data:', data);
+        
+        // Calculate overall statistics from REAL marks
         const totalCredits = data.courses.reduce((sum, course) => sum + (course.credits || 3), 0);
         const earnedCredits = data.courses.filter(course => 
-            course.finalGrade && course.finalGrade !== 'FAIL'
+            course.finalGrade && course.finalGrade !== 'FAIL' && course.finalGrade !== 'N/A'
         ).reduce((sum, course) => sum + (course.credits || 3), 0);
         
-        // Calculate average percentage
-        const percentages = data.courses
-            .filter(course => course.assessments && course.assessments.length > 0)
-            .map(course => {
-                const total = course.assessments.reduce((sum, a) => sum + (a.percentage || 0), 0);
-                return course.assessments.length > 0 ? total / course.assessments.length : 0;
-            });
+        // Calculate average percentage from REAL marks
+        let totalPercentage = 0;
+        let coursesWithMarks = 0;
         
-        const avgPercentage = percentages.length > 0 ? 
-            percentages.reduce((a, b) => a + b, 0) / percentages.length : 0;
+        data.courses.forEach(course => {
+            if (course.assessments && course.assessments.length > 0) {
+                const courseTotal = course.assessments.reduce((sum, a) => sum + (a.percentage || 0), 0);
+                const courseAvg = course.assessments.length > 0 ? courseTotal / course.assessments.length : 0;
+                totalPercentage += courseAvg;
+                coursesWithMarks++;
+            }
+        });
         
-        // Determine overall grade
+        const avgPercentage = coursesWithMarks > 0 ? totalPercentage / coursesWithMarks : 0;
+        
+        // Determine overall grade based on REAL marks
         let overallGrade = 'PASS';
         if (avgPercentage >= 80) overallGrade = 'DISTINCTION';
         else if (avgPercentage >= 70) overallGrade = 'CREDIT';
-        else if (avgPercentage < 60) overallGrade = 'FAIL';
+        else if (avgPercentage >= 60) overallGrade = 'PASS';
+        else if (avgPercentage > 0) overallGrade = 'FAIL';
+        else overallGrade = 'NO MARKS';
         
         // Get current date
         const currentDate = new Date();
@@ -281,112 +310,145 @@ class TranscriptsManager {
         });
         const transcriptId = `TRX-${currentDate.getFullYear()}${String(currentDate.getMonth() + 1).padStart(2, '0')}${String(currentDate.getDate()).padStart(2, '0')}-001`;
         
-        // Generate course rows
+        // Generate course rows from REAL marks
         let courseRows = '';
-        data.courses.forEach((course, index) => {
-            let gradeClass = '';
-            if (course.finalGrade === 'DISTINCTION') gradeClass = 'bg-success';
-            else if (course.finalGrade === 'CREDIT') gradeClass = 'bg-primary';
-            else if (course.finalGrade === 'PASS') gradeClass = 'bg-warning';
-            else if (course.finalGrade === 'FAIL') gradeClass = 'bg-danger';
-            
-            // Calculate course percentage
-            let coursePercentage = 0;
-            if (course.assessments && course.assessments.length > 0) {
-                const total = course.assessments.reduce((sum, a) => sum + (a.percentage || 0), 0);
-                coursePercentage = Math.round(total / course.assessments.length);
-            }
-            
-            courseRows += `
-                <tr style="border-bottom: 1px solid #e5e7eb;">
-                    <td style="padding: 10px; text-align: center;">${index + 1}</td>
-                    <td style="padding: 10px;">${course.courseCode}</td>
-                    <td style="padding: 10px;">${course.courseName}</td>
-                    <td style="padding: 10px; text-align: center;">${course.credits || 3}</td>
-                    <td style="padding: 10px; text-align: center;">${coursePercentage}%</td>
-                    <td style="padding: 10px; text-align: center;">
-                        <span class="badge ${gradeClass}" style="padding: 5px 10px; font-weight: bold;">
-                            ${course.finalGrade || 'N/A'}
-                        </span>
+        if (data.courses.length === 0) {
+            courseRows = `
+                <tr>
+                    <td colspan="6" style="padding: 30px; text-align: center; color: #999;">
+                        <i class="fas fa-exclamation-circle"></i> No course marks found for this student
                     </td>
                 </tr>
             `;
-        });
-        
-        // Generate detailed marks section for each course
-        let detailedMarksHTML = '';
-        data.courses.forEach((course, courseIndex) => {
-            if (course.assessments && course.assessments.length > 0) {
-                let assessmentRows = '';
-                let totalScore = 0;
-                let maxScore = 0;
+        } else {
+            data.courses.forEach((course, index) => {
+                let gradeClass = '';
+                if (course.finalGrade === 'DISTINCTION') gradeClass = 'bg-success';
+                else if (course.finalGrade === 'CREDIT') gradeClass = 'bg-primary';
+                else if (course.finalGrade === 'PASS') gradeClass = 'bg-warning';
+                else if (course.finalGrade === 'FAIL') gradeClass = 'bg-danger';
+                else gradeClass = 'bg-secondary';
                 
-                course.assessments.forEach((assessment, assessmentIndex) => {
-                    const percentage = assessment.percentage || 0;
-                    let gradeBadge = '';
-                    
-                    if (percentage >= 80) gradeBadge = 'bg-success';
-                    else if (percentage >= 70) gradeBadge = 'bg-primary';
-                    else if (percentage >= 60) gradeBadge = 'bg-warning';
-                    else gradeBadge = 'bg-danger';
-                    
-                    totalScore += assessment.score || 0;
-                    maxScore += assessment.maxScore || 100;
-                    
-                    assessmentRows += `
-                        <tr>
-                            <td style="padding: 8px; text-align: center;">${assessmentIndex + 1}</td>
-                            <td style="padding: 8px;">${assessment.name}</td>
-                            <td style="padding: 8px; text-align: center;">${assessment.type || 'N/A'}</td>
-                            <td style="padding: 8px; text-align: center;">${assessment.score || 0} / ${assessment.maxScore || 100}</td>
-                            <td style="padding: 8px; text-align: center;">${percentage.toFixed(1)}%</td>
-                            <td style="padding: 8px; text-align: center;">
-                                <span class="badge ${gradeBadge}" style="padding: 3px 8px; font-size: 12px;">
-                                    ${assessment.grade || 'N/A'}
-                                </span>
-                            </td>
-                            <td style="padding: 8px;">${assessment.remarks || ''}</td>
-                        </tr>
-                    `;
-                });
+                // Calculate course percentage from REAL assessments
+                let coursePercentage = 0;
+                if (course.assessments && course.assessments.length > 0) {
+                    const total = course.assessments.reduce((sum, a) => sum + (a.percentage || 0), 0);
+                    coursePercentage = Math.round(total / course.assessments.length);
+                }
                 
-                const coursePercentage = maxScore > 0 ? ((totalScore / maxScore) * 100).toFixed(1) : 0;
-                
-                detailedMarksHTML += `
-                    <div class="course-marks-section mb-4" style="margin-top: 20px;">
-                        <h6 style="color: #1e3a8a; border-left: 4px solid #3b82f6; padding-left: 10px; margin-bottom: 15px;">
-                            <i class="fas fa-book"></i> ${course.courseCode} - ${course.courseName}
-                            <span style="float: right; font-size: 14px; color: #666;">
-                                Course Total: ${coursePercentage}% | Final Grade: 
-                                <span class="badge ${course.finalGrade === 'DISTINCTION' ? 'bg-success' : course.finalGrade === 'CREDIT' ? 'bg-primary' : course.finalGrade === 'PASS' ? 'bg-warning' : 'bg-danger'}" 
-                                      style="padding: 3px 8px;">
-                                    ${course.finalGrade || 'N/A'}
-                                </span>
+                courseRows += `
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 10px; text-align: center;">${index + 1}</td>
+                        <td style="padding: 10px;">${course.courseCode || 'N/A'}</td>
+                        <td style="padding: 10px;">${course.courseName || 'Unknown Course'}</td>
+                        <td style="padding: 10px; text-align: center;">${course.credits || 3}</td>
+                        <td style="padding: 10px; text-align: center;">
+                            ${coursePercentage > 0 ? coursePercentage + '%' : '—'}
+                        </td>
+                        <td style="padding: 10px; text-align: center;">
+                            <span class="badge ${gradeClass}" style="padding: 5px 10px; font-weight: bold;">
+                                ${course.finalGrade || 'N/A'}
                             </span>
-                        </h6>
-                        
-                        <div style="overflow-x: auto;">
-                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                                <thead>
-                                    <tr style="background: #f8fafc; border-bottom: 2px solid #e5e7eb;">
-                                        <th style="padding: 10px; text-align: center; width: 5%;">#</th>
-                                        <th style="padding: 10px; text-align: left; width: 25%;">Assessment</th>
-                                        <th style="padding: 10px; text-align: center; width: 15%;">Type</th>
-                                        <th style="padding: 10px; text-align: center; width: 15%;">Score</th>
-                                        <th style="padding: 10px; text-align: center; width: 10%;">%</th>
-                                        <th style="padding: 10px; text-align: center; width: 10%;">Grade</th>
-                                        <th style="padding: 10px; text-align: left; width: 20%;">Remarks</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${assessmentRows}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                        </td>
+                    </tr>
                 `;
-            }
-        });
+            });
+        }
+        
+        // Generate detailed marks section for each course from REAL assessments
+        let detailedMarksHTML = '';
+        if (data.courses.length > 0) {
+            data.courses.forEach((course, courseIndex) => {
+                if (course.assessments && course.assessments.length > 0) {
+                    let assessmentRows = '';
+                    let totalScore = 0;
+                    let maxScore = 0;
+                    
+                    course.assessments.forEach((assessment, assessmentIndex) => {
+                        const percentage = assessment.percentage || 0;
+                        let gradeBadge = '';
+                        
+                        if (percentage >= 80) gradeBadge = 'bg-success';
+                        else if (percentage >= 70) gradeBadge = 'bg-primary';
+                        else if (percentage >= 60) gradeBadge = 'bg-warning';
+                        else gradeBadge = 'bg-danger';
+                        
+                        totalScore += assessment.score || 0;
+                        maxScore += assessment.maxScore || 100;
+                        
+                        assessmentRows += `
+                            <tr>
+                                <td style="padding: 8px; text-align: center;">${assessmentIndex + 1}</td>
+                                <td style="padding: 8px;">${assessment.name || 'Assessment'}</td>
+                                <td style="padding: 8px; text-align: center;">${assessment.type || 'N/A'}</td>
+                                <td style="padding: 8px; text-align: center;">${assessment.score || 0} / ${assessment.maxScore || 100}</td>
+                                <td style="padding: 8px; text-align: center;">${percentage.toFixed(1)}%</td>
+                                <td style="padding: 8px; text-align: center;">
+                                    <span class="badge ${gradeBadge}" style="padding: 3px 8px; font-size: 12px;">
+                                        ${assessment.grade || 'N/A'}
+                                    </span>
+                                </td>
+                                <td style="padding: 8px;">${assessment.remarks || ''}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    const coursePercentage = maxScore > 0 ? ((totalScore / maxScore) * 100).toFixed(1) : 0;
+                    
+                    detailedMarksHTML += `
+                        <div class="course-marks-section mb-4" style="margin-top: 20px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px;">
+                            <h6 style="color: #1e3a8a; border-left: 4px solid #3b82f6; padding-left: 10px; margin-bottom: 15px;">
+                                <i class="fas fa-book"></i> ${course.courseCode || 'N/A'} - ${course.courseName || 'Unknown Course'}
+                                <span style="float: right; font-size: 14px; color: #666;">
+                                    Course Total: ${coursePercentage}% | Final Grade: 
+                                    <span class="badge ${course.finalGrade === 'DISTINCTION' ? 'bg-success' : course.finalGrade === 'CREDIT' ? 'bg-primary' : course.finalGrade === 'PASS' ? 'bg-warning' : course.finalGrade === 'FAIL' ? 'bg-danger' : 'bg-secondary'}" 
+                                          style="padding: 3px 8px;">
+                                        ${course.finalGrade || 'N/A'}
+                                    </span>
+                                </span>
+                            </h6>
+                            
+                            <div style="overflow-x: auto;">
+                                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                    <thead>
+                                        <tr style="background: #f8fafc; border-bottom: 2px solid #e5e7eb;">
+                                            <th style="padding: 10px; text-align: center; width: 5%;">#</th>
+                                            <th style="padding: 10px; text-align: left; width: 25%;">Assessment</th>
+                                            <th style="padding: 10px; text-align: center; width: 15%;">Type</th>
+                                            <th style="padding: 10px; text-align: center; width: 15%;">Score</th>
+                                            <th style="padding: 10px; text-align: center; width: 10%;">%</th>
+                                            <th style="padding: 10px; text-align: center; width: 10%;">Grade</th>
+                                            <th style="padding: 10px; text-align: left; width: 20%;">Remarks</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${assessmentRows}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+        }
+        
+        if (detailedMarksHTML === '') {
+            detailedMarksHTML = `
+                <div style="text-align: center; padding: 30px; background: #f8f9fa; border-radius: 8px; color: #999;">
+                    <i class="fas fa-chart-bar fa-3x mb-3"></i>
+                    <p>No detailed assessment marks found for this student</p>
+                </div>
+            `;
+        }
+        
+        // Get student info
+        const student = data.student || {};
+        const fullName = student.full_name || student.name || 'Unknown Student';
+        const regNumber = student.reg_number || student.admission_number || 'N/A';
+        const program = student.program_name || student.program || 'N/A';
+        const centre = student.centre_name || student.centre || 'Main Campus';
+        const county = student.county || 'N/A';
+        const intakeYear = student.intake_year || 'N/A';
         
         // Generate the HTML
         return `
@@ -413,23 +475,23 @@ class TranscriptsManager {
                             <table style="width: 100%;">
                                 <tr>
                                     <td style="width: 35%; padding: 5px 0;"><strong>FULL NAME:</strong></td>
-                                    <td style="padding: 5px 0;" id="modelStudentName">${data.student.full_name}</td>
+                                    <td style="padding: 5px 0;" id="modelStudentName">${fullName}</td>
                                 </tr>
                                 <tr>
                                     <td style="padding: 5px 0;"><strong>REGISTRATION NO:</strong></td>
-                                    <td style="padding: 5px 0;" id="modelRegNumber">${data.student.reg_number}</td>
+                                    <td style="padding: 5px 0;" id="modelRegNumber">${regNumber}</td>
                                 </tr>
                                 <tr>
                                     <td style="padding: 5px 0;"><strong>PROGRAM:</strong></td>
-                                    <td style="padding: 5px 0;" id="modelProgram">${data.student.program}</td>
+                                    <td style="padding: 5px 0;" id="modelProgram">${program}</td>
                                 </tr>
                                 <tr>
                                     <td style="padding: 5px 0;"><strong>STUDY CENTRE:</strong></td>
-                                    <td style="padding: 5px 0;" id="modelCentre">${data.student.centre || 'Main Campus'}</td>
+                                    <td style="padding: 5px 0;" id="modelCentre">${centre}</td>
                                 </tr>
                                 <tr>
                                     <td style="padding: 5px 0;"><strong>COUNTY:</strong></td>
-                                    <td style="padding: 5px 0;" id="modelCounty">${data.student.county || 'N/A'}</td>
+                                    <td style="padding: 5px 0;" id="modelCounty">${county}</td>
                                 </tr>
                             </table>
                         </div>
@@ -450,25 +512,25 @@ class TranscriptsManager {
                         <div class="col-md-3">
                             <div style="background: #1e3a8a; color: white; padding: 10px; border-radius: 5px;">
                                 <div style="font-size: 12px;">INTAKE DATE</div>
-                                <div style="font-size: 16px; font-weight: bold;" id="modelIntakeDate">${data.student.intake_year || 'N/A'}</div>
+                                <div style="font-size: 16px; font-weight: bold;" id="modelIntakeDate">${intakeYear}</div>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div style="background: #3b82f6; color: white; padding: 10px; border-radius: 5px;">
                                 <div style="font-size: 12px;">COMPLETION DATE</div>
-                                <div style="font-size: 16px; font-weight: bold;" id="modelCompletionDate">${data.student.completion_date || 'In Progress'}</div>
+                                <div style="font-size: 16px; font-weight: bold;" id="modelCompletionDate">${student.completion_date || 'In Progress'}</div>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div style="background: #10b981; color: white; padding: 10px; border-radius: 5px;">
                                 <div style="font-size: 12px;">DURATION</div>
-                                <div style="font-size: 16px; font-weight: bold;" id="modelDuration">${data.student.duration || 'N/A'}</div>
+                                <div style="font-size: 16px; font-weight: bold;" id="modelDuration">${student.duration || 'N/A'}</div>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div style="background: #8b5cf6; color: white; padding: 10px; border-radius: 5px;">
                                 <div style="font-size: 12px;">MODE OF STUDY</div>
-                                <div style="font-size: 16px; font-weight: bold;" id="modelStudyMode">${data.student.study_mode || 'Full-time'}</div>
+                                <div style="font-size: 16px; font-weight: bold;" id="modelStudyMode">${student.study_mode || 'Full-time'}</div>
                             </div>
                         </div>
                     </div>
@@ -531,7 +593,7 @@ class TranscriptsManager {
                                     <tr>
                                         <td style="padding: 5px 0;"><strong>Final Grade:</strong></td>
                                         <td style="padding: 5px 0; text-align: right;">
-                                            <span class="badge ${overallGrade === 'DISTINCTION' ? 'bg-success' : overallGrade === 'CREDIT' ? 'bg-primary' : overallGrade === 'PASS' ? 'bg-warning' : 'bg-danger'}" style="font-size: 14px; padding: 5px 10px;">
+                                            <span class="badge ${overallGrade === 'DISTINCTION' ? 'bg-success' : overallGrade === 'CREDIT' ? 'bg-primary' : overallGrade === 'PASS' ? 'bg-warning' : overallGrade === 'FAIL' ? 'bg-danger' : 'bg-secondary'}" style="font-size: 14px; padding: 5px 10px;">
                                                 ${overallGrade}
                                             </span>
                                         </td>
@@ -597,7 +659,7 @@ class TranscriptsManager {
                         <div class="col-md-4 text-center">
                             <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto; padding-top: 10px;">
                                 <div style="font-weight: bold;">CENTRE DIRECTOR</div>
-                                <div style="color: #666; font-size: 14px;">${data.student.centre || 'Main Campus'}</div>
+                                <div style="color: #666; font-size: 14px;">${centre}</div>
                                 <div style="color: #666; font-size: 12px;">Official Stamp</div>
                             </div>
                         </div>
@@ -615,6 +677,8 @@ class TranscriptsManager {
     
     async generateTranscriptFromUI() {
         try {
+            console.log('📄 generateTranscriptFromUI() called - Generating with real marks...');
+            
             // Get selected student
             const studentSelect = document.getElementById('transcriptStudent');
             const studentId = studentSelect?.value;
@@ -635,7 +699,9 @@ class TranscriptsManager {
                 includeRemarks: document.getElementById('includeSignatures')?.checked || true
             };
             
-            // Generate the transcript
+            console.log(`📊 Generating ${format} transcript with real marks for student ${studentId}`);
+            
+            // Generate the transcript with REAL marks
             await this.generateStudentTranscript(studentId, format, options);
             
         } catch (error) {
@@ -1339,76 +1405,99 @@ class TranscriptsManager {
     }
     
     async prepareTranscriptData(studentId, options = {}) {
+        console.log(`📊 Preparing transcript data for student ID: ${studentId}`);
+        
         const student = await this.db.getStudent(studentId);
         if (!student) {
             throw new Error('Student not found');
         }
         
-        let marks;
+        // Get REAL marks from database
+        let marks = [];
         try {
             marks = await this.db.getStudentMarks(studentId);
+            console.log(`📚 Found ${marks.length} mark records for student`);
         } catch (error) {
             console.warn('Error fetching marks, using empty array:', error);
             marks = [];
         }
         
+        // Get GPA
         let gpa;
         try {
             gpa = await this.db.calculateStudentGPA(studentId);
+            console.log(`📊 GPA calculated: ${gpa}`);
         } catch (error) {
             console.warn('Error calculating GPA:', error);
             gpa = 0.0;
         }
         
+        // Organize marks by course
         const courses = {};
         
-        for (const mark of marks) {
-            if (!mark.courses || !mark.courses.course_code) {
-                console.warn('Mark missing course info:', mark);
-                continue;
-            }
-            
-            const courseCode = mark.courses.course_code;
-            if (!courses[courseCode]) {
-                courses[courseCode] = {
-                    courseCode: courseCode,
-                    courseName: mark.courses.course_name || 'Unknown Course',
-                    assessments: [],
-                    finalGrade: '',
-                    credits: mark.courses.credits || 3,
-                    courseId: mark.courses.id
-                };
-            }
-            
-            if (options.includeAllAssessments !== false) {
-                courses[courseCode].assessments.push({
-                    name: mark.assessment_name || 'Assessment',
-                    type: mark.assessment_type || 'Unknown',
-                    score: mark.score || 0,
-                    maxScore: mark.max_score || 100,
-                    percentage: mark.percentage || 0,
-                    grade: mark.grade || 'F',
-                    remarks: options.includeRemarks !== false ? (mark.remarks || '') : '',
-                    date: mark.assessment_date || null
-                });
-            }
-            
-            if (courses[courseCode].assessments.length > 0) {
-                const totalPercentage = courses[courseCode].assessments
-                    .reduce((sum, a) => sum + (a.percentage || 0), 0);
-                const avgPercentage = courses[courseCode].assessments.length > 0 ? 
-                    totalPercentage / courses[courseCode].assessments.length : 0;
+        if (marks.length > 0) {
+            for (const mark of marks) {
+                if (!mark.courses || !mark.courses.course_code) {
+                    console.warn('Mark missing course info:', mark);
+                    continue;
+                }
                 
-                try {
-                    courses[courseCode].finalGrade = this.db.calculateGrade(avgPercentage).grade;
-                } catch (error) {
-                    console.warn('Error calculating grade:', error);
-                    courses[courseCode].finalGrade = 'N/A';
+                const courseCode = mark.courses.course_code;
+                if (!courses[courseCode]) {
+                    courses[courseCode] = {
+                        courseCode: courseCode,
+                        courseName: mark.courses.course_name || 'Unknown Course',
+                        assessments: [],
+                        finalGrade: '',
+                        credits: mark.courses.credits || 3,
+                        courseId: mark.courses.id
+                    };
+                }
+                
+                if (options.includeAllAssessments !== false) {
+                    courses[courseCode].assessments.push({
+                        name: mark.assessment_name || 'Assessment',
+                        type: mark.assessment_type || 'Unknown',
+                        score: mark.score || 0,
+                        maxScore: mark.max_score || 100,
+                        percentage: mark.percentage || 0,
+                        grade: mark.grade || 'F',
+                        remarks: options.includeRemarks !== false ? (mark.remarks || '') : '',
+                        date: mark.assessment_date || null
+                    });
+                }
+                
+                // Calculate final grade for the course
+                if (courses[courseCode].assessments.length > 0) {
+                    const totalPercentage = courses[courseCode].assessments
+                        .reduce((sum, a) => sum + (a.percentage || 0), 0);
+                    const avgPercentage = courses[courseCode].assessments.length > 0 ? 
+                        totalPercentage / courses[courseCode].assessments.length : 0;
+                    
+                    try {
+                        // Use the database grade calculation if available
+                        if (this.db.calculateGrade) {
+                            courses[courseCode].finalGrade = this.db.calculateGrade(avgPercentage).grade;
+                        } else {
+                            // Fallback grade calculation
+                            if (avgPercentage >= 80) courses[courseCode].finalGrade = 'DISTINCTION';
+                            else if (avgPercentage >= 70) courses[courseCode].finalGrade = 'CREDIT';
+                            else if (avgPercentage >= 60) courses[courseCode].finalGrade = 'PASS';
+                            else if (avgPercentage > 0) courses[courseCode].finalGrade = 'FAIL';
+                            else courses[courseCode].finalGrade = 'N/A';
+                        }
+                    } catch (error) {
+                        console.warn('Error calculating grade:', error);
+                        courses[courseCode].finalGrade = 'N/A';
+                    }
                 }
             }
+        } else {
+            console.log('⚠️ No marks found for this student');
         }
         
         const filteredCourses = Object.values(courses);
+        console.log(`✅ Processed ${filteredCourses.length} courses with marks`);
         
         return {
             student: student,
@@ -1623,7 +1712,7 @@ class TranscriptsManager {
                 doc.setFontSize(10);
                 doc.setTextColor(100, 100, 100);
                 doc.text(
-                    'Generated by TEE Portal System | Unofficial Transcript',
+                    'Generated by TEE Portal System | Official Transcript',
                     pageWidth / 2,
                     doc.internal.pageSize.getHeight() - 10,
                     { align: 'center' }
@@ -1805,26 +1894,62 @@ class TranscriptsManager {
     // ==================== UTILITY FUNCTIONS ====================
     
     showToast(message, type = 'info') {
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.innerHTML = `
-            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
-            <span>${message}</span>
-            <button onclick="this.parentElement.remove()">
-                <i class="fas fa-times"></i>
-            </button>
-        `;
+        console.log(`📢 ${type}: ${message}`);
         
         let container = document.getElementById('toastContainer');
         if (!container) {
             container = document.createElement('div');
             container.id = 'toastContainer';
-            container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999;';
+            container.style.cssText = `
+                position: fixed; 
+                top: 20px; 
+                right: 20px; 
+                z-index: 9999;
+            `;
             document.body.appendChild(container);
         }
         
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#3b82f6'};
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 300px;
+            max-width: 400px;
+            animation: slideIn 0.3s ease;
+        `;
+        
+        const icon = type === 'success' ? '✓' : type === 'error' ? '✗' : type === 'warning' ? '⚠' : 'ℹ';
+        
+        toast.innerHTML = `
+            <span style="font-size: 18px; font-weight: bold;">${icon}</span>
+            <span style="flex: 1;">${message}</span>
+            <button onclick="this.parentElement.remove()" style="
+                background: none;
+                border: none;
+                color: white;
+                cursor: pointer;
+                font-size: 16px;
+                opacity: 0.8;
+            ">×</button>
+        `;
+        
         container.appendChild(toast);
-        setTimeout(() => { if (toast.parentElement) toast.remove(); }, 5000);
+        
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    if (toast.parentElement) toast.remove();
+                }, 300);
+            }
+        }, 5000);
     }
 }
 
