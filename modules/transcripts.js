@@ -1,4 +1,4 @@
-// modules/transcripts.js - COMPLETE FIXED VERSION WITH COURSE LOOKUP
+// modules/transcripts.js - COMPLETE FIXED VERSION WITH PROPER METHOD BINDING
 class TranscriptsManager {
     constructor(db) {
         console.log('🎓 TranscriptsManager initialized');
@@ -6,6 +6,55 @@ class TranscriptsManager {
         this.cachedStudents = null;
         this.currentTranscriptData = null;
         this.app = window.app || window;
+        
+        // Bind all methods to ensure 'this' works correctly
+        this.bindAllMethods();
+    }
+
+    bindAllMethods() {
+        // List all methods that need binding
+        const methods = [
+            'initialize',
+            'initializeTranscriptsUI',
+            'setupTranscriptButtons',
+            'populateTranscriptDropdowns',
+            'loadSampleTranscript',
+            'previewTranscript',
+            'displayTranscriptInHTML',
+            'generateTranscriptHTML',
+            'generateTranscriptFromUI',
+            'downloadCurrentTranscript',
+            'emailTranscript',
+            'filterTranscriptStudentsByCenter',
+            'populateStudentDropdown',
+            'generateStudentTranscriptPrompt',
+            'loadModalStudents',
+            'renderModalStudentTable',
+            'setupModalEvents',
+            'filterModalStudents',
+            'updateModalSelectedCount',
+            'generateStudentTranscript',
+            'prepareTranscriptData',
+            'exportTranscript',
+            'generateTranscriptsBatch',
+            'generateTranscriptPDF',
+            'generateTranscriptExcel',
+            'generateTranscriptCSV',
+            'showToast',
+            'openTranscriptModal',
+            'generateTranscript',
+            'clearSelectedStudent',
+            'openBulkTranscriptModal'
+        ];
+        
+        // Bind each method
+        methods.forEach(method => {
+            if (typeof this[method] === 'function') {
+                this[method] = this[method].bind(this);
+            }
+        });
+        
+        console.log('✅ All transcript methods bound');
     }
 
     // ==================== PUBLIC API METHODS (FOR HTML) ====================
@@ -23,18 +72,6 @@ class TranscriptsManager {
     }
     
     // Alias for reports compatibility
-    loadSampleTranscript() {
-        console.log('📄 TranscriptsManager.loadSampleTranscript() called');
-        return this.loadSampleTranscript();
-    }
-    
-    // Alias for reports compatibility
-    previewTranscript() {
-        console.log('📄 TranscriptsManager.previewTranscript() called');
-        return this.previewTranscript();
-    }
-    
-    // Alias for reports compatibility
     clearSelectedStudent() {
         console.log('📄 TranscriptsManager.clearSelectedStudent() called');
         const selectedStudentInfo = document.getElementById('selectedStudentInfo');
@@ -49,13 +86,6 @@ class TranscriptsManager {
     openBulkTranscriptModal() {
         console.log('📄 TranscriptsManager.openBulkTranscriptModal() called');
         return this.generateStudentTranscriptPrompt();
-    }
-    
-    // Bulk generation function
-    generateTranscriptsBatch(filter = 'all', format = 'pdf') {
-        console.log(`📄 Bulk generation: ${filter} students in ${format} format`);
-        this.showToast(`Bulk generation for ${filter} students started`, 'info');
-        // This is a placeholder - you'll need to implement the actual logic
     }
 
     // ==================== INITIALIZATION ====================
@@ -1385,8 +1415,10 @@ class TranscriptsManager {
                 this.showToast(`Transcript generated for ${student.full_name}`, 'success');
             }
             
-            await this.db.logActivity('transcript_generated', 
-                `Generated transcript for ${student.full_name} (${student.reg_number})`);
+            if (this.db.logActivity) {
+                await this.db.logActivity('transcript_generated', 
+                    `Generated transcript for ${student.full_name} (${student.reg_number})`);
+            }
             
             return transcriptData;
             
@@ -1562,17 +1594,18 @@ class TranscriptsManager {
     }
     
     async exportTranscript(transcriptData, format, options = {}) {
-        const exporters = {
-            pdf: this.generateTranscriptPDF.bind(this),
-            excel: this.generateTranscriptExcel.bind(this),
-            csv: this.generateTranscriptCSV.bind(this)
-        };
+        console.log(`📄 Exporting transcript in format: ${format}`);
         
-        if (!exporters[format]) {
+        // Directly call the appropriate method without using bind in a way that causes issues
+        if (format === 'pdf') {
+            return await this.generateTranscriptPDF(transcriptData, options);
+        } else if (format === 'excel') {
+            return await this.generateTranscriptExcel(transcriptData, options);
+        } else if (format === 'csv') {
+            return await this.generateTranscriptCSV(transcriptData, options);
+        } else {
             throw new Error(`Unsupported format: ${format}`);
         }
-        
-        return await exporters[format](transcriptData, options);
     }
     
     async generateTranscriptsBatch(studentIds, format, options) {
@@ -1623,541 +1656,536 @@ class TranscriptsManager {
     
     // ==================== FORMAT-SPECIFIC EXPORTS ====================
     
-   async generateTranscriptPDF(data, options) {
-    try {
-        console.log('📄 Generating PDF transcript for:', data.student.full_name);
-        
-        if (typeof jspdf === 'undefined') {
-            this.showToast('Error: jsPDF library not loaded. Please add it to your HTML.', 'error');
-            throw new Error('jsPDF not loaded');
-        }
-        
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const margin = 20;
-        let yPos = 20;
-        
-        // ==================== HEADER WITH SEAL ====================
-        
-        // Official Seal (circle)
-        doc.setDrawColor(30, 58, 138); // #1e3a8a
-        doc.setFillColor(255, 255, 255);
-        doc.circle(40, 35, 15, 'S');
-        doc.setFontSize(8);
-        doc.setTextColor(30, 58, 138);
-        doc.text('OFFICIAL', 32, 35);
-        doc.text('SEAL', 37, 40);
-        
-        // Institution Name
-        doc.setFontSize(18);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(30, 58, 138); // #1e3a8a
-        doc.text('THEOLOGICAL EXTENSION BY EDUCATION', pageWidth / 2, 25, { align: 'center' });
-        
-        doc.setFontSize(16);
-        doc.setTextColor(59, 130, 246); // #3b82f6
-        doc.text('TEE COLLEGE', pageWidth / 2, 35, { align: 'center' });
-        
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(102, 102, 102); // #666
-        doc.text('Accredited Theological Institution', pageWidth / 2, 42, { align: 'center' });
-        
-        // Official Transcript Title
-        doc.setFontSize(18);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(30, 58, 138); // #1e3a8a
-        doc.text('OFFICIAL ACADEMIC TRANSCRIPT', pageWidth / 2, 55, { align: 'center' });
-        
-        // Draw line under title
-        doc.setDrawColor(30, 58, 138);
-        doc.setLineWidth(0.5);
-        doc.line(margin, 60, pageWidth - margin, 60);
-        
-        yPos = 70;
-        
-        // ==================== STUDENT INFORMATION ====================
-        
-        // Background for student info
-        doc.setFillColor(248, 250, 252); // #f8fafc
-        doc.rect(margin, yPos - 5, pageWidth - (margin * 2), 45, 'F');
-        
-        // Student details in table format
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 0, 0);
-        
-        // Left column
-        doc.text('FULL NAME:', margin + 5, yPos);
-        doc.text('REGISTRATION NO:', margin + 5, yPos + 8);
-        doc.text('PROGRAM:', margin + 5, yPos + 16);
-        doc.text('STUDY CENTRE:', margin + 5, yPos + 24);
-        doc.text('COUNTY:', margin + 5, yPos + 32);
-        
-        // Right column (values)
-        doc.setFont('helvetica', 'normal');
-        doc.text(data.student.full_name || 'N/A', margin + 55, yPos);
-        doc.text(data.student.reg_number || 'N/A', margin + 55, yPos + 8);
-        doc.text(data.student.program || 'N/A', margin + 55, yPos + 16);
-        doc.text(data.student.centre_name || data.student.centre || 'N/A', margin + 55, yPos + 24);
-        doc.text(data.student.county || 'N/A', margin + 55, yPos + 32);
-        
-        // Student Photo placeholder
-        doc.setDrawColor(204, 204, 204);
-        doc.setFillColor(248, 249, 250);
-        doc.roundedRect(pageWidth - 70, yPos - 5, 50, 50, 3, 3, 'FD');
-        doc.setFontSize(10);
-        doc.setTextColor(102, 102, 102);
-        doc.text('Student', pageWidth - 55, yPos + 20);
-        doc.text('Photo', pageWidth - 53, yPos + 28);
-        
-        yPos += 50;
-        
-        // ==================== PROGRAM DETAILS ====================
-        
-        // Four colored boxes
-        const boxWidth = (pageWidth - (margin * 2) - 30) / 4;
-        
-        // Intake Date
-        doc.setFillColor(30, 58, 138); // #1e3a8a
-        doc.rect(margin, yPos, boxWidth, 25, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.text('INTAKE DATE', margin + 5, yPos + 8);
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text(data.student.intake_year || 'N/A', margin + 5, yPos + 20);
-        
-        // Completion Date
-        doc.setFillColor(59, 130, 246); // #3b82f6
-        doc.rect(margin + boxWidth + 10, yPos, boxWidth, 25, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.text('COMPLETION DATE', margin + boxWidth + 15, yPos + 8);
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text(data.student.completion_date || 'In Progress', margin + boxWidth + 15, yPos + 20);
-        
-        // Duration
-        doc.setFillColor(16, 185, 129); // #10b981
-        doc.rect(margin + (boxWidth + 10) * 2, yPos, boxWidth, 25, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.text('DURATION', margin + (boxWidth + 10) * 2 + 5, yPos + 8);
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text(data.student.duration || 'N/A', margin + (boxWidth + 10) * 2 + 5, yPos + 20);
-        
-        // Mode of Study
-        doc.setFillColor(139, 92, 246); // #8b5cf6
-        doc.rect(margin + (boxWidth + 10) * 3, yPos, boxWidth, 25, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.text('MODE OF STUDY', margin + (boxWidth + 10) * 3 + 5, yPos + 8);
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text(data.student.study_mode || 'Full-time', margin + (boxWidth + 10) * 3 + 5, yPos + 20);
-        
-        yPos += 35;
-        
-        // ==================== ACADEMIC PERFORMANCE SUMMARY ====================
-        
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(30, 58, 138);
-        doc.text('ACADEMIC PERFORMANCE SUMMARY', margin, yPos);
-        
-        yPos += 10;
-        
-        // Table headers
-        doc.setFillColor(30, 58, 138);
-        doc.rect(margin, yPos - 4, pageWidth - (margin * 2), 8, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        
-        const col1 = margin + 5;
-        const col2 = margin + 25;
-        const col3 = margin + 70;
-        const col4 = margin + 140;
-        const col5 = margin + 160;
-        const col6 = margin + 180;
-        
-        doc.text('NO.', col1, yPos);
-        doc.text('CODE', col2, yPos);
-        doc.text('COURSE TITLE', col3, yPos);
-        doc.text('CREDITS', col4, yPos);
-        doc.text('SCORE %', col5, yPos);
-        doc.text('GRADE', col6, yPos);
-        
-        yPos += 8;
-        
-        // Table rows
-        doc.setTextColor(0, 0, 0);
-        doc.setFont('helvetica', 'normal');
-        
-        data.courses.forEach((course, index) => {
-            // Calculate course percentage
-            let coursePercentage = 0;
-            if (course.assessments && course.assessments.length > 0) {
-                const total = course.assessments.reduce((sum, a) => sum + (a.percentage || 0), 0);
-                coursePercentage = Math.round(total / course.assessments.length);
+    async generateTranscriptPDF(data, options) {
+        try {
+            console.log('📄 Generating PDF transcript for:', data.student.full_name);
+            
+            if (typeof jspdf === 'undefined') {
+                this.showToast('Error: jsPDF library not loaded. Please add it to your HTML.', 'error');
+                throw new Error('jsPDF not loaded');
             }
             
-            // Set color based on grade
-            if (course.finalGrade === 'DISTINCTION') {
-                doc.setTextColor(22, 163, 74); // green
-            } else if (course.finalGrade === 'CREDIT') {
-                doc.setTextColor(59, 130, 246); // blue
-            } else if (course.finalGrade === 'PASS') {
-                doc.setTextColor(245, 158, 11); // orange
-            } else if (course.finalGrade === 'FAIL') {
-                doc.setTextColor(220, 38, 38); // red
-            } else {
-                doc.setTextColor(0, 0, 0);
-            }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
             
-            doc.text((index + 1).toString(), col1, yPos);
-            doc.text(course.courseCode || 'N/A', col2, yPos);
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 20;
+            let yPos = 20;
             
-            // Truncate long course names
-            let courseName = course.courseName || 'Unknown';
-            if (courseName.length > 30) {
-                courseName = courseName.substring(0, 27) + '...';
-            }
-            doc.text(courseName, col3, yPos);
-            doc.text((course.credits || 3).toString(), col4, yPos);
-            doc.text(coursePercentage > 0 ? coursePercentage + '%' : '—', col5, yPos);
-            doc.text(course.finalGrade || 'N/A', col6, yPos);
+            // ==================== HEADER WITH SEAL ====================
             
-            yPos += 7;
+            // Official Seal (circle)
+            doc.setDrawColor(30, 58, 138); // #1e3a8a
+            doc.setFillColor(255, 255, 255);
+            doc.circle(40, 35, 15, 'S');
+            doc.setFontSize(8);
+            doc.setTextColor(30, 58, 138);
+            doc.text('OFFICIAL', 32, 35);
+            doc.text('SEAL', 37, 40);
             
-            // Check if we need a new page
-            if (yPos > pageHeight - 60) {
-                doc.addPage();
-                yPos = 20;
-            }
-        });
-        
-        yPos += 10;
-        
-        // ==================== DETAILED ASSESSMENT MARKS ====================
-        
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(30, 58, 138);
-        doc.text('DETAILED ASSESSMENT MARKS', margin, yPos);
-        
-        yPos += 10;
-        
-        data.courses.forEach((course, courseIndex) => {
-            if (course.assessments && course.assessments.length > 0) {
-                // Calculate course total percentage
-                let totalScore = 0;
-                let maxScore = 0;
-                course.assessments.forEach(a => {
-                    totalScore += a.score || 0;
-                    maxScore += a.maxScore || 100;
-                });
-                const coursePercentage = maxScore > 0 ? ((totalScore / maxScore) * 100).toFixed(1) : 0;
+            // Institution Name
+            doc.setFontSize(18);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(30, 58, 138); // #1e3a8a
+            doc.text('THEOLOGICAL EXTENSION BY EDUCATION', pageWidth / 2, 25, { align: 'center' });
+            
+            doc.setFontSize(16);
+            doc.setTextColor(59, 130, 246); // #3b82f6
+            doc.text('TEE COLLEGE', pageWidth / 2, 35, { align: 'center' });
+            
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(102, 102, 102); // #666
+            doc.text('Accredited Theological Institution', pageWidth / 2, 42, { align: 'center' });
+            
+            // Official Transcript Title
+            doc.setFontSize(18);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(30, 58, 138); // #1e3a8a
+            doc.text('OFFICIAL ACADEMIC TRANSCRIPT', pageWidth / 2, 55, { align: 'center' });
+            
+            // Draw line under title
+            doc.setDrawColor(30, 58, 138);
+            doc.setLineWidth(0.5);
+            doc.line(margin, 60, pageWidth - margin, 60);
+            
+            yPos = 70;
+            
+            // ==================== STUDENT INFORMATION ====================
+            
+            // Background for student info
+            doc.setFillColor(248, 250, 252); // #f8fafc
+            doc.rect(margin, yPos - 5, pageWidth - (margin * 2), 45, 'F');
+            
+            // Student details in table format
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(0, 0, 0);
+            
+            // Left column
+            doc.text('FULL NAME:', margin + 5, yPos);
+            doc.text('REGISTRATION NO:', margin + 5, yPos + 8);
+            doc.text('PROGRAM:', margin + 5, yPos + 16);
+            doc.text('STUDY CENTRE:', margin + 5, yPos + 24);
+            doc.text('COUNTY:', margin + 5, yPos + 32);
+            
+            // Right column (values)
+            doc.setFont('helvetica', 'normal');
+            doc.text(data.student.full_name || 'N/A', margin + 55, yPos);
+            doc.text(data.student.reg_number || 'N/A', margin + 55, yPos + 8);
+            doc.text(data.student.program || 'N/A', margin + 55, yPos + 16);
+            doc.text(data.student.centre_name || data.student.centre || 'N/A', margin + 55, yPos + 24);
+            doc.text(data.student.county || 'N/A', margin + 55, yPos + 32);
+            
+            // Student Photo placeholder
+            doc.setDrawColor(204, 204, 204);
+            doc.setFillColor(248, 249, 250);
+            doc.roundedRect(pageWidth - 70, yPos - 5, 50, 50, 3, 3, 'FD');
+            doc.setFontSize(10);
+            doc.setTextColor(102, 102, 102);
+            doc.text('Student', pageWidth - 55, yPos + 20);
+            doc.text('Photo', pageWidth - 53, yPos + 28);
+            
+            yPos += 50;
+            
+            // ==================== PROGRAM DETAILS ====================
+            
+            // Four colored boxes
+            const boxWidth = (pageWidth - (margin * 2) - 30) / 4;
+            
+            // Intake Date
+            doc.setFillColor(30, 58, 138); // #1e3a8a
+            doc.rect(margin, yPos, boxWidth, 25, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.text('INTAKE DATE', margin + 5, yPos + 8);
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text(data.student.intake_year || 'N/A', margin + 5, yPos + 20);
+            
+            // Completion Date
+            doc.setFillColor(59, 130, 246); // #3b82f6
+            doc.rect(margin + boxWidth + 10, yPos, boxWidth, 25, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.text('COMPLETION DATE', margin + boxWidth + 15, yPos + 8);
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text(data.student.completion_date || 'In Progress', margin + boxWidth + 15, yPos + 20);
+            
+            // Duration
+            doc.setFillColor(16, 185, 129); // #10b981
+            doc.rect(margin + (boxWidth + 10) * 2, yPos, boxWidth, 25, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.text('DURATION', margin + (boxWidth + 10) * 2 + 5, yPos + 8);
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text(data.student.duration || 'N/A', margin + (boxWidth + 10) * 2 + 5, yPos + 20);
+            
+            // Mode of Study
+            doc.setFillColor(139, 92, 246); // #8b5cf6
+            doc.rect(margin + (boxWidth + 10) * 3, yPos, boxWidth, 25, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.text('MODE OF STUDY', margin + (boxWidth + 10) * 3 + 5, yPos + 8);
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text(data.student.study_mode || 'Full-time', margin + (boxWidth + 10) * 3 + 5, yPos + 20);
+            
+            yPos += 35;
+            
+            // ==================== ACADEMIC PERFORMANCE SUMMARY ====================
+            
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(30, 58, 138);
+            doc.text('ACADEMIC PERFORMANCE SUMMARY', margin, yPos);
+            
+            yPos += 10;
+            
+            // Table headers
+            doc.setFillColor(30, 58, 138);
+            doc.rect(margin, yPos - 4, pageWidth - (margin * 2), 8, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            
+            const col1 = margin + 5;
+            const col2 = margin + 25;
+            const col3 = margin + 70;
+            const col4 = margin + 140;
+            const col5 = margin + 160;
+            const col6 = margin + 180;
+            
+            doc.text('NO.', col1, yPos);
+            doc.text('CODE', col2, yPos);
+            doc.text('COURSE TITLE', col3, yPos);
+            doc.text('CREDITS', col4, yPos);
+            doc.text('SCORE %', col5, yPos);
+            doc.text('GRADE', col6, yPos);
+            
+            yPos += 8;
+            
+            // Table rows
+            doc.setTextColor(0, 0, 0);
+            doc.setFont('helvetica', 'normal');
+            
+            data.courses.forEach((course, index) => {
+                // Calculate course percentage
+                let coursePercentage = 0;
+                if (course.assessments && course.assessments.length > 0) {
+                    const total = course.assessments.reduce((sum, a) => sum + (a.percentage || 0), 0);
+                    coursePercentage = Math.round(total / course.assessments.length);
+                }
                 
-                // Course header
-                doc.setFontSize(12);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor(30, 58, 138);
-                doc.text(`${course.courseCode || 'N/A'} - ${course.courseName || 'Unknown'}`, margin, yPos);
+                // Set color based on grade
+                if (course.finalGrade === 'DISTINCTION') {
+                    doc.setTextColor(22, 163, 74); // green
+                } else if (course.finalGrade === 'CREDIT') {
+                    doc.setTextColor(59, 130, 246); // blue
+                } else if (course.finalGrade === 'PASS') {
+                    doc.setTextColor(245, 158, 11); // orange
+                } else if (course.finalGrade === 'FAIL') {
+                    doc.setTextColor(220, 38, 38); // red
+                } else {
+                    doc.setTextColor(0, 0, 0);
+                }
                 
-                // Course total and grade on same line
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'normal');
-                doc.setTextColor(102, 102, 102);
-                let gradeColor = '';
-                if (course.finalGrade === 'DISTINCTION') gradeColor = 'green';
-                else if (course.finalGrade === 'CREDIT') gradeColor = 'blue';
-                else if (course.finalGrade === 'PASS') gradeColor = 'orange';
-                else if (course.finalGrade === 'FAIL') gradeColor = 'red';
+                doc.text((index + 1).toString(), col1, yPos);
+                doc.text(course.courseCode || 'N/A', col2, yPos);
                 
-                doc.text(`Course Total: ${coursePercentage}% | Final Grade: ${course.finalGrade || 'N/A'}`, 
-                         pageWidth - margin - 80, yPos);
+                // Truncate long course names
+                let courseName = course.courseName || 'Unknown';
+                if (courseName.length > 30) {
+                    courseName = courseName.substring(0, 27) + '...';
+                }
+                doc.text(courseName, col3, yPos);
+                doc.text((course.credits || 3).toString(), col4, yPos);
+                doc.text(coursePercentage > 0 ? coursePercentage + '%' : '—', col5, yPos);
+                doc.text(course.finalGrade || 'N/A', col6, yPos);
                 
                 yPos += 7;
                 
-                // Assessment table headers
-                doc.setFillColor(248, 250, 252);
-                doc.rect(margin, yPos - 4, pageWidth - (margin * 2), 6, 'F');
-                doc.setFontSize(9);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor(0, 0, 0);
-                
-                const aCol1 = margin + 5;
-                const aCol2 = margin + 25;
-                const aCol3 = margin + 80;
-                const aCol4 = margin + 120;
-                const aCol5 = margin + 150;
-                const aCol6 = margin + 170;
-                const aCol7 = margin + 190;
-                
-                doc.text('#', aCol1, yPos);
-                doc.text('Assessment', aCol2, yPos);
-                doc.text('Type', aCol3, yPos);
-                doc.text('Score', aCol4, yPos);
-                doc.text('%', aCol5, yPos);
-                doc.text('Grade', aCol6, yPos);
-                doc.text('Remarks', aCol7, yPos);
-                
-                yPos += 6;
-                
-                // Assessment rows
-                doc.setFont('helvetica', 'normal');
-                course.assessments.forEach((assessment, aIndex) => {
-                    // Color based on percentage
-                    if (assessment.percentage >= 80) {
-                        doc.setTextColor(22, 163, 74);
-                    } else if (assessment.percentage >= 70) {
-                        doc.setTextColor(59, 130, 246);
-                    } else if (assessment.percentage >= 60) {
-                        doc.setTextColor(245, 158, 11);
-                    } else {
-                        doc.setTextColor(220, 38, 38);
-                    }
+                // Check if we need a new page
+                if (yPos > pageHeight - 60) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+            });
+            
+            yPos += 10;
+            
+            // ==================== DETAILED ASSESSMENT MARKS ====================
+            
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(30, 58, 138);
+            doc.text('DETAILED ASSESSMENT MARKS', margin, yPos);
+            
+            yPos += 10;
+            
+            data.courses.forEach((course, courseIndex) => {
+                if (course.assessments && course.assessments.length > 0) {
+                    // Calculate course total percentage
+                    let totalScore = 0;
+                    let maxScore = 0;
+                    course.assessments.forEach(a => {
+                        totalScore += a.score || 0;
+                        maxScore += a.maxScore || 100;
+                    });
+                    const coursePercentage = maxScore > 0 ? ((totalScore / maxScore) * 100).toFixed(1) : 0;
                     
-                    doc.text((aIndex + 1).toString(), aCol1, yPos);
+                    // Course header
+                    doc.setFontSize(12);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(30, 58, 138);
+                    doc.text(`${course.courseCode || 'N/A'} - ${course.courseName || 'Unknown'}`, margin, yPos);
                     
-                    let assessName = assessment.name || 'Assessment';
-                    if (assessName.length > 15) assessName = assessName.substring(0, 12) + '...';
-                    doc.text(assessName, aCol2, yPos);
+                    // Course total and grade on same line
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(102, 102, 102);
                     
-                    doc.text(assessment.type || 'N/A', aCol3, yPos);
-                    doc.text(`${assessment.score || 0}/${assessment.maxScore || 100}`, aCol4, yPos);
-                    doc.text(`${(assessment.percentage || 0).toFixed(1)}%`, aCol5, yPos);
-                    doc.text(assessment.grade || 'N/A', aCol6, yPos);
+                    doc.text(`Course Total: ${coursePercentage}% | Final Grade: ${course.finalGrade || 'N/A'}`, 
+                             pageWidth - margin - 80, yPos);
                     
-                    let remarks = assessment.remarks || '';
-                    if (remarks.length > 10) remarks = remarks.substring(0, 7) + '...';
-                    doc.text(remarks, aCol7, yPos);
+                    yPos += 7;
+                    
+                    // Assessment table headers
+                    doc.setFillColor(248, 250, 252);
+                    doc.rect(margin, yPos - 4, pageWidth - (margin * 2), 6, 'F');
+                    doc.setFontSize(9);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(0, 0, 0);
+                    
+                    const aCol1 = margin + 5;
+                    const aCol2 = margin + 25;
+                    const aCol3 = margin + 80;
+                    const aCol4 = margin + 120;
+                    const aCol5 = margin + 150;
+                    const aCol6 = margin + 170;
+                    const aCol7 = margin + 190;
+                    
+                    doc.text('#', aCol1, yPos);
+                    doc.text('Assessment', aCol2, yPos);
+                    doc.text('Type', aCol3, yPos);
+                    doc.text('Score', aCol4, yPos);
+                    doc.text('%', aCol5, yPos);
+                    doc.text('Grade', aCol6, yPos);
+                    doc.text('Remarks', aCol7, yPos);
                     
                     yPos += 6;
                     
-                    // Check if we need a new page
-                    if (yPos > pageHeight - 80) {
-                        doc.addPage();
-                        yPos = 20;
-                    }
-                });
-                
-                yPos += 5;
+                    // Assessment rows
+                    doc.setFont('helvetica', 'normal');
+                    course.assessments.forEach((assessment, aIndex) => {
+                        // Color based on percentage
+                        if (assessment.percentage >= 80) {
+                            doc.setTextColor(22, 163, 74);
+                        } else if (assessment.percentage >= 70) {
+                            doc.setTextColor(59, 130, 246);
+                        } else if (assessment.percentage >= 60) {
+                            doc.setTextColor(245, 158, 11);
+                        } else {
+                            doc.setTextColor(220, 38, 38);
+                        }
+                        
+                        doc.text((aIndex + 1).toString(), aCol1, yPos);
+                        
+                        let assessName = assessment.name || 'Assessment';
+                        if (assessName.length > 15) assessName = assessName.substring(0, 12) + '...';
+                        doc.text(assessName, aCol2, yPos);
+                        
+                        doc.text(assessment.type || 'N/A', aCol3, yPos);
+                        doc.text(`${assessment.score || 0}/${assessment.maxScore || 100}`, aCol4, yPos);
+                        doc.text(`${(assessment.percentage || 0).toFixed(1)}%`, aCol5, yPos);
+                        doc.text(assessment.grade || 'N/A', aCol6, yPos);
+                        
+                        let remarks = assessment.remarks || '';
+                        if (remarks.length > 10) remarks = remarks.substring(0, 7) + '...';
+                        doc.text(remarks, aCol7, yPos);
+                        
+                        yPos += 6;
+                        
+                        // Check if we need a new page
+                        if (yPos > pageHeight - 80) {
+                            doc.addPage();
+                            yPos = 20;
+                        }
+                    });
+                    
+                    yPos += 5;
+                }
+            });
+            
+            // ==================== SUMMARY & GRADING SCALE ====================
+            
+            // Check if we need a new page
+            if (yPos > pageHeight - 80) {
+                doc.addPage();
+                yPos = 20;
             }
-        });
-        
-        // ==================== SUMMARY & GRADING SCALE ====================
-        
-        // Check if we need a new page
-        if (yPos > pageHeight - 80) {
-            doc.addPage();
-            yPos = 20;
-        }
-        
-        // Calculate totals
-        const totalCredits = data.courses.reduce((sum, course) => sum + (course.credits || 3), 0);
-        const earnedCredits = data.courses.filter(c => 
-            c.finalGrade && c.finalGrade !== 'FAIL' && c.finalGrade !== 'N/A'
-        ).reduce((sum, course) => sum + (course.credits || 3), 0);
-        
-        // Calculate average percentage
-        let totalPercentage = 0;
-        let coursesWithMarks = 0;
-        data.courses.forEach(course => {
-            if (course.assessments && course.assessments.length > 0) {
-                const courseTotal = course.assessments.reduce((sum, a) => sum + (a.percentage || 0), 0);
-                const courseAvg = course.assessments.length > 0 ? courseTotal / course.assessments.length : 0;
-                totalPercentage += courseAvg;
-                coursesWithMarks++;
+            
+            // Calculate totals
+            const totalCredits = data.courses.reduce((sum, course) => sum + (course.credits || 3), 0);
+            const earnedCredits = data.courses.filter(c => 
+                c.finalGrade && c.finalGrade !== 'FAIL' && c.finalGrade !== 'N/A'
+            ).reduce((sum, course) => sum + (course.credits || 3), 0);
+            
+            // Calculate average percentage
+            let totalPercentage = 0;
+            let coursesWithMarks = 0;
+            data.courses.forEach(course => {
+                if (course.assessments && course.assessments.length > 0) {
+                    const courseTotal = course.assessments.reduce((sum, a) => sum + (a.percentage || 0), 0);
+                    const courseAvg = course.assessments.length > 0 ? courseTotal / course.assessments.length : 0;
+                    totalPercentage += courseAvg;
+                    coursesWithMarks++;
+                }
+            });
+            const avgPercentage = coursesWithMarks > 0 ? Math.round(totalPercentage / coursesWithMarks) : 0;
+            
+            // Determine overall grade
+            let overallGrade = 'PASS';
+            if (avgPercentage >= 80) overallGrade = 'DISTINCTION';
+            else if (avgPercentage >= 70) overallGrade = 'CREDIT';
+            else if (avgPercentage >= 60) overallGrade = 'PASS';
+            else if (avgPercentage > 0) overallGrade = 'FAIL';
+            else overallGrade = 'NO MARKS';
+            
+            // Left column - Academic Summary
+            doc.setFillColor(240, 249, 255);
+            doc.rect(margin, yPos - 5, (pageWidth - (margin * 2) - 20) / 2, 50, 'F');
+            doc.setDrawColor(59, 130, 246);
+            doc.setLineWidth(1);
+            doc.line(margin, yPos - 5, margin, yPos + 45);
+            
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(30, 58, 138);
+            doc.text('ACADEMIC SUMMARY', margin + 5, yPos);
+            
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(0, 0, 0);
+            
+            let summaryY = yPos + 8;
+            doc.text('Total Credits Attempted:', margin + 5, summaryY);
+            doc.text(totalCredits.toString(), margin + 80, summaryY);
+            
+            summaryY += 6;
+            doc.text('Total Credits Earned:', margin + 5, summaryY);
+            doc.text(earnedCredits.toString(), margin + 80, summaryY);
+            
+            summaryY += 6;
+            doc.text('Overall Percentage:', margin + 5, summaryY);
+            doc.text(avgPercentage + '%', margin + 80, summaryY);
+            
+            summaryY += 6;
+            doc.text('Cumulative GPA:', margin + 5, summaryY);
+            doc.text((data.gpa ? data.gpa.toFixed(2) : 'N/A'), margin + 80, summaryY);
+            
+            summaryY += 6;
+            doc.text('Final Grade:', margin + 5, summaryY);
+            
+            // Color for final grade
+            if (overallGrade === 'DISTINCTION') doc.setTextColor(22, 163, 74);
+            else if (overallGrade === 'CREDIT') doc.setTextColor(59, 130, 246);
+            else if (overallGrade === 'PASS') doc.setTextColor(245, 158, 11);
+            else if (overallGrade === 'FAIL') doc.setTextColor(220, 38, 38);
+            
+            doc.text(overallGrade, margin + 80, summaryY);
+            
+            // Right column - Grading System
+            doc.setFillColor(240, 253, 244);
+            doc.rect(margin + (pageWidth - (margin * 2) - 20) / 2 + 10, yPos - 5, (pageWidth - (margin * 2) - 20) / 2, 50, 'F');
+            doc.setDrawColor(16, 185, 129);
+            doc.setLineWidth(1);
+            doc.line(margin + (pageWidth - (margin * 2) - 20) / 2 + 10, yPos - 5, 
+                    margin + (pageWidth - (margin * 2) - 20) / 2 + 10, yPos + 45);
+            
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(30, 58, 138);
+            doc.text('GRADING SYSTEM', margin + (pageWidth - (margin * 2) - 20) / 2 + 15, yPos);
+            
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            
+            let gradingY = yPos + 8;
+            
+            doc.setTextColor(0, 0, 0);
+            doc.text('80% - 100%', margin + (pageWidth - (margin * 2) - 20) / 2 + 15, gradingY);
+            doc.setTextColor(22, 163, 74);
+            doc.text('DISTINCTION', margin + (pageWidth - (margin * 2) - 20) / 2 + 70, gradingY);
+            doc.setTextColor(102, 102, 102);
+            doc.text('Excellent', margin + (pageWidth - (margin * 2) - 20) / 2 + 120, gradingY);
+            
+            gradingY += 6;
+            doc.setTextColor(0, 0, 0);
+            doc.text('70% - 79%', margin + (pageWidth - (margin * 2) - 20) / 2 + 15, gradingY);
+            doc.setTextColor(59, 130, 246);
+            doc.text('CREDIT', margin + (pageWidth - (margin * 2) - 20) / 2 + 70, gradingY);
+            doc.setTextColor(102, 102, 102);
+            doc.text('Good', margin + (pageWidth - (margin * 2) - 20) / 2 + 120, gradingY);
+            
+            gradingY += 6;
+            doc.setTextColor(0, 0, 0);
+            doc.text('60% - 69%', margin + (pageWidth - (margin * 2) - 20) / 2 + 15, gradingY);
+            doc.setTextColor(245, 158, 11);
+            doc.text('PASS', margin + (pageWidth - (margin * 2) - 20) / 2 + 70, gradingY);
+            doc.setTextColor(102, 102, 102);
+            doc.text('Satisfactory', margin + (pageWidth - (margin * 2) - 20) / 2 + 120, gradingY);
+            
+            gradingY += 6;
+            doc.setTextColor(0, 0, 0);
+            doc.text('Below 60%', margin + (pageWidth - (margin * 2) - 20) / 2 + 15, gradingY);
+            doc.setTextColor(220, 38, 38);
+            doc.text('FAIL', margin + (pageWidth - (margin * 2) - 20) / 2 + 70, gradingY);
+            doc.setTextColor(102, 102, 102);
+            doc.text('Repeat', margin + (pageWidth - (margin * 2) - 20) / 2 + 120, gradingY);
+            
+            yPos += 55;
+            
+            // ==================== FOOTER WITH SIGNATURES ====================
+            
+            // Check if we need a new page
+            if (yPos > pageHeight - 40) {
+                doc.addPage();
+                yPos = 20;
             }
-        });
-        const avgPercentage = coursesWithMarks > 0 ? Math.round(totalPercentage / coursesWithMarks) : 0;
-        
-        // Determine overall grade
-        let overallGrade = 'PASS';
-        if (avgPercentage >= 80) overallGrade = 'DISTINCTION';
-        else if (avgPercentage >= 70) overallGrade = 'CREDIT';
-        else if (avgPercentage >= 60) overallGrade = 'PASS';
-        else if (avgPercentage > 0) overallGrade = 'FAIL';
-        else overallGrade = 'NO MARKS';
-        
-        // Left column - Academic Summary
-        doc.setFillColor(240, 249, 255);
-        doc.rect(margin, yPos - 5, (pageWidth - (margin * 2) - 20) / 2, 50, 'F');
-        doc.setDrawColor(59, 130, 246);
-        doc.setLineWidth(1);
-        doc.line(margin, yPos - 5, margin, yPos + 45);
-        
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(30, 58, 138);
-        doc.text('ACADEMIC SUMMARY', margin + 5, yPos);
-        
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(0, 0, 0);
-        
-        let summaryY = yPos + 8;
-        doc.text('Total Credits Attempted:', margin + 5, summaryY);
-        doc.text(totalCredits.toString(), margin + 80, summaryY);
-        
-        summaryY += 6;
-        doc.text('Total Credits Earned:', margin + 5, summaryY);
-        doc.text(earnedCredits.toString(), margin + 80, summaryY);
-        
-        summaryY += 6;
-        doc.text('Overall Percentage:', margin + 5, summaryY);
-        doc.text(avgPercentage + '%', margin + 80, summaryY);
-        
-        summaryY += 6;
-        doc.text('Cumulative GPA:', margin + 5, summaryY);
-        doc.text((data.gpa ? data.gpa.toFixed(2) : 'N/A'), margin + 80, summaryY);
-        
-        summaryY += 6;
-        doc.text('Final Grade:', margin + 5, summaryY);
-        
-        // Color for final grade
-        if (overallGrade === 'DISTINCTION') doc.setTextColor(22, 163, 74);
-        else if (overallGrade === 'CREDIT') doc.setTextColor(59, 130, 246);
-        else if (overallGrade === 'PASS') doc.setTextColor(245, 158, 11);
-        else if (overallGrade === 'FAIL') doc.setTextColor(220, 38, 38);
-        
-        doc.text(overallGrade, margin + 80, summaryY);
-        
-        // Right column - Grading System
-        doc.setFillColor(240, 253, 244);
-        doc.rect(margin + (pageWidth - (margin * 2) - 20) / 2 + 10, yPos - 5, (pageWidth - (margin * 2) - 20) / 2, 50, 'F');
-        doc.setDrawColor(16, 185, 129);
-        doc.setLineWidth(1);
-        doc.line(margin + (pageWidth - (margin * 2) - 20) / 2 + 10, yPos - 5, 
-                margin + (pageWidth - (margin * 2) - 20) / 2 + 10, yPos + 45);
-        
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(30, 58, 138);
-        doc.text('GRADING SYSTEM', margin + (pageWidth - (margin * 2) - 20) / 2 + 15, yPos);
-        
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        
-        let gradingY = yPos + 8;
-        
-        doc.setTextColor(0, 0, 0);
-        doc.text('80% - 100%', margin + (pageWidth - (margin * 2) - 20) / 2 + 15, gradingY);
-        doc.setTextColor(22, 163, 74);
-        doc.text('DISTINCTION', margin + (pageWidth - (margin * 2) - 20) / 2 + 70, gradingY);
-        doc.setTextColor(102, 102, 102);
-        doc.text('Excellent', margin + (pageWidth - (margin * 2) - 20) / 2 + 120, gradingY);
-        
-        gradingY += 6;
-        doc.setTextColor(0, 0, 0);
-        doc.text('70% - 79%', margin + (pageWidth - (margin * 2) - 20) / 2 + 15, gradingY);
-        doc.setTextColor(59, 130, 246);
-        doc.text('CREDIT', margin + (pageWidth - (margin * 2) - 20) / 2 + 70, gradingY);
-        doc.setTextColor(102, 102, 102);
-        doc.text('Good', margin + (pageWidth - (margin * 2) - 20) / 2 + 120, gradingY);
-        
-        gradingY += 6;
-        doc.setTextColor(0, 0, 0);
-        doc.text('60% - 69%', margin + (pageWidth - (margin * 2) - 20) / 2 + 15, gradingY);
-        doc.setTextColor(245, 158, 11);
-        doc.text('PASS', margin + (pageWidth - (margin * 2) - 20) / 2 + 70, gradingY);
-        doc.setTextColor(102, 102, 102);
-        doc.text('Satisfactory', margin + (pageWidth - (margin * 2) - 20) / 2 + 120, gradingY);
-        
-        gradingY += 6;
-        doc.setTextColor(0, 0, 0);
-        doc.text('Below 60%', margin + (pageWidth - (margin * 2) - 20) / 2 + 15, gradingY);
-        doc.setTextColor(220, 38, 38);
-        doc.text('FAIL', margin + (pageWidth - (margin * 2) - 20) / 2 + 70, gradingY);
-        doc.setTextColor(102, 102, 102);
-        doc.text('Repeat', margin + (pageWidth - (margin * 2) - 20) / 2 + 120, gradingY);
-        
-        yPos += 55;
-        
-        // ==================== FOOTER WITH SIGNATURES ====================
-        
-        // Check if we need a new page
-        if (yPos > pageHeight - 40) {
-            doc.addPage();
-            yPos = 20;
+            
+            // Top border
+            doc.setDrawColor(30, 58, 138);
+            doc.setLineWidth(1);
+            doc.line(margin, yPos, pageWidth - margin, yPos);
+            yPos += 5;
+            
+            // Signatures
+            const sigWidth = (pageWidth - (margin * 2) - 40) / 3;
+            
+            // Registrar
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(0, 0, 0);
+            doc.text('REGISTRAR', margin, yPos);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(102, 102, 102);
+            doc.text('TEE College', margin, yPos + 6);
+            doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, margin, yPos + 12);
+            
+            // Academic Dean
+            doc.text('ACADEMIC DEAN', margin + sigWidth + 20, yPos);
+            doc.text('TEE College', margin + sigWidth + 20, yPos + 6);
+            doc.text('Stamp & Seal', margin + sigWidth + 20, yPos + 12);
+            
+            // Centre Director
+            doc.text('CENTRE DIRECTOR', margin + (sigWidth + 20) * 2, yPos);
+            doc.text(data.student.centre_name || data.student.centre || 'N/A', margin + (sigWidth + 20) * 2, yPos + 6);
+            doc.text('Official Stamp', margin + (sigWidth + 20) * 2, yPos + 12);
+            
+            yPos += 20;
+            
+            // Official Notes
+            doc.setFillColor(254, 242, 242);
+            doc.rect(margin, yPos, pageWidth - (margin * 2), 20, 'F');
+            doc.setFontSize(8);
+            doc.setTextColor(102, 102, 102);
+            doc.text('OFFICIAL NOTES: This is an official transcript issued by TEE College. Any alteration renders this document invalid. For verification, contact the Registrar\'s Office.', 
+                     margin + 5, yPos + 5);
+            
+            const transcriptId = `TRX-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}-001`;
+            const issuedOn = new Date().toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            
+            doc.text(`TRANSCRIPT ID: ${transcriptId} | ISSUED ON: ${issuedOn}`, 
+                     margin + 5, yPos + 12);
+            
+            // Save the PDF
+            const fileName = `Transcript_${data.student.reg_number}_${new Date().toISOString().split('T')[0]}.pdf`;
+            doc.save(fileName);
+            
+            console.log('✅ PDF generated matching preview:', fileName);
+            this.showToast(`PDF transcript generated for ${data.student.full_name}`, 'success');
+            
+            return fileName;
+            
+        } catch (error) {
+            console.error('❌ Error generating PDF:', error);
+            this.showToast('Error generating PDF: ' + error.message, 'error');
+            throw error;
         }
-        
-        // Top border
-        doc.setDrawColor(30, 58, 138);
-        doc.setLineWidth(1);
-        doc.line(margin, yPos, pageWidth - margin, yPos);
-        yPos += 5;
-        
-        // Signatures
-        const sigWidth = (pageWidth - (margin * 2) - 40) / 3;
-        
-        // Registrar
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 0, 0);
-        doc.text('REGISTRAR', margin, yPos);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
-        doc.setTextColor(102, 102, 102);
-        doc.text('TEE College', margin, yPos + 6);
-        doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, margin, yPos + 12);
-        
-        // Academic Dean
-        doc.text('ACADEMIC DEAN', margin + sigWidth + 20, yPos);
-        doc.text('TEE College', margin + sigWidth + 20, yPos + 6);
-        doc.text('Stamp & Seal', margin + sigWidth + 20, yPos + 12);
-        
-        // Centre Director
-        doc.text('CENTRE DIRECTOR', margin + (sigWidth + 20) * 2, yPos);
-        doc.text(data.student.centre_name || data.student.centre || 'N/A', margin + (sigWidth + 20) * 2, yPos + 6);
-        doc.text('Official Stamp', margin + (sigWidth + 20) * 2, yPos + 12);
-        
-        yPos += 20;
-        
-        // Official Notes
-        doc.setFillColor(254, 242, 242);
-        doc.rect(margin, yPos, pageWidth - (margin * 2), 20, 'F');
-        doc.setFontSize(8);
-        doc.setTextColor(102, 102, 102);
-        doc.text('OFFICIAL NOTES: This is an official transcript issued by TEE College. Any alteration renders this document invalid. For verification, contact the Registrar\'s Office.', 
-                 margin + 5, yPos + 5);
-        
-        const transcriptId = `TRX-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}-001`;
-        const issuedOn = new Date().toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-        });
-        
-        doc.text(`TRANSCRIPT ID: ${transcriptId} | ISSUED ON: ${issuedOn}`, 
-                 margin + 5, yPos + 12);
-        
-        // Save the PDF
-        const fileName = `Transcript_${data.student.reg_number}_${new Date().toISOString().split('T')[0]}.pdf`;
-        doc.save(fileName);
-        
-        console.log('✅ PDF generated matching preview:', fileName);
-        this.showToast(`PDF transcript generated for ${data.student.full_name}`, 'success');
-        
-        return fileName;
-        
-    } catch (error) {
-        console.error('❌ Error generating PDF:', error);
-        this.showToast('Error generating PDF: ' + error.message, 'error');
-        throw error;
     }
-}
     
     // ==================== UTILITY FUNCTIONS ====================
     
